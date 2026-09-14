@@ -3,6 +3,7 @@ import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { AppError } from '../app-error.js'
 import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
 import type { IdentityRegistrar, SessionIssuer, UserDirectory } from '../ports/identity.js'
+import type { PartnerApplicationRepository } from '../ports/partner-application-repository.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 
 /**
@@ -41,6 +42,8 @@ export type SignupDeps = {
   readonly accounts: ChartOfAccountsRepository
   readonly registrar: IdentityRegistrar
   readonly sessions: SessionIssuer
+  /** Candidatura de Parceiro — NR-115, ADR-0013. So chamada quando `account.type === 'parceiro'`. */
+  readonly partners: PartnerApplicationRepository
 }
 
 /** Quanto tempo a sessao do cadastro vale. Igual a do login. */
@@ -105,6 +108,25 @@ export async function signup(
    * Perder o cadastro inteiro por causa do plano seria pior.
    */
   await deps.accounts.insertDefaults(empresa.id, PLANO_DE_CONTAS_PADRAO, usuario.id, agora)
+
+  /*
+   * Candidatura de Parceiro — NR-115, ADR-0013.
+   *
+   * Tambem fora da transacao do resto, mesmo raciocinio do plano de contas:
+   * se falhar aqui, a conta ja existe e funciona como lojista normalmente —
+   * a pessoa so precisa se candidatar de novo depois, o que e recuperavel.
+   * Perder o cadastro inteiro por causa da candidatura seria pior.
+   */
+  if (input.account?.type === 'parceiro') {
+    await deps.partners.submit({
+      ownerUserId: usuario.id,
+      ownerCompanyId: empresa.id,
+      pixKey: input.account.pixKey,
+      pixKeyType: input.account.pixKeyType,
+      message: input.account.message,
+      couponCode: input.account.couponCode,
+    })
+  }
 
   const expiraEm = new Date(agora.getTime() + DURACAO_DA_SESSAO_HORAS * 3_600_000)
   const token = await deps.sessions.issue(

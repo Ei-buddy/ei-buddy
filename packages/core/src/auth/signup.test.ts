@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { InMemoryChartOfAccounts } from '../accounting/fakes.js'
 import { isAppError } from '../app-error.js'
+import { InMemoryPartnerApplicationRepository } from '../partners/fakes.js'
 import { InMemoryCompanyRepository } from '../registration/fakes.js'
 import { FakeIdentityProvider, InMemorySessionIssuer } from './fakes.js'
 import { signup } from './signup.js'
@@ -30,6 +31,7 @@ function cenario() {
   const accounts = new InMemoryChartOfAccounts()
   const provider = new FakeIdentityProvider()
   const sessions = new InMemorySessionIssuer()
+  const partners = new InMemoryPartnerApplicationRepository()
 
   /* O diretorio nao tem falso proprio: o minimo que o caso de uso usa. */
   const criados: { id: string; name: string; companyId: string }[] = []
@@ -47,10 +49,11 @@ function cenario() {
   }
 
   return {
-    deps: { companies, accounts, users, registrar: provider, sessions } as never,
+    deps: { companies, accounts, users, registrar: provider, sessions, partners } as never,
     companies,
     accounts,
     provider,
+    partners,
     criados,
   }
 }
@@ -169,5 +172,49 @@ describe('cadastro de conta', () => {
     /* Papel menor deixaria a empresa sem ninguem que possa convidar o segundo
        usuario. */
     expect(sessao.memberships[0]?.role).toBe('owner')
+  })
+
+  describe('cadastro como Parceiro — NR-115, ADR-0013', () => {
+    it('sem `account`, ninguem vira candidato — e o comportamento de sempre', async () => {
+      const c = cenario()
+      const sessao = await signup(c.deps, entrada, AGORA)
+
+      const minha = await c.partners.mine(sessao.activeCompanyId!)
+      expect(minha).toBeUndefined()
+    })
+
+    it('`account.type: "lojista"` explicito tambem nao candidata', async () => {
+      const c = cenario()
+      const sessao = await signup(c.deps, { ...entrada, account: { type: 'lojista' } }, AGORA)
+
+      const minha = await c.partners.mine(sessao.activeCompanyId!)
+      expect(minha).toBeUndefined()
+    })
+
+    it('`account.type: "parceiro"` cria a candidatura pending, sessao continua abrindo normal', async () => {
+      const c = cenario()
+      const sessao = await signup(
+        c.deps,
+        {
+          ...entrada,
+          account: {
+            type: 'parceiro',
+            pixKey: '41999990000',
+            pixKeyType: 'PHONE',
+            message: 'Quero divulgar o Buddy para meus clientes.',
+            couponCode: 'ANA10',
+          },
+        },
+        AGORA,
+      )
+
+      /* A conta funciona como lojista imediatamente — so o cupom fica pendente. */
+      expect(sessao.activeCompanyId).not.toBeNull()
+      expect(sessao.memberships[0]?.role).toBe('owner')
+
+      const minha = await c.partners.mine(sessao.activeCompanyId!)
+      expect(minha?.status).toBe('pending')
+      expect(minha?.couponCode).toBe('ANA10')
+    })
   })
 })
