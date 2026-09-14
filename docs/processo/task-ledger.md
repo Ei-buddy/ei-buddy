@@ -152,17 +152,17 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem e cobrar a mensalidade.
 
-| ID     | Tarefa                                                        | Trilha | Módulo            | Est | Dep            | Bloq             | US/RF                  | Status |
-| ------ | ------------------------------------------------------------- | :----: | ----------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`            |   3 | NR-028         | —                | RF-125–128             |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core` |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`        |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
+| ID     | Tarefa                                                        | Trilha | Módulo                     | Est | Dep            | Bloq             | US/RF                  | Status |
+| ------ | ------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
+| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory   |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | RF-094, RF-095, RF-132 |   ⬜   |
-| NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`           |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`           |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`           |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito |   🟠   | `billing`         |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
-| NR-075 | `web`: planos, assinatura e cupom                             |   🟢   | `web`             |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
+| NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
+| NR-075 | `web`: planos, assinatura e cupom                             |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
 
 ## Sprint 5 — Bancos e relatórios
 

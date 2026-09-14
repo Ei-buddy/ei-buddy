@@ -42,13 +42,13 @@ PR**, e a linha sai da tabela de abertas.
 
 ## Painel
 
-| Estado             | Qtd | Quais                                                     |
-| ------------------ | --: | --------------------------------------------------------- |
-| 🔴 Aberta          |   8 | DEC-003, 005, 009, 011, 012, 013, 016, 018                |
-| 🟡 Em análise      |   0 | —                                                         |
-| ⚪ Adiada          |   1 | DEC-014                                                   |
+| Estado             | Qtd | Quais                                                          |
+| ------------------ | --: | -------------------------------------------------------------- |
+| 🔴 Aberta          |   8 | DEC-003, 005, 009, 011, 012, 013, 016, 018                     |
+| 🟡 Em análise      |   0 | —                                                              |
+| ⚪ Adiada          |   1 | DEC-014                                                        |
 | 🟢 Decidida        |  12 | DEC-001, 002, 006, 007, 008, 010, 015, 019, 020, 021, 022, 023 |
-| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                |
+| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                     |
 
 **Bloqueando o MVP agora:** DEC-003, DEC-009.
 Essas duas travam trabalho de implementação já na Sprint 1. A DEC-016 não trava
@@ -76,11 +76,11 @@ opção C é trocar uma função de composição.
 
 ### DEC-003 — Provedor de WhatsApp
 
-|              |                                                                                                                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🔴 Aberta                                                                                                                                                                       |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                             |
-| **Prazo**    | **Sprint 2**                                                                                                                                                                    |
+|              |                                                                                                                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🔴 Aberta                                                                                                                                                                                   |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                                         |
+| **Prazo**    | **Sprint 2**                                                                                                                                                                                |
 | **Bloqueia** | adapter real (`NR-046`) · [RF-015](../produto/requisitos-funcionais.md), RF-016, RF-048, RF-068 · envio e webhook de provedor do [E11](../produto/user-stories.md#e11--assistente-whatsapp) |
 
 A identidade do canal **não** espera esta DEC — [DEC-023](#dec-023). RF-094 e
@@ -191,11 +191,11 @@ mesma porta `BankStatementProvider`.
 
 ### <a id="dec-007"></a>DEC-007 — Modelo de LLM e mecanismo de recuperação de informação
 
-|              |                                                                                                                  |
-| ------------ | ---------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                   |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                              |
-| **Prazo**    | Sprint 3                                                                                                         |
+|              |                                                                                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                                                                     |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                |
+| **Prazo**    | Sprint 3                                                                                                                                                           |
 | **Bloqueia** | — (NR-060 ainda espera o adapter real: [DEC-003](#dec-003) / NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
@@ -575,11 +575,11 @@ registrado na DEC-021.
 
 ### <a id="dec-023"></a>DEC-023 — Identidade e recorte do canal WhatsApp
 
-|             |                                                                               |
-| ----------- | ----------------------------------------------------------------------------- |
-| **Status**  | 🟢 Decidida — [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)            |
-| **Escolha** | Celular obrigatório do owner é o vínculo; Fastify + `processMessage`; fake    |
-| **Data**    | 2026-09-13                                                                    |
+|             |                                                                            |
+| ----------- | -------------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)         |
+| **Escolha** | Celular obrigatório do owner é o vínculo; Fastify + `processMessage`; fake |
+| **Data**    | 2026-09-13                                                                 |
 
 O webhook não consulta Better Auth. Não há Workflow Mastra, Channel
 `@chat-adapter/whatsapp` nem `MastraServer`. Número desconhecido = silêncio
