@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |      92 |  235 |
-| ✅ Concluídas                 |      81 |  197 |
+| Total                         |      93 |  237 |
+| ✅ Concluídas                 |      82 |  199 |
 | 🚧 Bloqueadas por decisão     |       6 |   20 |
 | 🚧 Bloqueadas por dependência |       2 |    7 |
 | ⬜ A fazer, pode começar hoje |       3 |   11 |
@@ -152,17 +152,18 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem e cobrar a mensalidade.
 
-| ID     | Tarefa                                                        | Trilha | Módulo                     | Est | Dep            | Bloq             | US/RF                  | Status |
-| ------ | ------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory   |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | RF-094, RF-095, RF-132 |   ⬜   |
-| NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
-| NR-075 | `web`: planos, assinatura e cupom                             |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
+| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep            | Bloq             | US/RF                  | Status |
+| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
+| NR-046 | `whatsapp`: adapter real, webhook e consentimento                       |   🟠   | `whatsapp`                 |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | RF-094, RF-095, RF-132 |   ⬜   |
+| NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
+| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —              | —                | RF-114, RF-115         |   ✅   |
+| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -346,12 +347,12 @@ O retrabalho que resta é visual (tokens), não naming.
 
 | Trilha                          | Tarefas | Dias | Observação                                         |
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
-| 🔵 1 — Núcleo & Dados           |      33 |   83 | Sugestão de conexão (NR-108) somou ao NR-107       |
+| 🔵 1 — Núcleo & Dados           |      34 |   85 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      29 |   78 | NR-113 (identidade do canal, ADR-0012)             |
 | 🟢 3 — Clientes                 |      27 |   68 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **235 dias-desenvolvedor** em 92 tarefas. Com 3 pessoas, isso é cerca
+Somando: **237 dias-desenvolvedor** em 93 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

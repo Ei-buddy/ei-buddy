@@ -42,13 +42,13 @@ PR**, e a linha sai da tabela de abertas.
 
 ## Painel
 
-| Estado             | Qtd | Quais                                                          |
-| ------------------ | --: | -------------------------------------------------------------- |
-| 🔴 Aberta          |   8 | DEC-003, 005, 009, 011, 012, 013, 016, 018                     |
-| 🟡 Em análise      |   0 | —                                                              |
-| ⚪ Adiada          |   1 | DEC-014                                                        |
-| 🟢 Decidida        |  12 | DEC-001, 002, 006, 007, 008, 010, 015, 019, 020, 021, 022, 023 |
-| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                     |
+| Estado             | Qtd | Quais                                                               |
+| ------------------ | --: | ------------------------------------------------------------------- |
+| 🔴 Aberta          |   7 | DEC-003, 005, 009, 011, 013, 016, 018                               |
+| 🟡 Em análise      |   0 | —                                                                   |
+| ⚪ Adiada          |   1 | DEC-014                                                             |
+| 🟢 Decidida        |  13 | DEC-001, 002, 006, 007, 008, 010, 012, 015, 019, 020, 021, 022, 023 |
+| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                          |
 
 **Bloqueando o MVP agora:** DEC-003, DEC-009.
 Essas duas travam trabalho de implementação já na Sprint 1. A DEC-016 não trava
@@ -276,14 +276,19 @@ até a NR-061. Chave em memória, quando existir persistência, é por empresa
 
 |              |                                                                                                                    |
 | ------------ | ------------------------------------------------------------------------------------------------------------------ |
-| **Status**   | 🔴 Aberta                                                                                                          |
+| **Status**   | 🟢 Decidida — [ADR-0013](adr/0013-conta-de-parceiro-e-esquema-de-cupons.md)                                        |
 | **Dono**     | Produto                                                                                                            |
 | **Prazo**    | Sprint 3                                                                                                           |
 | **Bloqueia** | [RF-114](../produto/requisitos-funcionais.md), RF-115 · [US-056](../produto/user-stories.md#us-056--aplicar-cupom) |
 
-Herdada da apresentação. **Decidir:** há autocadastro ou só por convite? Existe
-indicação entre lojistas? Cupom é desconto percentual, valor fixo ou período
-grátis? Cumulativo? Quem emite?
+Herdada da apresentação. Autocadastro existe para os dois tipos de conta
+(lojista e Parceiro), sem convite. Indicação entre lojistas existe, separada
+da indicação por Parceiro — dois tipos de cupom, nunca escolhidos
+explicitamente por quem se cadastra. Desconto ao indicado é sempre
+percentual (30%, primeira mensalidade); comissão do Parceiro é percentual e
+recorrente; crédito do lojista é período grátis cumulativo, não percentual.
+Emitido por autocadastro, com o cupom de Parceiro só ativando após aprovação
+de um Super Admin. Ver ADR-0013 para o desenho completo.
 
 ---
 

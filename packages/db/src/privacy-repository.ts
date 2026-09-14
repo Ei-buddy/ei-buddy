@@ -117,8 +117,13 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
   conversations: 'Assistente ainda sem caso de uso ligado — tabela vazia no baseline.',
   messages: 'Assistente ainda sem caso de uso ligado — tabela vazia no baseline.',
   confirmations: 'Assistente ainda sem caso de uso ligado — tabela vazia no baseline.',
-  partners: 'Plataforma de cupom, sem tenant.',
-  coupons: 'Plataforma de cupom, sem tenant.',
+  partners:
+    'Candidatura de Parceiro (ADR-0013) — mediada por Admin, nao e dado que o titular gerou operando o negocio.',
+  coupons: 'Plataforma de cupom, sem tenant unico (ADR-0013).',
+  coupon_redemptions:
+    'Resgate de cupom no cadastro (ADR-0013) — cross-tenant como company_connections, exportacao ainda nao ligada, fast-follow.',
+  lojista_free_month_credits:
+    'Credito de mes gratis por indicacao (ADR-0013) — tenant normal, exportacao ainda nao ligada porque o caso de uso de leitura (NR-116) nao existe.',
   subscriptions: 'Billing SaaS ainda sem caso de uso ligado — tabela vazia no baseline.',
   subscription_cycles: 'Billing SaaS ainda sem caso de uso ligado — tabela vazia no baseline.',
   attachments: 'Anexo de arquivo; DEC-009 ainda aberta.',
