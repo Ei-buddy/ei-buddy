@@ -168,25 +168,25 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 
 ## E11 — Assistente WhatsApp
 
-| ID     | Requisito                                                                                         | US     | Módulo dono | Pri | St  |
-| ------ | ------------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
+| ID     | Requisito                                                                                                             | US     | Módulo dono | Pri | St  |
+| ------ | --------------------------------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
 | RF-094 | Tratar o celular obrigatório do owner no cadastro como vínculo WhatsApp da primeira empresa; só o owner opera o canal | US-046 | `core`      |  M  | ⬜  |
-| RF-095 | Ignorar mensagens de números não vinculados, sem executar ação nem revelar informação             | US-046 | `agent`     |  M  | ⬜  |
-| RF-096 | Interpretar consulta em linguagem natural e respondê-la a partir dos casos de uso de `core`       | US-047 | `agent`     |  M  | ⬜  |
-| RF-097 | Declarar as capacidades disponíveis quando a intenção não for reconhecida, sem inventar resposta  | US-047 | `agent`     |  M  | ⬜  |
-| RF-098 | Extrair dados de cadastro de cliente a partir de mensagem em linguagem natural                    | US-048 | `agent`     |  M  | ⬜  |
-| RF-099 | Detectar duplicidade de cliente também no fluxo conversacional                                    | US-048 | `core`      |  M  | ⬜  |
-| RF-100 | Interpretar venda em linguagem natural (cliente, itens, quantidades, valores, forma de pagamento) | US-049 | `agent`     |  M  | ⬜  |
-| RF-101 | Registrar venda pelo assistente usando exatamente o mesmo caso de uso do aplicativo               | US-049 | `core`      |  M  | ⬜  |
-| RF-102 | Solicitar desambiguação quando o produto informado corresponder a mais de um cadastro             | US-049 | `agent`     |  M  | ⬜  |
-| RF-103 | Exigir confirmação explícita antes de qualquer ação que crie, altere ou exclua valor              | US-050 | `agent`     |  M  | ⬜  |
-| RF-104 | Expirar confirmação pendente após tempo limite, tratando resposta ambígua como recusa             | US-050 | `agent`     |  M  | ⬜  |
-| RF-105 | Manter contexto da conversa para resolver referências ("ele", "essa venda")                       | US-051 | `agent`     |  M  | ⬜  |
-| RF-106 | Isolar contexto de conversa por empresa e expirar contexto antigo antes de aplicá-lo a nova ação  | US-051 | `agent`     |  M  | ⬜  |
-| RF-107 | Disparar cobrança pelo assistente e confirmar o envio ao lojista                                  | US-052 | `agent`     |  M  | ⬜  |
-| RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado              | US-053 | `agent`     |  S  | ⬜  |
-| RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                           | US-053 | `agent`     |  S  | ⬜  |
-| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp | US-046 | `core`      |  M  | ⬜  |
+| RF-095 | Ignorar mensagens de números não vinculados, sem executar ação nem revelar informação                                 | US-046 | `agent`     |  M  | ⬜  |
+| RF-096 | Interpretar consulta em linguagem natural e respondê-la a partir dos casos de uso de `core`                           | US-047 | `agent`     |  M  | ⬜  |
+| RF-097 | Declarar as capacidades disponíveis quando a intenção não for reconhecida, sem inventar resposta                      | US-047 | `agent`     |  M  | ⬜  |
+| RF-098 | Extrair dados de cadastro de cliente a partir de mensagem em linguagem natural                                        | US-048 | `agent`     |  M  | ⬜  |
+| RF-099 | Detectar duplicidade de cliente também no fluxo conversacional                                                        | US-048 | `core`      |  M  | ⬜  |
+| RF-100 | Interpretar venda em linguagem natural (cliente, itens, quantidades, valores, forma de pagamento)                     | US-049 | `agent`     |  M  | ⬜  |
+| RF-101 | Registrar venda pelo assistente usando exatamente o mesmo caso de uso do aplicativo                                   | US-049 | `core`      |  M  | ⬜  |
+| RF-102 | Solicitar desambiguação quando o produto informado corresponder a mais de um cadastro                                 | US-049 | `agent`     |  M  | ⬜  |
+| RF-103 | Exigir confirmação explícita antes de qualquer ação que crie, altere ou exclua valor                                  | US-050 | `agent`     |  M  | ⬜  |
+| RF-104 | Expirar confirmação pendente após tempo limite, tratando resposta ambígua como recusa                                 | US-050 | `agent`     |  M  | ⬜  |
+| RF-105 | Manter contexto da conversa para resolver referências ("ele", "essa venda")                                           | US-051 | `agent`     |  M  | ⬜  |
+| RF-106 | Isolar contexto de conversa por empresa e expirar contexto antigo antes de aplicá-lo a nova ação                      | US-051 | `agent`     |  M  | ⬜  |
+| RF-107 | Disparar cobrança pelo assistente e confirmar o envio ao lojista                                                      | US-052 | `agent`     |  M  | ⬜  |
+| RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado                                  | US-053 | `agent`     |  S  | ⬜  |
+| RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                                               | US-053 | `agent`     |  S  | ⬜  |
+| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ⬜  |
 
 ## E12 — Assinatura & Cobrança SaaS
 
@@ -227,18 +227,18 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 Quem implementa o quê. Base para a divisão de trilhas em
 [`task-ledger.md`](../processo/task-ledger.md).
 
-| Módulo             | Qtd | Faixas de requisitos                                                                                                                                                    |
-| ------------------ | --: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Módulo             | Qtd | Faixas de requisitos                                                                                                                                                         |
+| ------------------ | --: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/core`    |  73 | RF-001, 002, 005, 006, 009–012, 014–019, 022–029, 032–034, 036, 037, 042–044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131, 132 |
-| `packages/domain`  |  15 | RF-003, 007, 008, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                            |
-| `packages/agent`   |  13 | RF-095–098, 100, 102–109                                                                                                                                                |
-| `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                         |
-| `packages/fiscal`  |   9 | RF-004, 045–047, 049–053                                                                                                                                                |
-| `packages/banking` |   4 | RF-074–077                                                                                                                                                              |
-| `packages/db`      |   4 | RF-081, 121, 122, 124                                                                                                                                                   |
-| `apps/api`         |   2 | RF-120, 129                                                                                                                                                             |
-| `packages/money`   |   1 | RF-039                                                                                                                                                                  |
-| `apps/worker`      |   1 | RF-130                                                                                                                                                                  |
+| `packages/domain`  |  15 | RF-003, 007, 008, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                                 |
+| `packages/agent`   |  13 | RF-095–098, 100, 102–109                                                                                                                                                     |
+| `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                              |
+| `packages/fiscal`  |   9 | RF-004, 045–047, 049–053                                                                                                                                                     |
+| `packages/banking` |   4 | RF-074–077                                                                                                                                                                   |
+| `packages/db`      |   4 | RF-081, 121, 122, 124                                                                                                                                                        |
+| `apps/api`         |   2 | RF-120, 129                                                                                                                                                                  |
+| `packages/money`   |   1 | RF-039                                                                                                                                                                       |
+| `apps/worker`      |   1 | RF-130                                                                                                                                                                       |
 
 > Nenhum requisito tem `apps/mobile` ou `apps/web` como dono — **por construção**.
 > Os apps consomem casos de uso; não são donos de regra de negócio. Se um
@@ -247,18 +247,18 @@ Quem implementa o quê. Base para a divisão de trilhas em
 
 ## Requisitos bloqueados por decisão em aberto
 
-| Decisão                                                                | Requisitos bloqueados                                  |
-| ---------------------------------------------------------------------- | ------------------------------------------------------ |
-| [DEC-003](../decisoes/README.md#dec-003) provedor WhatsApp             | RF-015, RF-016, RF-048, RF-068                         |
-| [DEC-023](../decisoes/README.md#dec-023) identidade do canal ✅         | — (RF-094, RF-095, RF-132: [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
-| [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054                                        |
-| [DEC-005](../decisoes/README.md#dec-005) Open Finance                  | RF-074, RF-075                                         |
-| [DEC-006](../decisoes/README.md#dec-006) PSP ✅ Asaas                  | — (NR-044 pode começar)                                |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini` | — (NR-060 espera o adapter real, DEC-003)               |
-| [DEC-008](../decisoes/README.md#dec-008) autenticação                  | RF-005, RF-119, RF-120                                 |
-| [DEC-010](../decisoes/README.md#dec-010) cobrança SaaS ✅              | preço/trial → [QST-002](../decisoes/README.md#qst-002) |
-| [DEC-011](../decisoes/README.md#dec-011) memória do agente             | RF-105, RF-106                                         |
-| [DEC-012](../decisoes/README.md#dec-012) usuários e cupons             | RF-114, RF-115                                         |
+| Decisão                                                                | Requisitos bloqueados                                                                        |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [DEC-003](../decisoes/README.md#dec-003) provedor WhatsApp             | RF-015, RF-016, RF-048, RF-068                                                               |
+| [DEC-023](../decisoes/README.md#dec-023) identidade do canal ✅        | — (RF-094, RF-095, RF-132: [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
+| [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054                                                                              |
+| [DEC-005](../decisoes/README.md#dec-005) Open Finance                  | RF-074, RF-075                                                                               |
+| [DEC-006](../decisoes/README.md#dec-006) PSP ✅ Asaas                  | — (NR-044 pode começar)                                                                      |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini` | — (NR-060 espera o adapter real, DEC-003)                                                    |
+| [DEC-008](../decisoes/README.md#dec-008) autenticação                  | RF-005, RF-119, RF-120                                                                       |
+| [DEC-010](../decisoes/README.md#dec-010) cobrança SaaS ✅              | preço/trial → [QST-002](../decisoes/README.md#qst-002)                                       |
+| [DEC-011](../decisoes/README.md#dec-011) memória do agente             | RF-105, RF-106                                                                               |
+| [DEC-012](../decisoes/README.md#dec-012) usuários e cupons             | RF-114, RF-115                                                                               |
 
 Um requisito bloqueado **pode** ter sua interface e seus testes escritos antes
 da decisão — é exatamente para isso que servem as portas dos adapters. O que não

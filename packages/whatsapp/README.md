@@ -26,13 +26,13 @@ substituibilidade é a única razão de ele existir.
 
 ## O que a porta precisa cobrir
 
-| Capacidade                                                     | Requisito                                                  |
-| -------------------------------------------------------------- | ---------------------------------------------------------- |
-| Enviar mensagem de texto e mídia                               | [RF-015](../../docs/produto/requisitos-funcionais.md)      |
-| Receber webhook com assinatura verificada                      | [RNF-028](../../docs/produto/requisitos-nao-funcionais.md) |
-| Respeitar consentimento e opt-out                              | [RF-016](../../docs/produto/requisitos-funcionais.md)      |
+| Capacidade                                                        | Requisito                                                                                                                        |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Enviar mensagem de texto e mídia                                  | [RF-015](../../docs/produto/requisitos-funcionais.md)                                                                            |
+| Receber webhook com assinatura verificada                         | [RNF-028](../../docs/produto/requisitos-nao-funcionais.md)                                                                       |
+| Respeitar consentimento e opt-out                                 | [RF-016](../../docs/produto/requisitos-funcionais.md)                                                                            |
 | Vincular número à empresa (celular do owner; a regra é de `core`) | [RF-094](../../docs/produto/requisitos-funcionais.md) · [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md) |
-| Ignorar mensagem de número não vinculado, sem vazar informação | [RF-095](../../docs/produto/requisitos-funcionais.md)      |
+| Ignorar mensagem de número não vinculado, sem vazar informação    | [RF-095](../../docs/produto/requisitos-funcionais.md)                                                                            |
 
 ## Consentimento não é opcional
 

@@ -50,11 +50,11 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |      91 |  232 |
+| Total                         |      92 |  235 |
 | ✅ Concluídas                 |      81 |  197 |
 | 🚧 Bloqueadas por decisão     |       6 |   20 |
 | 🚧 Bloqueadas por dependência |       2 |    7 |
-| ⬜ A fazer, pode começar hoje |       2 |    8 |
+| ⬜ A fazer, pode começar hoje |       3 |   11 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -79,7 +79,7 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **35 dias que faltam, 8 podem começar hoje**: NR-044 e NR-063. A fila
+Dos **38 dias que faltam, 11 podem começar hoje**: NR-044, NR-063 e NR-113. A fila
 NR-088–098 (catálogo 0909) está ✅. Sobram 27 dias atrás de decisão (20) ou de
 dependência (7).
 
@@ -152,17 +152,17 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem e cobrar a mensalidade.
 
-| ID     | Tarefa                                                        | Trilha | Módulo            | Est | Dep            | Bloq             | US/RF                  | Status |
-| ------ | ------------------------------------------------------------- | :----: | ----------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`            |   3 | NR-028         | —                | RF-125–128             |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core` |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`        |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
+| ID     | Tarefa                                                        | Trilha | Módulo                     | Est | Dep            | Bloq             | US/RF                  | Status |
+| ------ | ------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
+| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory   |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | RF-094, RF-095, RF-132 |   ⬜   |
-| NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`           |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`           |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`           |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito |   🟠   | `billing`         |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
-| NR-075 | `web`: planos, assinatura e cupom                             |   🟢   | `web`             |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
+| NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
+| NR-075 | `web`: planos, assinatura e cupom                             |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -308,7 +308,8 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 > 27 dias voltam ao quadro sem decidir nada. Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 35 dias-desenvolvedor que restam, 8 estão liberados** — NR-044 e NR-063.
+**Dos 38 dias-desenvolvedor que restam, 11 estão liberados** — NR-044, NR-063 e
+NR-113.
 Os outros 27 continuam atrás de decisão (20) ou de dependência (7).
 
 A de maior alcance que ainda trava o assistente é a
