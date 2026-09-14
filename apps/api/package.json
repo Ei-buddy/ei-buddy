@@ -30,7 +30,7 @@
     "ioredis": "^6.0.0",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
