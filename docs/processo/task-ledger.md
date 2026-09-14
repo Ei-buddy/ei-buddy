@@ -50,11 +50,11 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |      91 |  232 |
+| Total                         |      92 |  235 |
 | ✅ Concluídas                 |      81 |  197 |
 | 🚧 Bloqueadas por decisão     |       6 |   20 |
 | 🚧 Bloqueadas por dependência |       2 |    7 |
-| ⬜ A fazer, pode começar hoje |       2 |    8 |
+| ⬜ A fazer, pode começar hoje |       3 |   11 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -79,7 +79,7 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **35 dias que faltam, 8 podem começar hoje**: NR-044 e NR-063. A fila
+Dos **38 dias que faltam, 11 podem começar hoje**: NR-044, NR-063 e NR-113. A fila
 NR-088–098 (catálogo 0909) está ✅. Sobram 27 dias atrás de decisão (20) ou de
 dependência (7).
 
@@ -308,7 +308,8 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 > 27 dias voltam ao quadro sem decidir nada. Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 35 dias-desenvolvedor que restam, 8 estão liberados** — NR-044 e NR-063.
+**Dos 38 dias-desenvolvedor que restam, 11 estão liberados** — NR-044, NR-063 e
+NR-113.
 Os outros 27 continuam atrás de decisão (20) ou de dependência (7).
 
 A de maior alcance que ainda trava o assistente é a
