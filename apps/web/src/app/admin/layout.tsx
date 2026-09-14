@@ -44,6 +44,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin/lista-vip" className={styles.navLink}>
             Lista de espera
           </Link>
+          <Link href="/admin/parceiros" className={styles.navLink}>
+            Parceiros
+          </Link>
         </nav>
 
         <div className={styles.topActions}>

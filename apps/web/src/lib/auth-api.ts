@@ -146,6 +146,8 @@ export async function validateCoupon(code: string): Promise<CouponResult> {
   }
 }
 
+export type PixKeyType = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'
+
 export type SignupData = {
   nome: string
   email: string
@@ -161,6 +163,17 @@ export type SignupData = {
   razaoSocial: string
   cnpj: string
   cupom: string | null
+  /**
+   * Conta de Parceiro — NR-115, ADR-0013. Ausente = lojista (default), mesmo
+   * comportamento de sempre. Presente = candidatura pending; a sessao abre
+   * normal, so o cupom do Parceiro fica inativo ate a aprovacao.
+   */
+  accountType?: 'parceiro'
+  pixKey?: string
+  pixKeyType?: PixKeyType
+  partnerMessage?: string
+  /** Ausente = o backend sugere a partir do nome da empresa (RF-03). */
+  couponName?: string
 }
 
 /**
@@ -187,6 +200,17 @@ export async function createAccount(
         secret: data.senha,
         legalName: data.razaoSocial,
         cnpj: data.cnpj,
+        ...(data.accountType !== 'parceiro'
+          ? {}
+          : {
+              account: {
+                type: 'parceiro',
+                pixKey: data.pixKey,
+                pixKeyType: data.pixKeyType,
+                message: data.partnerMessage,
+                ...(data.couponName === undefined ? {} : { couponCode: data.couponName }),
+              },
+            }),
       }),
     })
   } catch {
