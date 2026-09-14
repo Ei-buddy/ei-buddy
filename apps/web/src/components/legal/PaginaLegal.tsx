@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import styles from './legal.module.css'
@@ -16,12 +17,15 @@ export default function PaginaLegal({
   eyebrow,
   titulo,
   atualizadoEm,
+  voltarPara,
   children,
 }: {
   eyebrow: string
   titulo: string
   /** `AAAA-MM-DD`. Documento juridico sem data nao da para versionar. */
   atualizadoEm: string
+  /** Quando presente, mostra uma seta de voltar acima do titulo. */
+  voltarPara?: string
   children: ReactNode
 }) {
   const [ano, mes, dia] = atualizadoEm.split('-')
@@ -33,6 +37,11 @@ export default function PaginaLegal({
       <main className={styles.pagina}>
         <div className="container">
           <article className={styles.corpo}>
+            {voltarPara ? (
+              <Link href={voltarPara} className={styles.voltar}>
+                ← Voltar
+              </Link>
+            ) : null}
             <p className={styles.eyebrow}>{eyebrow}</p>
             <h1 className={styles.titulo}>{titulo}</h1>
             <p className={styles.atualizacao}>

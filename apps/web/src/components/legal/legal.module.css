@@ -16,6 +16,21 @@
   margin-inline: auto;
 }
 
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.voltar:hover {
+  color: var(--accent-strong, var(--accent));
+}
+
 .eyebrow {
   margin: 0 0 8px;
   font-size: 13px;

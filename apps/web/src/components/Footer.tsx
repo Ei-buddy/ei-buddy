@@ -2,8 +2,6 @@ import Link from 'next/link'
 import { BRAND, footerColumns } from '@/content/site'
 import styles from './Footer.module.css'
 
-const social = ['Instagram', 'LinkedIn', 'YouTube']
-
 export default function Footer() {
   return (
     <footer className={styles.footer}>
@@ -16,16 +14,6 @@ export default function Footer() {
             Módulos integrados de vendas, financeiro, estoque e fiscal para quem toca o comércio no
             dia a dia — com um assistente que responde em linguagem natural.
           </p>
-
-          <ul className={styles.social}>
-            {social.map((item) => (
-              <li key={item}>
-                <a href="#top" className={styles.socialLink}>
-                  {item}
-                </a>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <div className={styles.columns}>

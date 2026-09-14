@@ -12,7 +12,7 @@ import {
   enviarListaVip,
   OPCOES_DIFICULDADE,
   OPCOES_SISTEMA,
-  OPCOES_VALOR,
+  OPCOES_VALOR_FORMULARIO,
   type FairPrice,
   type PainPoint,
   type UsesSystem,
@@ -175,7 +175,7 @@ export default function ListaVipForm() {
 
         <RadioGroupField
           legend="Considerando tudo o que o EiBuddy poderá oferecer, qual valor mensal você considera justo?"
-          options={OPCOES_VALOR}
+          options={OPCOES_VALOR_FORMULARIO}
           value={fairPrice}
           onChange={setFairPrice}
         />
