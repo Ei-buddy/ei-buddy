@@ -12,12 +12,12 @@ substituida_por: null
 
 # ADR-0012 — Identidade do canal WhatsApp pelo celular do owner, sem código
 
-|                       |                                  |
-| --------------------- | -------------------------------- |
-| **Status**            | Aceita                           |
-| **Data**              | 2026-09-13                       |
-| **Decisores**         | Trilha 2 · Produto               |
-| **Decisão de origem** | [DEC-023](../README.md#dec-023)  |
+|                       |                                 |
+| --------------------- | ------------------------------- |
+| **Status**            | Aceita                          |
+| **Data**              | 2026-09-13                      |
+| **Decisores**         | Trilha 2 · Produto              |
+| **Decisão de origem** | [DEC-023](../README.md#dec-023) |
 
 ## Contexto
 
@@ -54,21 +54,21 @@ nem o custo real de OTP no chip (o envio também espera a DEC-003).
 
 A lojista inicia no app; um código no WhatsApp prova a posse do chip.
 
-| Prós                                      | Contras                                                                 |
-| ----------------------------------------- | ----------------------------------------------------------------------- |
-| Prova de posse; dificulta ocupação        | Depende de enviar OTP — [DEC-003](../README.md#dec-003)                 |
-| Alinha ao modelo de ameaças de 2026-09-08 | Duas etapas depois de um cadastro que já pede telefone                  |
+| Prós                                      | Contras                                                 |
+| ----------------------------------------- | ------------------------------------------------------- |
+| Prova de posse; dificulta ocupação        | Depende de enviar OTP — [DEC-003](../README.md#dec-003) |
+| Alinha ao modelo de ameaças de 2026-09-08 | Duas etapas depois de um cadastro que já pede telefone  |
 
 ### Opção B — Celular obrigatório no cadastro do owner **é** o vínculo
 
 Sem código. `users.phone` do owner, único (`users_phone_unico`), cola na
 **primeira** empresa. Só o owner opera o canal. Troca no app substitui.
 
-| Prós                                                         | Contras                                                                                          |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Destrava RF-094/095 sem provedor de WhatsApp                 | Sem prova de posse: quem digitou o número no form fala pelo chip (T5 mais fraco)                 |
-| Casa com `findByPhone` e `PeerDirectory` já desenhados       | Segunda loja some no Buddy; staff/contador não operam o canal                                    |
-| Troca de chip continua no segundo canal (sessão do app)      | Recupera o risco de ocupação que o código existia para fechar                                    |
+| Prós                                                    | Contras                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Destrava RF-094/095 sem provedor de WhatsApp            | Sem prova de posse: quem digitou o número no form fala pelo chip (T5 mais fraco) |
+| Casa com `findByPhone` e `PeerDirectory` já desenhados  | Segunda loja some no Buddy; staff/contador não operam o canal                    |
+| Troca de chip continua no segundo canal (sessão do app) | Recupera o risco de ocupação que o código existia para fechar                    |
 
 ### Opção C — Stack oficial Mastra (Server + Channel + Better Auth)
 
@@ -84,8 +84,8 @@ Webhook em `/api/agents/…/channels/whatsapp`; `server.auth` com Better Auth.
 
 Histórico atrelado à pessoa.
 
-| Prós                    | Contras                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------- |
+| Prós                     | Contras                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------- |
 | Casa com o plano inicial | Quebra [RF-106](../../produto/requisitos-funcionais.md) (isolamento por empresa) |
 |                          | Tabelas do Memory sem `company_id` em `public` quebram a ADR-0001                |
 |                          | Fecha a [DEC-011](../README.md#dec-011) por omissão                              |
