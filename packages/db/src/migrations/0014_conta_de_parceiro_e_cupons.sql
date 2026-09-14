@@ -68,6 +68,19 @@ ALTER TABLE partners
 COMMENT ON COLUMN partners.owner_company_id IS
   'Empresa dona da candidatura a Parceiro — nao se chama company_id de proposito (ver guarda em schema.test.ts).';
 
+/*
+ * `partners_name_unique` (0007) parava de fazer sentido nesta migration:
+ * nasceu quando `name` era um rotulo digitado a mao para cupom de
+ * plataforma, unico por natureza. Agora `name` e uma COPIA do nome da
+ * empresa candidata (`partner_application_submit` grava
+ * `COALESCE(trade_name, legal_name)`), e duas empresas diferentes podem
+ * legitimamente ter o mesmo nome fantasia — a unicidade que IMPORTA e
+ * `owner_company_id` (uma candidatura por empresa), nao `name`. Mantida a
+ * global faria a segunda empresa com nome coincidente ser recusada por um
+ * motivo que nao e o dela.
+ */
+DROP INDEX partners_name_unique;
+
 CREATE UNIQUE INDEX partners_owner_company_unique ON partners (owner_company_id) WHERE deleted_at IS NULL;
 
 ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
