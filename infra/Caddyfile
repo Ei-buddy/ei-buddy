@@ -1,0 +1,7 @@
+eibuddy.com.br, www.eibuddy.com.br {
+	reverse_proxy web:3000
+}
+
+api.eibuddy.com.br {
+	reverse_proxy api:3333
+}
