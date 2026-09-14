@@ -2,11 +2,13 @@
 
 Runtime do assistente: tools, memória e confirmações.
 
-**Estado:** 🟡 runtime local sem WhatsApp · [ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
-(Mastra + `openai/gpt-4o-mini`) · canal de teste `POST /agent/messages` com
-`AGENT_PROVIDER=fake` · webhook ainda espera
+**Estado:** 🟡 runtime local sem adapter real · [ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
+(Mastra + `openai/gpt-4o-mini`) · identidade do canal
+[ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)
+(`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
+com `AGENT_PROVIDER=fake` · webhook de provedor ainda espera
 [DEC-003](../../docs/decisoes/README.md#dec-003) / `NR-046` · confirmação
-persistente é `NR-061` · memória da conversa ainda é
+persistente é `NR-061` (hoje in-memory) · memória da conversa ainda é
 [DEC-011](../../docs/decisoes/README.md#dec-011) (`NR-062`)
 
 ## Responsabilidade
@@ -76,7 +78,9 @@ lançamento financeiro errado. [RF-103](../../docs/produto/requisitos-funcionais
 É também controle de **segurança**, não só de usabilidade: quem obtiver acesso
 ao aparelho ainda precisa confirmar cada lançamento.
 
-A máquina de estados mora na tabela `confirmations`. O Mastra não a substitui.
+A máquina de estados **vai** morar na tabela `confirmations` (NR-061). Até lá
+o runtime usa `InMemoryConfirmations`. O Mastra não substitui essa máquina.
+Não se grava `conversations` / `messages` enquanto a DEC-011 estiver aberta.
 
 ## Riscos específicos de ter um LLM no caminho
 

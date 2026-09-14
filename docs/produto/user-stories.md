@@ -55,12 +55,14 @@ erro. Uma história sem caminho de erro não está pronta para ser pega — ver
 
 **Como** lojista, **quero** cadastrar minha empresa pelo CNPJ **para** começar a
 usar o sistema sem digitar tudo à mão.
-`MUST` · P1 · `apps/web` `apps/mobile` `packages/core` `packages/db` · RF-001, RF-002
+`MUST` · P1 · `apps/web` `apps/mobile` `packages/core` `packages/db` · RF-001, RF-002, RF-094
 
 - **DADO** um CNPJ válido **QUANDO** confirmo **ENTÃO** razão social, nome fantasia e endereço vêm preenchidos e eu só reviso
 - **DADO** um CNPJ inválido ou inexistente **QUANDO** confirmo **ENTÃO** vejo o erro no campo e nada é criado
 - **DADO** um CNPJ já cadastrado **QUANDO** confirmo **ENTÃO** sou orientado a pedir acesso ao dono, sem revelar dados da empresa existente
 - **DADO** que a consulta ao CNPJ está indisponível **QUANDO** confirmo **ENTÃO** posso preencher manualmente e seguir
+- **DADO** cadastro sem celular do owner **QUANDO** confirmo **ENTÃO** o campo é recusado e nada é criado
+- **DADO** um celular já usado por outro owner **QUANDO** confirmo **ENTÃO** sou recusado sem ver de quem é a loja
 
 #### US-002 — Configurar dados fiscais
 
@@ -541,20 +543,23 @@ compromisso.
 ## E11 — Assistente WhatsApp
 
 > A tese central do produto. O runtime fechou
-> ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)). Ainda dependem de
-> [DEC-003](../decisoes/README.md#dec-003) (WhatsApp) e
-> [DEC-011](../decisoes/README.md#dec-011) (memória). Identidade já fechou
-> ([DEC-008](../decisoes/README.md#dec-008)).
+> ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)). A identidade do
+> canal fechou ([DEC-023](../decisoes/README.md#dec-023) /
+> [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)). Ainda
+> dependem de [DEC-003](../decisoes/README.md#dec-003) (provedor) e
+> [DEC-011](../decisoes/README.md#dec-011) (memória).
 
 #### US-046 — Vincular o número da loja
 
-**Como** lojista, **quero** ligar meu WhatsApp ao sistema **para** operar por
-mensagem.
-`MUST` · P1 · `packages/whatsapp` `packages/core` · RF-094, RF-095
+**Como** lojista, **quero** que o celular do meu cadastro opere o assistente
+**para** mandar mensagem sem um passo extra de código.
+`MUST` · P1 · `packages/whatsapp` `packages/core` · RF-094, RF-095, RF-132
 
-- **DADO** que inicio o vínculo **QUANDO** confirmo o código enviado ao meu número **ENTÃO** o número fica ligado à minha empresa
-- **DADO** um número já ligado a outra empresa **QUANDO** tento vincular **ENTÃO** sou bloqueado com orientação
-- **DADO** uma mensagem de um número não vinculado **QUANDO** ela chega **ENTÃO** o assistente não executa nada e não vaza informação
+- **DADO** que me cadastrei com celular **QUANDO** mando mensagem desse número **ENTÃO** o assistente atende na minha primeira empresa, como `owner`
+- **DADO** um número que não é o celular de nenhum owner **QUANDO** a mensagem chega **ENTÃO** o assistente não executa nada e não vaza informação
+- **DADO** que pertenço a uma segunda empresa **QUANDO** mando WhatsApp **ENTÃO** continuo operando a primeira
+- **DADO** um funcionário com telefone **QUANDO** ele manda mensagem **ENTÃO** o assistente ignora (só o owner tem canal)
+- **DADO** que troco o celular no app **QUANDO** a sessão é válida **ENTÃO** o número novo substitui o vínculo e o antigo deixa de operar
 
 #### US-047 — Consultar por mensagem
 
@@ -604,6 +609,10 @@ não criar lançamento errado por engano.
 **Como** lojista, **quero** que o assistente lembre do que falamos **para** não
 repetir tudo a cada mensagem.
 `MUST` · P1 · `packages/agent` · RF-105, RF-106
+
+> Ainda depende da [DEC-011](../decisoes/README.md#dec-011). O recorte da
+> [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md) não persiste
+> conversa nem liga Memory do Mastra.
 
 - **DADO** que acabei de falar de um cliente **QUANDO** digo "manda a cobrança pra ele" **ENTÃO** o assistente sabe quem é "ele"
 - **DADO** uma conversa parada por muito tempo **QUANDO** volto **ENTÃO** o contexto antigo não é aplicado silenciosamente a uma ação nova

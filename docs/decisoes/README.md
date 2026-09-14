@@ -47,7 +47,7 @@ PR**, e a linha sai da tabela de abertas.
 | 🔴 Aberta          |   8 | DEC-003, 005, 009, 011, 012, 013, 016, 018                |
 | 🟡 Em análise      |   0 | —                                                         |
 | ⚪ Adiada          |   1 | DEC-014                                                   |
-| 🟢 Decidida        |  11 | DEC-001, 002, 006, 007, 008, 010, 015, 019, 020, 021, 022 |
+| 🟢 Decidida        |  12 | DEC-001, 002, 006, 007, 008, 010, 015, 019, 020, 021, 022, 023 |
 | ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                |
 
 **Bloqueando o MVP agora:** DEC-003, DEC-009.
@@ -58,8 +58,10 @@ declaradas na própria página.
 A DEC-001 fechou — [ADR-0011](adr/0011-eibuddy-nome-e-dominio.md): o produto
 é **EiBuddy**, domínio **eibuddy.com.br**; pacotes continuam `@na-regua/*`.
 A DEC-007 fechou — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md): Mastra como
-runtime, `gpt-4o-mini` no começo. O assistente ainda espera o WhatsApp
-([DEC-003](#dec-003)) e a memória da conversa ([DEC-011](#dec-011)).
+runtime, `gpt-4o-mini` no começo. A identidade do canal fechou —
+[DEC-023](#dec-023) / [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md).
+O adapter real ainda espera o WhatsApp ([DEC-003](#dec-003)) e a memória da
+conversa continua [DEC-011](#dec-011).
 A DEC-008 fechou — [ADR-0002](adr/0002-autenticacao-identidade-propria.md) e
 [ADR-0003](adr/0003-better-auth-como-prova-de-identidade.md).
 A DEC-009 continua aberta, e **a autenticação deixou de esperar por ela**: a
@@ -79,7 +81,11 @@ opção C é trocar uma função de composição.
 | **Status**   | 🔴 Aberta                                                                                                                                                                       |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                             |
 | **Prazo**    | **Sprint 2**                                                                                                                                                                    |
-| **Bloqueia** | `packages/whatsapp` · [RF-015](../produto/requisitos-funcionais.md), RF-016, RF-048, RF-068, RF-094, RF-095 · todo o [E11](../produto/user-stories.md#e11--assistente-whatsapp) |
+| **Bloqueia** | adapter real (`NR-046`) · [RF-015](../produto/requisitos-funcionais.md), RF-016, RF-048, RF-068 · envio e webhook de provedor do [E11](../produto/user-stories.md#e11--assistente-whatsapp) |
+
+A identidade do canal **não** espera esta DEC — [DEC-023](#dec-023). RF-094 e
+RF-095 passam a ser resolvidos em `users.phone` + `processMessage`, com
+`WHATSAPP_PROVIDER=fake`.
 
 **Opções:** Meta Cloud API direto · BSP (Twilio, Z-API, 360dialog, Gupshup) ·
 biblioteca não oficial.
@@ -190,7 +196,7 @@ mesma porta `BankStatementProvider`.
 | **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                   |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                              |
 | **Prazo**    | Sprint 3                                                                                                         |
-| **Bloqueia** | — (NR-060 ainda espera o canal: [DEC-003](#dec-003) / NR-046). Memória da conversa continua [DEC-011](#dec-011). |
+| **Bloqueia** | — (NR-060 ainda espera o adapter real: [DEC-003](#dec-003) / NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
 
@@ -257,6 +263,12 @@ ajuste de modelo.
 Memória **por empresa**, isolada e expirável, é uma coisa; treinar modelo com
 dado de lojista é outra, e exige base legal e consentimento próprios
 ([RNF-036](../produto/requisitos-nao-funcionais.md)).
+
+**Recorte de 2026-09-13 ([ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)).**
+Esta DEC **não** fecha agora. Sem Memory do Mastra (nem por `user_id`). Sem
+gravar `conversations` / `messages`. Confirmação do agente continua in-memory
+até a NR-061. Chave em memória, quando existir persistência, é por empresa
+(`wa:${companyId}:${peer}`), não por pessoa.
 
 ---
 
@@ -558,6 +570,22 @@ empresas do MESMO ramo (texto livre, comparado sem caixa nem espaço) já tem
 conexão ACEITA com uma empresa, ela é sugerida também. Começa vazia até
 haver massa crítica de conexões entre pares do mesmo ramo — mesmo risco já
 registrado na DEC-021.
+
+---
+
+### <a id="dec-023"></a>DEC-023 — Identidade e recorte do canal WhatsApp
+
+|             |                                                                               |
+| ----------- | ----------------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)            |
+| **Escolha** | Celular obrigatório do owner é o vínculo; Fastify + `processMessage`; fake    |
+| **Data**    | 2026-09-13                                                                    |
+
+O webhook não consulta Better Auth. Não há Workflow Mastra, Channel
+`@chat-adapter/whatsapp` nem `MastraServer`. Número desconhecido = silêncio
+(RF-095). Chip cola na primeira empresa; só o owner opera; troca no app
+substitui. Redis continua fila. DEC-003 e DEC-011 seguem abertas. Isolamento
+cruzado é contexto + RLS, não processor.
 
 ## Documentos relacionados
 

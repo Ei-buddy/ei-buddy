@@ -85,7 +85,10 @@ sequenceDiagram
 
 ## Venda pelo WhatsApp
 
-O mesmo caso de uso, outro canal. Requisitos: RF-100 a RF-104.
+O mesmo caso de uso, outro canal. Requisitos: RF-100 a RF-104. A identidade
+do remetente é [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
+`processMessage` resolve o `peer` para o owner da primeira empresa. Contexto
+de conversa (RF-105) espera a [DEC-011](../decisoes/README.md#dec-011).
 
 ```mermaid
 sequenceDiagram
@@ -100,14 +103,14 @@ sequenceDiagram
     L->>WA: "venda pro João: 2 camisetas M a 49,90, pagou no Pix"
     WA->>A: webhook
     A->>A: verifica assinatura do webhook (RNF-028)
-    A->>AG: processMessage(companyId, from, texto)
+    A->>AG: processMessage(channel whatsapp, peer, texto)
 
-    AG->>AG: número vinculado à empresa? (RF-095)
+    AG->>AG: peer é o celular do owner da primeira empresa? (RF-094, RF-095)
     alt número desconhecido
         AG-->>WA: ignora, sem revelar informação
     end
 
-    AG->>AG: carrega contexto da conversa (RF-105)
+    Note over AG: RF-105 (contexto) espera DEC-011 — neste recorte não há histórico
     AG->>LLM: mensagem + contexto + tools geradas de contracts
     LLM-->>AG: tool call registerSale(...)
 

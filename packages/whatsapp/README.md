@@ -31,7 +31,7 @@ substituibilidade é a única razão de ele existir.
 | Enviar mensagem de texto e mídia                               | [RF-015](../../docs/produto/requisitos-funcionais.md)      |
 | Receber webhook com assinatura verificada                      | [RNF-028](../../docs/produto/requisitos-nao-funcionais.md) |
 | Respeitar consentimento e opt-out                              | [RF-016](../../docs/produto/requisitos-funcionais.md)      |
-| Vincular número à empresa                                      | [RF-094](../../docs/produto/requisitos-funcionais.md)      |
+| Vincular número à empresa (celular do owner; a regra é de `core`) | [RF-094](../../docs/produto/requisitos-funcionais.md) · [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md) |
 | Ignorar mensagem de número não vinculado, sem vazar informação | [RF-095](../../docs/produto/requisitos-funcionais.md)      |
 
 ## Consentimento não é opcional
@@ -75,8 +75,9 @@ desenhar às cegas. Entra com `NR-046`.
 
 Duas coisas que ele deliberadamente **não** decide:
 
-- **se o número está vinculado a uma empresa** ([RF-094](../../docs/produto/requisitos-funcionais.md)).
-  Depende de cadastro. E [RF-095](../../docs/produto/requisitos-funcionais.md)
+- **se o número está vinculado a uma empresa** ([RF-094](../../docs/produto/requisitos-funcionais.md),
+  [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)).
+  Depende de `users.phone` do owner. E [RF-095](../../docs/produto/requisitos-funcionais.md)
   exige ignorar número não vinculado _sem revelar informação_ — o que significa
   que quem responde não pode ser o adapter.
 - **se um texto é pedido de opt-out.** "PARAR" é opt-out? Depende de regra, e
@@ -85,8 +86,10 @@ Duas coisas que ele deliberadamente **não** decide:
 
 ## O vínculo do número é a credencial
 
-Uma mensagem de texto não carrega credencial. O número vinculado faz esse papel
-— com todas as consequências, inclusive a fragilidade a SIM swap. Ver
+Uma mensagem de texto não carrega credencial. O celular obrigatório do owner
+no cadastro faz esse papel
+([ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)) —
+com todas as consequências, inclusive a fragilidade a SIM swap. Ver
 [`seguranca.md`](../../docs/arquitetura/seguranca.md#autenticação-do-canal-whatsapp).
 
 ## Modo falso

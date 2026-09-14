@@ -59,27 +59,34 @@ flowchart TD
     SIG -->|não| DROP1[descarta e registra<br/>RNF-028]
     SIG -->|sim| LINK{número vinculado<br/>a uma empresa?}
     LINK -->|não| DROP2[ignora sem revelar<br/>informação — RF-095]
-    LINK -->|sim| USER[resolve usuário e papel<br/>a partir do vínculo]
-    USER --> SUB{assinatura ativa?}
-    SUB -->|não| BLOCK[responde informando<br/>o bloqueio — RF-118]
-    SUB -->|sim| CTX[monta ExecutionContext<br/>channel: whatsapp]
+    LINK -->|sim| USER[owner da primeira empresa<br/>via users.phone — ADR-0012]
+    USER --> CTX[monta ExecutionContext<br/>channel: whatsapp]
     CTX --> ACT{ação mexe<br/>em valor?}
     ACT -->|não| RUN[executa consulta]
-    ACT -->|sim| CONF[exige confirmação<br/>explícita — RF-103]
+    ACT -->|sim| REST{conta restrita?<br/>RF-117}
+    REST -->|sim| BLOCK[informa o bloqueio<br/>RF-118]
+    REST -->|não| CONF[exige confirmação<br/>explícita — RF-103]
     CONF --> RUN
 
     style DROP1 fill:#7c2d12,color:#fff
     style DROP2 fill:#7c2d12,color:#fff
 ```
 
-**O vínculo do número é a credencial.** Consequências:
+**O vínculo do número é a credencial.** Consequências
+([ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)):
 
-- Um número pertence a **uma** empresa; tentativa de vincular a outra é recusada
-- O vínculo é confirmado por código enviado ao próprio número
-  ([RF-094](../produto/requisitos-funcionais.md))
-- Perda ou troca de chip exige revincular — não há recuperação automática
+- O celular **obrigatório** do owner no cadastro **é** o vínculo
+  ([RF-094](../produto/requisitos-funcionais.md)); não há código no chip
+- Um número pertence a **uma** empresa — a primeira do owner; as outras só no app
+- Só o owner opera o WhatsApp; staff e contador não têm canal
+- Troca de chip é no aplicativo, com sessão; o número novo substitui o antigo
+  ([RF-132](../produto/requisitos-funcionais.md))
 - A confirmação explícita de ação com valor ([RF-103](../produto/requisitos-funcionais.md))
   é controle de **usabilidade**: evita o lançamento por engano
+
+Conta restrita (trial expirado / inadimplência) **não** corta consulta: a
+escrita é que vira o aviso do [RF-118](../produto/requisitos-funcionais.md),
+como no app ([RF-117](../produto/requisitos-funcionais.md)).
 
 > [!WARNING]
 > Este documento afirmava que a confirmação explícita contrabalançava o SIM

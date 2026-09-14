@@ -156,7 +156,8 @@ Objetivo: operar o ERP por mensagem e cobrar a mensalidade.
 | ------ | ------------------------------------------------------------- | :----: | ----------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
 | NR-031 | `core`: exportação completa e anonimização (LGPD)             |   🔵   | `core`            |   3 | NR-028         | —                | RF-125–128             |   ✅   |
 | NR-045 | `whatsapp`: porta `MessageSender` + adapter falso             |   🟠   | `whatsapp` `core` |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`        |   4 | NR-045         | **DEC-003**      | RF-016, RF-094, RF-095 |   🚧   |
+| NR-046 | `whatsapp`: adapter real, webhook e consentimento             |   🟠   | `whatsapp`        |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory   |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | RF-094, RF-095, RF-132 |   ⬜   |
 | NR-060 | `agent`: runtime com tools geradas de `contracts`             |   🟠   | `agent`           |   5 | NR-046, NR-005 | NR-046 → DEC-003 | RF-096–102, 108, 109   |   🚧   |
 | NR-061 | `agent`: confirmação de ação sensível, com expiração          |   🟠   | `agent`           |   2 | NR-060         | NR-060 → DEC-003 | RF-103, RF-104         |   🚧   |
 | NR-062 | `agent`: contexto de conversa isolado por empresa             |   🟠   | `agent`           |   3 | NR-060         | **DEC-011**      | RF-105, RF-106         |   🚧   |
@@ -345,11 +346,11 @@ O retrabalho que resta é visual (tokens), não naming.
 | Trilha                          | Tarefas | Dias | Observação                                         |
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      33 |   83 | Sugestão de conexão (NR-108) somou ao NR-107       |
-| 🟠 2 — Plataforma & Integrações |      28 |   75 | a mais carregada; Asaas fechou 3 decisões dela     |
+| 🟠 2 — Plataforma & Integrações |      29 |   78 | NR-113 (identidade do canal, ADR-0012)             |
 | 🟢 3 — Clientes                 |      27 |   68 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **232 dias-desenvolvedor** em 91 tarefas. Com 3 pessoas, isso é cerca
+Somando: **235 dias-desenvolvedor** em 92 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

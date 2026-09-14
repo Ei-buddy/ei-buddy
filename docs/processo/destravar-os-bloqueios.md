@@ -104,7 +104,12 @@ Fechou na [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md): Mastra como
 biblioteca em `packages/agent`, modelo inicial `openai/gpt-4o-mini`, tools
 geradas de `contracts`, sem RAG sobre o banco de negócio.
 
-O que ainda segura o `NR-060` é o canal ([DEC-003](../decisoes/README.md#dec-003)).
+A identidade do canal fechou ([DEC-023](../decisoes/README.md#dec-023) /
+[ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)): celular do
+owner, `processMessage`, fake. A [NR-113](task-ledger.md) não espera a DEC-003.
+
+O que ainda segura o adapter real (`NR-046`) e o envio é o canal
+([DEC-003](../decisoes/README.md#dec-003)).
 O laço e as tools não dependem do adapter real de WhatsApp — o precedente da
 NR-042 continua valendo, agora com o modelo já escolhido.
 

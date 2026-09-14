@@ -1,6 +1,6 @@
 # Requisitos Funcionais
 
-131 requisitos, derivados das [User Stories](user-stories.md). Descrevem **o que
+132 requisitos, derivados das [User Stories](user-stories.md). Descrevem **o que
 o sistema faz**. Como ele se comporta (desempenho, segurança, disponibilidade)
 está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 
@@ -19,7 +19,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 `packages/domain` ou `packages/core` — nunca um `apps/*`. Ver
 [princípios](../arquitetura/principios.md).
 
-**Resumo:** 131 requisitos · 101 `MUST` · 25 `SHOULD` · 5 `COULD` · 0 implementados.
+**Resumo:** 132 requisitos · 102 `MUST` · 25 `SHOULD` · 5 `COULD` · 0 implementados.
 
 ---
 
@@ -170,7 +170,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 
 | ID     | Requisito                                                                                         | US     | Módulo dono | Pri | St  |
 | ------ | ------------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
-| RF-094 | Vincular número de WhatsApp da loja à empresa mediante confirmação por código                     | US-046 | `core`      |  M  | ⬜  |
+| RF-094 | Tratar o celular obrigatório do owner no cadastro como vínculo WhatsApp da primeira empresa; só o owner opera o canal | US-046 | `core`      |  M  | ⬜  |
 | RF-095 | Ignorar mensagens de números não vinculados, sem executar ação nem revelar informação             | US-046 | `agent`     |  M  | ⬜  |
 | RF-096 | Interpretar consulta em linguagem natural e respondê-la a partir dos casos de uso de `core`       | US-047 | `agent`     |  M  | ⬜  |
 | RF-097 | Declarar as capacidades disponíveis quando a intenção não for reconhecida, sem inventar resposta  | US-047 | `agent`     |  M  | ⬜  |
@@ -186,6 +186,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-107 | Disparar cobrança pelo assistente e confirmar o envio ao lojista                                  | US-052 | `agent`     |  M  | ⬜  |
 | RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado              | US-053 | `agent`     |  S  | ⬜  |
 | RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                           | US-053 | `agent`     |  S  | ⬜  |
+| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp | US-046 | `core`      |  M  | ⬜  |
 
 ## E12 — Assinatura & Cobrança SaaS
 
@@ -228,7 +229,7 @@ Quem implementa o quê. Base para a divisão de trilhas em
 
 | Módulo             | Qtd | Faixas de requisitos                                                                                                                                                    |
 | ------------------ | --: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core`    |  72 | RF-001, 002, 005, 006, 009–012, 014–019, 022–029, 032–034, 036, 037, 042–044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131 |
+| `packages/core`    |  73 | RF-001, 002, 005, 006, 009–012, 014–019, 022–029, 032–034, 036, 037, 042–044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131, 132 |
 | `packages/domain`  |  15 | RF-003, 007, 008, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                            |
 | `packages/agent`   |  13 | RF-095–098, 100, 102–109                                                                                                                                                |
 | `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                         |
@@ -248,11 +249,12 @@ Quem implementa o quê. Base para a divisão de trilhas em
 
 | Decisão                                                                | Requisitos bloqueados                                  |
 | ---------------------------------------------------------------------- | ------------------------------------------------------ |
-| [DEC-003](../decisoes/README.md#dec-003) provedor WhatsApp             | RF-015, RF-016, RF-048, RF-068, RF-094, RF-095         |
+| [DEC-003](../decisoes/README.md#dec-003) provedor WhatsApp             | RF-015, RF-016, RF-048, RF-068                         |
+| [DEC-023](../decisoes/README.md#dec-023) identidade do canal ✅         | — (RF-094, RF-095, RF-132: [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
 | [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054                                        |
 | [DEC-005](../decisoes/README.md#dec-005) Open Finance                  | RF-074, RF-075                                         |
 | [DEC-006](../decisoes/README.md#dec-006) PSP ✅ Asaas                  | — (NR-044 pode começar)                                |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini` | — (NR-060 espera o canal, DEC-003)                     |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini` | — (NR-060 espera o adapter real, DEC-003)               |
 | [DEC-008](../decisoes/README.md#dec-008) autenticação                  | RF-005, RF-119, RF-120                                 |
 | [DEC-010](../decisoes/README.md#dec-010) cobrança SaaS ✅              | preço/trial → [QST-002](../decisoes/README.md#qst-002) |
 | [DEC-011](../decisoes/README.md#dec-011) memória do agente             | RF-105, RF-106                                         |

@@ -95,7 +95,7 @@ Ao fechar a venda, o sistema calcula sozinho — sem o operador informar — cus
 
 ### User Story 4 - Operar pelo WhatsApp (Priority: P1)
 
-A Cláudia liga o número da loja ao sistema e passa a perguntar e lançar em linguagem natural: vendas do dia, quem deve, cadastrar cliente, lançar venda simples, mandar cobrança. Consultar é livre. Criar, alterar ou apagar valor, e enviar mensagem a terceiro, exige confirmação explícita. Confirmação pendente expira; resposta ambígua conta como não. O assistente não inventa: se não entende, diz o que sabe fazer. Dados vêm dos mesmos casos de uso do aplicativo.
+A Cláudia se cadastra com celular — esse número é o vínculo do assistente na primeira empresa — e passa a perguntar e lançar em linguagem natural: vendas do dia, quem deve, cadastrar cliente, lançar venda simples, mandar cobrança. Consultar é livre. Criar, alterar ou apagar valor, e enviar mensagem a terceiro, exige confirmação explícita. Confirmação pendente expira; resposta ambígua conta como não. O assistente não inventa: se não entende, diz o que sabe fazer. Dados vêm dos mesmos casos de uso do aplicativo.
 
 **Why this priority**: a tese do produto é a conversa como interface principal; o diferencial é a equivalência com o ERP, não o chatbot.
 
@@ -103,9 +103,9 @@ A Cláudia liga o número da loja ao sistema e passa a perguntar e lançar em li
 
 **Acceptance Scenarios** (US-046–052 · RF-094–107):
 
-1. **Given** que a lojista inicia o vínculo, **When** confirma o código no número dela, **Then** o número fica ligado à empresa.
-2. **Given** um número já ligado a outra empresa, **When** tenta vincular, **Then** é bloqueada com orientação.
-3. **Given** mensagem de número não vinculado, **When** chega, **Then** o assistente não executa nada e não vaza informação.
+1. **Given** que a lojista cadastrou um celular, **When** manda mensagem desse número, **Then** o assistente atende na primeira empresa, como owner.
+2. **Given** um celular já usado por outro owner, **When** tenta cadastrar, **Then** é recusada sem ver de quem é a loja.
+3. **Given** mensagem de um número que não é celular de owner, **When** chega, **Then** o assistente não executa nada e não vaza informação.
 4. **Given** “quanto vendi hoje?”, **When** envia, **Then** recebe total do dia, número de vendas e ticket médio, provenientes do mesmo caso de uso do app.
 5. **Given** “quem está me devendo?”, **When** envia, **Then** recebe inadimplentes com valor e dias de atraso.
 6. **Given** uma pergunta que o assistente não entende, **When** envia, **Then** ele declara o que sabe fazer, sem inventar número.
@@ -334,7 +334,7 @@ Requisitos abaixo são o recorte testável desta spec. O catálogo canônico per
 
 ### Assistente
 
-- **FR-033**: O sistema MUST vincular o WhatsApp da loja mediante código; mensagem de número não vinculado MUST ser ignorada sem executar ação nem revelar informação. (RF-094, RF-095)
+- **FR-033**: O sistema MUST tratar o celular obrigatório do owner no cadastro como vínculo WhatsApp da primeira empresa (somente o owner opera o canal); mensagem de número não vinculado MUST ser ignorada sem executar ação nem revelar informação. Troca de celular MUST exigir sessão do aplicativo e substituir o vínculo. (RF-094, RF-095, RF-132)
 - **FR-034**: O assistente MUST responder consulta em linguagem natural a partir dos mesmos casos de uso do aplicativo e, se não reconhecer a intenção, declarar capacidades sem inventar. (RF-096, RF-097)
 - **FR-035**: O assistente MUST extrair cadastro de cliente e venda (cliente, itens, quantidades, valores, forma de pagamento) da mensagem, detectar duplicidade de cliente, desambiguar produto e permitir item avulso. (RF-098, RF-099, RF-100, RF-102)
 - **FR-036**: Venda lançada pelo assistente MUST usar o mesmo caso de uso do aplicativo. (RF-101)
