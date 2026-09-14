@@ -44,6 +44,7 @@ NR-060 — agent: runtime com tools geradas de contracts,Sprint 4 — WhatsApp e
 "NR-061 — agent: confirmação de ação sensível, com expiração",Sprint 4 — WhatsApp e assinatura,Trilha 2 — Plataforma & Integracoes,Blocked,High,2,Sprint 4,NR-060,NR-060 → DEC-003,agent,"RF-103, RF-104",docs/processo/task-ledger.md
 NR-062 — agent: contexto de conversa isolado por empresa,Sprint 4 — WhatsApp e assinatura,Trilha 2 — Plataforma & Integracoes,Blocked,High,3,Sprint 4,NR-060,DEC-011,agent,"RF-105, RF-106",docs/processo/task-ledger.md
 "NR-063 — billing: assinatura, trial, inadimplência e estado restrito",Sprint 4 — WhatsApp e assinatura,Trilha 2 — Plataforma & Integracoes,Not started,Medium,4,Sprint 4,NR-044,,billing,RF-110–118,docs/processo/task-ledger.md
+"NR-114 — Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012)",Sprint 4 — WhatsApp e assinatura,Trilha 1 — Nucleo & Dados,Done,Medium,2,Sprint 4,,,db,"RF-114, RF-115",docs/processo/task-ledger.md
 "NR-075 — web: planos, assinatura e cupom",Sprint 4 — WhatsApp e assinatura,Trilha 3 — Clientes,Blocked,High,3,Sprint 4,NR-063,DEC-012,web,E12,docs/processo/task-ledger.md
 "NR-032 — core: plano de contas, classificação e DRE simplificado",Sprint 5 — Bancos e relatórios,Trilha 1 — Nucleo & Dados,Done,Medium,4,Sprint 5,NR-028,,core,RF-081–088,docs/processo/task-ledger.md
 NR-033 — core: conciliação com sugestão por valor e data,Sprint 5 — Bancos e relatórios,Trilha 1 — Nucleo & Dados,Done,Medium,3,Sprint 5,NR-032,,core,RF-078–080,docs/processo/task-ledger.md

@@ -23,7 +23,9 @@ const DATABASE_URL = process.env.DATABASE_URL
 const MIGRATION_URL = process.env.DATABASE_MIGRATION_URL ?? DATABASE_URL
 
 /** Tabelas que NAO sao de negocio e por isso nao seguem a regra do company_id. */
-const NAO_TENANT = new Set(['schema_migrations', 'partners', 'coupons', 'waitlist_entries'])
+/* 'partners' e 'coupons' saem daqui na NR-114 (ADR-0013): passam a ter
+   FORCE ROW LEVEL SECURITY sem politica, como company_connections. */
+const NAO_TENANT = new Set(['schema_migrations', 'waitlist_entries'])
 
 describe.skipIf(!DATABASE_URL)('schema de cadastros — NR-008', () => {
   /** Administrador: papel de teste, concessoes e leitura de catalogo. */
@@ -414,10 +416,16 @@ describe.skipIf(!DATABASE_URL)('schema de cadastros — NR-008', () => {
      *   suporte precisa achar o chamado sem perguntar de qual loja e. Prefixar
      *   com `company_id` deixaria dois chamados diferentes com o mesmo numero,
      *   que e exatamente o que o protocolo existe para evitar.
+     * - `lojista_free_month_credits_source_unique` (ADR-0013) garante um
+     *   credito por resgate, e `source_redemption_id` ja e globalmente unico
+     *   (referencia `coupon_redemptions`, tabela cross-tenant sem
+     *   `company_id`) — prefixar com `company_id` seria redundante, nao mais
+     *   seguro.
      */
     expect(fora.map((r) => `${r.tabela}.${r.indice}`)).toEqual([
       'company_integrations.company_integrations_payments_account_id_idx',
       'company_users.company_users_por_usuario',
+      'lojista_free_month_credits.lojista_free_month_credits_source_unique',
       'payments.payments_provider_event_id_idx',
       'payments.payments_provider_payment_id_idx',
       'subscriptions.subscriptions_provider_subscription_id_idx',
