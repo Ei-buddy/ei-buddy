@@ -90,6 +90,8 @@ export {
 export { createLoginThrottle, createSessionIssuer } from './session-repository.js'
 export { createPlatformAdminAccess } from './platform-admin-repository.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
+/* Conta de Parceiro — NR-115, ADR-0013. */
+export { createPartnerApplicationRepository } from './partner-application-repository.js'
 
 /* Baixa e estorno de titulo — NR-029, RF-063 a RF-067. */
 export { createSettlementQueries, createSettlementUnitOfWork } from './settlement-repository.js'

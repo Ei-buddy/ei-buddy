@@ -8,6 +8,7 @@ import {
   roleSchema,
 } from '../common/primitives.js'
 import { cnpjSchema } from '../common/document.js'
+import { partnerAccountFieldsSchema } from '../partners/partner.js'
 
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
 
@@ -134,6 +135,24 @@ export const invitedUserOutputSchema = z.object({
 export type InvitedUserOutput = z.infer<typeof invitedUserOutputSchema>
 
 /**
+ * Tipo de conta escolhido no cadastro — NR-115, ADR-0013.
+ *
+ * `lojista` e o default (a UI so mostra a escolha, campo `account` inteiro e
+ * opcional abaixo) — quem nao escolhe nada continua exatamente com o
+ * cadastro de sempre. `parceiro` exige os campos extras do prompt de conta de
+ * parceiro: chave PIX, mensagem e (opcional) o nome do cupom dele.
+ */
+export const signupAccountSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('lojista') }).strict(),
+  z
+    .object({ type: z.literal('parceiro') })
+    .strict()
+    .extend(partnerAccountFieldsSchema.shape),
+])
+
+export type SignupAccount = z.infer<typeof signupAccountSchema>
+
+/**
  * Cadastro de conta — NR-014, RF-001, RF-002.
  *
  * Pessoa e empresa juntas, numa chamada so. Sao dois cadastros no banco, e
@@ -159,6 +178,13 @@ export const signupInputSchema = z
     /* A loja. */
     legalName: z.string().trim().min(2, 'Informe a razao social.').max(200),
     cnpj: cnpjSchema,
+
+    /**
+     * Ausente = lojista (NR-115). O tipo `parceiro` deixa a conta em analise
+     * (ADR-0013) — a sessao devolvida no cadastro ja funciona normalmente
+     * como lojista, so o cupom de indicacao fica inativo ate a aprovacao.
+     */
+    account: signupAccountSchema.optional(),
   })
   .strict()
 

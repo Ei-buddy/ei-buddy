@@ -62,6 +62,7 @@ import {
   createTeamRepository,
   createCompanyRepository,
   createCustomerRepository,
+  createPartnerApplicationRepository,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -296,6 +297,15 @@ export function buildAuthDeps(): AuthRouteDeps {
     audit: createAuditTrail(sql),
     /* Super Admin — ADR-0007. Mesma conexao das outras portas de identidade. */
     platformAdmin: createPlatformAdminAccess(sql),
+    /*
+     * Candidatura de Parceiro — NR-115, ADR-0013.
+     *
+     * Mesmo objeto serve `signup()` (so chamada se `account.type === 'parceiro'`)
+     * E `registerPartnersRoutes` (`/admin/parceiros*`, `/parceiros/*`) — `authDeps`
+     * ja tem `partners`+`platformAdmin`, mesmo raciocinio de `registerAdminRoutes(app, authDeps)`
+     * logo abaixo: nao abre uma segunda conexao so para repetir os mesmos dois campos.
+     */
+    partners: createPartnerApplicationRepository(sql),
   }
 }
 

@@ -20,10 +20,23 @@ import {
 import { plan } from '@/content/site'
 import { Alert, FormFooter, FormHeader, PasswordField, SubmitButton, TextField } from './Fields'
 import CouponInput from './CouponInput'
+import PartnerFields, { type PixKeyType } from './PartnerFields'
 import CobrancaPix from '@/components/app/CobrancaPix'
 import SignupStepper from './SignupStepper'
 import TermsCheckbox from './TermsCheckbox'
+import formStyles from './auth-form.module.css'
 import styles from './signup.module.css'
+
+/**
+ * Mensagem minima do pedido de Parceiro — mesma regra de
+ * `partnerAccountFieldsSchema` em `@na-regua/contracts` (RF-02). Repetida
+ * aqui pelo mesmo motivo de `MINIMO_DE_SENHA` em `composition.ts`: recusar
+ * so no backend faria a pessoa perder o que digitou.
+ */
+function validatePartnerMessage(value: string): string | null {
+  if (value.trim().length < 10) return 'Conte um pouco mais sobre por que quer ser Parceiro.'
+  return null
+}
 
 /** Valor do plano em numero — a copy da landing traz "R$ 149". */
 const PLAN_AMOUNT = 149
@@ -57,6 +70,20 @@ export default function SignupFlow() {
   const [cnpj, setCnpj] = useState('')
   const [razaoSocialError, setRazaoSocialError] = useState<FieldError>(null)
   const [cnpjError, setCnpjError] = useState<FieldError>(null)
+
+  /*
+   * Tipo de conta — NR-115, ADR-0013.
+   *
+   * `'lojista'` e o default: so quem marca "Parceiro" ve os campos extras, e
+   * so nesse caso eles entram na validacao e no corpo do cadastro.
+   */
+  const [tipoDeConta, setTipoDeConta] = useState<'lojista' | 'parceiro'>('lojista')
+  const [pixKey, setPixKey] = useState('')
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType>('PHONE')
+  const [partnerMessage, setPartnerMessage] = useState('')
+  const [couponName, setCouponName] = useState('')
+  const [pixKeyError, setPixKeyError] = useState<FieldError>(null)
+  const [partnerMessageError, setPartnerMessageError] = useState<FieldError>(null)
 
   /* Etapa 2 */
   const [cupom, setCupom] = useState('')
@@ -95,6 +122,9 @@ export default function SignupFlow() {
          CNPJ para depois do pagamento, que e o pior momento possivel. */
       razaoSocial: validateRequired(razaoSocial, 'a razao social'),
       cnpj: validateCNPJ(cnpj),
+      /* So valem quando a pessoa escolheu ser Parceiro — mesmo portao. */
+      pixKey: tipoDeConta === 'parceiro' ? validateRequired(pixKey, 'a chave PIX') : null,
+      partnerMessage: tipoDeConta === 'parceiro' ? validatePartnerMessage(partnerMessage) : null,
     }
 
     setNomeError(erros.nome)
@@ -104,6 +134,8 @@ export default function SignupFlow() {
     setConfirmacaoError(erros.confirmacao)
     setRazaoSocialError(erros.razaoSocial)
     setCnpjError(erros.cnpj)
+    setPixKeyError(erros.pixKey)
+    setPartnerMessageError(erros.partnerMessage)
 
     if (Object.values(erros).some(Boolean)) return
     setStep(2)
@@ -128,6 +160,15 @@ export default function SignupFlow() {
       razaoSocial,
       cnpj,
       cupom: cupomValido,
+      ...(tipoDeConta === 'parceiro'
+        ? {
+            accountType: 'parceiro' as const,
+            pixKey,
+            pixKeyType,
+            partnerMessage,
+            ...(couponName.trim() === '' ? {} : { couponName: couponName.trim() }),
+          }
+        : {}),
     })
 
     setCriando(false)
@@ -221,6 +262,57 @@ export default function SignupFlow() {
               inputMode="numeric"
               placeholder="00.000.000/0000-00"
             />
+
+            <div className={formStyles.field}>
+              <span className={formStyles.label}>Tipo de conta</span>
+              <div className={styles.tipoDeContaOpcoes}>
+                <label className={styles.tipoDeContaOpcao}>
+                  <input
+                    type="radio"
+                    name="tipo-de-conta"
+                    checked={tipoDeConta === 'lojista'}
+                    onChange={() => setTipoDeConta('lojista')}
+                  />
+                  Criar conta normal
+                </label>
+                <label className={styles.tipoDeContaOpcao}>
+                  <input
+                    type="radio"
+                    name="tipo-de-conta"
+                    checked={tipoDeConta === 'parceiro'}
+                    onChange={() => setTipoDeConta('parceiro')}
+                  />
+                  Cadastrar como Parceiro
+                </label>
+              </div>
+              <span className={formStyles.hint}>
+                Parceiro indica o EiBuddy e ganha comissão recorrente por cliente — a conta fica em
+                análise até a aprovação.
+              </span>
+            </div>
+
+            {tipoDeConta === 'parceiro' ? (
+              <PartnerFields
+                pixKey={pixKey}
+                onChangePixKey={(v) => {
+                  setPixKey(v)
+                  if (pixKeyError) setPixKeyError(validateRequired(v, 'a chave PIX'))
+                }}
+                pixKeyError={pixKeyError}
+                onBlurPixKey={() => setPixKeyError(validateRequired(pixKey, 'a chave PIX'))}
+                pixKeyType={pixKeyType}
+                onChangePixKeyType={setPixKeyType}
+                message={partnerMessage}
+                onChangeMessage={(v) => {
+                  setPartnerMessage(v)
+                  if (partnerMessageError) setPartnerMessageError(validatePartnerMessage(v))
+                }}
+                messageError={partnerMessageError}
+                onBlurMessage={() => setPartnerMessageError(validatePartnerMessage(partnerMessage))}
+                couponName={couponName}
+                onChangeCouponName={setCouponName}
+              />
+            ) : null}
 
             <TextField
               label="Telefone / WhatsApp"

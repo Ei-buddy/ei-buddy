@@ -68,6 +68,19 @@ ALTER TABLE partners
 COMMENT ON COLUMN partners.owner_company_id IS
   'Empresa dona da candidatura a Parceiro — nao se chama company_id de proposito (ver guarda em schema.test.ts).';
 
+/*
+ * `partners_name_unique` (0007) parava de fazer sentido nesta migration:
+ * nasceu quando `name` era um rotulo digitado a mao para cupom de
+ * plataforma, unico por natureza. Agora `name` e uma COPIA do nome da
+ * empresa candidata (`partner_application_submit` grava
+ * `COALESCE(trade_name, legal_name)`), e duas empresas diferentes podem
+ * legitimamente ter o mesmo nome fantasia — a unicidade que IMPORTA e
+ * `owner_company_id` (uma candidatura por empresa), nao `name`. Mantida a
+ * global faria a segunda empresa com nome coincidente ser recusada por um
+ * motivo que nao e o dela.
+ */
+DROP INDEX partners_name_unique;
+
 CREATE UNIQUE INDEX partners_owner_company_unique ON partners (owner_company_id) WHERE deleted_at IS NULL;
 
 ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
@@ -171,6 +184,8 @@ CREATE OR REPLACE FUNCTION partner_application_submit(
 DECLARE
   v_partner_id uuid;
   v_coupon_id uuid;
+  v_company_name text;
+  v_coupon_code text;
 BEGIN
   IF trim(p_pix_key) = '' THEN
     RAISE EXCEPTION 'Chave PIX e obrigatoria.';
@@ -180,21 +195,30 @@ BEGIN
     RAISE EXCEPTION 'Conte o motivo do pedido de Parceiro.';
   END IF;
 
-  INSERT INTO partners (name, owner_company_id, owner_user_id, pix_key, pix_key_type, message)
-  SELECT COALESCE(c.trade_name, c.legal_name), p_owner_company_id, p_owner_user_id, p_pix_key, p_pix_key_type, p_message
+  SELECT COALESCE(c.trade_name, c.legal_name) INTO v_company_name
     FROM companies c
-   WHERE c.id = p_owner_company_id
-  RETURNING id INTO v_partner_id;
+   WHERE c.id = p_owner_company_id;
 
-  IF v_partner_id IS NULL THEN
+  IF v_company_name IS NULL THEN
     RAISE EXCEPTION 'Empresa nao encontrada.';
   END IF;
 
+  /* Ausente ou so espaco = sugerido a partir do nome da empresa (RF-03) —
+     mesma funcao que a tela usa para checar disponibilidade em tempo real. */
+  v_coupon_code := CASE
+    WHEN p_coupon_code IS NULL OR trim(p_coupon_code) = '' THEN coupon_code_suggest(v_company_name)
+    ELSE upper(p_coupon_code)
+  END;
+
+  INSERT INTO partners (name, owner_company_id, owner_user_id, pix_key, pix_key_type, message)
+  VALUES (v_company_name, p_owner_company_id, p_owner_user_id, p_pix_key, p_pix_key_type, p_message)
+  RETURNING id INTO v_partner_id;
+
   INSERT INTO coupons (partner_id, code, kind, percent, discount_cycles)
-  VALUES (v_partner_id, upper(p_coupon_code), 'percent', 30, 1)
+  VALUES (v_partner_id, v_coupon_code, 'percent', 30, 1)
   RETURNING id INTO v_coupon_id;
 
-  RETURN QUERY SELECT v_partner_id, v_coupon_id, upper(p_coupon_code);
+  RETURN QUERY SELECT v_partner_id, v_coupon_id, v_coupon_code;
 END;
 $$;
 

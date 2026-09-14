@@ -391,3 +391,17 @@ export type {
   WaitlistRepository,
   WaitlistStats,
 } from './ports/waitlist-repository.js'
+
+/* Conta de Parceiro e esquema de cupons — NR-115, ADR-0013. */
+export {
+  approvePartnerApplication,
+  listPendingPartnerApplications,
+  rejectPartnerApplication,
+} from './partners/review-partner-application.js'
+export type { ReviewPartnerApplicationDeps } from './partners/review-partner-application.js'
+export { resendPartnerApplication } from './partners/resend-partner-application.js'
+export type { ResendPartnerApplicationDeps } from './partners/resend-partner-application.js'
+export { getMyPartnerApplication } from './partners/my-partner-application.js'
+export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
+export type { PartnerApplicationRepository } from './ports/partner-application-repository.js'
+export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'

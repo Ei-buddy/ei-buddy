@@ -143,6 +143,23 @@ describe.skipIf(!DATABASE_URL)('conta de parceiro e cupons — NR-114', () => {
       expect(cupom?.active).toBe(false)
     })
 
+    it('sem codigo de cupom, sugere a partir do nome da empresa', async () => {
+      const empresa = await criarEmpresa('Sugestao Automatica LTDA')
+      const dono = await criarDono(empresa)
+
+      const [resultado] = await sql<{ coupon_code: string }[]>`
+        SELECT * FROM partner_application_submit(${dono.id}, ${empresa}, '11999998888', 'PHONE', 'Motivo qualquer', ${null})
+      `
+
+      /* Nao prediz o valor exato (o nome real leva o sufixo aleatorio de
+         `criarEmpresa`, e `coupon_code_suggest` normaliza e trunca) — so que
+         veio uma sugestao de verdade, derivada do nome, e nao um valor vazio. */
+      expect(resultado?.coupon_code).toMatch(/^SUGESTAOAUTO/)
+
+      const [minha] = await sql`SELECT * FROM partner_application_mine(${empresa})`
+      expect(minha?.coupon_code).toBe(resultado?.coupon_code)
+    })
+
     it('recusa PIX vazio', async () => {
       const empresa = await criarEmpresa('Sem PIX')
       const dono = await criarDono(empresa)
