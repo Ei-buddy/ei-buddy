@@ -66,6 +66,13 @@ export const ROTULO_DIFICULDADE = paraRotulos(OPCOES_DIFICULDADE)
 export const ROTULO_SISTEMA = paraRotulos(OPCOES_SISTEMA)
 export const ROTULO_VALOR = paraRotulos(OPCOES_VALOR)
 
+/**
+ * O formulario nao oferece mais "Até R$ 29" como opcao de resposta — mas o
+ * valor continua um `FairPrice` valido e com rotulo (`ROTULO_VALOR`) por
+ * causa de quem ja respondeu isso antes desta mudanca.
+ */
+export const OPCOES_VALOR_FORMULARIO = OPCOES_VALOR.filter((o) => o.value !== 'up_to_29')
+
 export type DadosListaVip = {
   name: string
   businessType?: string

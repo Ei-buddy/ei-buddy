@@ -37,32 +37,6 @@
   color: var(--dark-text-muted);
 }
 
-.social {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 22px;
-}
-
-.socialLink {
-  display: inline-flex;
-  padding: 7px 15px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--dark-border);
-  font-size: 13px;
-  color: var(--dark-text-muted);
-  transition:
-    border-color var(--transition),
-    color var(--transition),
-    transform var(--transition);
-}
-
-.socialLink:hover {
-  border-color: var(--brand-accent);
-  color: var(--brand-accent);
-  transform: translateY(-2px);
-}
-
 /* --- Colunas de links --- */
 
 .columns {

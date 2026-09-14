@@ -24,7 +24,12 @@ export const metadata: Metadata = {
  */
 export default function PoliticaDeCookies() {
   return (
-    <PaginaLegal eyebrow="Documentos" titulo="Política de Cookies" atualizadoEm="2026-09-09">
+    <PaginaLegal
+      eyebrow="Documentos"
+      titulo="Política de Cookies"
+      atualizadoEm="2026-09-09"
+      voltarPara="/"
+    >
       <p>
         Esta página lista tudo o que o {BRAND} guarda no seu navegador, para que serve e quanto
         tempo fica. A lista é gerada a partir do próprio código do sistema — não é um texto mantido
