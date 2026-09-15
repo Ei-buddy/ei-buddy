@@ -1,6 +1,6 @@
 import Fastify from 'fastify'
 import {
-  assertAgentUsavelEmProducao,
+  motivoDoAgenteIndisponivel,
   assertAuthUsavelEmProducao,
   buildAgendaDeps,
   buildAgentDeps,
@@ -125,6 +125,16 @@ async function registrarRotas(): Promise<void> {
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())
   registerEmissaoRoutes(app, buildEmissaoDeps())
+
+  /*
+   * Assistente sem runtime utilizavel desliga a ROTA, e nao a api — mesmo
+   * criterio da emissao fiscal logo abaixo. O aviso no log e o que faz alguem
+   * notar antes do lojista.
+   */
+  const motivoDoAgente = motivoDoAgenteIndisponivel()
+  if (motivoDoAgente !== undefined) {
+    app.log.warn({ motivo: motivoDoAgente }, 'assistente desligado — ver AGENT_PROVIDER')
+  }
   registerAgentRoutes(app, await buildAgentDeps())
 
   /*
@@ -155,7 +165,6 @@ async function main(): Promise<void> {
   /* Antes de tudo: autenticacao de desenvolvimento nao sobe em producao.
      Sincrono e sem I/O, entao vem antes ate da checagem de isolamento. */
   assertAuthUsavelEmProducao()
-  assertAgentUsavelEmProducao()
 
   await registrarRotas()
 

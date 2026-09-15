@@ -71,7 +71,13 @@ export const apiEnvSchema = baseEnvSchema.extend({
    *
    * `fake` nao chama a OpenAI e reconhece so as consultas da US-047, o bastante
    * para o POST /agent/messages funcionar local sem chave. `mastra` e o
-   * provedor real. Producao recusa `fake` em `assertAgentUsavelEmProducao`.
+   * provedor real, e exige `OPENAI_API_KEY`.
+   *
+   * Em producao o `fake` nao e servido — publicar um reconhecedor de tres
+   * frases como se fosse o assistente seria mentir para o lojista. Mas a api
+   * SOBE assim: quem decide e `motivoDoAgenteIndisponivel` (em
+   * `apps/api/composition.ts`), e o efeito e 503 em `/agent/messages`, nao
+   * processo fora do ar. Mesmo criterio de `SECRETS_KEY` logo acima.
    */
   AGENT_PROVIDER: z.enum(['fake', 'mastra']).default('fake'),
   OPENAI_API_KEY: opcionalNaoVazia,

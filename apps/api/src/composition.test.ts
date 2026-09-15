@@ -169,12 +169,15 @@ describe('assertAuthUsavelEmProducao — ADR-0002', () => {
 })
 
 /**
- * A guarda simetrica do assistente — ADR-0010.
+ * O assistente desliga a rota, nao a api — ADR-0010.
  *
- * Subir em producao com `AGENT_PROVIDER=fake` publicaria um reconhecedor de
- * tres frases no lugar do modelo. O local continua no falso, sem chave.
+ * Servir `AGENT_PROVIDER=fake` em producao publicaria um reconhecedor de tres
+ * frases no lugar do modelo, entao ele continua barrado. O que mudou e o
+ * DESFECHO: antes a api recusava subir, e uma chave de IA ausente derrubava
+ * venda, financeiro e estoque junto. O teste que mais importa aqui e o ultimo:
+ * nenhum destes casos pode voltar a ser excecao.
  */
-describe('assertAgentUsavelEmProducao — ADR-0010', () => {
+describe('motivoDoAgenteIndisponivel — ADR-0010', () => {
   async function comAmbiente(over: Record<string, string>) {
     vi.resetModules()
     for (const [chave, valor] of Object.entries({ ...AMBIENTE, ...over })) {
@@ -183,36 +186,68 @@ describe('assertAgentUsavelEmProducao — ADR-0010', () => {
     return import('./composition.js')
   }
 
-  it('recusa producao com o provedor falso', async () => {
-    const { assertAgentUsavelEmProducao } = await comAmbiente({
+  it('recusa servir o provedor falso em producao', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
       NODE_ENV: 'production',
       AGENT_PROVIDER: 'fake',
     })
 
-    expect(() => assertAgentUsavelEmProducao()).toThrow(/nao pode rodar em producao/)
+    expect(motivoDoAgenteIndisponivel()).toMatch(/nao serve em producao/)
   })
 
-  it('a recusa diz o que configurar', async () => {
-    const { assertAgentUsavelEmProducao } = await comAmbiente({
+  it('o motivo diz o que configurar', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
       NODE_ENV: 'production',
       AGENT_PROVIDER: 'fake',
     })
 
-    expect(() => assertAgentUsavelEmProducao()).toThrow(/AGENT_PROVIDER=mastra/)
+    expect(motivoDoAgenteIndisponivel()).toMatch(/AGENT_PROVIDER=mastra/)
   })
 
-  it('aceita producao com Mastra', async () => {
-    const { assertAgentUsavelEmProducao } = await comAmbiente({
+  it('Mastra sem chave tambem nao serve — em vez de estourar na construcao', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
       NODE_ENV: 'production',
       AGENT_PROVIDER: 'mastra',
+      OPENAI_API_KEY: '',
     })
 
-    expect(() => assertAgentUsavelEmProducao()).not.toThrow()
+    expect(motivoDoAgenteIndisponivel()).toMatch(/exige OPENAI_API_KEY/)
+  })
+
+  it('aceita producao com Mastra e chave', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+      NODE_ENV: 'production',
+      AGENT_PROVIDER: 'mastra',
+      OPENAI_API_KEY: 'sk-de-teste',
+    })
+
+    expect(motivoDoAgenteIndisponivel()).toBeUndefined()
   })
 
   it.each(['development', 'test'])('aceita %s com o provedor falso', async (NODE_ENV) => {
-    const { assertAgentUsavelEmProducao } = await comAmbiente({ NODE_ENV, AGENT_PROVIDER: 'fake' })
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({ NODE_ENV, AGENT_PROVIDER: 'fake' })
 
-    expect(() => assertAgentUsavelEmProducao()).not.toThrow()
+    expect(motivoDoAgenteIndisponivel()).toBeUndefined()
+  })
+
+  /*
+   * A regressao que este arquivo existe para impedir a partir de agora.
+   *
+   * Producao sem chave nenhuma foi exatamente o estado que deixou a api em
+   * laco de reinicio com o front no ar: assistente ausente parando gravacao de
+   * venda. Nao ha configuracao de IA que justifique derrubar o processo.
+   */
+  it.each([
+    ['fake', ''],
+    ['mastra', ''],
+  ])('%s sem chave devolve motivo, e nunca lanca', async (AGENT_PROVIDER, OPENAI_API_KEY) => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+      NODE_ENV: 'production',
+      AGENT_PROVIDER,
+      OPENAI_API_KEY,
+    })
+
+    expect(() => motivoDoAgenteIndisponivel()).not.toThrow()
+    expect(motivoDoAgenteIndisponivel()).toBeTypeOf('string')
   })
 })

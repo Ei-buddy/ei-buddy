@@ -94,3 +94,38 @@ describe('POST /agent/messages', () => {
     await app.close()
   })
 })
+
+/**
+ * Sem runtime configurado — ADR-0010.
+ *
+ * O ponto nao e o 503: e que exista resposta. Enquanto a api recusava subir
+ * por falta de chave de IA, isto aqui era um processo em laco de reinicio e
+ * nenhuma outra rota respondendo.
+ */
+describe('POST /agent/messages sem runtime', () => {
+  function buildAppSemRuntime(): FastifyInstance {
+    const app = Fastify({ logger: false })
+    registerErrorHandler(app)
+    app.addHook('onRequest', async (request) => {
+      request.principal = PRINCIPAL
+    })
+    registerAgentRoutes(app, null)
+    return app
+  }
+
+  it('responde 503 com motivo, em vez de 404', async () => {
+    const app = buildAppSemRuntime()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto vendi hoje?' },
+    })
+
+    expect(res.statusCode).toBe(503)
+    const corpo = JSON.parse(res.body) as { error: { code: string; message: string } }
+    expect(corpo.error.code).toBe('UNAVAILABLE')
+    /* A tela precisa poder dizer o que houve sem mandar o lojista adivinhar. */
+    expect(corpo.error.message).toMatch(/indisponivel/i)
+    await app.close()
+  })
+})
