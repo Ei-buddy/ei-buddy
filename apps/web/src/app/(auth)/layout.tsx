@@ -7,18 +7,18 @@ import styles from './auth.module.css'
 const destaques = [
   {
     icon: IconBolt,
-    title: 'Tudo em um so fluxo',
+    title: 'Tudo em um só fluxo',
     text: 'Vendas, financeiro, estoque e fiscal conversando entre si.',
   },
   {
     icon: IconSparkles,
     title: 'Assistente em texto',
-    text: 'Pergunte o que precisa e receba o numero pronto.',
+    text: 'Pergunte o que precisa e receba o número pronto.',
   },
   {
     icon: IconShield,
-    title: 'Seguranca nivel bancario',
-    text: 'Dados isolados por empresa e backup diario.',
+    title: 'Segurança nível bancário',
+    text: 'Dados isolados por empresa e backup diário.',
   },
 ]
 
@@ -33,7 +33,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </Link>
 
           <div className={styles.pitch}>
-            <h2 className={styles.pitchTitle}>A gestao do seu comercio, do balcao ao relatorio.</h2>
+            <h2 className={styles.pitchTitle}>A gestão do seu comércio, do balcão ao relatório.</h2>
 
             <ul className={styles.highlights}>
               {destaques.map((item) => {
@@ -53,8 +53,16 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </ul>
           </div>
 
+          {/*
+            Era "Mais de 12 mil negocios ja usam" — numero inventado, e falso:
+            com PRE_LANCAMENTO ligado ninguem usa o produto ainda. A landing ja
+            tinha tirado essa metrica pelo mesmo motivo (ver o comentario de
+            `highlights` em content/site.ts), e esta tela ficou para tras.
+
+            Volta a ser metrica quando houver numero apurado, nao estimado.
+          */}
           <p className={styles.footNote}>
-            Mais de 12 mil negocios ja usam para fechar o mes sem planilha.
+            Feito para MEIs e pequenos comércios — do balcão à contabilidade.
           </p>
         </div>
       </aside>

@@ -134,7 +134,7 @@ export default function LoginForm() {
       <>
         <FormHeader
           title="Qual loja?"
-          subtitle={`Ola, ${escolhendo.userName}. Você tem acesso a mais de uma.`}
+          subtitle={`Olá, ${escolhendo.userName}. Você tem acesso a mais de uma.`}
         />
 
         {formError ? <Alert tone="error">{formError}</Alert> : null}

@@ -171,7 +171,7 @@ export async function selectCompany(
 
   /* NOT_FOUND e nao FORBIDDEN: 403 confirmaria que a loja existe para quem
      chutou um id — a mesma regra de recurso de outro tenant. */
-  if (vinculo === undefined) throw AppError.notFound('Loja nao encontrada.')
+  if (vinculo === undefined) throw AppError.notFound('Loja não encontrada.')
 
   const vinculos = await deps.users.listMemberships(sessao.userId)
   const usuario = await deps.users.findById(sessao.userId)
@@ -179,7 +179,7 @@ export async function selectCompany(
   /* Conta desativada entre o login e a escolha da loja: o token continua
      valido por doze horas, e sem esta conferencia ele ainda escolheria loja. */
   if (usuario === undefined || !usuario.isActive) {
-    throw AppError.unauthorized('Sua conta nao esta mais ativa.')
+    throw AppError.unauthorized('Sua conta não está mais ativa.')
   }
 
   const expiraEm = new Date(meta.now.getTime() + DURACAO_DA_SESSAO_HORAS * 3_600_000)
