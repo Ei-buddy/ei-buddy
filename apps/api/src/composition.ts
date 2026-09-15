@@ -50,6 +50,7 @@ import {
   createInventoryQueries,
   createInventoryUnitOfWork,
   createReportRepository,
+  createAuditQueries,
   createAuditTrail,
   createDataSubjectRepository,
   createExportSource,
@@ -97,6 +98,7 @@ import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
 import type { RelatoriosDeps } from './routes/relatorios.js'
+import type { AuditoriaDeps } from './routes/auditoria.js'
 import type { ContasDeps } from './routes/contas.js'
 import type { CrmRouteDeps } from './routes/crm.js'
 import { createInvoiceQueue } from './invoice-queue.js'
@@ -522,6 +524,12 @@ export function buildConciliacaoDeps(): ConciliacaoDeps {
 export function buildRelatoriosDeps(): RelatoriosDeps {
   const sql = getClient(env.DATABASE_URL)
   return { reports: createReportRepository(sql, env.TZ) }
+}
+
+/** Leitura da trilha de auditoria — US-061. Sob RLS, pela conexao comum. */
+export function buildAuditoriaDeps(): AuditoriaDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return { auditQueries: createAuditQueries(sql) }
 }
 
 /**

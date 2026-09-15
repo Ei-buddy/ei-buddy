@@ -83,3 +83,68 @@ export const auditEntryOutputSchema = z.object({
 })
 
 export type AuditEntryOutput = z.infer<typeof auditEntryOutputSchema>
+
+/* --------------------------------------------------------------------------
+   Consulta da trilha — US-061, "quando consulto"
+   -------------------------------------------------------------------------- */
+
+/**
+ * A trilha so foi construida pela metade ate aqui: dezesseis pontos do sistema
+ * GRAVAM, e nada lia. A US-061 tem tres criterios de aceite, e o terceiro
+ * ("quando consulto, vejo o usuario humano que confirmou") nao tinha como ser
+ * satisfeito sem leitura.
+ */
+
+export const PAGINA_PADRAO_DA_TRILHA = 50
+export const PAGINA_MAXIMA_DA_TRILHA = 200
+
+export const auditQueryInputSchema = z
+  .object({
+    /** Nome da entidade no glossario: `Customer`, `Sale`, `Product`. */
+    entity: z.string().trim().max(60).optional(),
+    /** Quem fez — o filtro que resolve "o que o fulano andou mexendo". */
+    actorId: idSchema.optional(),
+    action: auditActionSchema.optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
+    pageSize: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(PAGINA_MAXIMA_DA_TRILHA, `A pagina vai ate ${PAGINA_MAXIMA_DA_TRILHA} registros.`)
+      .default(PAGINA_PADRAO_DA_TRILHA),
+  })
+  .strict()
+  .refine((p) => p.from === undefined || p.to === undefined || p.from <= p.to, {
+    message: 'O inicio do periodo nao pode ser depois do fim.',
+    path: ['from'],
+  })
+
+export type AuditQueryInput = z.infer<typeof auditQueryInputSchema>
+
+/**
+ * A linha da trilha como a tela precisa dela.
+ *
+ * Estende a saida da escrita com o NOME de quem fez. `actorId` sozinho e um
+ * UUID, e a US-061 pede em voz alta o contrario: "vejo o usuario humano que
+ * confirmou, nao 'sistema'". Um identificador na tela e a mesma frustracao que
+ * "sistema", so que mais longa.
+ *
+ * Nulo quando o autor nao existe mais: a trilha sobrevive ao desligamento de
+ * quem agiu, de proposito (`actor_id` nao tem chave estrangeira).
+ */
+export const auditLogEntrySchema = auditEntryOutputSchema.extend({
+  actorName: z.string().nullable(),
+})
+
+export type AuditLogEntry = z.infer<typeof auditLogEntrySchema>
+
+export const auditLogOutputSchema = z.object({
+  entries: z.array(auditLogEntrySchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+})
+
+export type AuditLogOutput = z.infer<typeof auditLogOutputSchema>

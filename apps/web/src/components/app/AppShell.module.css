@@ -158,7 +158,13 @@
 .main {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* Coluna explicita: sem ela a coluna implicita e `auto`, cresce ate o
+     conteudo da barra do topo, e no celular a pagina inteira rolava de lado. */
+  grid-template-columns: minmax(0, 1fr);
+  /* Linhas sem molde fixo: era `auto 1fr`, pensado para barra + conteudo. Com
+     o banner de Super Admin (ou o de pagamento) acima, a BARRA caia na linha
+     `1fr` e esticava ate sobrar tela. */
+  align-content: start;
 }
 
 .topbar {

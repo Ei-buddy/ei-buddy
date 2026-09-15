@@ -77,7 +77,7 @@ export { createSaleHistoryRepository } from './sale-history-repository.js'
 export { createSupportRepository } from './support-repository.js'
 
 /* Trilha de auditoria — NR-087, RF-123, RF-124, US-061. */
-export { createAuditTrail, gravarTrilha } from './audit-repository.js'
+export { createAuditQueries, createAuditTrail, gravarTrilha } from './audit-repository.js'
 
 /* Exportacao completa e anonimizacao — NR-086, RF-125, RF-127, RF-128. */
 export {

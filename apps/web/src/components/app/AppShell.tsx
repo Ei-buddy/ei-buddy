@@ -32,6 +32,7 @@ import {
   IconMenu,
   IconReceipt,
   IconSettings,
+  IconShield,
   IconSparkles,
   IconStore,
   IconUsers,
@@ -160,6 +161,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }, [navOpen])
 
+  /*
+   * Auditoria so aparece para o dono — a mesma regra de `core`, repetida aqui
+   * so para nao oferecer um item que responderia 403. Quem barra de verdade e
+   * a api. O Super Admin dentro da loja entra como dono, e ve o item.
+   */
+  const itensDoMenu: NavItem[] =
+    perfil?.role === 'owner'
+      ? [
+          ...navItems.slice(0, -2),
+          { href: '/app/auditoria', label: 'Auditoria', icon: IconShield },
+          ...navItems.slice(-2),
+        ]
+      : navItems
+
   const isActive = (href: string) =>
     href === '/app' ? pathname === href : pathname.startsWith(href)
 
@@ -215,7 +230,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </button>
 
         <nav className={styles.nav} aria-label="Módulos do sistema">
-          {navItems.map((item) => {
+          {itensDoMenu.map((item) => {
             const Icon = item.icon
 
             /* --- Item com submenu (Financeiro) --- */

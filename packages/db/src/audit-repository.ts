@@ -1,5 +1,5 @@
 import type { AuditEntryOutput } from '@na-regua/contracts'
-import type { AuditTrail, NewAuditEntry } from '@na-regua/core'
+import type { AuditQueries, AuditTrail, NewAuditEntry } from '@na-regua/core'
 import type { JSONValue, Sql, TransactionSql } from 'postgres'
 import { withTenant } from './tenant.js'
 
@@ -150,5 +150,80 @@ export async function gravarTrilha(
 export function createAuditTrail(sql: Sql): AuditTrail {
   return {
     record: (entrada) => withTenant(sql, entrada.companyId, (tx) => gravarTrilha(tx, entrada)),
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Leitura da trilha — US-061, "quando consulto"
+   -------------------------------------------------------------------------- */
+
+/**
+ * A trilha como a tela pergunta.
+ *
+ * ## Por que o nome vem de uma funcao, e nao de um `JOIN`
+ *
+ * `users` tem politica de RLS que so mostra quem tem vinculo com a empresa do
+ * contexto (migration 0002). Num `JOIN`, o nome sumiria justamente nos dois
+ * casos que mais interessam a quem audita: o funcionario que SAIU, e o proprio
+ * Super Admin agindo dentro da loja — ele nao tem vinculo em `company_users`.
+ *
+ * `audit_actor_names` (migration 0016) atravessa a politica com retorno minimo
+ * e igualdade exata, no mesmo molde das funcoes `auth_*`. Os ids que ela
+ * recebe vem de linhas que quem chama JA leu sob RLS, da propria empresa.
+ *
+ * ## Por que nao ha checagem de empresa no `WHERE`
+ *
+ * `withTenant` define `app.company_id`, e a politica de `audit_logs` faz o
+ * resto. Repetir o filtro daria a impressao de que e ele quem protege — e no
+ * dia em que alguem o removesse por parecer redundante, a protecao iria junto
+ * sem ninguem notar.
+ */
+export function createAuditQueries(sql: Sql): AuditQueries {
+  return {
+    list: (companyId, filtro) =>
+      withTenant(sql, companyId, async (tx) => {
+        const condicoes = [
+          filtro.entity === undefined ? tx`TRUE` : tx`a.entity = ${filtro.entity}`,
+          filtro.actorId === undefined ? tx`TRUE` : tx`a.actor_id = ${filtro.actorId}::uuid`,
+          filtro.action === undefined ? tx`TRUE` : tx`a.action = ${filtro.action}`,
+          filtro.from === undefined ? tx`TRUE` : tx`a.occurred_at >= ${filtro.from}::timestamptz`,
+          filtro.to === undefined ? tx`TRUE` : tx`a.occurred_at <= ${filtro.to}::timestamptz`,
+        ].reduce((acc, cond) => tx`${acc} AND ${cond}`)
+
+        const linhas = await tx<LinhaDaTrilha[]>`
+          SELECT a.id, a.entity, a.entity_id, a.action, a.actor_id, a.channel,
+                 a.occurred_at, a.before, a.after
+            FROM audit_logs a
+           WHERE ${condicoes}
+           ORDER BY a.occurred_at DESC, a.id DESC
+           LIMIT ${filtro.pageSize} OFFSET ${(filtro.page - 1) * filtro.pageSize}
+        `
+
+        const [contagem] = await tx<{ total: number }[]>`
+          SELECT count(*)::int AS total FROM audit_logs a WHERE ${condicoes}
+        `
+
+        /* Uma consulta para a pagina inteira, e nao uma por linha: a mesma
+           pessoa costuma aparecer varias vezes seguidas na trilha. */
+        const ids = [...new Set(linhas.map((l) => l.actor_id))]
+        const nomes = new Map<string, string>()
+
+        if (ids.length > 0) {
+          const autores = await tx<{ id: string; name: string }[]>`
+            SELECT id, name FROM audit_actor_names(${ids}::uuid[])
+          `
+          for (const a of autores) nomes.set(a.id, a.name)
+        }
+
+        return {
+          entries: linhas.map((l) => ({
+            ...paraEntrada(l),
+            /* Nulo quando o usuario nem existe mais: a trilha sobrevive a
+               remocao de quem agiu, de proposito (`actor_id` sem FK). */
+            actorName: nomes.get(l.actor_id) ?? null,
+          })),
+          total: contagem?.total ?? 0,
+        }
+      }),
   }
 }
