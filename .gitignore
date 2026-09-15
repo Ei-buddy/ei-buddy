@@ -26,6 +26,9 @@ expo-env.d.ts
 .env
 .env.*
 !.env.example
+# O modelo de producao entra no git; o .env.production de verdade, nunca —
+# `.env.*` acima ja o barra, e e ele que tem segredo dentro.
+!.env.production.example
 
 # Logs
 *.log
