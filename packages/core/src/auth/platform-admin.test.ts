@@ -10,6 +10,7 @@ import {
   enterCompany,
   exitCompany,
   grantPlatformAdmin,
+  revokePlatformAdmin,
   listCompanies,
   listPlatformAdmins,
   type PlatformAdminDeps,
@@ -163,6 +164,61 @@ describe('conceder Super Admin', () => {
 
     const criado = await users.findByEmail('novo-admin@exemplo.com')
     expect(criado?.name).toBe('Novo Admin')
+  })
+})
+
+/**
+ * Revogar Super Admin — ADR-0007.
+ *
+ * A funcao SQL existia desde a migration 0008 e nunca teve caminho ate a
+ * tela: dava para conceder o maior privilegio do sistema e nao dava para
+ * tirar. O que se prova aqui e a regra que impede o tiro no proprio pe.
+ */
+describe('revogar Super Admin', () => {
+  it('quem nao e Super Admin nao revoga ninguem', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+
+    const erro = await pegaErro(() => revokePlatformAdmin(deps, 'qualquer-um', 'admin-1'))
+
+    expect(isAppError(erro) && erro.code).toBe('FORBIDDEN')
+    /* E o alvo continua Super Admin: a recusa nao pode ter efeito colateral. */
+    expect(await access.isPlatformAdmin('admin-1')).toBe(true)
+  })
+
+  it('Super Admin revoga outro', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+    access.tornarSuperAdmin('admin-2')
+
+    await revokePlatformAdmin(deps, 'admin-1', 'admin-2')
+
+    expect(await access.isPlatformAdmin('admin-2')).toBe(false)
+    expect(await access.isPlatformAdmin('admin-1')).toBe(true)
+  })
+
+  it('ninguem revoga a si mesmo — e o que impede a plataforma ficar sem dono', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+
+    const erro = await pegaErro(() => revokePlatformAdmin(deps, 'admin-1', 'admin-1'))
+
+    /*
+     * Sem esta guarda, o ultimo Super Admin restante deixa a plataforma sem
+     * ninguem que possa administrar, e a volta e o script de bootstrap com
+     * acesso ao banco de producao.
+     */
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+    expect(await access.isPlatformAdmin('admin-1')).toBe(true)
+  })
+
+  it('revogar quem nao e Super Admin avisa, em vez de fingir sucesso', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+
+    const erro = await pegaErro(() => revokePlatformAdmin(deps, 'admin-1', 'nao-e-admin'))
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 })
 

@@ -4,6 +4,7 @@ import {
   enterCompany,
   exitCompany,
   grantPlatformAdmin,
+  revokePlatformAdmin,
   listPlatformAdmins,
   listPlatformCompanies,
   type IdentityRegistrar,
@@ -109,5 +110,22 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRouteDeps):
     const resultado = await grantPlatformAdmin(usoDeps, sessao.userId, input)
 
     return reply.code(resultado.created ? 201 : 200).send(resultado)
+  })
+
+  /**
+   * Tira o acesso de Super Admin — ADR-0007.
+   *
+   * `DELETE` e nao `POST /revogar`: e a remocao de um recurso que o `GET`
+   * acima lista, e o verbo ja diz o que faz. A linha no banco nao some (ganha
+   * `revoked_by`/`revoked_at`) — quem teve o maior privilegio do sistema e
+   * quando o perdeu e o que a auditoria precisa depois.
+   */
+  app.delete('/admin/super-admins/:userId', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const { userId } = request.params as { userId: string }
+
+    await revokePlatformAdmin(usoDeps, sessao.userId, userId)
+
+    return reply.code(204).send()
   })
 }

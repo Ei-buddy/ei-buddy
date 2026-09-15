@@ -142,3 +142,46 @@ export async function grantPlatformAdmin(
 
   return { userId: usuario.id, created: true, temporaryPassword: senhaTemporaria }
 }
+
+/**
+ * Tira o acesso de Super Admin — ADR-0007.
+ *
+ * ## Por que existe, e por que demorou
+ *
+ * A funcao `platform_admin_revoke` estava no banco desde a migration 0008, e
+ * nunca teve caminho ate a tela: dava para CONCEDER o maior privilegio do
+ * sistema e nao dava para tirar. Socio que sai da empresa, conta comprometida,
+ * acesso concedido por engano — em todos, a unica saida era `UPDATE` a mao no
+ * banco de producao.
+ *
+ * ## Por que ninguem revoga a si mesmo
+ *
+ * E a guarda que impede o sistema de ficar sem dono. Sem ela, o unico Super
+ * Admin restante consegue, num clique, deixar a plataforma sem ninguem que
+ * possa administrar — e a volta e o script de bootstrap com acesso ao banco de
+ * producao.
+ *
+ * Com ela, sempre sobra pelo menos um: para sair, peca a outro Super Admin que
+ * revogue voce. Isso tambem e melhor governanca — a saida fica registrada como
+ * decisao de outra pessoa, com `revoked_by` verdadeiro.
+ */
+export async function revokePlatformAdmin(
+  deps: PlatformAdminDeps,
+  requestedBy: UserId,
+  userId: UserId,
+): Promise<void> {
+  await exigirSuperAdmin(deps, requestedBy)
+
+  if (requestedBy === userId) {
+    throw AppError.validation('Voce nao pode revogar o proprio acesso. Peca a outro Super Admin.')
+  }
+
+  if (!(await deps.access.isPlatformAdmin(userId))) {
+    /* Nao e erro de autorizacao: quem pediu E Super Admin. O alvo e que nao
+       tem o acesso — e dizer isso e melhor que um sucesso silencioso sobre
+       uma revogacao que nao revogou nada. */
+    throw AppError.notFound('Esta conta nao e Super Admin.')
+  }
+
+  await deps.access.revoke(userId, requestedBy)
+}

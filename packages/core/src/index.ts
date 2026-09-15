@@ -262,6 +262,7 @@ export {
   enterCompany,
   exitCompany,
   grantPlatformAdmin,
+  revokePlatformAdmin,
   listCompanies as listPlatformCompanies,
   listPlatformAdmins,
 } from './auth/platform-admin.js'

@@ -137,7 +137,7 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
 
   const comToken = (
     token: string,
-    opcoes: { method: 'GET' | 'POST'; url: string; payload?: object },
+    opcoes: { method: 'GET' | 'POST' | 'DELETE'; url: string; payload?: object },
   ) => {
     const base = {
       method: opcoes.method,
@@ -211,5 +211,61 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
     expect(r.statusCode).toBe(200)
     const corpo = r.json() as { admins: { userId: string }[] }
     expect(corpo.admins.map((a) => a.userId)).toContain(adminUserId)
+  })
+
+  /**
+   * Revogar — ADR-0007.
+   *
+   * A funcao SQL existia desde a migration 0008 sem caminho ate a api: dava
+   * para conceder o maior privilegio do sistema e nao dava para tirar.
+   */
+  it('DELETE /admin/super-admins/:id tira o acesso, e a lista deixa de traze-lo', async () => {
+    const email = `revogavel-${randomUUID()}@plataforma.local`
+    const criado = await comToken(adminToken, {
+      method: 'POST',
+      url: '/admin/super-admins',
+      payload: { email, name: 'Vai Perder o Acesso' },
+    })
+    const { userId } = criado.json() as { userId: string }
+
+    const antes = await comToken(adminToken, { method: 'GET', url: '/admin/super-admins' })
+    expect(
+      (antes.json() as { admins: { userId: string }[] }).admins.map((a) => a.userId),
+    ).toContain(userId)
+
+    const r = await comToken(adminToken, {
+      method: 'DELETE',
+      url: `/admin/super-admins/${userId}`,
+    })
+    expect(r.statusCode).toBe(204)
+
+    const depois = await comToken(adminToken, { method: 'GET', url: '/admin/super-admins' })
+    expect(
+      (depois.json() as { admins: { userId: string }[] }).admins.map((a) => a.userId),
+    ).not.toContain(userId)
+  })
+
+  it('revogar a si mesmo e recusado — e o que impede a plataforma ficar sem dono', async () => {
+    const r = await comToken(adminToken, {
+      method: 'DELETE',
+      url: `/admin/super-admins/${adminUserId}`,
+    })
+
+    expect(r.statusCode).toBe(400)
+
+    /* E continua Super Admin: a recusa nao pode ter efeito pela metade. */
+    const lista = await comToken(adminToken, { method: 'GET', url: '/admin/super-admins' })
+    expect(
+      (lista.json() as { admins: { userId: string }[] }).admins.map((a) => a.userId),
+    ).toContain(adminUserId)
+  })
+
+  it('quem nao e Super Admin nao revoga ninguem', async () => {
+    const r = await comToken(donoToken, {
+      method: 'DELETE',
+      url: `/admin/super-admins/${adminUserId}`,
+    })
+
+    expect(r.statusCode).toBe(403)
   })
 })

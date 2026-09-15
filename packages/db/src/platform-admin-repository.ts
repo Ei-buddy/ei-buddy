@@ -70,6 +70,10 @@ export function createPlatformAdminAccess(sql: Sql): PlatformAdminAccess {
       await sql`SELECT platform_admin_grant(${userId}, ${grantedBy})`
     },
 
+    revoke: async (userId, revokedBy) => {
+      await sql`SELECT platform_admin_revoke(${userId}, ${revokedBy})`
+    },
+
     listAdmins: async (requestedBy) => {
       const linhas = await sql<LinhaDeAdmin[]>`
         SELECT * FROM platform_admin_list(${requestedBy})

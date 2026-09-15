@@ -167,3 +167,34 @@
   gap: 10px;
   padding-top: 4px;
 }
+
+/*
+ * Revogar Super Admin — ADR-0007.
+ *
+ * Discreto de proposito: e acao rara e destrutiva, e um botao vermelho
+ * chamativo ao lado de cada nome convidaria o clique errado. A cor de perigo
+ * so aparece no hover, quando a intencao ja existe.
+ */
+.revogar {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-full, 999px);
+  background: transparent;
+  color: var(--app-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    border-color var(--transition);
+}
+
+.revogar:hover:not(:disabled) {
+  border-color: var(--danger, #b91c1c);
+  color: var(--danger, #b91c1c);
+}
+
+.revogar:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

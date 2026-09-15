@@ -53,6 +53,15 @@ export const convidarSuperAdmin = (
     body: JSON.stringify(name === undefined ? { email } : { email, name }),
   })
 
+/**
+ * Tira o acesso de Super Admin — ADR-0007.
+ *
+ * A api recusa revogar a si mesmo: sem essa guarda o ultimo Super Admin
+ * deixaria a plataforma sem ninguem que possa administrar.
+ */
+export const revogarSuperAdmin = (userId: string): Promise<Resultado<void>> =>
+  pedir(`/api/admin/super-admins/${userId}`, { method: 'DELETE' })
+
 /* -------------------------------------------------------------------------- */
 /* Lista de espera do pre-lancamento — NR-111                                 */
 /* -------------------------------------------------------------------------- */
