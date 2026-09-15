@@ -116,6 +116,7 @@ describe.skipIf(!DATABASE_URL)('conta de parceiro, ponta a ponta — NR-115', ()
       secret: 'senha-de-teste',
       legalName: 'Candidata a Parceira LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
       account: {
         type: 'parceiro',
         pixKey: '41999990000',
@@ -136,6 +137,7 @@ describe.skipIf(!DATABASE_URL)('conta de parceiro, ponta a ponta — NR-115', ()
       secret: 'senha-de-teste',
       legalName: 'Lojista Comum LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
     })
     const r = await app.inject({ method: 'POST', url: '/auth/signup', payload: cadastro })
     expect(r.statusCode).toBe(201)

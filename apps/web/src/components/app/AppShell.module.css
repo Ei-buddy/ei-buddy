@@ -543,3 +543,23 @@
 .esqueletoCurta {
   width: 64px;
 }
+
+/*
+ * Acesso permanente aos documentos legais — RF-01.
+ *
+ * Menor e mais apagado que os itens do menu de proposito: e um lugar onde se
+ * consulta, nao onde se trabalha. `margin-top: auto` empurra para o rodape da
+ * barra sem depender da quantidade de modulos acima.
+ */
+.navLegal {
+  margin-top: auto;
+  padding: 14px 12px 4px;
+  border-top: 1px solid var(--app-border);
+  font-size: 13px;
+  color: var(--app-muted);
+  transition: color var(--transition);
+}
+
+.navLegal:hover {
+  color: var(--app-text);
+}

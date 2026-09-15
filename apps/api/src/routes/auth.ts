@@ -77,7 +77,20 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
     async (request, reply) => {
       const input = validate(signupInputSchema, request.body)
 
-      const sessao = await signup(deps, input, new Date())
+      /*
+       * A origem do aceite vem da REQUISICAO — RF-02, LGPD art. 8 §1.
+       *
+       * Nunca do corpo: IP que o proprio interessado informa nao prova nada.
+       * Os dois campos sao opcionais na porta justamente porque aqui eles
+       * podem faltar (proxy sem cabecalho, cliente sem user agent), e um
+       * aceite sem IP continua sendo um aceite — so com prova mais fraca.
+       */
+      const sessao = await signup(deps, input, new Date(), {
+        ip: request.ip,
+        ...(request.headers['user-agent'] === undefined
+          ? {}
+          : { userAgent: request.headers['user-agent'] }),
+      })
 
       /* 201: criou pessoa, loja e vinculo. E ja devolve a sessao aberta — quem
          acabou de cadastrar quer usar o sistema, nao digitar tudo de novo. */

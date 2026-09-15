@@ -34,6 +34,7 @@ import { registerRateLimit } from './plugins/rate-limit.js'
 import { registerSession } from './plugins/session.js'
 import { registerAdminRoutes } from './routes/admin.js'
 import { registerPartnersRoutes } from './routes/partners.js'
+import { registerLegalRoutes } from './routes/legal.js'
 import { registerAgendaRoutes } from './routes/agenda.js'
 import { registerAuthRoutes } from './routes/auth.js'
 import { registerCadastroRoutes } from './routes/cadastro.js'
@@ -106,6 +107,8 @@ async function registrarRotas(): Promise<void> {
   registerAuthRoutes(app, authDeps)
   registerAdminRoutes(app, authDeps)
   registerPartnersRoutes(app, authDeps)
+  /* Reaceite dos documentos legais (RF-03). `authDeps` ja tem `legalConsents`. */
+  registerLegalRoutes(app, authDeps)
 
   /* `buildSaleDeps()` abre a conexao, entao e chamada aqui e nao no topo do
      modulo — ver o comentario em composition.ts. */

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { InMemoryChartOfAccounts } from '../accounting/fakes.js'
 import { isAppError } from '../app-error.js'
+import { InMemoryLegalConsentRepository } from '../legal/fakes.js'
 import { InMemoryPartnerApplicationRepository } from '../partners/fakes.js'
 import { InMemoryCompanyRepository } from '../registration/fakes.js'
 import { FakeIdentityProvider, InMemorySessionIssuer } from './fakes.js'
@@ -24,6 +25,8 @@ const entrada = {
   secret: 'senha-de-teste-longa',
   legalName: 'Mercearia da Ana LTDA',
   cnpj: '11222333000181',
+  /* RF-02: o contrato nao aceita cadastro sem aceite — `literal(true)`. */
+  acceptedLegalTerms: true as const,
 }
 
 function cenario() {
@@ -32,6 +35,7 @@ function cenario() {
   const provider = new FakeIdentityProvider()
   const sessions = new InMemorySessionIssuer()
   const partners = new InMemoryPartnerApplicationRepository()
+  const legalConsents = new InMemoryLegalConsentRepository()
 
   /* O diretorio nao tem falso proprio: o minimo que o caso de uso usa. */
   const criados: { id: string; name: string; companyId: string }[] = []
@@ -49,11 +53,20 @@ function cenario() {
   }
 
   return {
-    deps: { companies, accounts, users, registrar: provider, sessions, partners } as never,
+    deps: {
+      companies,
+      accounts,
+      users,
+      registrar: provider,
+      sessions,
+      partners,
+      legalConsents,
+    } as never,
     companies,
     accounts,
     provider,
     partners,
+    legalConsents,
     criados,
   }
 }
@@ -172,6 +185,36 @@ describe('cadastro de conta', () => {
     /* Papel menor deixaria a empresa sem ninguem que possa convidar o segundo
        usuario. */
     expect(sessao.memberships[0]?.role).toBe('owner')
+  })
+
+  describe('aceite dos documentos legais — RF-02, LGPD art. 8 §1', () => {
+    it('o cadastro grava a prova do aceite dos dois documentos', async () => {
+      const c = cenario()
+
+      await signup(c.deps, entrada, AGORA)
+
+      /* Antes disto o aceite era so um checkbox que morria no navegador: a
+         empresa nao tinha como provar o consentimento de ninguem. */
+      expect(c.legalConsents.registros.map((r) => r.type).sort()).toEqual(['privacy', 'terms'])
+    })
+
+    it('guarda de onde veio o aceite, quando a requisicao informa', async () => {
+      const c = cenario()
+
+      await signup(c.deps, entrada, AGORA, { ip: '200.0.0.1', userAgent: 'Firefox' })
+
+      expect(c.legalConsents.registros[0]?.ip).toBe('200.0.0.1')
+      expect(c.legalConsents.registros[0]?.userAgent).toBe('Firefox')
+    })
+
+    it('a origem e opcional — sem ela o aceite continua valendo', async () => {
+      const c = cenario()
+
+      const sessao = await signup(c.deps, entrada, AGORA)
+
+      expect(sessao.token).not.toBe('')
+      expect(c.legalConsents.registros).toHaveLength(2)
+    })
   })
 
   describe('cadastro como Parceiro — NR-115, ADR-0013', () => {

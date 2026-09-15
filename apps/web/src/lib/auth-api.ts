@@ -200,6 +200,14 @@ export async function createAccount(
         secret: data.senha,
         legalName: data.razaoSocial,
         cnpj: data.cnpj,
+        /*
+         * RF-02. Nao e um campo do formulario que viaja junto: o contrato
+         * exige `true` literal, e a tela so chega aqui depois do checkbox
+         * marcado (`disabled={!aceitou}`). Mandar o valor do estado abriria a
+         * porta para um `false` chegar ao servidor e virar 400 sem que nada
+         * na tela explicasse por que.
+         */
+        acceptedLegalTerms: true,
         ...(data.accountType !== 'parceiro'
           ? {}
           : {

@@ -405,3 +405,9 @@ export { getMyPartnerApplication } from './partners/my-partner-application.js'
 export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
 export type { PartnerApplicationRepository } from './ports/partner-application-repository.js'
 export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'
+
+/* Consentimento dos documentos legais — RF-02, RF-03, LGPD art. 8 §1. */
+export { pendingLegalAcceptance, recordLegalAcceptance } from './legal/legal-consent.js'
+export type { LegalConsentDeps, OrigemDoAceite } from './legal/legal-consent.js'
+export type { LegalConsentRepository } from './ports/legal-consent-repository.js'
+export { InMemoryLegalConsentRepository } from './legal/fakes.js'

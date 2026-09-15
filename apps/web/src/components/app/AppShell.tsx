@@ -313,6 +313,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        {/*
+          Ponto fixo de acesso aos documentos legais — RF-01.
+
+          No rodape da barra, e nao como item de menu: a navegacao ja tem doze
+          modulos, e um decimo terceiro item com o mesmo peso de "Vendas"
+          diria que isto e um lugar onde se trabalha. Aqui fica sempre
+          alcancavel e nunca no caminho.
+        */}
+        <Link href="/app/privacidade-e-termos" className={styles.navLegal}>
+          Privacidade e Termos
+        </Link>
       </aside>
 
       <div className={styles.main}>

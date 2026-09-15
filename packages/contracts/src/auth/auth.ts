@@ -185,6 +185,21 @@ export const signupInputSchema = z
      * como lojista, so o cupom de indicacao fica inativo ate a aprovacao.
      */
     account: signupAccountSchema.optional(),
+
+    /**
+     * Aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1.
+     *
+     * `literal(true)` e nao `boolean`: "sem o aceite o cadastro nao conclui"
+     * vira regra do CONTRATO, e nao mais um `if` que alguem pode esquecer de
+     * escrever na proxima tela de cadastro. Mandar `false` e tao invalido
+     * quanto omitir.
+     *
+     * Note que a VERSAO aceita nao vem daqui — quem a grava e o servidor, com
+     * a que ele tem como vigente (ver `aceiteLegalInputSchema`).
+     */
+    acceptedLegalTerms: z.literal(true, {
+      message: 'E preciso aceitar os Termos de Uso e a Politica de Privacidade.',
+    }),
   })
   .strict()
 

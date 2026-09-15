@@ -1,0 +1,111 @@
+.pagina {
+  max-width: 76ch;
+  display: grid;
+  gap: 20px;
+}
+
+.cabecalho {
+  display: grid;
+  gap: 4px;
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--app-muted);
+}
+
+.cartao {
+  padding: 20px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+}
+
+.secaoTitulo {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.lista {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Nome do documento e versao em linhas separadas no telefone: lado a lado num
+ * espaco estreito, a versao encosta no nome e os dois viram uma frase so.
+ */
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.documento {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.versao {
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.texto,
+.nota {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--app-muted);
+}
+
+.direitos {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding-left: 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.link {
+  color: var(--app-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Amarelo, e nao vermelho: e pendencia declarada, nao defeito. */
+.pendente {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--warn, #b45309);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--warn-soft, rgba(180, 83, 9, 0.08));
+  font-size: 14px;
+  line-height: 1.55;
+}
