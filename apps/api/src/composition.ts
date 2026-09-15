@@ -719,28 +719,49 @@ export function buildContasDeps(): ContasDeps {
 }
 
 /**
- * Recusa subir em producao com o LLM falso — ADR-0010.
+ * Por que o assistente nao pode ser servido — ADR-0010.
  *
- * `AGENT_PROVIDER=fake` so reconhece tres consultas da US-047 e nao fala com
- * modelo nenhum. Publicar assim seria um assistente de mentira no ar.
+ * Devolve o motivo, ou `undefined` quando da para servir. Repare no que ela
+ * NAO faz: derrubar o processo. Quem chama desliga so a rota do assistente.
+ *
+ * `AGENT_PROVIDER=fake` reconhece tres consultas da US-047 e nao fala com
+ * modelo nenhum — publicar isso seria um assistente de mentira no ar, entao em
+ * producao ele tambem nao serve. Mas a resposta a isso e recusar a ROTA, e nao
+ * a subida: o criterio e o mesmo que `SECRETS_KEY` ja segue na emissao fiscal
+ * (ver `registrarRotas`, em index.ts) — recusar subir por configuracao ausente
+ * troca um recurso a menos por indisponibilidade total.
+ *
+ * Recusa de boot fica para falha de SEGURANCA, onde servir seria ativamente
+ * nocivo: RLS furada (vaza linha de outra loja) e `AUTH_PROVIDER=fake`
+ * (qualquer um entra como qualquer um). Assistente ausente nao vaza nada de
+ * ninguem — derrubava venda, financeiro e estoque junto por tabela.
  */
-export function assertAgentUsavelEmProducao(): void {
+export function motivoDoAgenteIndisponivel(): string | undefined {
   if (env.NODE_ENV === 'production' && env.AGENT_PROVIDER === 'fake') {
-    throw new Error(
-      'AGENT_PROVIDER=fake nao chama modelo nenhum e nao pode rodar em producao. ' +
-        'Defina AGENT_PROVIDER=mastra e OPENAI_API_KEY (ADR-0010).',
+    return (
+      'AGENT_PROVIDER=fake nao chama modelo nenhum e nao serve em producao. ' +
+      'Defina AGENT_PROVIDER=mastra e OPENAI_API_KEY (ADR-0010).'
     )
   }
+
+  if (env.AGENT_PROVIDER === 'mastra' && env.OPENAI_API_KEY === undefined) {
+    return (
+      'AGENT_PROVIDER=mastra exige OPENAI_API_KEY (ADR-0010). ' +
+      'Para desenvolver sem chave, use AGENT_PROVIDER=fake.'
+    )
+  }
+
+  return undefined
 }
 
 async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPort> {
   if (env.AGENT_PROVIDER !== 'mastra') return new FakeLlm()
 
   if (env.OPENAI_API_KEY === undefined) {
-    throw new Error(
-      'AGENT_PROVIDER=mastra exige OPENAI_API_KEY (ADR-0010). ' +
-        'Para desenvolver sem chave, use AGENT_PROVIDER=fake.',
-    )
+    /* Inalcancavel: `motivoDoAgenteIndisponivel` ja barrou antes de construir
+       nada. Fica pelo estreitamento de tipo, e como rede se alguem chamar
+       daqui a dois anos por outro caminho. */
+    throw new Error('AGENT_PROVIDER=mastra exige OPENAI_API_KEY (ADR-0010).')
   }
 
   const { createMastraLlm } = await import('@na-regua/agent/mastra')
@@ -757,7 +778,10 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
  * Sem WhatsApp: o canal e o POST /agent/messages com a sessao do lojista.
  * Confirmacoes ficam em memoria ate a NR-061. Memoria da conversa e DEC-011.
  */
-export async function buildAgentDeps(): Promise<AgentRouteDeps> {
+/** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
+export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
+  if (motivoDoAgenteIndisponivel() !== undefined) return null
+
   const sales = buildSaleDeps()
   const cadastro = buildCadastroDeps()
   const contas = buildContasDeps()

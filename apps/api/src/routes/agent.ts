@@ -17,7 +17,30 @@ export type AgentRouteDeps = {
   readonly runtime: AgentRuntime
 }
 
-export function registerAgentRoutes(app: FastifyInstance, deps: AgentRouteDeps): void {
+export function registerAgentRoutes(app: FastifyInstance, deps: AgentRouteDeps | null): void {
+  /*
+   * Sem runtime configurado, a rota recusa e o resto da api continua servindo
+   * — mesmo desfecho da emissao fiscal sem `SECRETS_KEY`. O caminho fica
+   * registrado de proposito: 503 com motivo e uma resposta, e 404 seria a tela
+   * do lojista concluindo que o assistente nunca existiu.
+   */
+  if (deps === null) {
+    app.post(
+      '/agent/messages',
+      { config: { rateLimit: LIMITE_DE_ESCRITA } },
+      async (_request, reply) =>
+        reply.code(503).send({
+          error: {
+            code: 'UNAVAILABLE',
+            message:
+              'Assistente indisponivel: o servidor esta sem runtime de IA configurado. ' +
+              'Fale com o suporte.',
+          },
+        }),
+    )
+    return
+  }
+
   app.post(
     '/agent/messages',
     { config: { rateLimit: LIMITE_DE_ESCRITA } },

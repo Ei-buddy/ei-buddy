@@ -129,10 +129,16 @@ do sistema — ver [`seguranca.md`](../arquitetura/seguranca.md#certificado-digi
 
 | Variável                     | Obr. | Seg. | local                | Descrição                                                             |
 | ---------------------------- | :--: | :--: | -------------------- | --------------------------------------------------------------------- |
-| `AGENT_PROVIDER`             |  ✅  |      | `fake`               | `fake` \| `mastra`                                                    |
+| `AGENT_PROVIDER`             |  ✅  |      | `fake`               | `fake` \| `mastra` — em produção só `mastra` é servido                |
 | `OPENAI_API_KEY`             |      |  🔒  | vazio                | obrigatória só com `AGENT_PROVIDER=mastra`                            |
 | `AGENT_MODEL`                |      |      | `openai/gpt-4o-mini` | formato Mastra `provedor/modelo`                                      |
 | `AGENT_MONTHLY_BUDGET_CENTS` |      |      | —                    | teto por empresa ([RNF-073](../produto/requisitos-nao-funcionais.md)) |
+
+Configuração de IA **não derruba a API**. Em produção sem `mastra` + chave, o
+assistente sobe desligado: `/agent/messages` responde `503 UNAVAILABLE` e o log
+avisa na subida. Venda, financeiro, estoque e CRM seguem normais — mesmo
+critério de `SECRETS_KEY` na emissão fiscal. Recusa de boot fica só para falha
+de segurança (RLS furada, `AUTH_PROVIDER=fake`).
 
 ### Webhooks em desenvolvimento
 
