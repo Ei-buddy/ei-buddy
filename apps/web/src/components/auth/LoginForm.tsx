@@ -73,11 +73,23 @@ export default function LoginForm() {
    * para ser fechada.
    */
   async function concluir(sessao: SessionUser) {
+    /*
+     * Quem e Super Admin E dono de loja escolhe para onde vai — ADR-0007.
+     *
+     * Mandar direto para um dos dois seria escolher pela pessoa a cada login,
+     * e o outro lado viraria endereco digitado na barra. A pergunta so aparece
+     * para quem de fato tem as duas portas.
+     */
+    if (sessao.isPlatformAdmin && sessao.memberships.length > 0) {
+      setEscolhendo(sessao)
+      setLoading(false)
+      return
+    }
+
     if (sessao.activeCompanyId !== null) return irParaOPainel()
 
-    /* Super Admin nunca tem vinculo de loja (ADR-0007) — sem este desvio ele
-       cairia direto no "conta sem vinculo" logo abaixo, que e o erro certo
-       para todo MUNDO menos ele. */
+    /* Super Admin sem loja nenhuma: sem este desvio cairia no "conta sem
+       vinculo" logo abaixo, que e o erro certo para todo MUNDO menos ele. */
     if (sessao.isPlatformAdmin) {
       router.push('/admin')
       return
@@ -133,13 +145,35 @@ export default function LoginForm() {
     return (
       <>
         <FormHeader
-          title="Qual loja?"
-          subtitle={`Olá, ${escolhendo.userName}. Você tem acesso a mais de uma.`}
+          title={escolhendo.isPlatformAdmin ? 'Para onde?' : 'Qual loja?'}
+          subtitle={
+            escolhendo.isPlatformAdmin
+              ? `Olá, ${escolhendo.userName}. Você tem acesso ao painel e à${
+                  escolhendo.memberships.length > 1 ? 's suas lojas' : ' sua loja'
+                }.`
+              : `Olá, ${escolhendo.userName}. Você tem acesso a mais de uma.`
+          }
         />
 
         {formError ? <Alert tone="error">{formError}</Alert> : null}
 
         <ul className={loginStyles.lojas}>
+          {/* O painel primeiro: quem e Super Admin e dono chega aqui vindo de
+              uma decisao de plataforma, nao de balcao. */}
+          {escolhendo.isPlatformAdmin ? (
+            <li>
+              <button
+                type="button"
+                className={loginStyles.loja}
+                onClick={() => router.push('/admin')}
+                disabled={loading}
+              >
+                <span className={loginStyles.lojaNome}>Painel do Super Admin</span>
+                <span className={loginStyles.lojaPapel}>Plataforma</span>
+              </button>
+            </li>
+          ) : null}
+
           {escolhendo.memberships.map((v) => (
             <li key={v.companyId}>
               <button

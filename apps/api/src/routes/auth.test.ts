@@ -6,6 +6,7 @@ import {
   InMemoryChartOfAccounts,
   InMemoryCompanyRepository,
   InMemoryLegalConsentRepository,
+  InMemoryPlatformAdminAccess,
 } from '@na-regua/core'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -96,6 +97,12 @@ async function buildApp() {
     audit: new InMemoryAuditTrail(),
     /* O cadastro grava a prova do aceite (RF-02) — sem isto, `signup` quebra. */
     legalConsents: new InMemoryLegalConsentRepository(),
+    /* O login confere Super Admin em TODO acesso, e nao so para quem nao tem
+       loja (ADR-0007) — sem isto, `login` quebra. */
+    platformAdmin: new InMemoryPlatformAdminAccess({
+      aoEntrar: () => undefined,
+      aoSair: () => undefined,
+    }),
   } as unknown as AuthRouteDeps
 
   const app = Fastify({ logger: false })

@@ -99,14 +99,24 @@ export async function login(
   const vinculos = await deps.users.listMemberships(usuario.id)
 
   /*
-   * Zero vinculo e falha, EXCETO para quem e Super Admin — ADR-0007. Um
-   * Super Admin nasce sem loja nenhuma de proposito (nao e dono de conta
-   * alguma, entra em qualquer uma sob justificativa). A checagem so roda
-   * neste ramo: quem tem pelo menos um vinculo nunca precisa dela, porque o
-   * modelo nao deixa a mesma pessoa ser as duas coisas.
+   * Conferido SEMPRE, e nao so para quem nao tem loja — ADR-0007.
+   *
+   * Antes esta checagem so rodava no ramo `vinculos.length === 0`, apoiada na
+   * ideia de que "o modelo nao deixa a mesma pessoa ser as duas coisas". A
+   * premissa nao se sustenta: nao existe caminho nenhum no produto para criar
+   * uma conta SEM loja — o cadastro sempre cria empresa, e o convite sempre
+   * cria vinculo. Ou seja, o Super Admin sem loja que a regra pressupunha nao
+   * tem como nascer.
+   *
+   * O efeito pratico era pior que teorico: quem era dono de loja E Super Admin
+   * recebia `isPlatformAdmin: false` no login e nunca era levado ao painel,
+   * embora a api o autorizasse normalmente — as rotas de `/admin` consultam a
+   * tabela a cada requisicao. A sessao dizia uma coisa e a autorizacao dizia
+   * outra.
+   *
+   * O custo e uma consulta indexada por login. Barato para o que compra.
    */
-  const ehSuperAdmin =
-    vinculos.length === 0 ? await deps.platformAdmin.isPlatformAdmin(usuario.id) : false
+  const ehSuperAdmin = await deps.platformAdmin.isPlatformAdmin(usuario.id)
 
   if (vinculos.length === 0 && !ehSuperAdmin) {
     await registraFalha(deps, input, meta)
@@ -205,9 +215,10 @@ export async function selectCompany(
     userName: usuario.name,
     memberships: [...vinculos],
     activeCompanyId: vinculo.companyId,
-    /* Quem escolhe entre lojas PROPRIAS nunca e Super Admin no nosso modelo
-       — ADR-0007. As duas coisas nao coexistem na mesma pessoa. */
-    isPlatformAdmin: false,
+    /* Escolher uma loja propria nao deixa de ser Super Admin: as duas coisas
+       coexistem, e dizer `false` aqui faria a tela perder o caminho do painel
+       logo depois de a pessoa entrar na propria loja. */
+    isPlatformAdmin: await deps.platformAdmin.isPlatformAdmin(sessao.userId),
   }
 }
 

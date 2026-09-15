@@ -76,6 +76,61 @@ async function pegaErro(fn: () => Promise<unknown>) {
   }
 }
 
+/**
+ * Dono de loja que TAMBEM e Super Admin — ADR-0007.
+ *
+ * O modelo pressupunha que as duas coisas nunca coexistiam, e o login so
+ * conferia `isPlatformAdmin` para quem nao tinha loja. Mas nao ha caminho no
+ * produto para criar conta sem loja: o cadastro sempre cria empresa. Na
+ * pratica, TODO Super Admin e dono de alguma coisa — e a sessao dizia que
+ * nao, enquanto a api o autorizava normalmente.
+ */
+describe('login de quem e dono E Super Admin — ADR-0007', () => {
+  it('a sessao diz que e Super Admin, mesmo tendo loja', async () => {
+    const c = comUmaLoja()
+    c.platformAdmin.tornarSuperAdmin(c.usuario.id)
+
+    const s = await login(c.deps, credencial, meta())
+
+    /* Antes vinha `false` aqui, e a tela nunca oferecia o painel. */
+    expect(s.isPlatformAdmin).toBe(true)
+    /* E continua entrando na propria loja: uma coisa nao tira a outra. */
+    expect(s.activeCompanyId).toBe('empresa-1')
+  })
+
+  it('quem tem loja e NAO e Super Admin continua marcado como nao', async () => {
+    const c = comUmaLoja()
+
+    const s = await login(c.deps, credencial, meta())
+
+    expect(s.isPlatformAdmin).toBe(false)
+  })
+
+  it('escolher a propria loja nao apaga o acesso ao painel', async () => {
+    const c = cenario()
+    const u = c.users.adicionarUsuario({ name: 'Dono', email: 'dono@loja.com', subject: 'sub-d' })
+    c.users.adicionarVinculo({ companyId: 'empresa-1', userId: u.id, role: 'owner' })
+    c.users.adicionarVinculo({ companyId: 'empresa-2', userId: u.id, role: 'owner' })
+    c.provider.registrar('dono@loja.com', 'senha-certa', {
+      subject: 'sub-d',
+      email: 'dono@loja.com',
+    })
+    c.platformAdmin.tornarSuperAdmin(u.id)
+
+    const s = await login(c.deps, { identifier: 'dono@loja.com', secret: 'senha-certa' }, meta())
+    const escolhida = await selectCompany(
+      c.deps,
+      { userId: u.id, companyId: null },
+      { companyId: 'empresa-1', token: s.token },
+      meta(),
+    )
+
+    /* `false` fixo aqui fazia a tela perder o caminho do painel logo depois
+       de a pessoa entrar na propria loja. */
+    expect(escolhida.isPlatformAdmin).toBe(true)
+  })
+})
+
 describe('login — RF-119', () => {
   it('entra direto na loja quando existe uma so', async () => {
     const { deps, usuario } = comUmaLoja()
