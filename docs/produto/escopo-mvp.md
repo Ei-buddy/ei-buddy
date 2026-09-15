@@ -15,7 +15,7 @@ Os nove módulos herdados da apresentação comercial, com o recorte de cada um:
 
 | #   | Módulo               | Épico                                                 | No MVP                                                           | Fora do MVP                                          |
 | --- | -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- |
-| 1   | **Empresa**          | [E1](user-stories.md#e1--onboarding--empresa)         | Cadastro, CNPJ, regime tributário, usuários e papéis             | Múltiplas filiais                                    |
+| 1   | **Empresa**          | [E1](user-stories.md#e1--onboarding--empresa)         | Cadastro, CNPJ, regime tributário, usuário `owner`               | Múltiplas filiais, equipe/`staff`                    |
 | 2   | **Clientes / CRM**   | [E2](user-stories.md#e2--clientes--crm)               | Cadastro, histórico de compras, saldo em carteira                | Segmentação, campanhas, funil                        |
 | 3   | **Produtos**         | [E3](user-stories.md#e3--produtos--estoque)           | Cadastro, código de barras, preço, custo, estoque simples        | Composição/kit, múltiplos depósitos, lote e validade |
 | 4   | **Vendas**           | [E4](user-stories.md#e4--vendas--pdv)                 | Carrinho, leitor de código de barras, pagamento misto, devolução | Orçamento, pedido, delivery, comanda                 |
@@ -67,13 +67,13 @@ prioridade é o que a lojista faz várias vezes por dia:
 | --------------- | ------------------------------------------------------------------------------------ |
 | **MUST**        | Consultar (vendas do dia, a receber, a pagar, estoque, saldo de cliente)             |
 | **MUST**        | Cadastrar cliente                                                                    |
-| **MUST**        | Lançar venda simples                                                                 |
+| **MUST**        | Lançar venda por texto (desconto, misto, fiado; nota via Focus se a loja estiver apta) |
 | **MUST**        | Enviar cobrança                                                                      |
-| **SHOULD**      | Lançar conta a pagar/receber                                                         |
-| **SHOULD**      | Cadastrar produto                                                                    |
+| **SHOULD**      | Lançar conta a pagar/receber; dar baixa; ajustar estoque; cancelar/devolver venda    |
+| **SHOULD**      | Cadastrar produto por texto; foto do código (padrão = venda; cadastro só se pedir)   |
 | **SHOULD**      | Gerar e enviar relatório                                                             |
-| **COULD**       | Enviar catálogo                                                                      |
-| **WON'T (MVP)** | Emitir nota fiscal por mensagem, conciliar banco por mensagem, alterar preço em lote |
+| **COULD**       | Criar compromisso; enviar catálogo                                                   |
+| **WON'T (MVP)** | Certificado A1, banco/conciliação, comando avulso emitir/cancelar nota, cadastrar empresa pelo Zap, alterar preço em lote |
 
 Ações que criam ou alteram valor exigem confirmação explícita — princípio 3 da
 [visão](visao.md#princípios-de-produto).
@@ -92,6 +92,7 @@ Explicitamente adiado. Registrar aqui evita rediscussão a cada sprint.
 | Parcerias por elegibilidade                  | Depende de volume e de dado consolidado                                       |
 | Atendimento ao cliente final pelo assistente | Multiplica risco de LGPD e custo de IA antes de validar o principal           |
 | Múltiplas filiais / depósitos                | Fora do público-alvo do MVP                                                   |
+| Equipe / usuário `staff` na loja             | O operador é o owner; convite e alçada ficam [US-003](user-stories.md#us-003--convidar-equipe) (`WON'T`) |
 | Portal do contador                           | Exportação manual resolve no MVP                                              |
 | App para o cliente final                     | Sem demanda validada                                                          |
 | Aplicativo web offline-first completo        | Offline fica restrito ao PDV mobile ([RNF-051](requisitos-nao-funcionais.md)) |

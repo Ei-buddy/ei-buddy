@@ -1,7 +1,7 @@
 # User Stories
 
-13 épicos, 64 histórias. Fonte de origem dos requisitos em
-[`requisitos-funcionais.md`](requisitos-funcionais.md).
+13 épicos, 79 histórias. Fonte de origem dos requisitos em
+`[requisitos-funcionais.md](requisitos-funcionais.md)`.
 
 ## Como ler
 
@@ -16,11 +16,19 @@
 **Prioridade (MoSCoW):** `MUST` entra no MVP · `SHOULD` entra se couber ·
 `COULD` fica para depois · `WON'T` está fora, registrado para não voltar à pauta.
 
-**Personas:** [P1 Cláudia (lojista)](personas.md#p1--cláudia-a-lojista) ·
-[P2 Marcos (funcionário)](personas.md#p2--marcos-o-funcionário) ·
+**Quem opera:** o usuário da loja é o `owner` — a lojista (P1) atende no
+balcão, no app e no WhatsApp. **Não há funcionário como usuário do sistema.**
+Histórias de PDV, estoque e atendimento que em outro ERP seriam do
+funcionário são da lojista. Equipe, convite e papel `staff` estão fora
+([US-003](#us-003--convidar-equipe)).
+
+**Personas:** [P1 Cláudia (lojista / `owner`)](personas.md#p1--cláudia-a-lojista) ·
 [P3 Roberto (contador)](personas.md#p3--roberto-o-contador) ·
 [P4 João (cliente final)](personas.md#p4--joão-o-cliente-final) ·
 [P5 Ana (admin)](personas.md#p5--ana-a-administradora-da-plataforma)
+
+P2 (funcionário / `staff`) **não é usuário** neste recorte — ver
+[personas](personas.md#p2--marcos-o-funcionário).
 
 Os critérios de aceite listam o caminho feliz **e** pelo menos um caminho de
 erro. Uma história sem caminho de erro não está pronta para ser pega — ver
@@ -30,7 +38,7 @@ erro. Uma história sem caminho de erro não está pronta para ser pega — ver
 
 | Épico                                  | Tema                         | Histórias  | Prioridade dominante |
 | -------------------------------------- | ---------------------------- | ---------- | -------------------- |
-| [E1](#e1--onboarding--empresa)         | Onboarding & Empresa         | US-001–004 | MUST                 |
+| [E1](#e1--onboarding--empresa)         | Onboarding & Empresa         | US-001–004 | MUST (US-003 `WON'T`) |
 | [E2](#e2--clientes--crm)               | Clientes / CRM               | US-005–008 | MUST                 |
 | [E3](#e3--produtos--estoque)           | Produtos & Estoque           | US-009–013 | MUST                 |
 | [E4](#e4--vendas--pdv)                 | Vendas & PDV                 | US-014–021 | MUST                 |
@@ -40,7 +48,7 @@ erro. Uma história sem caminho de erro não está pronta para ser pega — ver
 | [E8](#e8--bancos--conciliação)         | Bancos & Conciliação         | US-035–038 | SHOULD               |
 | [E9](#e9--plano-de-contas--relatórios) | Plano de Contas & Relatórios | US-039–042 | SHOULD               |
 | [E10](#e10--agenda)                    | Agenda                       | US-043–045 | COULD                |
-| [E11](#e11--assistente-whatsapp)       | Assistente WhatsApp          | US-046–053 | MUST                 |
+| [E11](#e11--assistente-whatsapp)       | Assistente WhatsApp          | US-046–079 | MUST (SHOULD/WON'T no recorte) |
 | [E12](#e12--assinatura--cobrança-saas) | Assinatura & Cobrança SaaS   | US-054–058 | MUST                 |
 | [E13](#e13--plataforma)                | Plataforma                   | US-059–064 | MUST                 |
 
@@ -75,24 +83,26 @@ usar o sistema sem digitar tudo à mão.
 - **DADO** um certificado vencido ou senha errada **QUANDO** salvo **ENTÃO** vejo o motivo exato da recusa e nada é armazenado
 - **DADO** um certificado a menos de 30 dias do vencimento **QUANDO** acesso o sistema **ENTÃO** sou avisado
 
-#### US-003 — Convidar funcionário
+#### US-003 — Convidar equipe
 
-**Como** lojista, **quero** convidar um funcionário e definir o que ele pode
-fazer **para** delegar o atendimento sem expor meus números.
-`MUST` · P1 · `apps/web` `packages/core` `packages/db` · RF-005, RF-006
+**Como** lojista, **quero** convidar funcionários **para** operar o balcão no
+meu lugar.
+`WON'T` · P1 · — · RF-005, RF-006, RF-008, RF-012, RF-042
 
-- **DADO** que convido por e-mail ou telefone **QUANDO** envio **ENTÃO** ele recebe o convite e entra com o papel `staff`
-- **DADO** um funcionário com papel `staff` **QUANDO** ele abre o app **ENTÃO** não vê custo, margem nem relatório financeiro
-- **DADO** que removo o acesso de um funcionário **QUANDO** confirmo **ENTÃO** a sessão dele é encerrada e o histórico de ações dele permanece
+Fora deste recorte: o operador da loja é o `owner`. Não existe usuário
+funcionário, convite de equipe nem limite de alçada por papel. O código
+pode preservar `staff` como valor reservado; o produto não entrega essa
+capacidade.
+
+- **DADO** o recorte atual **QUANDO** o acesso à loja é implementado **ENTÃO** só o `owner` opera — sem convite, sem papel `staff` e sem tela de equipe
 
 #### US-004 — Configurar a loja
 
-**Como** lojista, **quero** configurar formas de pagamento, taxas de cartão e
-limite de desconto **para** que os cálculos reflitam meu negócio.
-`MUST` · P1 · `apps/web` `packages/core` `packages/domain` · RF-007, RF-008
+**Como** lojista, **quero** configurar formas de pagamento e taxas de cartão
+**para** que os cálculos reflitam meu negócio.
+`MUST` · P1 · `apps/web` `packages/core` `packages/domain` · RF-007
 
 - **DADO** que cadastro as taxas da minha adquirente por bandeira e parcelamento **QUANDO** salvo **ENTÃO** o líquido das vendas passa a descontar essas taxas
-- **DADO** que defino desconto máximo de 10% para `staff` **QUANDO** o funcionário tenta dar 15% **ENTÃO** a venda é bloqueada com aviso
 - **DADO** que desativo uma forma de pagamento **QUANDO** abro uma venda **ENTÃO** ela não aparece como opção
 
 ---
@@ -103,7 +113,7 @@ limite de desconto **para** que os cálculos reflitam meu negócio.
 
 **Como** lojista, **quero** cadastrar um cliente só com nome e telefone **para**
 não travar o atendimento.
-`MUST` · P1 P2 · `apps/mobile` `packages/core` `packages/contracts` · RF-009, RF-010
+`MUST` · P1 · `apps/mobile` `packages/core` `packages/contracts` · RF-009, RF-010
 
 - **DADO** que informo apenas nome e telefone **QUANDO** salvo **ENTÃO** o cliente é criado e já pode ser usado na venda
 - **DADO** um telefone já cadastrado **QUANDO** salvo **ENTÃO** vejo o cliente existente e escolho usar ou criar outro
@@ -113,11 +123,10 @@ não travar o atendimento.
 
 **Como** lojista, **quero** ver o que um cliente já comprou **para** atender
 melhor e sugerir a recompra.
-`MUST` · P1 P2 · `apps/mobile` `apps/web` `packages/core` · RF-011, RF-012
+`MUST` · P1 · `apps/mobile` `apps/web` `packages/core` · RF-011
 
 - **DADO** um cliente com compras **QUANDO** abro o cadastro **ENTÃO** vejo as vendas em ordem decrescente com data, itens e valor
 - **DADO** um cliente sem compras **QUANDO** abro o cadastro **ENTÃO** vejo um estado vazio claro, não uma tela em branco
-- **DADO** um funcionário `staff` **QUANDO** abre o histórico **ENTÃO** vê os itens mas não a margem
 
 #### US-007 — Saldo em carteira (fiado)
 
@@ -168,9 +177,9 @@ margem de cada produto.
 
 #### US-011 — Consultar estoque
 
-**Como** funcionário, **quero** consultar o estoque de um produto **para**
-responder ao cliente sem chamar a dona.
-`MUST` · P2 · `apps/mobile` `packages/core` · RF-022
+**Como** lojista, **quero** consultar o estoque de um produto **para**
+responder ao cliente na hora, sem sair do atendimento.
+`MUST` · P1 · `apps/mobile` `packages/core` · RF-022
 
 - **DADO** que bipo ou busco um produto **QUANDO** ele existe **ENTÃO** vejo saldo, preço e localização
 - **DADO** um produto sem controle de estoque **QUANDO** consulto **ENTÃO** vejo "sem controle de estoque", não zero
@@ -203,9 +212,9 @@ divergência de inventário.
 
 #### US-014 — Montar carrinho com leitor de código de barras
 
-**Como** funcionário, **quero** bipar os produtos **para** fechar a venda sem
+**Como** lojista, **quero** bipar os produtos **para** fechar a venda sem
 digitar.
-`MUST` · P1 P2 · `apps/mobile` `packages/core` · RF-027, RF-028
+`MUST` · P1 · `apps/mobile` `packages/core` · RF-027, RF-028
 
 - **DADO** um carrinho aberto **QUANDO** bipo um código válido **ENTÃO** o item entra com preço atual e a quantidade soma se já estiver no carrinho
 - **DADO** um código inexistente **QUANDO** bipo **ENTÃO** vejo o erro e o carrinho não muda
@@ -214,9 +223,9 @@ digitar.
 
 #### US-015 — Adicionar produto por busca
 
-**Como** funcionário, **quero** buscar o produto por nome **para** vender item
+**Como** lojista, **quero** buscar o produto por nome **para** vender item
 sem código de barras.
-`MUST` · P1 P2 · `apps/mobile` `packages/core` · RF-029
+`MUST` · P1 · `apps/mobile` `packages/core` · RF-029
 
 - **DADO** que digito parte do nome **QUANDO** busco **ENTÃO** vejo resultados ordenados por mais vendidos
 - **DADO** que a busca não encontra nada **QUANDO** termino de digitar **ENTÃO** posso cadastrar o produto ali mesmo
@@ -225,25 +234,24 @@ sem código de barras.
 
 **Como** lojista, **quero** dar desconto no item ou na venda **para** fechar a
 negociação.
-`MUST` · P1 P2 · `apps/mobile` `packages/domain` · RF-030, RF-031
+`MUST` · P1 · `apps/mobile` `packages/domain` · RF-030, RF-031
 
-- **DADO** um desconto em % ou em valor **QUANDO** aplico **ENTÃO** o total recalcula e vejo o impacto na margem (se sou `owner`)
-- **DADO** um `staff` com limite de 10% **QUANDO** ele tenta 15% **ENTÃO** é bloqueado com o motivo
+- **DADO** um desconto em % ou em valor **QUANDO** aplico **ENTÃO** o total recalcula e vejo o impacto na margem
 - **DADO** um desconto maior que o total **QUANDO** aplico **ENTÃO** é recusado
 
 #### US-017 — Selecionar cliente na venda
 
-**Como** funcionário, **quero** vincular a venda a um cliente **para** manter o
+**Como** lojista, **quero** vincular a venda a um cliente **para** manter o
 histórico e permitir fiado.
-`MUST` · P1 P2 · `apps/mobile` `packages/core` · RF-032, RF-033
+`MUST` · P1 · `apps/mobile` `packages/core` · RF-032, RF-033
 
 - **DADO** um carrinho **QUANDO** busco o cliente por nome ou telefone **ENTÃO** posso selecioná-lo ou criar um novo sem sair da venda
 - **DADO** uma venda sem cliente **QUANDO** fecho **ENTÃO** ela é registrada como consumidor não identificado, exceto se o pagamento for `wallet`
 
 #### US-018 — Pagamento com forma única
 
-**Como** funcionário, **quero** registrar o pagamento **para** fechar a venda.
-`MUST` · P1 P2 · `apps/mobile` `packages/core` `packages/domain` · RF-034, RF-035, RF-036
+**Como** lojista, **quero** registrar o pagamento **para** fechar a venda.
+`MUST` · P1 · `apps/mobile` `packages/core` `packages/domain` · RF-034, RF-035, RF-036
 
 - **DADO** um carrinho **QUANDO** escolho `cash`, `pix`, `debit`, `credit` ou `wallet` **ENTÃO** a venda é fechada com o total registrado naquela forma
 - **DADO** pagamento em `cash` maior que o total **QUANDO** confirmo **ENTÃO** vejo o troco calculado
@@ -252,9 +260,9 @@ histórico e permitir fiado.
 
 #### US-019 — Pagamento misto e parcelado
 
-**Como** funcionário, **quero** dividir o pagamento entre formas e parcelar
+**Como** lojista, **quero** dividir o pagamento entre formas e parcelar
 **para** atender como o cliente pode pagar.
-`MUST` · P1 P2 · `apps/mobile` `packages/domain` `packages/money` · RF-037, RF-038, RF-039
+`MUST` · P1 · `apps/mobile` `packages/domain` `packages/money` · RF-037, RF-038, RF-039
 
 - **DADO** um total de R$ 100 **QUANDO** registro R$ 60 em `pix` e R$ 40 em `cash` **ENTÃO** a venda fecha e o restante mostrado é zero
 - **DADO** a soma das formas diferente do total **QUANDO** tento fechar **ENTÃO** sou bloqueado com a diferença exibida
@@ -265,11 +273,10 @@ histórico e permitir fiado.
 
 **Como** lojista, **quero** ver quanto sobra depois de imposto e taxa **para**
 saber o lucro real.
-`MUST` · P1 · `apps/mobile` `packages/domain` · RF-040, RF-041, RF-042
+`MUST` · P1 · `apps/mobile` `packages/domain` · RF-040, RF-041
 
 - **DADO** uma venda fechada **QUANDO** vejo o resumo **ENTÃO** vejo bruto, custo, imposto, tarifa de cartão, líquido e margem
 - **DADO** um regime `simples_nacional` **QUANDO** a venda fecha **ENTÃO** o imposto usa a alíquota configurada
-- **DADO** um `staff` **QUANDO** fecha a venda **ENTÃO** vê o total, mas não custo, imposto nem margem
 
 #### US-021 — Cancelar ou devolver venda
 
@@ -278,7 +285,7 @@ erro sem apagar histórico.
 `MUST` · P1 · `apps/mobile` `packages/core` `packages/fiscal` · RF-043, RF-044
 
 - **DADO** uma venda do dia sem nota emitida **QUANDO** cancelo **ENTÃO** estoque, contas a receber e carteira voltam ao estado anterior
-- **DADO** uma venda com nota emitida dentro do prazo legal **QUANDO** cancelo **ENTÃO** a nota é cancelada na SEFAZ antes do estorno
+- **DADO** uma venda com nota emitida dentro do prazo legal **QUANDO** cancelo **ENTÃO** o cancelamento é pedido à Focus NFe e só depois o estorno corre
 - **DADO** uma devolução parcial **QUANDO** confirmo os itens **ENTÃO** só esses itens voltam ao estoque e o valor proporcional é estornado
 - **DADO** qualquer cancelamento **QUANDO** confirmo **ENTÃO** fica registrado quem, quando e por quê — a venda nunca é apagada
 
@@ -286,17 +293,21 @@ erro sem apagar histórico.
 
 ## E5 — Emissão Fiscal
 
-> Depende de [DEC-004](../decisoes/README.md#dec-004) (provedor fiscal).
+> Provedor: [Focus NFe](../decisoes/README.md#dec-004)
+> ([fluxo](../arquitetura/integracoes/fluxo-focus.md)). O sistema **não** chama
+> a SEFAZ: emissão, cancelamento, contingência e consulta passam pela API
+> Focus. A Focus assina e fala com o fisco. NFC-e autoriza ou rejeita no
+> mesmo POST; o browser nunca fala com a Focus.
 
 #### US-022 — Emitir NFC-e na venda
 
 **Como** lojista, **quero** emitir a nota ao fechar a venda **para** ficar em
 dia com o fisco sem passo extra.
-`MUST` · P1 P2 · `apps/api` `apps/worker` `packages/fiscal` · RF-045, RF-046, RF-047
+`MUST` · P1 · `apps/api` `apps/worker` `packages/fiscal` · RF-045, RF-046, RF-047
 
-- **DADO** uma venda fechada com dados fiscais completos **QUANDO** a emissão é solicitada **ENTÃO** a nota é autorizada e vejo a chave de acesso
-- **DADO** um produto sem NCM ou CFOP **QUANDO** tento emitir **ENTÃO** sou avisado de qual produto e qual campo falta, antes de enviar à SEFAZ
-- **DADO** uma rejeição da SEFAZ **QUANDO** ela ocorre **ENTÃO** vejo o código e a descrição em linguagem clara, e a venda continua registrada
+- **DADO** uma venda fechada com dados fiscais completos **QUANDO** a emissão roda **ENTÃO** a Focus autoriza a NFC-e na mesma requisição e eu vejo a chave de acesso
+- **DADO** um produto sem NCM ou CFOP **QUANDO** tento emitir **ENTÃO** sou avisado de qual produto e qual campo falta, antes de chamar a Focus
+- **DADO** uma rejeição devolvida pela Focus **QUANDO** ela ocorre **ENTÃO** vejo o código e a descrição em linguagem clara, e a venda continua registrada
 - **DADO** uma emissão bem-sucedida **QUANDO** ela ocorre **ENTÃO** o XML é guardado pelo prazo legal ([RNF-037](requisitos-nao-funcionais.md))
 
 #### US-023 — Enviar a nota ao cliente
@@ -314,17 +325,17 @@ imprimir.
 corrigir dentro do prazo.
 `MUST` · P1 · `packages/fiscal` `packages/core` · RF-050, RF-051
 
-- **DADO** uma nota dentro do prazo legal **QUANDO** cancelo informando a justificativa **ENTÃO** o cancelamento é registrado na SEFAZ
+- **DADO** uma nota dentro do prazo legal **QUANDO** cancelo informando a justificativa **ENTÃO** a Focus registra o cancelamento
 - **DADO** uma nota fora do prazo **QUANDO** tento cancelar **ENTÃO** sou informado do prazo e orientado a emitir devolução
 
 #### US-025 — Emitir em contingência
 
-**Como** lojista, **quero** continuar vendendo com a SEFAZ fora do ar **para**
+**Como** lojista, **quero** continuar vendendo com a Focus fora do ar **para**
 não parar a loja.
-`MUST` · P1 P2 · `apps/worker` `packages/fiscal` · RF-052, RF-053, RF-054
+`MUST` · P1 · `apps/worker` `packages/fiscal` · RF-052, RF-053, RF-054
 
-- **DADO** a SEFAZ indisponível **QUANDO** fecho a venda **ENTÃO** a nota entra em contingência e a venda é concluída normalmente
-- **DADO** notas em contingência **QUANDO** a SEFAZ volta **ENTÃO** elas são transmitidas automaticamente, em ordem
+- **DADO** a Focus indisponível ou a emissão em contingência **QUANDO** fecho a venda **ENTÃO** a nota entra em contingência e a venda é concluída normalmente
+- **DADO** notas em contingência **QUANDO** o sistema consulta a Focus **ENTÃO** o estado é atualizado na ordem em que saíram — autorizada se a Focus já efetivou; senão permanece contingência explícita, sem inventar retransmissão
 - **DADO** uma nota em contingência **QUANDO** consulto a venda **ENTÃO** vejo o estado explícito, não um sucesso falso
 
 ---
@@ -548,6 +559,12 @@ compromisso.
 > [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)). Ainda
 > dependem de [DEC-003](../decisoes/README.md#dec-003) (provedor) e
 > [DEC-011](../decisoes/README.md#dec-011) (memória).
+>
+> O agente **não** reimplementa regra: cada tool chama o mesmo caso de uso do
+> app. Nota fiscal não é comando — entra como efeito da venda ou do
+> cancelamento, via [Focus NFe](../decisoes/README.md#dec-004), se a loja
+> estiver apta. Consultas específicas: [US-065](#us-065--consultar-estoque-por-mensagem)–[US-067](#us-067--consultar-saldo-em-carteira-por-mensagem).
+> Foto do código é SHOULD ([US-068](#us-068--usar-foto-do-código-de-barras)).
 
 #### US-046 — Vincular o número da loja
 
@@ -558,7 +575,6 @@ compromisso.
 - **DADO** que me cadastrei com celular **QUANDO** mando mensagem desse número **ENTÃO** o assistente atende na minha primeira empresa, como `owner`
 - **DADO** um número que não é o celular de nenhum owner **QUANDO** a mensagem chega **ENTÃO** o assistente não executa nada e não vaza informação
 - **DADO** que pertenço a uma segunda empresa **QUANDO** mando WhatsApp **ENTÃO** continuo operando a primeira
-- **DADO** um funcionário com telefone **QUANDO** ele manda mensagem **ENTÃO** o assistente ignora (só o owner tem canal)
 - **DADO** que troco o celular no app **QUANDO** a sessão é válida **ENTÃO** o número novo substitui o vínculo e o antigo deixa de operar
 
 #### US-047 — Consultar por mensagem
@@ -571,6 +587,7 @@ números sem abrir o app.
 - **DADO** "quem está me devendo?" **QUANDO** envio **ENTÃO** recebo os inadimplentes com valor e dias de atraso
 - **DADO** uma pergunta que o assistente não entende **QUANDO** envio **ENTÃO** ele diz o que sabe fazer, em vez de inventar resposta
 - **DADO** qualquer consulta **QUANDO** ela é respondida **ENTÃO** os dados vêm do mesmo caso de uso que o app usa, nunca de uma consulta paralela
+- **DADO** pergunta de estoque, contas a pagar ou saldo de cliente **QUANDO** envio **ENTÃO** vale a história específica ([US-065](#us-065--consultar-estoque-por-mensagem), [US-066](#us-066--consultar-contas-a-pagar-por-mensagem), [US-067](#us-067--consultar-saldo-em-carteira-por-mensagem)), não esta
 
 #### US-048 — Cadastrar cliente por mensagem
 
@@ -586,12 +603,20 @@ atendimento.
 
 **Como** lojista, **quero** registrar a venda pela conversa **para** não
 retrabalhar o que já negociei ali.
-`MUST` · P1 · `packages/agent` `packages/core` `packages/domain` · RF-100, RF-101, RF-102
+`MUST` · P1 · `packages/agent` `packages/core` `packages/domain` `packages/fiscal` · RF-100, RF-101, RF-102, RF-136, RF-045
 
-- **DADO** "venda pro João: 2 camisetas M a 49,90, pagou no Pix" **QUANDO** envio **ENTÃO** o assistente mostra cliente, itens, total e forma de pagamento para eu confirmar
+- **DADO** "venda pro João: 2 camisetas M a 49,90, pagou no Pix" **QUANDO** envio **ENTÃO** o assistente mostra cliente, itens, total, forma de pagamento e líquido para eu confirmar
 - **DADO** que confirmo **QUANDO** respondo **ENTÃO** a venda é criada com os mesmos cálculos do app e o estoque baixa
 - **DADO** um produto ambíguo **QUANDO** o assistente não decide **ENTÃO** ele pergunta qual, listando as opções
 - **DADO** uma venda sem produto cadastrado **QUANDO** confirmo **ENTÃO** posso registrar como item avulso com descrição e valor
+- **DADO** um desconto em % ou em valor **QUANDO** aplico na conversa **ENTÃO** o total recalcula; se o desconto for maior que o total, é recusado ([US-016](#us-016--aplicar-desconto))
+- **DADO** pagamento misto ou `credit` parcelado **QUANDO** confirmo **ENTÃO** valem as mesmas regras de soma, parcelas e tarifa do app ([US-019](#us-019--pagamento-misto-e-parcelado))
+- **DADO** pagamento em `wallet` **QUANDO** confirmo **ENTÃO** exige cliente identificado; sem cliente, o fechamento é recusado
+- **DADO** a loja apta a emitir na Focus **QUANDO** a venda fecha **ENTÃO** a NFC-e entra pelo mesmo caso de uso da [US-022](#us-022--emitir-nfc-e-na-venda), sem eu pedir "emite a nota"
+- **DADO** a loja inapta ou sem certificado **QUANDO** a venda fecha **ENTÃO** a venda permanece e a nota não é emitida, com o estado fiscal explícito
+- **DADO** nota autorizada e cliente com WhatsApp e consentimento **QUANDO** a venda fecha **ENTÃO** o DANFE segue a [US-023](#us-023--enviar-a-nota-ao-cliente)
+
+Foto do código não entra nesta história — [US-068](#us-068--usar-foto-do-código-de-barras) (`SHOULD`).
 
 #### US-050 — Confirmar ação sensível
 
@@ -600,6 +625,7 @@ não criar lançamento errado por engano.
 `MUST` · P1 · `packages/agent` · RF-103, RF-104
 
 - **DADO** qualquer ação que cria, altera ou apaga valor **QUANDO** o assistente vai executar **ENTÃO** ele resume e espera confirmação explícita
+- **DADO** um cancelamento de venda com nota **QUANDO** o assistente vai executar **ENTÃO** o resumo inclui a justificativa que será enviada à Focus
 - **DADO** uma consulta **QUANDO** o assistente responde **ENTÃO** não pede confirmação
 - **DADO** uma confirmação pendente **QUANDO** passa o tempo limite **ENTÃO** ela expira e nada é executado
 - **DADO** que respondo algo ambíguo a uma confirmação **QUANDO** o assistente lê **ENTÃO** ele trata como "não" e pergunta de novo
@@ -635,6 +661,163 @@ negócio de onde eu estiver.
 
 - **DADO** "resumo do mês" **QUANDO** envio **ENTÃO** recebo faturamento, custo, despesas e resultado
 - **DADO** um relatório muito grande para uma mensagem **QUANDO** peço **ENTÃO** recebo um resumo e um arquivo ou link para o detalhe
+
+#### US-065 — Consultar estoque por mensagem
+
+**Como** lojista, **quero** perguntar o saldo de um produto **para** responder
+ao cliente sem sair da conversa.
+`MUST` · P1 · `packages/agent` `packages/core` · RF-133, RF-022
+
+- **DADO** "quanto tem de camiseta M?" ou o nome do produto **QUANDO** envio **ENTÃO** vejo saldo, preço e localização, pelo mesmo caso de uso da [US-011](#us-011--consultar-estoque)
+- **DADO** um produto sem controle de estoque **QUANDO** consulto **ENTÃO** vejo "sem controle de estoque", não zero
+- **DADO** um produto que não existe **QUANDO** consulto **ENTÃO** sou avisada e posso cadastrar por texto ([US-069](#us-069--cadastrar-produto-por-mensagem)), não por esta consulta
+
+#### US-066 — Consultar contas a pagar por mensagem
+
+**Como** lojista, **quero** ver o que vence **para** me organizar sem abrir o
+app.
+`MUST` · P1 · `packages/agent` `packages/core` · RF-134, RF-061, RF-062
+
+- **DADO** "o que vence essa semana?" **QUANDO** envio **ENTÃO** recebo vencidas, hoje, semana e mês, com totais, pelo mesmo caso de uso da [US-029](#us-029--ver-contas-a-vencer)
+- **DADO** nenhuma conta no período **QUANDO** consulto **ENTÃO** recebo confirmação explícita de que não há vencimentos, não uma lista vazia sem texto
+
+#### US-067 — Consultar saldo em carteira por mensagem
+
+**Como** lojista, **quero** saber o fiado de um cliente **para** decidir se
+vendo de novo.
+`MUST` · P1 · `packages/agent` `packages/core` `packages/domain` · RF-135, RF-013, RF-014
+
+- **DADO** "quanto o João está me devendo?" **QUANDO** envio **ENTÃO** recebo o saldo em carteira, pelo mesmo caso de uso da [US-007](#us-007--saldo-em-carteira-fiado)
+- **DADO** um cliente sem saldo devedor **QUANDO** consulto **ENTÃO** recebo confirmação de saldo zerado, não silêncio
+- **DADO** um nome ambíguo **QUANDO** consulto **ENTÃO** o assistente lista as opções e não escolhe sozinho
+
+#### US-068 — Usar foto do código de barras
+
+**Como** lojista, **quero** mandar a foto de um código **para** não digitar no
+balcão.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-137, RF-138, RF-139
+
+- **DADO** uma foto sem pedido de cadastro **QUANDO** o código é lido e o produto existe **ENTÃO** o assistente trata como item de venda e segue a [US-049](#us-049--lançar-venda-por-mensagem) (confirmação US-050)
+- **DADO** uma foto cuja mensagem pede cadastro **QUANDO** o código é lido **ENTÃO** o assistente trata como cadastro de produto e segue a [US-069](#us-069--cadastrar-produto-por-mensagem)
+- **DADO** uma foto ilegível **QUANDO** a tool não lê o código **ENTÃO** recusa a foto e pede venda ou cadastro **por texto**
+- **DADO** um código lido sem produto no cadastro **QUANDO** a mensagem não pedia cadastro **ENTÃO** recusa e pede para descrever por texto — não oferece item avulso nem pergunta se cadastra
+
+#### US-069 — Cadastrar produto por mensagem
+
+**Como** lojista, **quero** cadastrar produto pela conversa **para** vender o
+item que acabou de aparecer.
+`SHOULD` · P1 · `packages/agent` `packages/core` `packages/domain` · RF-140, RF-017, RF-018, RF-019, RF-020
+
+- **DADO** "cadastra camiseta M, custo 20, vende a 49,90" **QUANDO** confirmo **ENTÃO** o produto é criado pelo mesmo caso de uso da [US-009](#us-009--cadastrar-produto-com-código-de-barras) / [US-010](#us-010--definir-preço-e-custo)
+- **DADO** um código já cadastrado **QUANDO** confirmo **ENTÃO** sou avisada do existente e escolho usar ou abortar
+- **DADO** preço menor que o custo **QUANDO** confirmo **ENTÃO** sou avisada e posso seguir, como no app
+
+#### US-070 — Lançar conta a pagar por mensagem
+
+**Como** lojista, **quero** lançar uma conta pela conversa **para** não
+esquecer de pagar.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-141, RF-055, RF-056
+
+- **DADO** "lança aluguel 1800 vence dia 10" **QUANDO** confirmo **ENTÃO** a conta é criada pelo mesmo caso de uso da [US-026](#us-026--lançar-conta-a-pagar)
+- **DADO** vencimento no passado **QUANDO** confirmo **ENTÃO** ela já nasce `overdue`
+- **DADO** dados incompletos **QUANDO** envio **ENTÃO** o assistente pede o que falta e não inventa valor nem vencimento
+
+#### US-071 — Lançar recebimento avulso por mensagem
+
+**Como** lojista, **quero** lançar um valor a receber fora de venda **para**
+registrar entrada pela conversa.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-142, RF-065
+
+- **DADO** "a receber 500 do João na sexta, aluguel da vitrine" **QUANDO** confirmo **ENTÃO** o recebível avulso é criado pelo mesmo caso de uso da [US-031](#us-031--lançar-recebimento-avulso)
+- **DADO** dados incompletos **QUANDO** envio **ENTÃO** o assistente pede o que falta e não cria lançamento parcial
+
+#### US-072 — Dar baixa em conta a pagar por mensagem
+
+**Como** lojista, **quero** marcar a conta como paga pela conversa **para** o
+caixa refletir agora.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-143, RF-059, RF-060
+
+- **DADO** uma conta em aberto **QUANDO** confirmo a baixa **ENTÃO** vale o mesmo caso de uso da [US-028](#us-028--dar-baixa-em-conta-paga)
+- **DADO** pagamento parcial **QUANDO** confirmo **ENTÃO** o restante continua em aberto
+- **DADO** uma conta inexistente ou já liquidada **QUANDO** peço baixa **ENTÃO** sou avisada e nada muda
+
+#### US-073 — Dar baixa em recebimento por mensagem
+
+**Como** lojista, **quero** marcar o que recebi pela conversa **para** saber
+quem ainda deve.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-144, RF-066, RF-067
+
+- **DADO** um recebível em aberto **QUANDO** confirmo a baixa **ENTÃO** vale o mesmo caso de uso da [US-032](#us-032--dar-baixa-em-recebimento)
+- **DADO** recebimento parcial **QUANDO** confirmo **ENTÃO** o restante continua em aberto
+- **DADO** um recebível inexistente ou já liquidado **QUANDO** peço baixa **ENTÃO** sou avisada e nada muda
+
+#### US-074 — Ajustar estoque por mensagem
+
+**Como** lojista, **quero** corrigir o saldo pela conversa **para** não
+esperar o inventário no app.
+`SHOULD` · P1 · `packages/agent` `packages/core` · RF-145, RF-023
+
+- **DADO** um ajuste com motivo **QUANDO** confirmo **ENTÃO** vale o mesmo caso de uso da [US-012](#us-012--ajustar-estoque), com `InventoryMovement`
+- **DADO** um ajuste que deixaria o saldo negativo **QUANDO** confirmo **ENTÃO** sou avisada e preciso confirmar de novo
+- **DADO** um produto inexistente **QUANDO** peço ajuste **ENTÃO** sou avisada e o saldo não muda
+
+#### US-075 — Cancelar ou devolver venda por mensagem
+
+**Como** lojista, **quero** estornar pela conversa **para** corrigir erro no
+balcão.
+`SHOULD` · P1 · `packages/agent` `packages/core` `packages/fiscal` · RF-147, RF-043, RF-044, RF-050
+
+- **DADO** uma venda do dia sem nota **QUANDO** confirmo o cancelamento **ENTÃO** vale o mesmo caso de uso da [US-021](#us-021--cancelar-ou-devolver-venda)
+- **DADO** uma venda com nota dentro do prazo **QUANDO** confirmo com justificativa **ENTÃO** o cancelamento é pedido à Focus e só depois o estorno corre
+- **DADO** uma devolução parcial **QUANDO** confirmo os itens **ENTÃO** só esses itens voltam ao estoque
+- **DADO** uma nota fora do prazo **QUANDO** peço cancelar **ENTÃO** sou orientada a devolução, como na [US-024](#us-024--cancelar-nota-fiscal)
+- **DADO** que peço "cancela a nota" sem apontar a venda **QUANDO** envio **ENTÃO** o assistente recusa ([US-079](#us-079--não-emitir-nem-cancelar-nota-por-comando))
+
+#### US-076 — Criar compromisso por mensagem
+
+**Como** lojista, **quero** anotar um compromisso pela conversa **para** não
+esquecer.
+`COULD` · P1 · `packages/agent` `packages/core` · RF-148, RF-089, RF-090
+
+- **DADO** "lembra amanhã 10h entrega do João" **QUANDO** salvo **ENTÃO** o compromisso é criado pelo mesmo caso de uso da [US-043](#us-043--criar-compromisso)
+- **DADO** data ou hora ausente **QUANDO** envio **ENTÃO** o assistente pede o que falta e não inventa horário
+- **DADO** a agenda do dia **QUANDO** pergunto **ENTÃO** vale a [US-045](#us-045--ver-a-agenda-do-dia)
+
+#### US-077 — Não enviar certificado pelo WhatsApp
+
+**Como** lojista, **quero** que o Zap recuse A1 e cadastro de emitente **para**
+não mandar senha de certificado na conversa.
+`WON'T` · P1 · `packages/agent` · RF-149
+
+Fora deste recorte: certificado e regime de emitente ficam no app
+([US-002](#us-002--configurar-dados-fiscais)). O assistente não recebe arquivo
+PFX nem senha.
+
+- **DADO** um pedido para enviar certificado, senha de A1 ou cadastrar emitente **QUANDO** a mensagem chega **ENTÃO** o assistente recusa, não guarda arquivo e aponta o app
+- **DADO** uma foto ou documento que parece certificado **QUANDO** chega **ENTÃO** o assistente recusa do mesmo modo
+
+#### US-078 — Não conciliar banco pelo WhatsApp
+
+**Como** lojista, **quero** que o Zap recuse extrato e conciliação **para** não
+tratar OFX/CSV como conversa.
+`WON'T` · P1 · `packages/agent` · RF-150
+
+Fora deste recorte: [US-035](#us-035--cadastrar-conta-bancária)–[US-038](#us-038--conciliar-transação) ficam no app.
+
+- **DADO** um pedido para importar OFX/CSV, conectar banco ou conciliar **QUANDO** a mensagem chega **ENTÃO** o assistente recusa e aponta o app
+- **DADO** um arquivo de extrato na conversa **QUANDO** chega **ENTÃO** nada é importado
+
+#### US-079 — Não emitir nem cancelar nota por comando
+
+**Como** lojista, **quero** que o Zap recuse "emite a nota" avulso **para** a
+Focus só entrar como efeito da venda ou do cancelamento da venda.
+`WON'T` · P1 · `packages/agent` · RF-151
+
+Fora como comando: [US-022](#us-022--emitir-nfc-e-na-venda) e
+[US-024](#us-024--cancelar-nota-fiscal). Dentro: efeito da [US-049](#us-049--lançar-venda-por-mensagem) e da [US-075](#us-075--cancelar-ou-devolver-venda-por-mensagem).
+
+- **DADO** "emite a NFC-e da venda X" ou "cancela a nota" sem cancelar a venda **QUANDO** envio **ENTÃO** o assistente recusa e explica que a nota segue a venda
+- **DADO** uma venda que fecha com a loja apta **QUANDO** confirmo a venda **ENTÃO** a emissão pela Focus ocorre como efeito, não como este comando
 
 ---
 
@@ -694,9 +877,9 @@ após o prazo **para** proteger a receita sem sequestrar dados do cliente.
 
 #### US-059 — Fazer login
 
-**Como** usuário, **quero** entrar no sistema com segurança **para** acessar os
+**Como** lojista, **quero** entrar no sistema com segurança **para** acessar os
 dados da minha empresa.
-`MUST` · P1 P2 · `apps/api` `apps/web` `apps/mobile` · RF-119, RF-120
+`MUST` · P1 · `apps/api` `apps/web` `apps/mobile` · RF-119, RF-120
 
 - **DADO** credenciais válidas **QUANDO** entro **ENTÃO** acesso apenas as empresas às quais pertenço
 - **DADO** credenciais inválidas **QUANDO** tento **ENTÃO** a mensagem não revela se o usuário existe
@@ -715,8 +898,8 @@ confiar o negócio ao sistema.
 
 #### US-061 — Trilha de auditoria
 
-**Como** lojista, **quero** saber quem fez o quê **para** resolver divergência
-com meu funcionário.
+**Como** lojista, **quero** saber o que foi feito **para** conferir o que
+aconteceu no app e no WhatsApp.
 `MUST` · P1 · `packages/db` `packages/core` · RF-123, RF-124
 
 - **DADO** qualquer ação que altera dado de negócio **QUANDO** ela ocorre **ENTÃO** ficam registrados autor, canal (app ou WhatsApp), data e valores antes/depois
@@ -759,7 +942,7 @@ integração falhou **para** resolver o chamado sem pedir print ao cliente.
 | De                   | Para                          | Onde                                                   |
 | -------------------- | ----------------------------- | ------------------------------------------------------ |
 | História → requisito | `US-xxx` → `RF-xxx`           | linha de metadados de cada história                    |
-| Requisito → história | `RF-xxx` → `US-xxx`           | [`requisitos-funcionais.md`](requisitos-funcionais.md) |
-| Requisito → módulo   | `RF-xxx` → `packages/*`       | [`requisitos-funcionais.md`](requisitos-funcionais.md) |
-| História → tarefa    | `US-xxx` → `NR-xxx`           | [`task-ledger.md`](../processo/task-ledger.md)         |
-| Tarefa → código      | `NR-xxx` → branch, PR, commit | [`git-workflow.md`](../engenharia/git-workflow.md)     |
+| Requisito → história | `RF-xxx` → `US-xxx`           | `[requisitos-funcionais.md](requisitos-funcionais.md)` |
+| Requisito → módulo   | `RF-xxx` → `packages/*`       | `[requisitos-funcionais.md](requisitos-funcionais.md)` |
+| História → tarefa    | `US-xxx` → `NR-xxx`           | `[task-ledger.md](../processo/task-ledger.md)`         |
+| Tarefa → código      | `NR-xxx` → branch, PR, commit | `[git-workflow.md](../engenharia/git-workflow.md)`     |

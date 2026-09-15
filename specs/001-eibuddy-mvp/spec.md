@@ -17,12 +17,12 @@
 | [User Stories](../../docs/produto/user-stories.md)                   | 64 histórias com aceite (US-001–064)             |
 | [Requisitos funcionais](../../docs/produto/requisitos-funcionais.md) | 131 RFs rastreáveis                              |
 | [RNFs](../../docs/produto/requisitos-nao-funcionais.md)              | Comportamento mensurável                         |
-| [Personas](../../docs/produto/personas.md)                           | Cláudia, Marcos, Roberto, João, Ana              |
+| [Personas](../../docs/produto/personas.md)                           | Cláudia (`owner`); Marcos fora do recorte; Roberto, João, Ana |
 | [Glossário](../../docs/produto/glossario.md)                         | Linguagem ubíqua                                 |
 
 ## User Scenarios & Testing _(mandatory)_
 
-Critério de corte do MVP ([escopo](../../docs/produto/escopo-mvp.md)): a Cláudia (P1, papel `owner`) opera o mês **sem planilha paralela** — registra vendas, emite nota, sabe o que tem a receber e a pagar, e cobra quem está devendo. App e WhatsApp acionam **as mesmas regras**, com as mesmas validações e a mesma trilha de auditoria.
+Critério de corte do MVP ([escopo](../../docs/produto/escopo-mvp.md)): a Cláudia (P1, papel `owner`) opera o mês **sem planilha paralela** — registra vendas, emite nota, sabe o que tem a receber e a pagar, e cobra quem está devendo. App e WhatsApp acionam **as mesmas regras**, com as mesmas validações e a mesma trilha de auditoria. **Não há funcionário como usuário:** o que em outro ERP seria história do `staff` é da lojista ([US-003](../../docs/produto/user-stories.md#us-003--convidar-equipe) é `WON'T`).
 
 Prioridade MoSCoW das histórias de origem: `MUST` entra; `SHOULD` entra se couber no recorte; `COULD` (Agenda, US-043–045) fica fora desta spec.
 
@@ -34,7 +34,7 @@ A Cláudia cadastra a empresa pelo CNPJ, revisa os dados, informa regime tribut�
 
 **Independent Test**: uma lojista nova, com CNPJ válido, completa cadastro + um produto + um cliente + uma venda à vista e vê o comprovante da venda registrada, sem planilha.
 
-**Acceptance Scenarios** (US-001, US-002, US-004, US-005, US-009, US-018, US-054 · RF-001–004, RF-007–010, RF-017–019, RF-034, RF-110):
+**Acceptance Scenarios** (US-001, US-002, US-004, US-005, US-009, US-018, US-054 · RF-001–004, RF-007, RF-009–010, RF-017–019, RF-034, RF-110):
 
 1. **Given** um CNPJ válido ainda não cadastrado, **When** a lojista confirma, **Then** razão social, nome fantasia e endereço vêm preenchidos e ela só revisa.
 2. **Given** um CNPJ inválido ou inexistente, **When** ela confirma, **Then** vê o erro no campo e nada é criado.
@@ -49,47 +49,46 @@ A Cláudia cadastra a empresa pelo CNPJ, revisa os dados, informa regime tribut�
 
 ### User Story 2 - Venda no balcão (Priority: P1)
 
-O Marcos (P2, papel `staff`) monta o carrinho bipando código de barras ou buscando por nome, aplica desconto dentro do limite, vincula ou cria cliente sem sair da venda, recebe em uma ou várias formas (incluindo parcelado no crédito e troco em dinheiro) e fecha. Com internet ruim, os itens entram no carrinho na hora e sincronizam depois. Reenvio por falha de rede não duplica a venda.
+A Cláudia (P1, papel `owner`) monta o carrinho bipando código de barras ou buscando por nome, aplica desconto, vincula ou cria cliente sem sair da venda, recebe em uma ou várias formas (incluindo parcelado no crédito e troco em dinheiro) e fecha. Com internet ruim, os itens entram no carrinho na hora e sincronizam depois. Reenvio por falha de rede não duplica a venda.
 
 **Why this priority**: é o caminho crítico do produto — o que acontece várias vezes por dia, em pé, com cliente esperando.
 
-**Independent Test**: um funcionário fecha vendas com leitor, busca, desconto, pagamento misto e fiado bloqueado sem cliente; um reenvio não cria segunda venda.
+**Independent Test**: a lojista fecha vendas com leitor, busca, desconto, pagamento misto e fiado bloqueado sem cliente; um reenvio não cria segunda venda.
 
 **Acceptance Scenarios** (US-014–019, US-021 · RF-027–039, RF-043–044 · RNF-003, RNF-043, RNF-051):
 
-1. **Given** um carrinho aberto, **When** o operador bipa um código válido, **Then** o item entra com o preço atual e a quantidade soma se o item já estiver no carrinho.
-2. **Given** um código inexistente, **When** ele bipa, **Then** vê o erro e o carrinho não muda.
-3. **Given** um produto sem estoque, **When** ele bipa, **Then** é avisado e decide se continua.
-4. **Given** internet instável ou ausente, **When** ele bipa em sequência, **Then** cada item aparece no carrinho de imediato, sem esperar a rede.
-5. **Given** parte do nome do produto, **When** ele busca, **Then** vê resultados ordenados pelos mais vendidos; se nada aparece, pode cadastrar ali mesmo.
-6. **Given** um `staff` com limite de 10%, **When** tenta 15% de desconto, **Then** a venda é bloqueada com o motivo.
+1. **Given** um carrinho aberto, **When** a lojista bipa um código válido, **Then** o item entra com o preço atual e a quantidade soma se o item já estiver no carrinho.
+2. **Given** um código inexistente, **When** ela bipa, **Then** vê o erro e o carrinho não muda.
+3. **Given** um produto sem estoque, **When** ela bipa, **Then** é avisada e decide se continua.
+4. **Given** internet instável ou ausente, **When** ela bipa em sequência, **Then** cada item aparece no carrinho de imediato, sem esperar a rede.
+5. **Given** parte do nome do produto, **When** ela busca, **Then** vê resultados ordenados pelos mais vendidos; se nada aparece, pode cadastrar ali mesmo.
+6. **Given** um desconto em % ou em valor, **When** aplica, **Then** o total recalcula e ela vê o impacto na margem; desconto maior que o total é recusado.
 7. **Given** uma venda sem cliente, **When** o pagamento é fiado (`wallet`), **Then** o fechamento é recusado até identificar o cliente; nas demais formas, fecha como consumidor não identificado.
 8. **Given** total de R$ 100, **When** registra R$ 60 no Pix e R$ 40 em dinheiro, **Then** a venda fecha e o restante é zero; se a soma diferir do total, o fechamento é bloqueado com a diferença.
 9. **Given** crédito em 3× de um valor que não divide exatamente, **When** as parcelas são criadas, **Then** a soma delas é exatamente o total (resto na primeira parcela) e cada parcela tem vencimento e tarifa.
 10. **Given** dinheiro acima do total, **When** confirma, **Then** o troco aparece calculado.
-11. **Given** uma falha ao fechar, **When** o operador tenta de novo, **Then** não nasce uma venda duplicada.
-12. **Given** uma venda do dia sem nota emitida, **When** a lojista cancela, **Then** estoque, contas a receber e carteira voltam ao estado anterior e a venda **não** é apagada.
+11. **Given** uma falha ao fechar, **When** ela tenta de novo, **Then** não nasce uma venda duplicada.
+12. **Given** uma venda do dia sem nota emitida, **When** ela cancela, **Then** estoque, contas a receber e carteira voltam ao estado anterior e a venda **não** é apagada.
 13. **Given** uma devolução parcial, **When** ela confirma os itens, **Then** só esses itens voltam ao estoque e o valor proporcional é estornado.
 
 ---
 
 ### User Story 3 - Lucro real no fechamento (Priority: P1)
 
-Ao fechar a venda, o sistema calcula sozinho — sem o operador informar — custo dos itens, imposto do regime da empresa, tarifa de cartão conforme bandeira e parcelamento, e o valor líquido. A lojista vê bruto, custo, imposto, tarifa, líquido e margem. O funcionário vê o total, mas não custo, imposto nem margem. Os recebíveis nascem da venda: Pix/dinheiro já liquidados; crédito em parcelas com data de repasse e líquido; fiado em aberto no cliente.
+Ao fechar a venda, o sistema calcula sozinho — sem a lojista informar — custo dos itens, imposto do regime da empresa, tarifa de cartão conforme bandeira e parcelamento, e o valor líquido. Ela vê bruto, custo, imposto, tarifa, líquido e margem. Os recebíveis nascem da venda: Pix/dinheiro já liquidados; crédito em parcelas com data de repasse e líquido; fiado em aberto no cliente.
 
 **Why this priority**: sem este cálculo o produto é um caderno digital — é a promessa de valor da visão.
 
-**Independent Test**: fechar uma venda no crédito parcelado e conferir totais, parcelas e o que o `staff` **não** vê; conferir que app e assistente produzem os mesmos números para a mesma venda.
+**Independent Test**: fechar uma venda no crédito parcelado e conferir totais e parcelas; conferir que app e assistente produzem os mesmos números para a mesma venda.
 
-**Acceptance Scenarios** (US-020, US-030 · RF-003, RF-007, RF-040–042, RF-063–064):
+**Acceptance Scenarios** (US-020, US-030 · RF-003, RF-007, RF-040–041, RF-063–064):
 
 1. **Given** uma venda fechada, **When** a lojista abre o resumo, **Then** vê bruto, custo, imposto, tarifa de cartão, líquido e margem.
 2. **Given** regime Simples Nacional configurado, **When** a venda fecha, **Then** o imposto usa a alíquota da empresa.
-3. **Given** um `staff`, **When** fecha a venda, **Then** vê o total e **não** recebe custo, imposto nem margem — em nenhuma tela nem mensagem.
-4. **Given** venda em dinheiro ou Pix, **When** fecha, **Then** o recebível já nasce liquidado.
-5. **Given** venda em crédito parcelado, **When** fecha, **Then** nasce um recebível por parcela, com valor líquido e data prevista de repasse.
-6. **Given** venda em fiado, **When** fecha, **Then** o recebível fica em aberto, o saldo devedor do cliente aumenta e o operador é avisado desse saldo na próxima venda daquele cliente.
-7. **Given** falha no meio do fechamento, **When** a operação não conclui, **Then** não resta venda sem estoque, nem estoque baixado sem venda, nem recebível órfão.
+3. **Given** venda em dinheiro ou Pix, **When** fecha, **Then** o recebível já nasce liquidado.
+4. **Given** venda em crédito parcelado, **When** fecha, **Then** nasce um recebível por parcela, com valor líquido e data prevista de repasse.
+5. **Given** venda em fiado, **When** fecha, **Then** o recebível fica em aberto, o saldo devedor do cliente aumenta e a lojista é avisada desse saldo na próxima venda daquele cliente.
+6. **Given** falha no meio do fechamento, **When** a operação não conclui, **Then** não resta venda sem estoque, nem estoque baixado sem venda, nem recebível órfão.
 
 ---
 
@@ -177,26 +176,24 @@ A Cláudia lança contas a pagar (fornecedor, valor, vencimento, anexo), dá bai
 
 ---
 
-### User Story 8 - Equipe, papéis e confiança (Priority: P2)
+### User Story 8 - Confiança, isolamento e dados (Priority: P2)
 
-A Cláudia convida funcionário por e-mail ou telefone com papel `staff`, revoga acesso (sessão cai, histórico permanece) e configura limite de desconto. O Marcos não vê custo, margem nem relatório financeiro. Qualquer usuário entra só nas empresas às quais pertence; falha de login não revela se a conta existe; tentativas repetidas desaceleram. Nenhuma loja vê dado de outra: recurso alheio parece inexistente. Toda alteração de negócio fica com autor, canal (app ou WhatsApp), data e valores antes/depois; auditoria não se altera. A lojista exporta tudo em formato aberto, inclusive com conta restrita por inadimplência. Pedido de exclusão de dados do cliente final anonimiza o pessoal e preserva totais e obrigação fiscal.
+A loja é operada só pelo `owner`. Convite de equipe, papel `staff` e alçada de desconto estão fora ([US-003](../../docs/produto/user-stories.md#us-003--convidar-equipe) `WON'T`). A Cláudia entra só nas empresas às quais pertence; falha de login não revela se a conta existe; tentativas repetidas desaceleram. Nenhuma loja vê dado de outra: recurso alheio parece inexistente. Toda alteração de negócio fica com autor, canal (app ou WhatsApp), data e valores antes/depois; auditoria não se altera. A lojista exporta tudo em formato aberto, inclusive com conta restrita por inadimplência. Pedido de exclusão de dados do cliente final anonimiza o pessoal e preserva totais e obrigação fiscal.
 
 **Why this priority**: sem isolamento e dono dos dados, o lojista não confia o negócio ao sistema.
 
-**Independent Test**: `staff` não vê margem; acesso cruzado entre empresas falha como “não encontrado”; exportação completa chega em formato aberto; anonimização preserva totais.
+**Independent Test**: acesso cruzado entre empresas falha como “não encontrado”; exportação completa chega em formato aberto; anonimização preserva totais.
 
-**Acceptance Scenarios** (US-003, US-059–063 · RF-005–006, RF-008, RF-012, RF-042, RF-119–128):
+**Acceptance Scenarios** (US-059–063 · RF-119–128):
 
-1. **Given** convite por e-mail ou telefone, **When** a lojista envia, **Then** o funcionário entra como `staff` e não vê custo, margem nem relatório financeiro.
-2. **Given** remoção de acesso, **When** confirma, **Then** a sessão do funcionário encerra e o histórico de ações permanece.
-3. **Given** credenciais válidas, **When** entra, **Then** acessa só as empresas às quais pertence; se houver várias, escolhe qual operar.
-4. **Given** credenciais inválidas, **When** tenta, **Then** a mensagem não revela se o usuário existe; após várias falhas, novas tentativas desaceleram.
-5. **Given** consulta sem empresa no contexto, **When** executa, **Then** falha em vez de retornar tudo.
-6. **Given** identificador de outra empresa, **When** tenta acessar direto, **Then** recebe “não encontrado”, não “sem permissão”.
-7. **Given** qualquer alteração de dado de negócio, **When** ocorre, **Then** ficam autor, canal, data e valores antes/depois; ação do assistente registra o humano que confirmou.
-8. **Given** um registro de auditoria, **When** alguém tenta alterá-lo, **Then** é impedido.
-9. **Given** solicitação de exportação (conta ativa ou restrita), **When** fica pronta, **Then** o lojista recebe um pacote com todos os dados em formato aberto.
-10. **Given** pedido de exclusão de dados pessoais, **When** é processado, **Then** o pessoal é anonimizado, totais de vendas antigas continuam corretos e fica registrado quando e por quem.
+1. **Given** credenciais válidas, **When** entra, **Then** acessa só as empresas às quais pertence; se houver várias, escolhe qual operar.
+2. **Given** credenciais inválidas, **When** tenta, **Then** a mensagem não revela se o usuário existe; após várias falhas, novas tentativas desaceleram.
+3. **Given** consulta sem empresa no contexto, **When** executa, **Then** falha em vez de retornar tudo.
+4. **Given** identificador de outra empresa, **When** tenta acessar direto, **Then** recebe “não encontrado”, não “sem permissão”.
+5. **Given** qualquer alteração de dado de negócio, **When** ocorre, **Then** ficam autor, canal, data e valores antes/depois; ação do assistente registra o humano que confirmou.
+6. **Given** um registro de auditoria, **When** alguém tenta alterá-lo, **Then** é impedido.
+7. **Given** solicitação de exportação (conta ativa ou restrita), **When** fica pronta, **Then** o lojista recebe um pacote com todos os dados em formato aberto.
+8. **Given** pedido de exclusão de dados pessoais, **When** é processado, **Then** o pessoal é anonimizado, totais de vendas antigas continuam corretos e fica registrado quando e por quem.
 
 ---
 
@@ -284,17 +281,17 @@ Requisitos abaixo são o recorte testável desta spec. O catálogo canônico per
 - **FR-001**: Toda operação de negócio disponível no aplicativo e no assistente MUST produzir o mesmo resultado (validações, cálculos, estoque, recebíveis, auditoria) para a mesma entrada. Não existe regra só em um canal. (Princípio de produto; RF-101, RF-096)
 - **FR-002**: Consultar MUST ser livre de confirmação. Criar, alterar ou excluir valor, e enviar mensagem a terceiro, MUST exigir confirmação explícita no canal em que a ação foi pedida. (RF-103, RF-104)
 
-### Empresa, usuários e loja
+### Empresa e loja
 
 - **FR-003**: O sistema MUST cadastrar empresa a partir do CNPJ com preenchimento automático de razão social, nome fantasia e endereço, permitir preenchimento manual se a consulta falhar, e recusar CNPJ duplicado sem revelar dados da empresa existente. (RF-001, RF-002)
 - **FR-004**: O sistema MUST registrar o regime tributário da empresa e usá-lo no imposto das vendas; MUST guardar certificado digital da empresa de forma protegida e avisar com 30 dias de antecedência do vencimento; certificado vencido ou senha errada MUST ser recusado com o motivo. (RF-003, RF-004)
-- **FR-005**: A lojista MUST poder convidar usuário por e-mail ou telefone com papel `owner` ou `staff`, e revogar acesso encerrando sessões sem apagar o histórico de ações. (RF-005, RF-006)
-- **FR-006**: A lojista MUST configurar taxas da adquirente por bandeira e parcelamento, formas de pagamento ativas e limite de desconto por papel; venda que exceder o limite MUST ser recusada. (RF-007, RF-008)
+- **FR-005**: Convite de equipe, papel `staff` e revogação de funcionário estão fora deste recorte. O operador da loja é o `owner`. (US-003 `WON'T`; RF-005, RF-006, RF-008, RF-012, RF-042 cancelados)
+- **FR-006**: A lojista MUST configurar taxas da adquirente por bandeira e parcelamento e formas de pagamento ativas. (RF-007)
 
 ### Clientes
 
 - **FR-007**: O sistema MUST cadastrar cliente com apenas nome e telefone; CPF, se informado, MUST ser validado e usado na nota; duplicidade por telefone ou CPF MUST oferecer reuso. (RF-009, RF-010)
-- **FR-008**: O sistema MUST listar o histórico de compras do cliente (data, itens, valor) em ordem decrescente; cadastro sem compras MUST ter estado vazio explícito; `staff` MUST NÃO ver margem nesse histórico. (RF-011, RF-012)
+- **FR-008**: O sistema MUST listar o histórico de compras do cliente (data, itens, valor) em ordem decrescente; cadastro sem compras MUST ter estado vazio explícito. (RF-011)
 - **FR-009**: O sistema MUST manter saldo de fiado por cliente, alterado por venda `wallet` e por recebimento, e avisar o saldo devedor ao iniciar nova venda. (RF-013, RF-014)
 - **FR-010**: O sistema MUST vincular o número de WhatsApp ao cadastro do cliente, registrar consentimento e opt-out, e recusar envio sem consentimento. (RF-015, RF-016)
 
@@ -308,11 +305,11 @@ Requisitos abaixo são o recorte testável desta spec. O catálogo canônico per
 ### Vendas
 
 - **FR-015**: O operador MUST adicionar item por código de barras (somando quantidade se repetido) ou por busca de nome ordenada pelos mais vendidos, com aviso de falta de estoque permitindo seguir. (RF-027, RF-028, RF-029)
-- **FR-016**: O operador MUST aplicar desconto em valor ou percentual, no item ou na venda; desconto maior que o total ou acima do limite do papel MUST ser recusado. (RF-030, RF-031)
+- **FR-016**: A lojista MUST aplicar desconto em valor ou percentual, no item ou na venda; desconto maior que o total MUST ser recusado. (RF-030, RF-031)
 - **FR-017**: O operador MUST vincular ou criar cliente sem sair da venda; venda sem cliente MUST ser permitida, exceto no fiado. (RF-032, RF-033)
 - **FR-018**: O sistema MUST registrar pagamento em dinheiro, Pix, débito, crédito ou fiado; calcular troco em dinheiro; aceitar pagamento dividido cuja soma seja exatamente o total; e impedir venda duplicada em reenvio. (RF-034, RF-035, RF-036, RF-037)
 - **FR-019**: Crédito parcelado MUST gerar uma conta a receber por parcela, com vencimento e tarifa; a soma das parcelas MUST ser exatamente o total. (RF-038, RF-039)
-- **FR-020**: Ao fechar, o sistema MUST calcular e exibir bruto, custo, imposto, tarifa, líquido e margem; `staff` MUST NÃO receber custo, imposto nem margem. (RF-040, RF-041, RF-042)
+- **FR-020**: Ao fechar, o sistema MUST calcular e exibir bruto, custo, imposto, tarifa, líquido e margem. (RF-040, RF-041)
 - **FR-021**: Cancelamento MUST estornar estoque, recebíveis e carteira sem apagar a venda; devolução total ou parcial MUST estornar só os itens e o valor proporcional; autoria, data e motivo MUST ficar registrados. (RF-043, RF-044)
 - **FR-022**: Fechamento da venda MUST atualizar venda, estoque e recebível juntos — nunca pela metade. (comportamento de RNF-046)
 
@@ -372,8 +369,8 @@ Requisitos abaixo são o recorte testável desta spec. O catálogo canônico per
 
 Nomes de negócio em PT-BR; identificadores em inglês conforme o [glossário](../../docs/produto/glossario.md).
 
-- **Empresa (`Company`)**: tenant. Isolamento, regime tributário, certificado, taxas de cartão, limites por papel. Nunca se confunde com filial no MVP.
-- **Usuário (`User`) e Papel (`Role`)**: `owner`, `staff`, `accountant` (fora do MVP como login), `platform_admin`. `staff` não vê custo, margem nem imposto.
+- **Empresa (`Company`)**: tenant. Isolamento, regime tributário, certificado, taxas de cartão. Nunca se confunde com filial no MVP.
+- **Usuário (`User`) e Papel (`Role`)**: o operador da loja é `owner`. `staff` é valor reservado, fora do recorte. `accountant` fica fora do MVP como login; `platform_admin` opera a plataforma.
 - **Cliente (`Customer`)**: nome, telefone, CPF opcional, WhatsApp, consentimento/opt-out, saldo de fiado, histórico de compras.
 - **Produto (`Product`)**: código de barras ou interno, preço, custo, margem, saldo, mínimo opcional, dados fiscais (NCM, CFOP).
 - **Movimentação de estoque (`InventoryMovement`)**: autoria, motivo, data; gerada por venda, ajuste, cancelamento e devolução.
@@ -406,7 +403,7 @@ Alvos M1–M7 da [visão](../../docs/produto/visao.md#métricas-de-sucesso) são
 - **SC-009**: Em 100% das vendas parceladas e dos pagamentos mistos, a soma das partes é exatamente o total, até o centavo.
 - **SC-010**: Reenvio do mesmo fechamento de venda nunca cria segunda venda.
 - **SC-011**: Em 100% dos testes de acesso cruzado, uma loja não lê dado de outra; o caso aparece como registro inexistente.
-- **SC-012**: Em 100% das respostas montadas para `staff`, custo, margem e imposto estão ausentes — inclusive no assistente, quando o funcionário tiver o canal habilitado.
+- **SC-012**: O operador da loja é o `owner` e vê custo, margem e imposto no resumo da venda; não há usuário `staff` neste recorte.
 - **SC-013**: Lojista com conta restrita exporta a base completa em formato aberto; tentativa de novo lançamento é recusada com mensagem clara.
 - **SC-014**: Uma lojista real opera um mês inteiro sem planilha paralela para vendas, notas, a receber, a pagar e cobrança (critério de saída do MVP).
 - **SC-015**: Churn mensal de lojistas pagantes ≤ 5% (M6), medido após a primeira coorte fora do teste.
@@ -414,16 +411,16 @@ Alvos M1–M7 da [visão](../../docs/produto/visao.md#métricas-de-sucesso) são
 
 ## Assumptions
 
-- Público do MVP: comércio varejista de pequeno porte no Brasil, com CNPJ, Simples Nacional, 1 a 10 pessoas, que já vende pelo WhatsApp e emite (ou deveria emitir) NFC-e. Prestador de serviço com NFS-e e negócio sem CNPJ ficam para depois.
+- Público do MVP: comércio varejista de pequeno porte no Brasil, com CNPJ, Simples Nacional, operado pelo próprio dono no balcão, que já vende pelo WhatsApp e emite (ou deveria emitir) NFC-e. Prestador de serviço com NFS-e e negócio sem CNPJ ficam para depois.
 - Canais do MVP: aplicativo (o que é melhor na tela: código de barras, relatório, fechamento) e WhatsApp (interface principal de operação). Não há atendimento ao cliente final pelo assistente.
-- Papéis no MVP: `owner` e `staff` na loja; `platform_admin` na operação da plataforma. Login de `accountant` fica fora; o contador recebe exportação enviada pela lojista.
+- Papéis no MVP: `owner` na loja; `platform_admin` na operação da plataforma. `staff` está fora (US-003 `WON'T`). Login de `accountant` fica fora; o contador recebe exportação enviada pela lojista.
 - Confirmação pendente do assistente expira em **5 minutos** se `docs/` não definir outro prazo (RF-104 exige expiração; o valor exato não está no catálogo).
 - Duração e preço do trial e dos planos seguem a tabela comercial quando QST-002 fechar; o **comportamento** (avisar, restringir escrita, manter leitura/exportação) já está especificado e não espera a tabela para ser testável.
 - Provedores externos (WhatsApp, fiscal, PSP, Open Finance, memória do assistente) podem estar em decisão aberta (`DEC-xxx`); a spec descreve o comportamento. Implementação de fornecedor concreto não faz parte deste documento.
 - Importação de extrato por arquivo é o caminho de conciliação que não depende de Open Finance; RF-074/075 permanecem SHOULD.
 - Alerta de estoque baixo, conta recorrente, cupom, DRE e relatório pelo assistente são SHOULD: entregam valor, não bloqueiam o critério de saída do caixa.
 - Métricas M1–M7 e alvos numéricos de desempenho são hipóteses a recalibrar com dados reais (QST-007, QST-008).
-- Identidade: número de WhatsApp prova continuidade de conversa, não identidade forte. Vincular número, convidar usuário, trocar conta de repasse, exportar ou anonimizar a base exige sessão no aplicativo (segundo canal).
+- Identidade: número de WhatsApp prova continuidade de conversa, não identidade forte. Vincular número, trocar conta de repasse, exportar ou anonimizar a base exige sessão no aplicativo (segundo canal).
 - Offline completo do aplicativo web está fora; offline do PDV no celular (carrinho local + sincronização) está dentro (RNF-051).
 - Esta spec cobre **um** recorte de produto (o MVP). Tarefas de engenharia, trilhas e ledger continuam em `docs/processo/`; ADRs em `docs/decisoes/adr/`.
 

@@ -211,10 +211,12 @@ Não negociáveis:
 - Número de WhatsApp prova continuidade de conversa, não identidade forte.
   Confirmação no mesmo canal MUST NOT ser tratada como segundo fator
   ([ADR-0002](../../docs/decisoes/adr/0002-autenticacao-identidade-propria.md)).
-  Vincular número, convidar usuário, trocar conta de repasse, exportar ou
+  Vincular número, trocar conta de repasse, exportar ou
   anonimizar a base MUST exigir sessão do aplicativo (segundo canal).
-- `staff` MUST NOT ver custo, margem ou imposto na resposta montada em
-  `core` — filtrar no cliente não conta.
+- O operador da loja é o `owner`. Não há usuário `staff` neste recorte
+  ([US-003](../../docs/produto/user-stories.md#us-003--convidar-equipe)).
+  Autorização por papel continua em `core` (`owner`, `platform_admin`);
+  ocultar custo/margem para `staff` MUST NOT ser tratado como entrega.
 
 ### Integrações e operação
 

@@ -1,7 +1,14 @@
 # Personas
 
-Cinco perfis atendidos pelo sistema. Cada história em
+Cinco perfis de contexto. Cada história em
 [`user-stories.md`](user-stories.md) declara para qual persona ela existe.
+
+**Quem usa o sistema:** só a lojista ([P1](#p1--cláudia-a-lojista)) como
+`owner`. Não há funcionário como usuário — o PDV, o estoque e o WhatsApp
+são dela. [P2](#p2--marcos-o-funcionário) existe para não voltar à pauta;
+[P3](#p3--roberto-o-contador) e [P4](#p4--joão-o-cliente-final) tocam o
+produto sem login de operação; [P5](#p5--ana-a-administradora-da-plataforma)
+opera a plataforma.
 
 Os nomes servem para conversa de time ("isso é problema da Cláudia ou do
 Roberto?"). Os perfis são hipóteses derivadas da apresentação comercial e
@@ -14,8 +21,9 @@ precisam ser validados com entrevistas reais — ver
 
 **Papel no sistema:** `owner` — acesso total à empresa.
 
-Dona de uma loja de roupas de bairro, 42 anos. Atende no balcão o dia inteiro,
-tem uma funcionária. Vende também pelo WhatsApp e entrega de moto na região.
+Dona de uma loja de roupas de bairro, 42 anos. Atende no balcão o dia inteiro
+— ela mesma opera a loja. Vende também pelo WhatsApp e entrega de moto na
+região.
 
 |                           |                                                                             |
 | ------------------------- | --------------------------------------------------------------------------- |
@@ -44,27 +52,15 @@ tem uma funcionária. Vende também pelo WhatsApp e entrega de moto na região.
 
 ## P2 — Marcos, o funcionário
 
-**Papel no sistema:** `staff` — permissões restritas, definidas pela Cláudia.
+**Papel no sistema:** nenhum neste recorte. `staff` é valor reservado, não
+um usuário entregue — [US-003](user-stories.md#us-003--convidar-equipe) é
+`WON'T`.
 
-Vendedor, 24 anos. Trabalha no balcão, opera o app com naturalidade.
+Histórias de balcão que em outro ERP seriam do funcionário são da Cláudia
+([P1](#p1--cláudia-a-lojista)). Marcos não entra, não recebe convite e não
+opera o WhatsApp.
 
-|                           |                                               |
-| ------------------------- | --------------------------------------------- |
-| **Domínio de tecnologia** | Alta para o uso do dia a dia                  |
-| **Contexto de uso**       | App no celular ou tablet da loja, no balcão   |
-| **Como opera**            | 90% app (bipa código de barras), 10% WhatsApp |
-
-**O que ele precisa**
-
-- Bipar produto e fechar venda rápido, inclusive com internet ruim
-- Consultar preço e estoque sem chamar a dona
-
-**Restrições que o sistema precisa impor**
-
-- Não pode ver margem, custo nem relatório financeiro
-- Não pode dar desconto acima do limite configurado
-- Não pode cancelar venda já emitida sem aprovação
-- Toda ação dele fica registrada com autoria
+Registrado para não voltar à pauta como se fosse requisito do MVP.
 
 ---
 
@@ -134,6 +130,10 @@ Trabalha na equipe do EiBuddy: suporte, cobrança e diagnóstico.
 
 Base para o modelo de autorização detalhado em
 [`seguranca.md`](../arquitetura/seguranca.md#autorização).
+
+No recorte atual a loja é operada só pelo `owner`. A coluna `staff` documenta
+o valor reservado no modelo; **não é capacidade a implementar** até o
+[US-003](user-stories.md#us-003--convidar-equipe) sair de `WON'T`.
 
 | Capacidade                       | `owner` |     `staff`     | `accountant` | `platform_admin` |
 | -------------------------------- | :-----: | :-------------: | :----------: | :--------------: |

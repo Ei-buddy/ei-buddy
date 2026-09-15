@@ -42,8 +42,10 @@ mesma emissão fiscal.
 ## Público-alvo
 
 **Primário (MVP):** comércio varejista de pequeno porte no Brasil, com CNPJ,
-1 a 10 funcionários, faturamento até R$ 360 mil/ano (Simples Nacional), que já
-vende pelo WhatsApp e emite (ou deveria emitir) NFC-e.
+operado pelo próprio dono no balcão, faturamento até R$ 360 mil/ano (Simples
+Nacional), que já vende pelo WhatsApp e emite (ou deveria emitir) NFC-e. Sem
+equipe como usuário do sistema — ver
+[US-003](user-stories.md#us-003--convidar-equipe).
 
 **Secundário (pós-MVP):** prestadores de serviço com NFS-e, e negócios sem CNPJ
 em fase de formalização.

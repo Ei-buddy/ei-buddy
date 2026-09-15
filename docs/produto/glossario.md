@@ -30,7 +30,7 @@ evento, fila e chave de tradução.
 | ------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
 | Empresa / Loja (o tenant) | `Company`        | Unidade de isolamento multi-tenant. Nunca `Store`, `Tenant` nem `Organization` no domínio |
 | Usuário                   | `User`           | Pessoa que faz login                                                                      |
-| Papel / Perfil de acesso  | `Role`           | `owner`, `staff`, `accountant`, `platform_admin`                                          |
+| Papel / Perfil de acesso  | `Role`           | `owner` opera a loja. `staff` é valor reservado, fora do recorte ([US-003](user-stories.md#us-003--convidar-equipe)). Também `accountant`, `platform_admin` |
 | Cliente                   | `Customer`       | Cliente da loja. Nunca `Client` (reservado para clientes HTTP)                            |
 | Fornecedor                | `Supplier`       |                                                                                           |
 | Produto                   | `Product`        |                                                                                           |
@@ -94,7 +94,7 @@ evento, fila e chave de tradução.
 | NFS-e (serviço)      | `ServiceInvoice`  | Sigla `nfse` em campos técnicos                     |
 | Emissão              | `issue`           | `issueInvoice()`                                    |
 | Cancelamento de nota | `cancelInvoice`   | Prazo legal distinto do cancelamento de venda       |
-| Contingência         | `contingency`     | Emissão offline quando a SEFAZ cai                  |
+| Contingência         | `contingency`     | Emissão offline quando a Focus (ou o fisco atrás dela) cai. O sistema fala com a Focus, não com a SEFAZ |
 | Chave de acesso      | `accessKey`       | 44 dígitos                                          |
 | DANFE                | `danfe`           | Representação impressa                              |
 | Regime tributário    | `TaxRegime`       | `simples_nacional`, `lucro_presumido`, `lucro_real` |

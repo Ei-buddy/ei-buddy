@@ -22,8 +22,8 @@ Público: todo o time, fundadores, stakeholders.
 | Doc                                                                            | Conteúdo                                                                     |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | [`produto/visao.md`](produto/visao.md)                                         | Problema, público-alvo, proposta de valor, diferencial e métricas de sucesso |
-| [`produto/personas.md`](produto/personas.md)                                   | Lojista, funcionário, contador, cliente final e administrador da plataforma  |
-| [`produto/user-stories.md`](produto/user-stories.md)                           | 13 épicos e 64 histórias com critérios de aceite em Gherkin                  |
+| [`produto/personas.md`](produto/personas.md)                                   | Lojista (`owner`); funcionário fora do recorte; contador, cliente final e admin da plataforma |
+| [`produto/user-stories.md`](produto/user-stories.md)                           | 13 épicos e 79 histórias com critérios de aceite em Gherkin                  |
 | [`produto/requisitos-funcionais.md`](produto/requisitos-funcionais.md)         | Catálogo `RF-xxx` rastreável a histórias e módulos                           |
 | [`produto/requisitos-nao-funcionais.md`](produto/requisitos-nao-funcionais.md) | Catálogo `RNF-xxx` com métricas verificáveis                                 |
 | [`produto/escopo-mvp.md`](produto/escopo-mvp.md)                               | O que entra e o que **não** entra no MVP, e o roadmap depois dele            |

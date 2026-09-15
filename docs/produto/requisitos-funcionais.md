@@ -1,6 +1,6 @@
 # Requisitos Funcionais
 
-132 requisitos, derivados das [User Stories](user-stories.md). Descrevem **o que
+151 requisitos, derivados das [User Stories](user-stories.md). Descrevem **o que
 o sistema faz**. Como ele se comporta (desempenho, segurança, disponibilidade)
 está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 
@@ -19,7 +19,10 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 `packages/domain` ou `packages/core` — nunca um `apps/*`. Ver
 [princípios](../arquitetura/principios.md).
 
-**Resumo:** 132 requisitos · 102 `MUST` · 25 `SHOULD` · 5 `COULD` · 0 implementados.
+**Resumo:** 151 requisitos · 105 `MUST` · 35 `SHOULD` · 6 `COULD` · 5
+cancelados (equipe/`staff`: RF-005, RF-006, RF-008, RF-012, RF-042).
+IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focus
+(não é recorte de equipe).
 
 ---
 
@@ -31,10 +34,10 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-002 | Impedir cadastro de CNPJ já existente, sem revelar dados da empresa existente                              | US-001 | `core`      |  M  | ✅  |
 | RF-003 | Registrar regime tributário da empresa e usá-lo no cálculo de imposto das vendas                           | US-002 | `domain`    |  M  | ✅  |
 | RF-004 | Armazenar certificado digital A1 cifrado e alertar 30 dias antes do vencimento                             | US-002 | `fiscal`    |  M  | ✅  |
-| RF-005 | Convidar usuário por e-mail ou telefone e atribuir papel (`owner`, `staff`)                                | US-003 | `core`      |  M  | ✅  |
-| RF-006 | Revogar acesso de usuário encerrando as sessões e preservando o histórico de ações                         | US-003 | `core`      |  M  | ✅  |
+| RF-005 | Convidar usuário por e-mail ou telefone e atribuir papel (`owner`, `staff`)                                | US-003 | `core`      |  M  | ❌  |
+| RF-006 | Revogar acesso de usuário encerrando as sessões e preservando o histórico de ações                         | US-003 | `core`      |  M  | ❌  |
 | RF-007 | Configurar taxas da adquirente por bandeira e número de parcelas                                           | US-004 | `domain`    |  M  | ✅  |
-| RF-008 | Configurar limite de desconto por papel e bloquear venda que o exceda                                      | US-004 | `domain`    |  M  | ⬜  |
+| RF-008 | Configurar limite de desconto por papel e bloquear venda que o exceda                                      | US-003 | `domain`    |  M  | ❌  |
 
 ## E2 — Clientes / CRM
 
@@ -43,7 +46,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-009 | Cadastrar cliente exigindo apenas nome e telefone                                           | US-005 | `core`      |  M  | ⬜  |
 | RF-010 | Detectar cliente duplicado por telefone ou CPF e oferecer reuso do existente                | US-005 | `core`      |  M  | ⬜  |
 | RF-011 | Listar histórico de compras do cliente em ordem decrescente de data                         | US-006 | `core`      |  M  | ⬜  |
-| RF-012 | Ocultar custo e margem no histórico para o papel `staff`                                    | US-006 | `core`      |  M  | ⬜  |
+| RF-012 | Ocultar custo e margem no histórico para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
 | RF-013 | Manter saldo em carteira (fiado) por cliente, alterado por venda `wallet` e por recebimento | US-007 | `domain`    |  M  | ⬜  |
 | RF-014 | Avisar o operador do saldo devedor do cliente ao iniciar nova venda para ele                | US-007 | `core`      |  M  | ⬜  |
 | RF-015 | Vincular número de WhatsApp ao cadastro do cliente e usá-lo como destino de mensagens       | US-008 | `core`      |  M  | ⬜  |
@@ -72,7 +75,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-028 | Alertar venda de produto sem saldo em estoque, permitindo prosseguir por decisão do operador               | US-014 | `core`      |  M  | ⬜  |
 | RF-029 | Buscar produto por nome, ordenando resultados por volume de vendas                                         | US-015 | `core`      |  M  | ⬜  |
 | RF-030 | Aplicar desconto em valor ou percentual, no item ou na venda, recalculando o total                         | US-016 | `domain`    |  M  | ⬜  |
-| RF-031 | Recusar desconto superior ao total da venda ou ao limite do papel do operador                              | US-016 | `domain`    |  M  | ⬜  |
+| RF-031 | Recusar desconto superior ao total da venda                                                                | US-016 | `domain`    |  M  | ⬜  |
 | RF-032 | Vincular venda a um cliente, com busca e criação sem sair do fluxo de venda                                | US-017 | `core`      |  M  | ⬜  |
 | RF-033 | Permitir venda sem cliente identificado, exceto quando a forma de pagamento for `wallet`                   | US-017 | `core`      |  M  | ⬜  |
 | RF-034 | Registrar pagamento em `cash`, `pix`, `debit`, `credit` ou `wallet`                                        | US-018 | `core`      |  M  | ⬜  |
@@ -83,7 +86,7 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-039 | Distribuir resto de divisão entre parcelas de forma que a soma seja exatamente o total                     | US-019 | `money`     |  M  | ⬜  |
 | RF-040 | Calcular e exibir bruto, custo, imposto, tarifa de cartão, líquido e margem da venda                       | US-020 | `domain`    |  M  | ⬜  |
 | RF-041 | Calcular imposto conforme o regime tributário configurado para a empresa                                   | US-020 | `domain`    |  M  | ⬜  |
-| RF-042 | Ocultar custo, imposto e margem do resumo da venda para o papel `staff`                                    | US-020 | `core`      |  M  | ⬜  |
+| RF-042 | Ocultar custo, imposto e margem do resumo da venda para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
 | RF-043 | Cancelar venda estornando estoque, contas a receber e saldo de carteira                                    | US-021 | `core`      |  M  | ⬜  |
 | RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  | ⬜  |
 
@@ -92,15 +95,16 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | ID     | Requisito                                                                                           | US     | Módulo dono | Pri | St  |
 | ------ | --------------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
 | RF-045 | Emitir NFC-e a partir de uma venda fechada e registrar a chave de acesso                            | US-022 | `fiscal`    |  M  | ✅  |
-| RF-046 | Validar dados fiscais obrigatórios (NCM, CFOP, CST/CSOSN) antes de transmitir à SEFAZ               | US-022 | `fiscal`    |  M  | ✅  |
-| RF-047 | Traduzir código de rejeição da SEFAZ em mensagem compreensível, preservando a venda registrada      | US-022 | `fiscal`    |  M  | ✅  |
+| RF-046 | Validar dados fiscais obrigatórios (NCM, CFOP, CST/CSOSN) antes de chamar a Focus NFe                | US-022 | `fiscal`    |  M  | ✅  |
+| RF-047 | Traduzir rejeição devolvida pela Focus em mensagem compreensível, preservando a venda registrada    | US-022 | `fiscal`    |  M  | ✅  |
 | RF-048 | Enviar DANFE ou link da nota ao cliente por WhatsApp após a autorização                             | US-023 | `core`      |  M  | ⬜  |
 | RF-049 | Exibir QR Code da nota na tela para cliente sem WhatsApp cadastrado                                 | US-023 | `fiscal`    |  M  | ✅  |
-| RF-050 | Cancelar nota fiscal na SEFAZ mediante justificativa, dentro do prazo legal                         | US-024 | `fiscal`    |  M  | ✅  |
+| RF-050 | Cancelar nota fiscal via Focus NFe mediante justificativa, dentro do prazo legal                    | US-024 | `fiscal`    |  M  | ✅  |
 | RF-051 | Bloquear cancelamento fora do prazo legal e orientar a emissão de devolução                         | US-024 | `fiscal`    |  M  | ✅  |
-| RF-052 | Emitir em contingência quando a SEFAZ estiver indisponível, sem bloquear a venda                    | US-025 | `fiscal`    |  M  | ✅  |
-| RF-053 | Transmitir automaticamente, em ordem, as notas em contingência quando a SEFAZ voltar                | US-025 | `fiscal`    |  M  | ⬜  |
+| RF-052 | Emitir em contingência quando a Focus estiver indisponível, sem bloquear a venda                    | US-025 | `fiscal`    |  M  | ✅  |
+| RF-053 | Consultar a Focus em ordem e atualizar notas em contingência; não inventar retransmissão            | US-025 | `fiscal`    |  M  | ⬜  |
 | RF-054 | Exibir o estado fiscal da venda de forma explícita (autorizada, contingência, rejeitada, cancelada) | US-025 | `core`      |  M  | ✅  |
+| RF-146 | Recusar emissão na Focus se a empresa não for MEI ou Simples sem reforma híbrida                    | US-022 | `fiscal`    |  M  | ⬜  |
 
 ## E6 — Contas a Pagar
 
@@ -187,6 +191,24 @@ está em [Requisitos Não Funcionais](requisitos-nao-funcionais.md).
 | RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado                                  | US-053 | `agent`     |  S  | ⬜  |
 | RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                                               | US-053 | `agent`     |  S  | ⬜  |
 | RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ⬜  |
+| RF-133 | Consultar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-065 | `agent`     |  M  | ⬜  |
+| RF-134 | Consultar contas a pagar por vencimento por mensagem usando o mesmo caso de uso do aplicativo                       | US-066 | `agent`     |  M  | ⬜  |
+| RF-135 | Consultar saldo em carteira do cliente por mensagem usando o mesmo caso de uso do aplicativo                        | US-067 | `agent`     |  M  | ⬜  |
+| RF-136 | Interpretar desconto, pagamento misto/parcelado e fiado na venda por mensagem, com as mesmas recusas do app         | US-049 | `agent`     |  M  | ⬜  |
+| RF-137 | Tratar foto de código de barras, sem pedido de cadastro, como item de venda                                         | US-068 | `agent`     |  S  | ⬜  |
+| RF-138 | Tratar foto de código com pedido explícito de cadastro como cadastro de produto                                     | US-068 | `agent`     |  S  | ⬜  |
+| RF-139 | Recusar foto ilegível ou código sem produto e orientar venda ou cadastro por texto                                  | US-068 | `agent`     |  S  | ⬜  |
+| RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                             | US-069 | `agent`     |  S  | ⬜  |
+| RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                          | US-070 | `agent`     |  S  | ⬜  |
+| RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                       | US-071 | `agent`     |  S  | ⬜  |
+| RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                    | US-072 | `agent`     |  S  | ⬜  |
+| RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                        | US-073 | `agent`     |  S  | ⬜  |
+| RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-074 | `agent`     |  S  | ⬜  |
+| RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota          | US-075 | `agent`     |  S  | ⬜  |
+| RF-148 | Criar compromisso por mensagem usando o mesmo caso de uso do aplicativo                                             | US-076 | `agent`     |  C  | ⬜  |
+| RF-149 | Recusar certificado A1, senha e cadastro de emitente pelo WhatsApp, orientando o app                                | US-077 | `agent`     |  M  | ⬜  |
+| RF-150 | Recusar importação de extrato, Open Finance e conciliação pelo WhatsApp, orientando o app                           | US-078 | `agent`     |  M  | ⬜  |
+| RF-151 | Recusar comando avulso de emitir ou cancelar nota; nota só como efeito da venda ou do cancelamento da venda         | US-079 | `agent`     |  M  | ⬜  |
 
 ## E12 — Assinatura & Cobrança SaaS
 
@@ -229,11 +251,11 @@ Quem implementa o quê. Base para a divisão de trilhas em
 
 | Módulo             | Qtd | Faixas de requisitos                                                                                                                                                         |
 | ------------------ | --: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core`    |  73 | RF-001, 002, 005, 006, 009–012, 014–019, 022–029, 032–034, 036, 037, 042–044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131, 132 |
-| `packages/domain`  |  15 | RF-003, 007, 008, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                                 |
-| `packages/agent`   |  13 | RF-095–098, 100, 102–109                                                                                                                                                     |
+| `packages/core`    |  69 | RF-001, 002, 009–011, 014–019, 022–029, 032–034, 036, 037, 043, 044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131, 132 |
+| `packages/domain`  |  14 | RF-003, 007, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                                 |
+| `packages/agent`   |  31 | RF-095–098, 100, 102–109, 133–145, 147–151                                                                                                                               |
 | `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                              |
-| `packages/fiscal`  |   9 | RF-004, 045–047, 049–053                                                                                                                                                     |
+| `packages/fiscal`  |  10 | RF-004, 045–047, 049–053, 146                                                                                                                                                |
 | `packages/banking` |   4 | RF-074–077                                                                                                                                                                   |
 | `packages/db`      |   4 | RF-081, 121, 122, 124                                                                                                                                                        |
 | `apps/api`         |   2 | RF-120, 129                                                                                                                                                                  |
@@ -251,11 +273,11 @@ Quem implementa o quê. Base para a divisão de trilhas em
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | [DEC-003](../decisoes/README.md#dec-003) provedor WhatsApp             | RF-015, RF-016, RF-048, RF-068                                                               |
 | [DEC-023](../decisoes/README.md#dec-023) identidade do canal ✅        | — (RF-094, RF-095, RF-132: [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
-| [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054                                                                              |
+| [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054, RF-146                                                                      |
 | [DEC-005](../decisoes/README.md#dec-005) Open Finance                  | RF-074, RF-075                                                                               |
 | [DEC-006](../decisoes/README.md#dec-006) PSP ✅ Asaas                  | — (NR-044 pode começar)                                                                      |
 | [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini` | — (NR-060 espera o adapter real, DEC-003)                                                    |
-| [DEC-008](../decisoes/README.md#dec-008) autenticação                  | RF-005, RF-119, RF-120                                                                       |
+| [DEC-008](../decisoes/README.md#dec-008) autenticação                  | RF-119, RF-120                                                                               |
 | [DEC-010](../decisoes/README.md#dec-010) cobrança SaaS ✅              | preço/trial → [QST-002](../decisoes/README.md#qst-002)                                       |
 | [DEC-011](../decisoes/README.md#dec-011) memória do agente             | RF-105, RF-106                                                                               |
 | [DEC-012](../decisoes/README.md#dec-012) usuários e cupons             | RF-114, RF-115                                                                               |
