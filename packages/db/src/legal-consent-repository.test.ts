@@ -104,11 +104,11 @@ describe.skipIf(!DATABASE_URL)('consentimento legal — RF-02/RF-03', () => {
     await repo.record({ userId, type: 'terms', version: '2026-09-09' })
     await repo.record({ userId, type: 'terms', version: '2026-12-01' })
 
-    const [{ n }] = await admin<{ n: number }[]>`
+    const [contagem] = await admin<{ n: number }[]>`
       SELECT count(*)::int AS n FROM user_consents
        WHERE user_id = ${userId}::uuid AND document_type = 'terms'
     `
-    expect(n).toBe(2)
+    expect(contagem?.n).toBe(2)
 
     /* E a leitura de "o que vale hoje" devolve so a mais recente. */
     const ultimos = await repo.latestFor(userId)

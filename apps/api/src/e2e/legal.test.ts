@@ -199,11 +199,11 @@ describe.skipIf(!DATABASE_URL)('documentos legais, ponta a ponta — RF-02/RF-03
     expect(JSON.parse(aceite.body)).toEqual({ pendentes: [] })
 
     /* E o aceite antigo continua la — o historico e a prova (RF-03). */
-    const [{ n }] = await admin<{ n: number }[]>`
+    const [contagem] = await admin<{ n: number }[]>`
       SELECT count(*)::int AS n FROM user_consents
        WHERE user_id = ${userId}::uuid AND document_type = 'terms'
     `
-    expect(n).toBe(2)
+    expect(contagem?.n).toBe(2)
   })
 
   it('sem sessao nao da para ver pendencia nem aceitar', async () => {
