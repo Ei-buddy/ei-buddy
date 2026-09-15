@@ -1,4 +1,10 @@
-import type { AuditAction, AuditEntryOutput, AuditValues } from '@na-regua/contracts'
+import type {
+  AuditAction,
+  AuditEntryOutput,
+  AuditLogEntry,
+  AuditQueryInput,
+  AuditValues,
+} from '@na-regua/contracts'
 import type { Channel, CompanyId, UserId } from '../context.js'
 
 /**
@@ -63,3 +69,25 @@ export type AuditTrail = {
  * dois, em vez de deixar implicito.
  */
 export type TransactionalAuditTrail = AuditTrail
+
+/**
+ * Leitura da trilha — US-061, "quando consulto".
+ *
+ * Porta SEPARADA de `AuditTrail` de proposito. A de escrita nao tem `update`
+ * nem `delete`, e a ausencia deles e a especificacao; juntar leitura ali
+ * diluiria isso numa porta que faz duas coisas. Alem disso, quem escreve e
+ * todo caso de uso do sistema, e quem le e uma tela so — dependencias
+ * diferentes, motivos diferentes para mudar.
+ *
+ * O isolamento entre lojas NAO e imposto aqui: `audit_logs` tem `company_id` e
+ * politica de RLS normal, entao a consulta ve apenas a empresa do contexto.
+ * E por isso que o Super Admin so enxerga a trilha de uma loja DEPOIS de
+ * entrar nela (ADR-0007) — e essa entrada, por sua vez, exige justificativa e
+ * fica registrada. Quem olha a trilha de alguem deixa rastro de que olhou.
+ */
+export type AuditQueries = {
+  list(
+    companyId: CompanyId,
+    filtro: AuditQueryInput,
+  ): Promise<{ readonly entries: readonly AuditLogEntry[]; readonly total: number }>
+}

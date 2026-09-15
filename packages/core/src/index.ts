@@ -257,6 +257,12 @@ export type {
   VerifiedIdentity,
 } from './ports/identity.js'
 
+/* --- Trilha de auditoria: leitura — US-061 --- */
+export { listAuditTrail } from './audit/list-audit-trail.js'
+export type { ListAuditTrailDeps } from './audit/list-audit-trail.js'
+export type { AuditQueries } from './ports/audit-trail.js'
+export { InMemoryAuditQueries } from './audit/fakes.js'
+
 /* --- Super Admin — ADR-0007, RF-131 --- */
 export {
   enterCompany,

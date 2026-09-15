@@ -132,7 +132,8 @@ export default function AdminView() {
       <div className={styles.intro}>
         <h1 className={styles.introTitle}>Painel do Super Admin</h1>
         <p className={styles.introSubtitle}>
-          Entre em qualquer loja com uma justificativa — fica registrado quem, quando e por quê.
+          Entre em qualquer loja com uma justificativa — fica registrado quem, quando e por quê. A
+          auditoria de cada loja fica lá dentro, no menu Auditoria.
         </p>
       </div>
 

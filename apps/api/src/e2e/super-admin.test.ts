@@ -7,8 +7,10 @@ import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
 import { registerSession } from '../plugins/session.js'
 import { registerAdminRoutes } from '../routes/admin.js'
+import { registerAuditoriaRoutes } from '../routes/auditoria.js'
 import { registerAuthRoutes } from '../routes/auth.js'
 import { registerCadastroRoutes } from '../routes/cadastro.js'
+import { registerEstoqueRoutes } from '../routes/estoque.js'
 
 /**
  * Super Admin, ponta a ponta — ADR-0007, RF-131.
@@ -82,6 +84,8 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
     registerAuthRoutes(app, authDeps)
     registerAdminRoutes(app, authDeps)
     registerCadastroRoutes(app, composicao.buildCadastroDeps())
+    registerEstoqueRoutes(app, composicao.buildEstoqueDeps())
+    registerAuditoriaRoutes(app, composicao.buildAuditoriaDeps())
 
     await app.ready()
 
@@ -190,6 +194,69 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
 
     const rProdutos = await comToken(adminToken, { method: 'GET', url: '/produtos' })
     expect(rProdutos.statusCode).toBe(401)
+  })
+
+  /**
+   * Auditoria — US-061, e a decisao de produto: o painel lista TODAS as lojas,
+   * mas a trilha de uma so abre depois de entrar nela.
+   */
+  it('a trilha nao abre sem entrar numa loja', async () => {
+    const r = await comToken(adminToken, { method: 'GET', url: '/auditoria' })
+    expect(r.statusCode).toBe(401)
+  })
+
+  it('dentro da loja, o Super Admin le a trilha — e o que ELE fez aparece com o nome dele', async () => {
+    await comToken(adminToken, {
+      method: 'POST',
+      url: '/admin/entrar',
+      payload: { companyId: empresaId, justification: 'Conferindo o estoque a pedido da dona' },
+    })
+
+    const produto = await comToken(adminToken, {
+      method: 'POST',
+      url: '/produtos',
+      payload: {
+        description: 'Cafe auditado 500g',
+        unitOfMeasure: 'un',
+        salePriceCents: 1990,
+        costPriceCents: 1200,
+      },
+    })
+    expect(produto.statusCode).toBe(201)
+    const { id: produtoId } = produto.json() as { id: string }
+
+    const ajuste = await comToken(adminToken, {
+      method: 'POST',
+      url: `/produtos/${produtoId}/estoque`,
+      payload: { countedQuantity: 7, reason: 'Contagem feita pelo suporte' },
+    })
+    expect(ajuste.statusCode).toBe(201)
+
+    const r = await comToken(adminToken, { method: 'GET', url: '/auditoria?entity=Product' })
+    expect(r.statusCode).toBe(200)
+    const corpo = r.json() as {
+      entries: { entityId: string; actorId: string; actorName: string | null }[]
+      total: number
+    }
+    const doAjuste = corpo.entries.find((e) => e.entityId === produtoId)
+
+    /*
+     * O Super Admin nao tem vinculo em `company_users`. Com `JOIN` em `users`
+     * sob RLS o nome viria nulo — justo a pessoa de fora, que e quem a dona
+     * mais quer ver nomeada.
+     */
+    expect(doAjuste?.actorId).toBe(adminUserId)
+    expect(doAjuste?.actorName).toBe('Super Admin de Teste')
+
+    await comToken(adminToken, { method: 'POST', url: '/admin/sair' })
+  })
+
+  it('a dona da loja tambem ve o que o Super Admin fez na loja dela', async () => {
+    const r = await comToken(donoToken, { method: 'GET', url: '/auditoria' })
+
+    expect(r.statusCode).toBe(200)
+    const corpo = r.json() as { entries: { actorName: string | null }[] }
+    expect(corpo.entries.map((e) => e.actorName)).toContain('Super Admin de Teste')
   })
 
   it('POST /admin/super-admins com e-mail novo: cria conta e devolve senha temporaria', async () => {

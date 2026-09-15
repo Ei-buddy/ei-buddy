@@ -1,6 +1,6 @@
-import type { AuditEntryOutput } from '@na-regua/contracts'
+import type { AuditEntryOutput, AuditLogEntry, AuditQueryInput } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
-import type { AuditTrail, NewAuditEntry } from '../ports/audit-trail.js'
+import type { AuditQueries, AuditTrail, NewAuditEntry } from '../ports/audit-trail.js'
 
 /**
  * Trilha em memoria — somente insercao, como a de verdade.
@@ -71,5 +71,38 @@ export class InMemoryAuditTrail implements AuditTrail {
 
   get total(): number {
     return this.entradas.length
+  }
+}
+
+/**
+ * Falso de `AuditQueries` — a LEITURA da trilha (US-061).
+ *
+ * Separado de `InMemoryAuditTrail` pelo mesmo motivo das portas: um guarda o
+ * que foi gravado para o teste conferir, o outro responde a consulta que a
+ * tela faz. Filtra e pagina de verdade — um falso que devolvesse tudo deixaria
+ * sem prova a passagem do filtro pelo caso de uso.
+ */
+export class InMemoryAuditQueries implements AuditQueries {
+  private readonly linhas: (AuditLogEntry & { companyId: CompanyId })[] = []
+
+  adicionar(entrada: AuditLogEntry & { companyId: CompanyId }): void {
+    this.linhas.push(entrada)
+  }
+
+  async list(companyId: CompanyId, filtro: AuditQueryInput) {
+    const casa = this.linhas
+      .filter((l) => l.companyId === companyId)
+      .filter((l) => filtro.entity === undefined || l.entity === filtro.entity)
+      .filter((l) => filtro.actorId === undefined || l.actorId === filtro.actorId)
+      .filter((l) => filtro.action === undefined || l.action === filtro.action)
+      .filter((l) => filtro.from === undefined || l.occurredAt >= filtro.from)
+      .filter((l) => filtro.to === undefined || l.occurredAt <= filtro.to)
+      /* Mais recente primeiro: quem abre a trilha quer o que acabou de
+         acontecer, nao o primeiro registro da loja. */
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+
+    const inicio = (filtro.page - 1) * filtro.pageSize
+
+    return { entries: casa.slice(inicio, inicio + filtro.pageSize), total: casa.length }
   }
 }
