@@ -92,6 +92,8 @@ export { createPlatformAdminAccess } from './platform-admin-repository.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
 /* Conta de Parceiro — NR-115, ADR-0013. */
 export { createPartnerApplicationRepository } from './partner-application-repository.js'
+/* Consentimento dos documentos legais — RF-02/RF-03, migration 0015. */
+export { createLegalConsentRepository } from './legal-consent-repository.js'
 
 /* Baixa e estorno de titulo — NR-029, RF-063 a RF-067. */
 export { createSettlementQueries, createSettlementUnitOfWork } from './settlement-repository.js'

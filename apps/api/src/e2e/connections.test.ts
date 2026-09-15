@@ -88,6 +88,7 @@ describe.skipIf(!DATABASE_URL)('conexao entre usuarios, ponta a ponta — ADR-00
       secret: 'senha-de-teste',
       legalName: 'Bolos da Ana LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
       /* Sem telefone, `company_connections_request` recusa por "sem telefone
          cadastrado" — ver a migration 0009. Precisa de um para o pedido a B
          funcionar, e do de B para o pedido A->B funcionar. */
@@ -105,6 +106,7 @@ describe.skipIf(!DATABASE_URL)('conexao entre usuarios, ponta a ponta — ADR-00
       secret: 'senha-de-teste',
       legalName: 'Distribuidora Farinha Boa LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
       phone: telefoneDeTeste(),
     })
     const rB = await app.inject({ method: 'POST', url: '/auth/signup', payload: cadastroB })
@@ -248,6 +250,7 @@ describe.skipIf(!DATABASE_URL)('conexao entre usuarios, ponta a ponta — ADR-00
       secret: 'senha-de-teste',
       legalName: 'Empresa Par do Ramo LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
       phone: telefoneDeTeste(),
     })
     const rPar = await app.inject({ method: 'POST', url: '/auth/signup', payload: cadastroPar })
@@ -259,6 +262,7 @@ describe.skipIf(!DATABASE_URL)('conexao entre usuarios, ponta a ponta — ADR-00
       secret: 'senha-de-teste',
       legalName: 'Empresa que Busca LTDA',
       cnpj: cnpjDeTeste(),
+      acceptedLegalTerms: true,
       phone: telefoneDeTeste(),
     })
     const rBusca = await app.inject({ method: 'POST', url: '/auth/signup', payload: cadastroBusca })

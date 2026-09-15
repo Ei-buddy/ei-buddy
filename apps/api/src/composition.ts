@@ -63,6 +63,7 @@ import {
   createCompanyRepository,
   createCustomerRepository,
   createPartnerApplicationRepository,
+  createLegalConsentRepository,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -306,6 +307,15 @@ export function buildAuthDeps(): AuthRouteDeps {
      * logo abaixo: nao abre uma segunda conexao so para repetir os mesmos dois campos.
      */
     partners: createPartnerApplicationRepository(sql),
+
+    /*
+     * Prova de aceite dos documentos legais — RF-02/RF-03, migration 0015.
+     *
+     * Vem no mesmo objeto pelo mesmo motivo de `partners`: serve `signup()`
+     * (que grava o aceite do cadastro) e `registerLegalRoutes` (`/legal/*`,
+     * que cuida do reaceite quando sai versao nova).
+     */
+    legalConsents: createLegalConsentRepository(sql),
   }
 }
 

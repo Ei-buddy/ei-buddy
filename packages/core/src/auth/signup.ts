@@ -1,8 +1,10 @@
 import type { SessionOutput, SignupInput } from '@na-regua/contracts'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { AppError } from '../app-error.js'
+import { recordLegalAcceptance, type OrigemDoAceite } from '../legal/legal-consent.js'
 import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
 import type { IdentityRegistrar, SessionIssuer, UserDirectory } from '../ports/identity.js'
+import type { LegalConsentRepository } from '../ports/legal-consent-repository.js'
 import type { PartnerApplicationRepository } from '../ports/partner-application-repository.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 
@@ -44,6 +46,8 @@ export type SignupDeps = {
   readonly sessions: SessionIssuer
   /** Candidatura de Parceiro — NR-115, ADR-0013. So chamada quando `account.type === 'parceiro'`. */
   readonly partners: PartnerApplicationRepository
+  /** Prova de aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1. */
+  readonly legalConsents: LegalConsentRepository
 }
 
 /** Quanto tempo a sessao do cadastro vale. Igual a do login. */
@@ -53,6 +57,11 @@ export async function signup(
   deps: SignupDeps,
   input: SignupInput,
   agora: Date,
+  /**
+   * De onde veio o aceite — RF-02. Vem da REQUISICAO, e nunca do corpo que o
+   * cliente mandou: IP que o proprio interessado informa nao prova nada.
+   */
+  origemDoAceite: OrigemDoAceite = {},
 ): Promise<SessionOutput> {
   /*
    * RF-002: CNPJ repetido e recusado "sem revelar dados da empresa existente".
@@ -108,6 +117,20 @@ export async function signup(
    * Perder o cadastro inteiro por causa do plano seria pior.
    */
   await deps.accounts.insertDefaults(empresa.id, PLANO_DE_CONTAS_PADRAO, usuario.id, agora)
+
+  /*
+   * A prova do aceite — RF-02, LGPD art. 8 §1.
+   *
+   * Que a pessoa aceitou ja esta garantido pelo contrato (`acceptedLegalTerms`
+   * e `literal(true)`); o que se escreve aqui e a PROVA: qual versao, quando,
+   * de onde. Antes disto o aceite era so um checkbox que morria no navegador.
+   *
+   * Fora da transacao do resto, como o plano de contas — e aqui isso custa
+   * menos que parece: se falhar, `pendingLegalAcceptance` vai encontrar o
+   * documento como pendente no proximo acesso e pedir o aceite de novo. A
+   * falha se conserta sozinha pelo mesmo caminho do reaceite de versao nova.
+   */
+  await recordLegalAcceptance(deps, usuario.id, origemDoAceite)
 
   /*
    * Candidatura de Parceiro — NR-115, ADR-0013.

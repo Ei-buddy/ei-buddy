@@ -135,6 +135,13 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
   /* Quem PODE entrar em qualquer empresa (ADR-0007). Nao e dado da empresa
      titular do pacote — e dado sobre a PLATAFORMA, sem tenant. */
   platform_admins: 'Quem e Super Admin (ADR-0007). Plataforma, sem tenant.',
+  /* Aceite dos Termos e da Politica (RF-02/RF-03). Fora daqui porque esta
+     exportacao e da EMPRESA, e o consentimento e da PESSOA: a mesma pessoa
+     dona de duas lojas tem um aceite so, e ele nao pertence a nenhuma das
+     duas. Nao some por isso — `legal_consent_history` devolve o historico
+     completo do titular, para atender pedido de acesso (LGPD art. 18 II). */
+  user_consents:
+    'Aceite dos documentos legais — dado da PESSOA, nao da empresa. Historico sai por `legal_consent_history`.',
   /* RF-131: trilha de quando um Super Admin entrou em cada empresa, e por
      que. Fica de fora pela mesma razao de `audit_logs` ser INCLUIDA seria
      estranho aqui: isto e trilha SOBRE acesso administrativo, nao dado que o

@@ -52,6 +52,8 @@ const GRUPOS: Grupo[] = [
       { rota: '/assistente', rotulo: 'Assistente' },
       { rota: '/assinatura', rotulo: 'Assinatura' },
       { rota: '/suporte', rotulo: 'Suporte' },
+      /* Ponto fixo de acesso aos documentos legais — RF-01. */
+      { rota: '/privacidade-e-termos', rotulo: 'Privacidade e Termos' },
     ],
   },
 ]

@@ -144,6 +144,7 @@ const CADASTRO = {
   secret: SENHA,
   legalName: EMPRESA.legalName,
   cnpj: CNPJ,
+  acceptedLegalTerms: true as const,
 }
 
 const PRODUTO = {

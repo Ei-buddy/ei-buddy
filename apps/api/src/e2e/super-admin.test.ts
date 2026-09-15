@@ -92,6 +92,7 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
       secret: 'senha-de-teste',
       legalName: 'Loja Alvo do Super Admin LTDA',
       cnpj: CNPJ,
+      acceptedLegalTerms: true,
     })
     const rCadastro = await app.inject({ method: 'POST', url: '/auth/signup', payload: cadastro })
     expect(rCadastro.statusCode).toBe(201)

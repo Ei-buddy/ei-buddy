@@ -1,0 +1,73 @@
+/*
+ * Aviso de documento legal atualizado — RF-03.
+ *
+ * Tom de atencao, e nao de erro: nada esta quebrado, e pintar de vermelho
+ * ensinaria a ignorar o vermelho de verdade. Fica no fluxo do conteudo (nao
+ * `fixed`) para nao cobrir a primeira linha da tela em telefone.
+ */
+
+.aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--warn, #b45309);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--warn-soft, rgba(180, 83, 9, 0.08));
+}
+
+.texto {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.titulo {
+  font-weight: 600;
+}
+
+.link {
+  color: var(--accent-strong, var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.erro {
+  display: block;
+  margin-top: 6px;
+  color: var(--danger, #b91c1c);
+}
+
+.botao {
+  flex: none;
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--radius-full, 999px);
+  background: var(--brand-primary);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+.botao:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.botao:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .botao {
+    width: 100%;
+  }
+}

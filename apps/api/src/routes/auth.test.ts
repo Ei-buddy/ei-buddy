@@ -5,6 +5,7 @@ import {
   InMemorySessionIssuer,
   InMemoryChartOfAccounts,
   InMemoryCompanyRepository,
+  InMemoryLegalConsentRepository,
 } from '@na-regua/core'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -93,6 +94,8 @@ async function buildApp() {
     sessions: new InMemorySessionIssuer(),
     throttle: new InMemoryLoginThrottle(),
     audit: new InMemoryAuditTrail(),
+    /* O cadastro grava a prova do aceite (RF-02) — sem isto, `signup` quebra. */
+    legalConsents: new InMemoryLegalConsentRepository(),
   } as unknown as AuthRouteDeps
 
   const app = Fastify({ logger: false })
@@ -418,6 +421,7 @@ describe('cadastro de conta — NR-014, RF-001', () => {
     secret: 'senha-de-teste-longa',
     legalName: 'Mercearia da Ana LTDA',
     cnpj: '11222333000181',
+    acceptedLegalTerms: true,
   }
 
   it('cria a conta e ja devolve a sessao aberta', async () => {
