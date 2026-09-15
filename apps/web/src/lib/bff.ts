@@ -20,6 +20,9 @@ const CABECALHO_CHAVE_LISTA_VIP = 'x-waitlist-admin-key'
  * engano, o build quebra em vez de mandar o cookie para o navegador.
  */
 
+/** Status que a especificacao proibe de ter corpo. */
+const SEM_CORPO = new Set([204, 205, 304])
+
 const semSessao = () =>
   NextResponse.json(
     { error: { code: 'UNAUTHORIZED', message: 'Entre na sua conta para continuar.' } },
@@ -55,12 +58,27 @@ export async function encaminhar(
     headers: opcoes.headers,
   })
 
+  const status = opcoes.okStatus ?? r.status
+
+  /*
+   * 204 nao pode ter corpo — e `NextResponse.json` SEMPRE escreve um.
+   *
+   * O resultado era um 500 no BFF para uma api que respondeu certo:
+   * "Invalid response status code 204", estourando dentro do helper. O
+   * comentario abaixo mostra que o 204 ja tinha sido pensado, mas so pelo lado
+   * do CORPO; o status continuava passando direto para `json()`, que o recusa.
+   *
+   * Vale para toda a familia sem corpo (204, 205, 304), e nao so para o 204
+   * que apareceu primeiro.
+   */
+  if (r.ok && SEM_CORPO.has(status)) return new NextResponse(null, { status })
+
   return r.ok
     ? /* `dados` vem indefinido quando a api responde 204 (apagar conta do
          plano, por exemplo). `NextResponse.json(undefined)` escreve o texto
          "undefined" no corpo, que estoura no parse do navegador — entao vira
          um objeto de verdade. */
-      NextResponse.json(r.dados ?? { ok: true }, { status: opcoes.okStatus ?? r.status })
+      NextResponse.json(r.dados ?? { ok: true }, { status })
     : /*
        * O corpo CRU da api quando ele existe, e nao so codigo e mensagem.
        *

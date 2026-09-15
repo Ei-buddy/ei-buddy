@@ -36,6 +36,15 @@ export type PlatformAdminAccess = {
   /** Concede Super Admin a quem ja e Super Admin concedendo. */
   grant(userId: UserId, grantedBy: UserId): Promise<void>
 
+  /**
+   * Tira o acesso de Super Admin.
+   *
+   * A linha nao e apagada: ganha `revoked_by`/`revoked_at`. Quem teve o maior
+   * privilegio do sistema e quando o perdeu e exatamente o que uma auditoria
+   * precisa saber depois — apagar destruiria a resposta.
+   */
+  revoke(userId: UserId, revokedBy: UserId): Promise<void>
+
   /** Quem e Super Admin hoje. */
   listAdmins(requestedBy: UserId): Promise<readonly PlatformAdminOutput[]>
 }

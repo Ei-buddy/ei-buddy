@@ -8,11 +8,13 @@ import { Spinner } from '@/components/auth/Fields'
 import { IconArrowRight, IconStore, IconUsers } from '@/components/Icons'
 import {
   convidarSuperAdmin,
+  revogarSuperAdmin,
   listarEmpresas,
   listarSuperAdmins,
   type EmpresaListada,
   type SuperAdmin,
 } from '@/lib/admin-api'
+import { carregarPerfil } from '@/lib/perfil-api'
 import EntrarDialog from './EntrarDialog'
 import styles from './admin.module.css'
 
@@ -41,6 +43,10 @@ export default function AdminView() {
   const [erroConvite, setErroConvite] = useState<string | null>(null)
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null)
 
+  /** Quem sou eu — para nao oferecer "revogar" na propria linha. */
+  const [meuUserId, setMeuUserId] = useState<string | null>(null)
+  const [revogando, setRevogando] = useState<string | null>(null)
+
   /** So para o refresh depois de um convite — a carga inicial vai direto no efeito abaixo. */
   async function carregarAdmins() {
     const r = await listarSuperAdmins()
@@ -54,7 +60,11 @@ export default function AdminView() {
 
   useEffect(() => {
     void (async () => {
-      const [e, a] = await Promise.all([listarEmpresas(), listarSuperAdmins()])
+      const [e, a, p] = await Promise.all([listarEmpresas(), listarSuperAdmins(), carregarPerfil()])
+
+      /* Falha em silencio: sem saber quem sou, o botao aparece na propria
+         linha e a api recusa com mensagem clara. Pior seria esconder a tela. */
+      if (p.ok) setMeuUserId(p.dados.userId)
 
       if (e.ok) {
         setErroEmpresas(null)
@@ -80,6 +90,20 @@ export default function AdminView() {
       (e.tradeName?.toLowerCase().includes(termo) ?? false) ||
       e.cnpj.includes(termo),
   )
+
+  async function revogar(a: SuperAdmin) {
+    setErroAdmins(null)
+    setRevogando(a.userId)
+
+    const r = await revogarSuperAdmin(a.userId)
+
+    setRevogando(null)
+    if (!r.ok) {
+      setErroAdmins(r.erro)
+      return
+    }
+    await carregarAdmins()
+  }
 
   async function convidar(event: FormEvent) {
     event.preventDefault()
@@ -171,6 +195,20 @@ export default function AdminView() {
                   <span className={styles.linhaTitulo}>{a.name}</span>
                   <span className={styles.linhaDetalhe}>{a.email}</span>
                 </div>
+                {/* Nao aparece na propria linha: a api tambem recusa, mas um
+                    botao que sempre falha e pior que botao nenhum. */}
+                {meuUserId === a.userId ? (
+                  <span className={styles.linhaDetalhe}>você</span>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.revogar}
+                    onClick={() => void revogar(a)}
+                    disabled={revogando !== null}
+                  >
+                    {revogando === a.userId ? 'Revogando...' : 'Revogar'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
