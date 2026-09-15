@@ -30,7 +30,8 @@
     "db:migrate": "pnpm --filter @na-regua/db migrate",
     "ledger:csv": "node scripts/ledger-to-csv.mjs",
     "ledger:check": "node scripts/ledger-check.mjs",
-    "changelog": "node scripts/changelog.mjs"
+    "changelog": "node scripts/changelog.mjs",
+    "db:super-admin": "pnpm --filter @na-regua/db super-admin"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",

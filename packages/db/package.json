@@ -13,7 +13,8 @@
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo",
     "lint": "eslint src",
-    "migrate": "tsx --env-file-if-exists=../../.env src/bin/migrate.ts"
+    "migrate": "tsx --env-file-if-exists=../../.env src/bin/migrate.ts",
+    "super-admin": "tsx --env-file-if-exists=../../.env src/bin/bootstrap-super-admin.ts"
   },
   "dependencies": {
     "@na-regua/contracts": "workspace:*",
