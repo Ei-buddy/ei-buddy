@@ -362,7 +362,7 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
 }
@@ -370,10 +370,19 @@
 .boardColumn {
   display: grid;
   gap: 8px;
+  min-width: 0;
   align-content: start;
   padding: 12px 10px;
   border-radius: var(--radius-sm);
   background: var(--bg-muted);
+}
+
+/* Tres colunas lado a lado nao cabem numa tela de celular sem espremer o
+   texto do cartao a ponto de vazar da viewport — empilha numa coluna so. */
+@media (max-width: 560px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
 }
 
 .boardTitle {
