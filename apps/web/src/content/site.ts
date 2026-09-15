@@ -37,6 +37,15 @@ export const BRAND = 'EiBuddy'
  */
 export const PRE_LANCAMENTO = true
 
+/**
+ * Convite do grupo VIP no WhatsApp — aparece depois de salvar a pesquisa.
+ *
+ * Fica aqui, e nao dentro do formulario, porque e conteudo: trocar o grupo e
+ * editar esta linha, sem abrir componente. Um convite do WhatsApp caduca
+ * quando o dono o revoga — se o grupo mudar, e este o lugar.
+ */
+export const GRUPO_VIP_WHATSAPP = 'https://chat.whatsapp.com/HdmK0OLT9qCL7IIwE5dCEo'
+
 export const nav = [
   { label: 'Módulos', href: '#modulos' },
   { label: 'Como funciona', href: '#como-funciona' },

@@ -18,3 +18,31 @@
   line-height: 1.6;
   color: var(--text-secondary);
 }
+
+/*
+ * O passo que falta depois de salvar — por isso tem peso de acao principal, e
+ * nao de link no meio do texto: quem para aqui nao entra no grupo.
+ */
+.botaoDoGrupo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 13px 26px;
+  border-radius: var(--radius-full);
+  background: var(--brand-accent);
+  color: #06312e;
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color var(--transition),
+    transform var(--transition);
+}
+
+.botaoDoGrupo:hover {
+  background: #4ad9cd;
+  transform: translateY(-1px);
+}

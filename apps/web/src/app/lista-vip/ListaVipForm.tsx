@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Alert, FormHeader, SubmitButton, TextField } from '@/components/auth/Fields'
 import {
   CheckboxGroupField,
   RadioGroupField,
   TextAreaField,
 } from '@/components/lista-vip/CamposDaPesquisa'
+import { GRUPO_VIP_WHATSAPP } from '@/content/site'
 import { maskPhone, validatePhone, validateRequired, type FieldError } from '@/lib/validation'
 import {
   enviarListaVip,
@@ -38,6 +39,16 @@ export default function ListaVipForm() {
   const [enviando, setEnviando] = useState(false)
   const [erroGeral, setErroGeral] = useState<string | null>(null)
   const [enviado, setEnviado] = useState(false)
+
+  /*
+   * A tela de sucesso e muito mais curta que o formulario, e o navegador
+   * mantem a rolagem de onde o botao estava — a confirmacao nascia atras do
+   * cabecalho fixo. Isso importa mais aqui do que pareceria: o que fica
+   * escondido e o convite do grupo, que e o passo que falta.
+   */
+  useEffect(() => {
+    if (enviado) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [enviado])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -80,12 +91,28 @@ export default function ListaVipForm() {
   if (enviado) {
     return (
       <div className={styles.agradecimento}>
-        <FormHeader title="Pronto! Você está na lista VIP! 🎉" />
+        <FormHeader title="Respostas salvas! 🎉" />
         <p className={styles.agradecimentoTexto}>
-          Agora você vai acompanhar de perto o nascimento do EiBuddy. Durante os próximos dias,
-          vamos mostrar o que estamos construindo e contar com você para ajudar o Buddy a ficar cada
-          vez melhor.
+          Agora falta um passo: <strong>entrar no grupo do WhatsApp</strong>. É por lá que vamos
+          mostrar o que estamos construindo e contar com você para ajudar o Buddy a ficar cada vez
+          melhor.
         </p>
+
+        {/*
+          Link de verdade, e nao redirecionamento automatico no `useEffect`: o
+          navegador bloqueia navegacao que a pessoa nao pediu, e quem abre no
+          computador sem WhatsApp ficaria olhando uma aba em branco sem saber
+          que as respostas foram salvas. O clique e dela.
+        */}
+        <a
+          href={GRUPO_VIP_WHATSAPP}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={styles.botaoDoGrupo}
+        >
+          Entrar no grupo do WhatsApp
+        </a>
+
         <p className={styles.agradecimentoTexto}>
           <strong>O Buddy está chegando. E você vai conhecê-lo antes de todo mundo.</strong>
         </p>
@@ -190,8 +217,8 @@ export default function ListaVipForm() {
           onChange={(v) => setWantsUpdates(v === 'sim')}
         />
 
-        <SubmitButton loading={enviando} loadingLabel="Enviando...">
-          Entrar para o Grupo VIP
+        <SubmitButton loading={enviando} loadingLabel="Salvando...">
+          Salvar respostas
         </SubmitButton>
       </form>
     </>
