@@ -48,6 +48,30 @@ falha por um motivo que parece outro.
 
 Para reexecutar: `pnpm infra:reset` (apaga os dados locais).
 
+## Variáveis de produção
+
+**Não monte o `.env.production` a partir do `.env.example`.** Ele é o exemplo de
+_desenvolvimento_, e entrega valores que a API recusa em produção
+(`AUTH_PROVIDER=fake`, `JWT_SECRET=dev-only-…`). Copiar esse arquivo já derrubou
+a produção duas vezes — o sintoma é o site carregando e toda chamada de API
+falhando, com `502` em `api.eibuddy.com.br`.
+
+```bash
+cp .env.production.example .env.production   # na raiz, fora do git
+```
+
+[`.env.production.example`](../.env.production.example) lista cada variável com
+o que ela muda em relação ao ambiente local e por quê — inclusive as duas que
+mais quebram: o provedor de autenticação e o papel do banco em `DATABASE_URL`
+(usar o papel com `BYPASSRLS` faz a API **recusar subir**, de propósito).
+
+Duas coisas que **não** acontecem sozinhas depois de subir os containers:
+
+```bash
+pnpm db:migrate                          # nenhum container aplica migrations
+pnpm db:super-admin voce@empresa.com.br  # o primeiro Super Admin (ADR-0007)
+```
+
 ## Produção — ainda não existe
 
 Bloqueado por [DEC-009](../docs/decisoes/README.md#dec-009). **Este
