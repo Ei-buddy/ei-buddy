@@ -65,12 +65,33 @@ o que ela muda em relação ao ambiente local e por quê — inclusive as duas q
 mais quebram: o provedor de autenticação e o papel do banco em `DATABASE_URL`
 (usar o papel com `BYPASSRLS` faz a API **recusar subir**, de propósito).
 
-Duas coisas que **não** acontecem sozinhas depois de subir os containers:
+Duas coisas que **não** acontecem sozinhas depois de subir os containers — a
+primeira aqui, a segunda na seção seguinte:
 
 ```bash
-pnpm db:migrate                          # nenhum container aplica migrations
-pnpm db:super-admin voce@empresa.com.br  # o primeiro Super Admin (ADR-0007)
+pnpm db:migrate   # nenhum container aplica migrations
 ```
+
+## Primeiro Super Admin
+
+Num banco novo **não existe Super Admin**, e `/admin` fica inacessível para
+todo mundo: `platform_admin_grant` exige que quem concede já seja Super Admin
+([ADR-0007](../docs/decisoes/adr/0007-super-admin-por-sessao-auditada.md)). O
+primeiro é a exceção, e sai por um comando:
+
+```bash
+# 1. a pessoa cria a conta normalmente pelo site (/criar-conta)
+# 2. promova essa conta — uma vez, por banco:
+pnpm db:super-admin fulano@empresa.com.br
+```
+
+Lê `DATABASE_MIGRATION_URL` (o papel com `BYPASSRLS`), porque `platform_admins`
+tem `FORCE ROW LEVEL SECURITY` sem política — a conexão da aplicação não
+enxerga nem escreve nela.
+
+O script **recusa** se já houver Super Admin: a partir do segundo, use a tela
+`/admin`, que registra quem concedeu. Ele também não cria conta — promove uma
+que já existe.
 
 ## Produção — ainda não existe
 
