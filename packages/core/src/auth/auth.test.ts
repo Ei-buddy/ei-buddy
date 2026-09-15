@@ -121,8 +121,9 @@ describe('login de quem e dono E Super Admin — ADR-0007', () => {
     const escolhida = await selectCompany(
       c.deps,
       { userId: u.id, companyId: null },
-      { companyId: 'empresa-1', token: s.token },
+      { companyId: 'empresa-1' },
       meta(),
+      s.token,
     )
 
     /* `false` fixo aqui fazia a tela perder o caminho do painel logo depois
