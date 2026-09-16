@@ -13,6 +13,7 @@ import {
   revokePlatformAdmin,
   listCompanies,
   listPlatformAdmins,
+  listPlatformUsers,
   type PlatformAdminDeps,
 } from './platform-admin.js'
 
@@ -234,3 +235,84 @@ async function pegaErro(fn: () => Promise<unknown>) {
     return e
   }
 }
+
+/**
+ * A lista de usuarios da plataforma — NR-121.
+ *
+ * O que ela resolve: promover deixou de exigir saber o e-mail exato de cor.
+ * O que ela NAO pode virar: uma lista que qualquer conta logada abre — quem
+ * tem todos os e-mails da base tem metade de um ataque pronto.
+ */
+describe('usuarios da plataforma', () => {
+  const PESSOA = {
+    userId: 'usuario-1',
+    name: 'Marta do Caixa',
+    email: 'marta@loja.local',
+    isActive: true,
+    createdAt: '2026-09-01T12:00:00.000Z',
+    lastAccessAt: '2026-09-15T09:00:00.000Z',
+    companies: [{ companyId: EMPRESA, name: 'Mercearia Sol', role: 'staff' as const }],
+  }
+
+  const FILTRO = { page: 1, pageSize: 50 }
+
+  it('o Super Admin ve quem tem conta, com as lojas de cada um', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+    access.adicionarUsuario(PESSOA)
+
+    const r = await listPlatformUsers(deps, 'admin-1', FILTRO)
+
+    expect(r.total).toBe(1)
+    expect(r.users[0]?.email).toBe('marta@loja.local')
+    expect(r.users[0]?.companies[0]?.role).toBe('staff')
+  })
+
+  it('quem nao e Super Admin nao ve a base de usuarios', async () => {
+    const { deps, access } = cenario()
+    access.adicionarUsuario(PESSOA)
+
+    const erro = await pegaErro(() => listPlatformUsers(deps, 'qualquer-um', FILTRO))
+
+    expect(isAppError(erro) && erro.code).toBe('FORBIDDEN')
+  })
+
+  it('diz quem ja e Super Admin — e o que a tela usa para escolher o perfil', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+    access.adicionarUsuario(PESSOA)
+    access.adicionarUsuario({ ...PESSOA, userId: 'admin-1', email: 'admin@plataforma.local' })
+
+    const r = await listPlatformUsers(deps, 'admin-1', FILTRO)
+
+    const porEmail = new Map(r.users.map((u) => [u.email, u.isPlatformAdmin]))
+    expect(porEmail.get('admin@plataforma.local')).toBe(true)
+    expect(porEmail.get('marta@loja.local')).toBe(false)
+  })
+
+  it('busca por nome ou e-mail', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+    access.adicionarUsuario(PESSOA)
+    access.adicionarUsuario({ ...PESSOA, userId: 'u-2', name: 'Joao', email: 'joao@loja.local' })
+
+    const porNome = await listPlatformUsers(deps, 'admin-1', { ...FILTRO, q: 'marta' })
+    const porEmail = await listPlatformUsers(deps, 'admin-1', { ...FILTRO, q: 'joao@' })
+
+    expect(porNome.users).toHaveLength(1)
+    expect(porEmail.users[0]?.name).toBe('Joao')
+  })
+
+  it('devolve o total real, e nao o tamanho da pagina', async () => {
+    const { deps, access } = cenario()
+    access.tornarSuperAdmin('admin-1')
+    for (let i = 0; i < 5; i += 1) {
+      access.adicionarUsuario({ ...PESSOA, userId: `u-${i}`, email: `u${i}@loja.local` })
+    }
+
+    const r = await listPlatformUsers(deps, 'admin-1', { page: 1, pageSize: 2 })
+
+    expect(r.users).toHaveLength(2)
+    expect(r.total).toBe(5)
+  })
+})

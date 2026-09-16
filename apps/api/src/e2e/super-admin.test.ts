@@ -273,6 +273,46 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
     expect(corpo.temporaryPassword).toBeDefined()
   })
 
+  /** A lista de usuarios da plataforma — NR-121. */
+  it('GET /admin/usuarios traz a dona da loja, com a loja e o papel dela', async () => {
+    const r = await comToken(adminToken, { method: 'GET', url: '/admin/usuarios' })
+
+    expect(r.statusCode).toBe(200)
+    const corpo = r.json() as {
+      users: {
+        email: string
+        isPlatformAdmin: boolean
+        companies: { companyId: string; role: string }[]
+      }[]
+      total: number
+    }
+
+    const dona = corpo.users.find((u) => u.companies.some((c) => c.companyId === empresaId))
+    expect(dona?.companies[0]?.role).toBe('owner')
+    /* Ser dona de loja nao e ser Super Admin — sao eixos diferentes, e a tela
+       de promocao le exatamente este campo para decidir o que oferecer. */
+    expect(dona?.isPlatformAdmin).toBe(false)
+    expect(corpo.total).toBeGreaterThan(0)
+  })
+
+  it('a busca acha por e-mail', async () => {
+    const lista = await comToken(adminToken, { method: 'GET', url: '/admin/usuarios' })
+    const alvo = (lista.json() as { users: { email: string }[] }).users[0]!
+
+    const r = await comToken(adminToken, {
+      method: 'GET',
+      url: `/admin/usuarios?q=${encodeURIComponent(alvo.email)}`,
+    })
+
+    const corpo = r.json() as { users: { email: string }[] }
+    expect(corpo.users.map((u) => u.email)).toEqual([alvo.email])
+  })
+
+  it('quem nao e Super Admin nao ve a base de usuarios', async () => {
+    const r = await comToken(donoToken, { method: 'GET', url: '/admin/usuarios' })
+    expect(r.statusCode).toBe(403)
+  })
+
   it('GET /admin/super-admins lista quem e Super Admin', async () => {
     const r = await comToken(adminToken, { method: 'GET', url: '/admin/super-admins' })
     expect(r.statusCode).toBe(200)

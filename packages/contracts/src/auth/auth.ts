@@ -258,3 +258,57 @@ export const platformAdminOutputSchema = z.object({
 })
 
 export type PlatformAdminOutput = z.infer<typeof platformAdminOutputSchema>
+
+/* --- Usuarios da plataforma, para o Super Admin — NR-121 --------------- */
+
+export const PAGINA_PADRAO_DE_USUARIOS = 50
+export const PAGINA_MAXIMA_DE_USUARIOS = 200
+
+export const platformUserQuerySchema = z
+  .object({
+    /** Busca livre por nome ou e-mail. */
+    q: z.string().trim().max(120).optional(),
+    page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
+    pageSize: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(PAGINA_MAXIMA_DE_USUARIOS)
+      .default(PAGINA_PADRAO_DE_USUARIOS),
+  })
+  .strict()
+
+export type PlatformUserQuery = z.infer<typeof platformUserQuerySchema>
+
+/**
+ * A pessoa como o Super Admin precisa ve-la: quem e, onde trabalha e o que
+ * pode.
+ *
+ * Duas naturezas de permissao no mesmo lugar, e elas nao se misturam:
+ * `companies[].role` e o papel DENTRO de uma loja (dono, funcionario,
+ * contador), e `isPlatformAdmin` e acesso a PLATAFORMA inteira. Exibir os
+ * dois juntos e o que evita a leitura errada de que "dono" seria um degrau
+ * abaixo de Super Admin — sao eixos diferentes.
+ */
+export const platformUserSchema = z.object({
+  userId: idSchema,
+  name: z.string(),
+  email: z.string(),
+  isActive: z.boolean(),
+  createdAt: dateTimeSchema,
+  isPlatformAdmin: z.boolean(),
+  /** Ultima sessao emitida. Nulo em quem nunca entrou. */
+  lastAccessAt: dateTimeSchema.nullable(),
+  companies: z.array(z.object({ companyId: idSchema, name: z.string(), role: roleSchema })),
+})
+
+export type PlatformUser = z.infer<typeof platformUserSchema>
+
+export const platformUsersOutputSchema = z.object({
+  users: z.array(platformUserSchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+})
+
+export type PlatformUsersOutput = z.infer<typeof platformUsersOutputSchema>

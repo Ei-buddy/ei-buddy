@@ -1,5 +1,11 @@
 import type { PlatformAdminAccess } from '@na-regua/core'
-import type { CompanyOverview, PlatformAdminOutput } from '@na-regua/contracts'
+import type {
+  CompanyOverview,
+  PlatformAdminOutput,
+  PlatformUser,
+  PlatformUserQuery,
+  Role,
+} from '@na-regua/contracts'
 import type { Sql } from 'postgres'
 import { hashDoToken } from './session-repository.js'
 
@@ -32,6 +38,30 @@ const paraEmpresa = (l: LinhaDeEmpresa): CompanyOverview => ({
 })
 
 type LinhaDeAdmin = { user_id: string; name: string; email: string; granted_at: string }
+
+type LinhaDeUsuario = {
+  user_id: string
+  name: string
+  email: string
+  is_active: boolean
+  created_at: string
+  is_platform_admin: boolean
+  last_access_at: string | null
+  /* `jsonb` volta ja convertido pelo driver — nao precisa de `JSON.parse`. */
+  companies: { companyId: string; name: string; role: Role }[]
+  total_geral: string
+}
+
+const paraUsuario = (l: LinhaDeUsuario): PlatformUser => ({
+  userId: l.user_id,
+  name: l.name,
+  email: l.email,
+  isActive: l.is_active,
+  createdAt: l.created_at,
+  isPlatformAdmin: l.is_platform_admin,
+  lastAccessAt: l.last_access_at,
+  companies: l.companies,
+})
 
 const paraAdmin = (l: LinhaDeAdmin): PlatformAdminOutput => ({
   userId: l.user_id,
@@ -72,6 +102,21 @@ export function createPlatformAdminAccess(sql: Sql): PlatformAdminAccess {
 
     revoke: async (userId, revokedBy) => {
       await sql`SELECT platform_admin_revoke(${userId}, ${revokedBy})`
+    },
+
+    listUsers: async (requestedBy, filtro: PlatformUserQuery) => {
+      const linhas = await sql<LinhaDeUsuario[]>`
+        SELECT * FROM platform_admin_list_users(
+          ${requestedBy},
+          ${filtro.q ?? null},
+          ${filtro.pageSize},
+          ${(filtro.page - 1) * filtro.pageSize}
+        )
+      `
+
+      /* Zero linhas nao e "erro": e uma busca sem resultado, e o total dela e
+         zero mesmo — `count(*) OVER ()` so existe onde ha linha. */
+      return { users: linhas.map(paraUsuario), total: Number(linhas[0]?.total_geral ?? 0) }
     },
 
     listAdmins: async (requestedBy) => {

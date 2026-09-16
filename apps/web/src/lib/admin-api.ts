@@ -151,3 +151,43 @@ export type ResumoDaListaVip = {
 
 export const resumoListaVip = (): Promise<Resultado<ResumoDaListaVip>> =>
   pedir('/api/admin/lista-vip/resumo', { headers: cabecalhoDaChave() })
+
+/* --- Usuarios da plataforma — NR-121 ---------------------------------- */
+
+export type PapelNaLoja = 'owner' | 'staff' | 'accountant'
+
+export const ROTULO_PAPEL: Record<PapelNaLoja, string> = {
+  owner: 'Dono',
+  staff: 'Funcionário',
+  accountant: 'Contador',
+}
+
+export type UsuarioDaPlataforma = {
+  userId: string
+  name: string
+  email: string
+  isActive: boolean
+  createdAt: string
+  isPlatformAdmin: boolean
+  /** Nulo em quem nunca entrou. */
+  lastAccessAt: string | null
+  companies: { companyId: string; name: string; role: PapelNaLoja }[]
+}
+
+export type PaginaDeUsuarios = {
+  users: UsuarioDaPlataforma[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export const listarUsuariosDaPlataforma = (
+  params: { q?: string; page?: number; pageSize?: number } = {},
+): Promise<Resultado<PaginaDeUsuarios>> => {
+  const query = new URLSearchParams()
+  if (params.q) query.set('q', params.q)
+  if (params.page) query.set('page', String(params.page))
+  if (params.pageSize) query.set('pageSize', String(params.pageSize))
+  const qs = query.toString()
+  return pedir(`/api/admin/usuarios${qs === '' ? '' : `?${qs}`}`)
+}

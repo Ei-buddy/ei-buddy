@@ -87,3 +87,38 @@
   display: grid;
   gap: 20px;
 }
+
+/* --- Celular --- */
+
+/*
+ * Marca, quatro links e as acoes nao cabem numa linha de 390px: a barra
+ * empurrava a pagina inteira para 552px e TODA tela do painel rolava de lado.
+ * No celular a navegacao desce para a propria linha e rola sozinha, que e o
+ * unico jeito de a lista crescer sem quebrar de novo a cada item novo.
+ */
+@media (max-width: 720px) {
+  .topbar {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+
+  .nav {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navLink {
+    white-space: nowrap;
+  }
+
+  .content {
+    padding: 22px 16px 40px;
+  }
+}

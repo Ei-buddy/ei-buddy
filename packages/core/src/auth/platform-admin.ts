@@ -4,6 +4,8 @@ import type {
   EnterCompanyInput,
   GrantPlatformAdminInput,
   PlatformAdminOutput,
+  PlatformUserQuery,
+  PlatformUsersOutput,
 } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import type { UserId } from '../context.js'
@@ -184,4 +186,33 @@ export async function revokePlatformAdmin(
   }
 
   await deps.access.revoke(userId, requestedBy)
+}
+
+/**
+ * Quem tem conta na plataforma — NR-121.
+ *
+ * ## Por que esta tela precisa existir
+ *
+ * Conceder Super Admin ja era possivel, mas so por e-mail digitado de cabeca:
+ * quem concede tinha de saber de antemao o endereco exato de quem queria
+ * promover, e errar uma letra CRIAVA uma conta nova em vez de avisar. Uma
+ * lista fecha esse buraco — promove-se quem se ve, e nao quem se lembra.
+ *
+ * ## O que ela nao decide
+ *
+ * Papel dentro da loja (`owner`, `staff`, `accountant`) nao se troca por aqui:
+ * quem manda no acesso da loja e o dono dela, na tela de Equipe. Esta lista
+ * MOSTRA esses papeis, porque eles explicam quem e a pessoa, mas o unico botao
+ * que ela oferece e o da plataforma — conceder e revogar Super Admin.
+ */
+export async function listPlatformUsers(
+  deps: PlatformAdminDeps,
+  requestedBy: UserId,
+  input: PlatformUserQuery,
+): Promise<PlatformUsersOutput> {
+  await exigirSuperAdmin(deps, requestedBy)
+
+  const { users, total } = await deps.access.listUsers(requestedBy, input)
+
+  return { users: [...users], total, page: input.page, pageSize: input.pageSize }
 }

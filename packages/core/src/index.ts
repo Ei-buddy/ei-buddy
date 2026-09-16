@@ -271,6 +271,7 @@ export {
   revokePlatformAdmin,
   listCompanies as listPlatformCompanies,
   listPlatformAdmins,
+  listPlatformUsers,
 } from './auth/platform-admin.js'
 export type {
   GrantResult as GrantPlatformAdminResult,

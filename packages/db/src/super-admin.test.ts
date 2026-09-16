@@ -110,6 +110,90 @@ describe.skipIf(!DATABASE_URL)('super admin — NR-105', () => {
     })
   })
 
+  /**
+   * A lista de usuarios da plataforma — NR-121.
+   *
+   * O que so o banco prova aqui: a funcao atravessa a politica de `users` (que
+   * so mostra quem tem vinculo com a empresa do contexto) e mesmo assim exige
+   * Super Admin para responder — os dois lados do `SECURITY DEFINER`.
+   */
+  describe('usuarios da plataforma', () => {
+    const FILTRO = { page: 1, pageSize: 50 }
+
+    it('recusa quem nao e Super Admin', async () => {
+      const comum = await criarUsuarioSemEmpresa('Curioso')
+
+      await expect(createPlatformAdminAccess(sql).listUsers(comum, FILTRO)).rejects.toThrow(
+        /Somente Super Admin/i,
+      )
+    })
+
+    it('traz quem nao tem vinculo com empresa nenhuma — RLS de users nao o esconde', async () => {
+      const raiz = await criarUsuarioSemEmpresa('Raiz da Plataforma')
+      await admin`INSERT INTO platform_admins (user_id, granted_by) VALUES (${raiz}, ${raiz})`
+      const semLoja = await criarUsuarioSemEmpresa('So Existe na Plataforma')
+
+      const r = await createPlatformAdminAccess(sql).listUsers(raiz, {
+        ...FILTRO,
+        q: 'So Existe na Plataforma',
+      })
+
+      expect(r.users.map((u) => u.userId)).toContain(semLoja)
+      expect(r.users[0]?.companies).toEqual([])
+    })
+
+    it('mostra as lojas de cada pessoa, com o papel dela em cada uma', async () => {
+      const raiz = (
+        await admin<{ user_id: string }[]>`
+          SELECT user_id FROM platform_admins WHERE revoked_at IS NULL LIMIT 1
+        `
+      )[0]!.user_id
+
+      /* Usuario criado aqui, com nome unico: a busca e por nome/e-mail, e
+         `createUserWithAccess` nao devolve o e-mail que gerou. */
+      const nome = `Funcionaria da Loja ${randomUUID().slice(0, 8)}`
+      const [linha] = await admin<{ id: string }[]>`
+        INSERT INTO users (name, email)
+        VALUES (${nome}, ${`${randomUUID()}@loja.local`})
+        RETURNING id
+      `
+      await admin`
+        INSERT INTO company_users (company_id, user_id, role)
+        VALUES (${empresaA}, ${linha!.id}, ${'staff'})
+      `
+
+      const r = await createPlatformAdminAccess(sql).listUsers(raiz, { ...FILTRO, q: nome })
+
+      expect(r.users[0]?.companies).toEqual([
+        { companyId: empresaA, name: 'Loja Super Admin A', role: 'staff' },
+      ])
+    })
+
+    it('marca quem ja e Super Admin, e o total ignora a pagina', async () => {
+      const raiz = (
+        await admin<{ user_id: string }[]>`
+          SELECT user_id FROM platform_admins WHERE revoked_at IS NULL LIMIT 1
+        `
+      )[0]!.user_id
+
+      const primeira = await createPlatformAdminAccess(sql).listUsers(raiz, {
+        page: 1,
+        pageSize: 1,
+      })
+
+      expect(primeira.users).toHaveLength(1)
+      /* Sem o total real a tela nao sabe que existe pagina 2 — e a base de
+         usuarios cresce justamente por fora desta tela. */
+      expect(primeira.total).toBeGreaterThan(1)
+
+      const doRaiz = await createPlatformAdminAccess(sql).listUsers(raiz, {
+        ...FILTRO,
+        q: 'Raiz da Plataforma',
+      })
+      expect(doRaiz.users[0]?.isPlatformAdmin).toBe(true)
+    })
+  })
+
   describe('conceder e revogar', () => {
     it('platform_admin_is comeca falso para qualquer usuario', async () => {
       const u = await criarUsuarioSemEmpresa('Ninguem Ainda')
