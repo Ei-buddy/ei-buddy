@@ -6,7 +6,8 @@ Runtime do assistente: tools, memória e confirmações.
 (Mastra + `openai/gpt-4o-mini`) · identidade do canal
 [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)
 (`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
-com `AGENT_PROVIDER=fake` · webhook Meta é `NR-046`
+com `AGENT_PROVIDER=fake` · harness **Mastra Studio** (eng.) é `NR-121` ·
+webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
 persistente é `NR-061` (hoje in-memory) · memória da conversa
 [ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
@@ -32,8 +33,10 @@ inteira de erro em que o número da conversa não bate com o número do relatór
 
 [Mastra](https://mastra.ai) como biblioteca — `Agent` (`@mastra/core/agent`) +
 `createTool` (`@mastra/core/tools`) — **dentro** deste pacote, composto em
-`apps/api`. Não é o servidor HTTP do Mastra, nem Studio, nem Factory.
-Contrato: [`integracoes/mastra.md`](../../docs/arquitetura/integracoes/mastra.md).
+`apps/api`. Não é o servidor HTTP do Mastra nem Factory no caminho do lojista.
+**Studio** é harness de engenharia ([NR-121](../../docs/processo/task-ledger.md)),
+não canal de produção. Contrato:
+[`integracoes/mastra.md`](../../docs/arquitetura/integracoes/mastra.md).
 
 Modelo inicial: `openai/gpt-4o-mini`. Trocar de modelo é `AGENT_MODEL`. Trocar
 de framework reabre a ADR-0010.

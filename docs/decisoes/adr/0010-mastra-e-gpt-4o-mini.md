@@ -22,6 +22,12 @@ substituida_por: null
 > RAG / _semantic recall_) foi **revisado** pela
 > [ADR-0017](0017-rag-com-tools-e-rls.md). Runtime Mastra, modelo inicial e a
 > regra “tools + `domain` calculam valor” permanecem.
+>
+> **Revisão parcial (2026-09-16, Studio):** o trecho que abdicava de Studio /
+> servidor HTTP Mastra como *plataforma do lojista* permanece. **Studio entra
+> como harness de engenharia** ([NR-121](../../processo/task-ledger.md)):
+> substitui o WhatsApp no desenvolvimento, chama o mesmo `processMessage`, com
+> preset/número forjado e observabilidade. Não é canal de produção.
 
 ## Contexto
 
@@ -103,8 +109,10 @@ que custa mais para reverter.
    `domain` calcula.
 
 O que foi abdicado: Anthropic como primeiro provedor; escrever o laço à mão;
-tratar o Mastra como plataforma (servidor, Studio, memória padrão, índice
-vetorial).
+tratar o Mastra como **plataforma de produção** do lojista (Memory padrão,
+índice vetorial sem tenant, rotas `/api/agents` como canal). **Studio e um
+servidor Mastra de desenvolvimento** entram só como harness de engenharia
+([NR-121](../../processo/task-ledger.md)) — ver revisão no topo.
 
 Contrato: [`integracoes/mastra.md`](../../arquitetura/integracoes/mastra.md).
 
@@ -112,9 +120,10 @@ Contrato: [`integracoes/mastra.md`](../../arquitetura/integracoes/mastra.md).
 
 ### Positivas
 
-- `NR-060` deixa de esperar esta decisão. O que ainda a segura é o canal
-  ([DEC-003](../README.md#dec-003) / `NR-046`) e, para contexto, a
-  [DEC-011](../README.md#dec-011).
+- `NR-060` deixa de esperar esta decisão. O canal Meta (`NR-046`) **não**
+  bloqueia mais o runtime: o harness Studio (`NR-121`) substitui o Zap em
+  engenharia até o E11 + RAG fecharem. Contexto de conversa:
+  [DEC-011](../README.md#dec-011) / [ADR-0016](0016-memoria-da-conversa-tabelas-nossas.md).
 - Tools nascem de Zod. A regra "não escreva definição de tool à mão" cabe no
   `createTool` do Mastra: `inputSchema` é o schema de `contracts`.
 - Modo `AGENT_PROVIDER=fake` continua obrigatório no local — ninguém precisa de
@@ -153,6 +162,7 @@ Contrato: [`integracoes/mastra.md`](../../arquitetura/integracoes/mastra.md).
 - [x] `docs/engenharia/ambientes.md`, `.env.example`
 - [x] `DEC-007` marcada como 🟢 e apontando para esta ADR
 - [x] `docs/processo/task-ledger.md` — NR-060 deixa de citar DEC-007 como bloqueio próprio
+- [x] `docs/processo/task-ledger.md` — NR-121 (Studio) + cascata E11 antes de Meta (2026-09-16)
 
 ## Quando revisitar
 

@@ -49,9 +49,10 @@ provedor nenhum.
 
 | Tarefa     | Dias | O que a decisão realmente segura           | O que dá para fazer **hoje**                                      | Dias livres |
 | ---------- | ---: | ------------------------------------------ | ----------------------------------------------------------------- | ----------: |
-| **NR-046** |    4 | o adapter HTTP do provedor                 | consentimento (RF-016), webhook de entrada, roteamento de comando |          ~3 |
-| **NR-060** |    5 | o adapter HTTP do WhatsApp (DEC-003)       | as tools tipadas, o laço Mastra e o `LlmClient` falso             |          ~4 |
-| **NR-061** |    2 | nada próprio — herda de NR-060             | a máquina de estados da confirmação e a expiração são `core` puro |           2 |
+| **NR-046** |    4 | — (DEC-003 ✅; ledger: após NR-113/120)     | consentimento, webhook; canal real depois do E11 no Studio        |           4 |
+| **NR-060** |    5 | — (não depende mais de NR-046)             | runtime + tools base; Studio (NR-121) substitui o Zap em eng.     |           5 |
+| **NR-121** |    2 | —                                          | harness Studio → `processMessage` (preset / número forjado)       |           2 |
+| **NR-061** |    2 | nada próprio — herda de NR-060/121         | a máquina de estados da confirmação e a expiração são `core` puro |           2 |
 | **NR-062** |    3 | — (DEC-011 / ADR-0016)                     | o isolamento por empresa é a mesma RLS que já existe              |          ~2 |
 | **NR-063** |    4 | a cobrança em si                           | trial, estados e o que cada estado permite                        |          ~2 |
 | **NR-075** |    3 | o catálogo de planos e o desenho do cupom  | as telas contra um catálogo falso                                 |          ~2 |
@@ -94,12 +95,10 @@ uma coisa que destrave o assistente, é esta:
 
 ### DEC-003 — provedor de WhatsApp
 
-Segura 4 dias diretos e é dependência de NR-060, ou seja, **do assistente
-inteiro** — que é a promessa central do produto. A
-[recomendação preliminar](../decisoes/README.md#dec-003) já descarta a biblioteca
-não oficial ("derruba o produto inteiro sem aviso e sem recurso"), então a
-escolha real é **Meta Cloud API direto** contra **um BSP**: custo por conversa
-contra velocidade de integração.
+A DEC-003 fechou (Meta Cloud API). No ledger atual, **NR-046 não trava mais
+NR-060**: o assistente avança no Studio (NR-121) até E11 + RAG; PeerDirectory
+(NR-113) e Meta vêm depois. O que resta no adapter é implementação, não
+decisão de provedor.
 
 **O que é preciso para decidir:** uma estimativa de conversas/mês por lojista.
 Sem isso a comparação de custo não fecha, e é o único critério em que os dois
@@ -116,10 +115,9 @@ A identidade do canal fechou ([DEC-023](../decisoes/README.md#dec-023) /
 [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)): celular do
 owner, `processMessage`, fake. A [NR-113](task-ledger.md) não espera a DEC-003.
 
-O que ainda segura o adapter real (`NR-046`) e o envio é o canal
-([DEC-003](../decisoes/README.md#dec-003)).
-O laço e as tools não dependem do adapter real de WhatsApp — o precedente da
-NR-042 continua valendo, agora com o modelo já escolhido.
+O adapter real (`NR-046`) espera o agente estável no Studio (cascata até
+NR-120) e o PeerDirectory (NR-113). O laço e as tools não dependem do Meta —
+o precedente da NR-042 continua valendo.
 
 **O que é preciso para o adapter `mastra`:** `OPENAI_API_KEY` no ambiente que
 não for `fake`. O teto por tenant ([RNF-073](../produto/requisitos-nao-funcionais.md))

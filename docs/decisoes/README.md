@@ -191,7 +191,7 @@ mesma porta `BankStatementProvider`.
 | **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                               |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                          |
 | **Prazo**    | Sprint 3                                                                                                                     |
-| **Bloqueia** | — (NR-060 ⬜, atrás da NR-046). Identidade do canal é [DEC-023](#dec-023). Memória é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
+| **Bloqueia** | — (NR-060 ⬜; harness Studio NR-121; canal Meta NR-046 após E11/RAG/NR-113). Identidade do canal é [DEC-023](#dec-023). Memória é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
 
@@ -209,10 +209,13 @@ Duas perguntas que costumavam ser confundidas, as duas respondidas:
 
 Contrato: [`integracoes/mastra.md`](../arquitetura/integracoes/mastra.md).
 O runtime continua dentro de `apps/api`. `AGENT_PROVIDER=fake` no local.
-Factory, Studio, servidor HTTP do Mastra e Workflow **não** entram no
-caminho do lojista — só `Agent` + tools atrás de `processMessage`. Memory do
-Mastra permanece desligada ([ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md));
-RAG usa store nosso ([ADR-0017](adr/0017-rag-com-tools-e-rls.md)).
+Factory, Workflow e Memory do Mastra **não** entram no caminho do lojista —
+só `Agent` + tools atrás de `processMessage`. **Studio** entra como harness
+de engenharia ([NR-121](../processo/task-ledger.md); revisão da
+[ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md) em 2026-09-16), não como canal
+de produção. Memory do Mastra permanece desligada
+([ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md)); RAG usa store
+nosso ([ADR-0017](adr/0017-rag-com-tools-e-rls.md)).
 
 O que **não** fecha aqui: o denominador do teto de custo
 ([QST-002](#qst-002) / [RNF-072](../produto/requisitos-nao-funcionais.md)).

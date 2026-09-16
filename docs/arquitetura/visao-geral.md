@@ -119,8 +119,9 @@ flowchart TB
 
 O `packages/agent` roda **dentro** de `apps/api`, não como serviço separado.
 O Mastra entra só como biblioteca (`Agent` + `createTool`); `processMessage`
-é o dono do laço (confirmação, execução em `core`). Não há `MastraServer`,
-Studio, Workflow nem Factory no caminho do lojista — ver
+é o dono do laço (confirmação, execução em `core`). Não há Workflow nem
+Factory no caminho do lojista. **Studio** é harness de engenharia
+([NR-121](../processo/task-ledger.md)), não canal de produção — ver
 [`integracoes/mastra.md`](integracoes/mastra.md).
 
 Motivo: o agente precisa do mesmo contexto de execução, da mesma autenticação e

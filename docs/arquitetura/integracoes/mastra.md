@@ -23,8 +23,10 @@ Decisão: [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 modelo inicial é `openai/gpt-4o-mini`. **RAG entra** como recuperação auxiliar
 ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)): achar candidatos
 e trechos; **totais e efeitos em dinheiro** continuam só via tool → `core` →
-`domain`. Factory, Studio, servidor HTTP do Mastra, Workflow e Memory do
-Mastra **não** entram no caminho do lojista.
+`domain`. **Memory** e **Workflow** do Mastra **não** entram. **Studio** e um
+servidor Mastra de **desenvolvimento** entram só como harness de engenharia
+([NR-121](../../processo/task-ledger.md)): substituto do WhatsApp no teste,
+sempre atrás do mesmo `processMessage` — **não** como canal do lojista.
 
 ```mermaid
 flowchart LR
@@ -76,9 +78,10 @@ sobe no falso.
 
 | Entra no produto                                                         | Não entra — e por quê                                                                                          |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `Agent` de `@mastra/core/agent`                                          | `new Mastra({ agents })` + rotas `/api/agents` — segunda composição de deps                                    |
+| `Agent` de `@mastra/core/agent`                                          | Rotas `/api/agents` do Mastra como **canal do lojista** (segunda composição de deps)                           |
 | `createTool` de `@mastra/core/tools` com `inputSchema` de `contracts`    | Tool escrita à mão, paralela à rota HTTP                                                                       |
-| `agent.generate(..., { maxSteps: 1 })` atrás de `processMessage()`       | Processo `mastra dev` / Studio na porta 4111 como runtime do lojista                                           |
+| `agent.generate(..., { maxSteps: 1 })` atrás de `processMessage()`       | Studio / `mastra dev` como **runtime de produção** do lojista                                                  |
+| Harness Studio de eng. ([NR-121](../../processo/task-ledger.md)) → mesmo `processMessage` | Studio que desvie do laço (confirmação/memória/`core` paralelos)                                |
 | Modelo `openai/gpt-4o-mini` via `AGENT_MODEL` (`provedor/modelo`)        | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                  |
 | RAG sobre store **nosso** com `company_id` + RLS ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)) | Índice vetorial sem tenant; Memory/Storage padrão do Mastra em `public`                         |
 | `AGENT_PROVIDER=fake` no local                                           | Chave da OpenAI obrigatória para `pnpm dev`                                                                    |
@@ -193,12 +196,14 @@ mínimo necessário. Na prática:
 
 A OpenAI é subprocessador. Declarar isso na política é a [DEC-016](../../decisoes/README.md#dec-016).
 
-## Canal
+## Canal e harness Studio
 
 O provedor WhatsApp é a Cloud API
 ([ADR-0014](../../decisoes/adr/0014-meta-cloud-api.md)).
 A identidade do canal fechou na [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
-não há Workflow Mastra, `MastraServer`, Channel adapter nem auth Mastra no
-webhook. Sem o adapter real o runtime se exercita pelo `POST /agent/messages` e
-`AGENT_PROVIDER=fake`. O webhook, na NR-046, entra atrás da mesma
-`processMessage`.
+não há Workflow Mastra, Channel adapter nem auth Mastra no webhook. Sem o
+adapter real o runtime se exercita pelo `POST /agent/messages`,
+`AGENT_PROVIDER=fake` e, na [NR-121](../../processo/task-ledger.md), pelo
+**Mastra Studio** como substituto do Zap em engenharia (preset / número
+forjado no body → mesmo `processMessage`). O webhook Meta (NR-046), depois do
+E11 + RAG + PeerDirectory (NR-113), entra atrás da mesma `processMessage`.
