@@ -37,6 +37,24 @@ export const BRAND = 'EiBuddy'
  */
 export const PRE_LANCAMENTO = true
 
+/**
+ * Convite do grupo de WhatsApp do pre-lancamento — NR-111.
+ *
+ * Aparece como botao na tela de agradecimento, depois que a pesquisa e
+ * enviada. Vazio esconde o botao, e e assim que ele nasceu: o grupo ainda
+ * nao existia quando a pesquisa foi ao ar, e prometer "entre no grupo" sem
+ * ter para onde mandar seria pior que nao oferecer nada.
+ *
+ * Cole aqui o link de convite (`https://chat.whatsapp.com/...`) e o botao
+ * aparece sozinho.
+ *
+ * `: string` explicito, e nao o literal inferido: sem a anotacao o TypeScript
+ * estreita para o valor de hoje e passa a acusar `=== ''` como comparacao
+ * impossivel — justo a checagem que mantem o botao escondido quando o link
+ * sai daqui.
+ */
+export const LINK_DO_GRUPO_VIP: string = 'https://chat.whatsapp.com/HdmK0OLT9qCL7IIwE5dCEo'
+
 export const nav = [
   { label: 'Módulos', href: '#modulos' },
   { label: 'Como funciona', href: '#como-funciona' },

@@ -7,6 +7,7 @@ import {
   RadioGroupField,
   TextAreaField,
 } from '@/components/lista-vip/CamposDaPesquisa'
+import { LINK_DO_GRUPO_VIP } from '@/content/site'
 import { maskPhone, validatePhone, validateRequired, type FieldError } from '@/lib/validation'
 import {
   enviarListaVip,
@@ -89,6 +90,18 @@ export default function ListaVipForm() {
         <p className={styles.agradecimentoTexto}>
           <strong>O Buddy está chegando. E você vai conhecê-lo antes de todo mundo.</strong>
         </p>
+
+        {/* Sem link configurado, nenhum botao — ver LINK_DO_GRUPO_VIP. */}
+        {LINK_DO_GRUPO_VIP === '' ? null : (
+          <a
+            href={LINK_DO_GRUPO_VIP}
+            className={`btn btnPrimary ${styles.botaoDoGrupo}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Entrar no Grupo VIP
+          </a>
+        )}
       </div>
     )
   }
@@ -190,8 +203,10 @@ export default function ListaVipForm() {
           onChange={(v) => setWantsUpdates(v === 'sim')}
         />
 
+        {/* "Enviar", e nao "Entrar no Grupo VIP": este botao GRAVA a resposta.
+            O convite do grupo e o botao da tela de agradecimento, depois. */}
         <SubmitButton loading={enviando} loadingLabel="Enviando...">
-          Entrar para o Grupo VIP
+          Enviar minhas respostas
         </SubmitButton>
       </form>
     </>

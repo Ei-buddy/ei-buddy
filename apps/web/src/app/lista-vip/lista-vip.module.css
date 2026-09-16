@@ -18,3 +18,7 @@
   line-height: 1.6;
   color: var(--text-secondary);
 }
+
+.botaoDoGrupo {
+  margin-top: 26px;
+}
