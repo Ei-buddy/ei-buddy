@@ -141,7 +141,7 @@ async function registrarRotas(): Promise<void> {
   if (motivoDoAgente !== undefined) {
     app.log.warn({ motivo: motivoDoAgente }, 'assistente desligado — ver AGENT_PROVIDER')
   }
-  registerAgentRoutes(app, await buildAgentDeps())
+  registerAgentRoutes(app, await buildAgentDeps(), motivoDoAgente)
 
   /*
    * A falta da chave de cifragem NAO impede a api de subir: ela desliga uma

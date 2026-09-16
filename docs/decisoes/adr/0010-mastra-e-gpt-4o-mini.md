@@ -24,7 +24,7 @@ substituida_por: null
 > regra “tools + `domain` calculam valor” permanecem.
 >
 > **Revisão parcial (2026-09-16, Studio):** o trecho que abdicava de Studio /
-> servidor HTTP Mastra como *plataforma do lojista* permanece. **Studio entra
+> servidor HTTP Mastra como _plataforma do lojista_ permanece. **Studio entra
 > como harness de engenharia** ([NR-121](../../processo/task-ledger.md)):
 > substitui o WhatsApp no desenvolvimento, chama o mesmo `processMessage`, com
 > preset/número forjado e observabilidade. Não é canal de produção.

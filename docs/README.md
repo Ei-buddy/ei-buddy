@@ -34,17 +34,17 @@ Público: todo o time, fundadores, stakeholders.
 
 Público: desenvolvedores.
 
-| Doc                                                                      | Conteúdo                                                                     |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [`arquitetura/visao-geral.md`](arquitetura/visao-geral.md)               | Diagramas C4 de contexto e containers, e o raciocínio por trás deles         |
-| [`arquitetura/principios.md`](arquitetura/principios.md)                 | Arquitetura hexagonal, regra de dependência e a matriz de imports permitidos |
-| [`arquitetura/fluxos.md`](arquitetura/fluxos.md)                         | Diagramas de sequência dos fluxos críticos ponta a ponta                     |
-| [`arquitetura/dados.md`](arquitetura/dados.md)                           | Modelo de dados, estratégia multi-tenant, RLS, migrations e auditoria        |
-| [`arquitetura/esquema-postgresql.md`](arquitetura/esquema-postgresql.md) | Catálogo alvo com `company_integrations` (snapshot 2026-09-09)               |
-| [`arquitetura/db_0909.sql`](arquitetura/db_0909.sql)                     | SQL documental desse catálogo — **não** é migration                          |
-| [`arquitetura/seguranca.md`](arquitetura/seguranca.md)                   | Autenticação, autorização, gestão de segredos e conformidade com a LGPD      |
-| [`arquitetura/modulos.md`](arquitetura/modulos.md)                       | Tabela-índice de todos os módulos, com fronteiras e donos                    |
-| [`arquitetura/integracoes/`](arquitetura/integracoes/)                   | Avaliação e desenho de cada provedor externo — uma página por fornecedor     |
+| Doc                                                                      | Conteúdo                                                                         |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| [`arquitetura/visao-geral.md`](arquitetura/visao-geral.md)               | Diagramas C4 de contexto e containers, e o raciocínio por trás deles             |
+| [`arquitetura/principios.md`](arquitetura/principios.md)                 | Arquitetura hexagonal, regra de dependência e a matriz de imports permitidos     |
+| [`arquitetura/fluxos.md`](arquitetura/fluxos.md)                         | Diagramas de sequência dos fluxos críticos ponta a ponta                         |
+| [`arquitetura/dados.md`](arquitetura/dados.md)                           | Modelo de dados, estratégia multi-tenant, RLS, migrations e auditoria            |
+| [`arquitetura/esquema-postgresql.md`](arquitetura/esquema-postgresql.md) | Catálogo alvo com `company_integrations` (snapshot 2026-09-09)                   |
+| [`arquitetura/db_0909.sql`](arquitetura/db_0909.sql)                     | SQL documental desse catálogo — **não** é migration                              |
+| [`arquitetura/seguranca.md`](arquitetura/seguranca.md)                   | Autenticação, autorização, gestão de segredos e conformidade com a LGPD          |
+| [`arquitetura/modulos.md`](arquitetura/modulos.md)                       | Tabela-índice de todos os módulos, com fronteiras e donos                        |
+| [`arquitetura/integracoes/`](arquitetura/integracoes/)                   | Avaliação e desenho de cada provedor externo — uma página por fornecedor         |
 | [`arquitetura/integracoes/mastra.md`](arquitetura/integracoes/mastra.md) | Runtime do assistente: laço `processMessage`, Agent/tools, o que Factory não faz |
 
 ### 🔧 Engenharia — _como trabalhamos_

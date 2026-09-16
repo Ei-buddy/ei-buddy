@@ -107,6 +107,7 @@ describe('agente — ADR-0010', () => {
     expect(env.AGENT_MODEL).toBe('openai/gpt-4o-mini')
     expect(env.OPENAI_API_KEY).toBeUndefined()
     expect(env.AGENT_MONTHLY_BUDGET_CENTS).toBeUndefined()
+    expect(env.AGENT_HARNESS).toBe(false)
   })
 
   it('aceita o provedor Mastra e a chave', () => {
@@ -133,5 +134,19 @@ describe('agente — ADR-0010', () => {
 
   it('recusa provedor desconhecido', () => {
     expect(() => loadApiEnv({ ...base, AGENT_PROVIDER: 'langchain' })).toThrow()
+  })
+
+  it('trata AGENT_HARNESS ausente, vazio e 0 como desligado', () => {
+    expect(loadApiEnv(base).AGENT_HARNESS).toBe(false)
+    expect(loadApiEnv({ ...base, AGENT_HARNESS: '' }).AGENT_HARNESS).toBe(false)
+    expect(loadApiEnv({ ...base, AGENT_HARNESS: '0' }).AGENT_HARNESS).toBe(false)
+  })
+
+  it('aceita AGENT_HARNESS=1 como ligado', () => {
+    expect(loadApiEnv({ ...base, AGENT_HARNESS: '1' }).AGENT_HARNESS).toBe(true)
+  })
+
+  it('recusa AGENT_HARNESS com valor que nao e 0 ou 1', () => {
+    expect(() => loadApiEnv({ ...base, AGENT_HARNESS: 'yes' })).toThrow()
   })
 })

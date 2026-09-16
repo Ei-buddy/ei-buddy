@@ -157,20 +157,20 @@ validações e a auditoria.
 
 ## Decisões estruturais tomadas
 
-| Decisão                | Escolha                    | Por quê                                                                                                              |
-| ---------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Organização do código  | Monorepo                   | Contrato compartilhado entre 4 apps; mudança em `contracts` precisa ser atômica                                      |
-| Gerenciador de pacotes | pnpm + Turborepo           | Cache de tarefas e execução por pacote afetado; `node-linker=hoisted` por causa do Metro/Expo                        |
-| Linguagem              | TypeScript em todo o stack | Um tipo de venda compartilhado entre backend, app e agente                                                           |
-| Estilo de API          | REST                       | Público e superfície pequenos; GraphQL não se paga aqui                                                              |
-| ORM                    | Drizzle                    | SQL explícito e tipado, essencial para trabalhar com RLS sem surpresa                                                |
-| Isolamento             | RLS no PostgreSQL          | Isolamento que não depende de o desenvolvedor lembrar do `WHERE` — [ADR-0001](../decisoes/adr/0001-rls-por-linha.md) |
-| Validação              | Zod em `contracts`         | O mesmo schema serve a HTTP, tipos e tools do agente                                                                 |
+| Decisão                | Escolha                    | Por quê                                                                                                                                                        |
+| ---------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organização do código  | Monorepo                   | Contrato compartilhado entre 4 apps; mudança em `contracts` precisa ser atômica                                                                                |
+| Gerenciador de pacotes | pnpm + Turborepo           | Cache de tarefas e execução por pacote afetado; `node-linker=hoisted` por causa do Metro/Expo                                                                  |
+| Linguagem              | TypeScript em todo o stack | Um tipo de venda compartilhado entre backend, app e agente                                                                                                     |
+| Estilo de API          | REST                       | Público e superfície pequenos; GraphQL não se paga aqui                                                                                                        |
+| ORM                    | Drizzle                    | SQL explícito e tipado, essencial para trabalhar com RLS sem surpresa                                                                                          |
+| Isolamento             | RLS no PostgreSQL          | Isolamento que não depende de o desenvolvedor lembrar do `WHERE` — [ADR-0001](../decisoes/adr/0001-rls-por-linha.md)                                           |
+| Validação              | Zod em `contracts`         | O mesmo schema serve a HTTP, tipos e tools do agente                                                                                                           |
 | Runtime do agente      | Mastra + `gpt-4o-mini`     | Tools em Zod; RAG auxiliar com store nosso — [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md), [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md) |
-| Recuperação (RAG)      | Store nosso + RLS          | Chunk não é saldo/total — [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md)                                                                            |
-| Memória da conversa    | Tabelas nossas + RLS       | Sem Memory Mastra; 12 msgs / 2 h idle / 30 dias — [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md) |
-| WhatsApp               | Meta Cloud API             | Um WABA da plataforma — [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)                                           |
-| Hospedagem             | VPS + Docker Compose       | A VM que já roda — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                                            |
+| Recuperação (RAG)      | Store nosso + RLS          | Chunk não é saldo/total — [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md)                                                                              |
+| Memória da conversa    | Tabelas nossas + RLS       | Sem Memory Mastra; 12 msgs / 2 h idle / 30 dias — [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)                                       |
+| WhatsApp               | Meta Cloud API             | Um WABA da plataforma — [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)                                                                                     |
+| Hospedagem             | VPS + Docker Compose       | A VM que já roda — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                                                                                      |
 
 ## Decisões estruturais ainda em aberto
 

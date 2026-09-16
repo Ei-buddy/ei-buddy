@@ -10,6 +10,7 @@
  */
 import { randomUUID } from 'node:crypto'
 import {
+  buildDre,
   buildRevenueByMonth,
   createDefaultSaleSettings,
   listReceivables,
@@ -17,11 +18,14 @@ import {
   registerCustomer,
   registerSale,
   searchProducts,
+  sendCustomerCharge,
 } from '@na-regua/core'
+import { createFakeMessageSender } from '@na-regua/whatsapp'
 import {
   createAgentRuntime,
   createToolCatalog,
   FakeLlm,
+  InMemoryAiUsageCounter,
   type AgentUseCases,
   type LlmPort,
   type ToolDescriptor,
@@ -737,17 +741,16 @@ export function buildContasDeps(): ContasDeps {
 }
 
 /**
- * Por que o assistente nao pode ser servido — ADR-0010.
+ * Por que o assistente nao pode ser servido — ADR-0010, FR-001b, NR-060.
  *
  * Devolve o motivo, ou `undefined` quando da para servir. Repare no que ela
  * NAO faz: derrubar o processo. Quem chama desliga so a rota do assistente.
  *
- * `AGENT_PROVIDER=fake` reconhece tres consultas da US-047 e nao fala com
- * modelo nenhum — publicar isso seria um assistente de mentira no ar, entao em
- * producao ele tambem nao serve. Mas a resposta a isso e recusar a ROTA, e nao
- * a subida: o criterio e o mesmo que `SECRETS_KEY` ja segue na emissao fiscal
- * (ver `registrarRotas`, em index.ts) — recusar subir por configuracao ausente
- * troca um recurso a menos por indisponibilidade total.
+ * O canal desta fatia e harness de engenharia: sessao da fixture, nao produto
+ * do lojista. Serve em nao-producao, ou em producao so com `AGENT_HARNESS=1`
+ * (staging). `AGENT_PROVIDER=fake` nunca e servido em producao — nem com a
+ * flag: publicar o reconhecedor de tres frases seria mentir no canal de
+ * produto.
  *
  * Recusa de boot fica para falha de SEGURANCA, onde servir seria ativamente
  * nocivo: RLS furada (vaza linha de outra loja) e `AUTH_PROVIDER=fake`
@@ -759,6 +762,14 @@ export function motivoDoAgenteIndisponivel(): string | undefined {
     return (
       'AGENT_PROVIDER=fake nao chama modelo nenhum e nao serve em producao. ' +
       'Defina AGENT_PROVIDER=mastra e OPENAI_API_KEY (ADR-0010).'
+    )
+  }
+
+  if (env.NODE_ENV === 'production' && !env.AGENT_HARNESS) {
+    return (
+      'Harness do assistente desligado em producao (FR-001b). ' +
+      'Defina AGENT_HARNESS=1 so para staging de engenharia, ' +
+      'ou aguarde o canal real (NR-113 / NR-121).'
     )
   }
 
@@ -791,10 +802,12 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
 }
 
 /**
- * Runtime do assistente — NR-060, ADR-0010.
+ * Runtime do assistente — NR-060, ADR-0010, FR-001b.
  *
- * Sem WhatsApp: o canal e o POST /agent/messages com a sessao do lojista.
- * Confirmacoes ficam em memoria ate a NR-061. Memoria da conversa e DEC-011.
+ * Canal de engenharia: `POST /agent/messages` com sessao autenticada da
+ * fixture (owner de teste criado pelo desenvolvedor). `companyId` vem do
+ * contexto da sessao, nunca do body. Producao sem `AGENT_HARNESS=1` nao
+ * monta runtime. Confirmacoes ficam em memoria ate a NR-061.
  */
 /** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
 export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
@@ -804,6 +817,8 @@ export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
   const cadastro = buildCadastroDeps()
   const contas = buildContasDeps()
   const relatorios = buildRelatoriosDeps()
+  const contabilidade = buildContabilidadeDeps()
+  const messages = createFakeMessageSender()
 
   const useCases: AgentUseCases = {
     listSales: (ctx, input) => listSales(sales, ctx, input),
@@ -824,6 +839,26 @@ export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
         limite: input.pageSize,
       }),
     revenueByMonth: (ctx, input) => buildRevenueByMonth(relatorios, ctx, input),
+    buildDre: (ctx, input) => buildDre(contabilidade, ctx, input),
+    sendCustomerCharge: (ctx, input) =>
+      sendCustomerCharge(
+        {
+          receivables: contas.receivables,
+          customers: cadastro.customers,
+          messages,
+          consents: {
+            /* Harness: o aceite real (coluna whatsapp_consent_at) entra com
+               NR-046. Sem isso no CustomerOutput, o canal de teste trata o
+               cliente identificado como opt-in. O caso de uso ainda recusa
+               quando o leitor devolve nulo — coberto no teste de core. */
+            async of() {
+              return { optedInAt: new Date('2026-01-01T00:00:00.000Z'), optedOutAt: null }
+            },
+          },
+        },
+        ctx,
+        input,
+      ),
   }
 
   const tools = createToolCatalog(useCases)
@@ -834,6 +869,12 @@ export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
       useCases,
       llm,
       timeZone: env.TZ,
+      aiUsage: new InMemoryAiUsageCounter({
+        ...(env.AGENT_MONTHLY_BUDGET_CENTS === undefined
+          ? {}
+          : { budgetCents: env.AGENT_MONTHLY_BUDGET_CENTS }),
+        timeZone: env.TZ,
+      }),
     }),
   }
 }

@@ -49,7 +49,7 @@ provedor nenhum.
 
 | Tarefa     | Dias | O que a decisão realmente segura           | O que dá para fazer **hoje**                                      | Dias livres |
 | ---------- | ---: | ------------------------------------------ | ----------------------------------------------------------------- | ----------: |
-| **NR-046** |    4 | — (DEC-003 ✅; ledger: após NR-113/120)     | consentimento, webhook; canal real depois do E11 no Studio        |           4 |
+| **NR-046** |    4 | — (DEC-003 ✅; ledger: após NR-113/120)    | consentimento, webhook; canal real depois do E11 no Studio        |           4 |
 | **NR-060** |    5 | — (não depende mais de NR-046)             | runtime + tools base; Studio (NR-121) substitui o Zap em eng.     |           5 |
 | **NR-121** |    2 | —                                          | harness Studio → `processMessage` (preset / número forjado)       |           2 |
 | **NR-061** |    2 | nada próprio — herda de NR-060/121         | a máquina de estados da confirmação e a expiração são `core` puro |           2 |

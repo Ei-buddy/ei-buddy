@@ -9,14 +9,51 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * Tratar `unknown` como `bypassed` so causa indisponibilidade.
  */
 
+const vazio = vi.hoisted(() => () => ({}))
+
 const db = vi.hoisted(() => ({
   assertRlsEnforced: vi.fn(),
   getClient: vi.fn(() => ({}) as never),
   checkConnection: vi.fn(),
   closeConnection: vi.fn(),
+  createSaleUnitOfWork: vi.fn(vazio),
+  createSaleHistoryRepository: vi.fn(vazio),
+  createCompanyRepository: vi.fn(vazio),
+  createCustomerRepository: vi.fn(vazio),
+  createProductRepository: vi.fn(vazio),
+  createChartOfAccountsRepository: vi.fn(vazio),
+  createInventoryUnitOfWork: vi.fn(vazio),
+  createAuditTrail: vi.fn(vazio),
+  createPayableUnitOfWork: vi.fn(vazio),
+  createPayableQueries: vi.fn(vazio),
+  createReceivableRepository: vi.fn(vazio),
+  createManualReceivableUnitOfWork: vi.fn(vazio),
+  createReportRepository: vi.fn(vazio),
+}))
+
+const coreConsultas = vi.hoisted(() => ({
+  listSales: vi.fn(),
+  listReceivables: vi.fn(),
+  registerSale: vi.fn(),
+  searchProducts: vi.fn(),
+  sendCustomerCharge: vi.fn(),
+  buildDre: vi.fn(),
 }))
 
 vi.mock('@na-regua/db', () => db)
+
+vi.mock('@na-regua/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@na-regua/core')>()
+  return {
+    ...actual,
+    listSales: coreConsultas.listSales,
+    listReceivables: coreConsultas.listReceivables,
+    registerSale: coreConsultas.registerSale,
+    searchProducts: coreConsultas.searchProducts,
+    sendCustomerCharge: coreConsultas.sendCustomerCharge,
+    buildDre: coreConsultas.buildDre,
+  }
+})
 
 vi.mock('ioredis', () => ({
   Redis: class {
@@ -49,9 +86,12 @@ const AMBIENTE = {
  */
 vi.setConfig({ testTimeout: 60_000 })
 
-async function carregar() {
+async function carregar(over: Record<string, string> = {}) {
   vi.resetModules()
-  for (const [chave, valor] of Object.entries(AMBIENTE)) vi.stubEnv(chave, valor)
+  vi.unstubAllEnvs()
+  for (const [chave, valor] of Object.entries({ ...AMBIENTE, ...over })) {
+    vi.stubEnv(chave, valor)
+  }
   return import('./composition.js')
 }
 
@@ -169,17 +209,17 @@ describe('assertAuthUsavelEmProducao — ADR-0002', () => {
 })
 
 /**
- * O assistente desliga a rota, nao a api — ADR-0010.
+ * O assistente desliga a rota, nao a api — ADR-0010, FR-001b.
  *
  * Servir `AGENT_PROVIDER=fake` em producao publicaria um reconhecedor de tres
- * frases no lugar do modelo, entao ele continua barrado. O que mudou e o
- * DESFECHO: antes a api recusava subir, e uma chave de IA ausente derrubava
- * venda, financeiro e estoque junto. O teste que mais importa aqui e o ultimo:
- * nenhum destes casos pode voltar a ser excecao.
+ * frases no lugar do modelo, entao ele continua barrado. Harness em producao
+ * so com `AGENT_HARNESS=1` (staging). O teste que mais importa aqui e o
+ * ultimo: nenhum destes casos pode voltar a ser excecao.
  */
-describe('motivoDoAgenteIndisponivel — ADR-0010', () => {
+describe('motivoDoAgenteIndisponivel — ADR-0010 / FR-001b', () => {
   async function comAmbiente(over: Record<string, string>) {
     vi.resetModules()
+    vi.unstubAllEnvs()
     for (const [chave, valor] of Object.entries({ ...AMBIENTE, ...over })) {
       vi.stubEnv(chave, valor)
     }
@@ -204,27 +244,51 @@ describe('motivoDoAgenteIndisponivel — ADR-0010', () => {
     expect(motivoDoAgenteIndisponivel()).toMatch(/AGENT_PROVIDER=mastra/)
   })
 
-  it('Mastra sem chave tambem nao serve — em vez de estourar na construcao', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+  it('fake em producao continua barrado mesmo com AGENT_HARNESS=1', async () => {
+    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
       NODE_ENV: 'production',
-      AGENT_PROVIDER: 'mastra',
-      OPENAI_API_KEY: '',
+      AGENT_PROVIDER: 'fake',
+      AGENT_HARNESS: '1',
     })
 
-    expect(motivoDoAgenteIndisponivel()).toMatch(/exige OPENAI_API_KEY/)
+    expect(motivoDoAgenteIndisponivel()).toMatch(/nao serve em producao/)
+    expect(await buildAgentDeps()).toBeNull()
   })
 
-  it('aceita producao com Mastra e chave', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+  it('producao sem harness nao serve o canal de produto — FR-001b', async () => {
+    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
       NODE_ENV: 'production',
       AGENT_PROVIDER: 'mastra',
       OPENAI_API_KEY: 'sk-de-teste',
     })
 
+    expect(motivoDoAgenteIndisponivel()).toMatch(/Harness do assistente desligado/)
+    expect(await buildAgentDeps()).toBeNull()
+  })
+
+  it('Mastra sem chave tambem nao serve — em vez de estourar na construcao', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+      NODE_ENV: 'production',
+      AGENT_PROVIDER: 'mastra',
+      OPENAI_API_KEY: '',
+      AGENT_HARNESS: '1',
+    })
+
+    expect(motivoDoAgenteIndisponivel()).toMatch(/exige OPENAI_API_KEY/)
+  })
+
+  it('aceita producao com harness, Mastra e chave (caminho de fixture)', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+      NODE_ENV: 'production',
+      AGENT_PROVIDER: 'mastra',
+      OPENAI_API_KEY: 'sk-de-teste',
+      AGENT_HARNESS: '1',
+    })
+
     expect(motivoDoAgenteIndisponivel()).toBeUndefined()
   })
 
-  it.each(['development', 'test'])('aceita %s com o provedor falso', async (NODE_ENV) => {
+  it.each(['development', 'test'])('aceita %s com o provedor falso sem flag', async (NODE_ENV) => {
     const { motivoDoAgenteIndisponivel } = await comAmbiente({ NODE_ENV, AGENT_PROVIDER: 'fake' })
 
     expect(motivoDoAgenteIndisponivel()).toBeUndefined()
@@ -249,5 +313,221 @@ describe('motivoDoAgenteIndisponivel — ADR-0010', () => {
 
     expect(() => motivoDoAgenteIndisponivel()).not.toThrow()
     expect(motivoDoAgenteIndisponivel()).toBeTypeOf('string')
+  })
+})
+
+describe('buildAgentDeps — US2 list_sales / list_receivables', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    coreConsultas.listSales.mockResolvedValue({
+      sales: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+      summary: {
+        salesCount: 1,
+        grossCents: 10_000,
+        netCents: 10_000,
+        cardFeeCents: 0,
+        netAfterFeesCents: 10_000,
+        averageTicketCents: 10_000,
+      },
+    })
+    coreConsultas.listReceivables.mockResolvedValue({
+      grupos: [],
+      totalCents: 0,
+      temVencidas: false,
+    })
+  })
+
+  it('tools do catalogo chamam listSales e listReceivables de core', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    const ctx = {
+      companyId: 'emp-1',
+      userId: 'user-1',
+      role: 'owner' as const,
+      channel: 'app' as const,
+      requestId: 'req-1',
+      now: new Date('2026-09-11T15:00:00.000Z'),
+    }
+
+    const vendas = deps.runtime.tools.find((t) => t.id === 'list_sales')
+    const receber = deps.runtime.tools.find((t) => t.id === 'list_receivables')
+    expect(vendas).toBeDefined()
+    expect(receber).toBeDefined()
+
+    await vendas!.execute({ from: '2026-09-11', to: '2026-09-11' }, ctx)
+    expect(coreConsultas.listSales).toHaveBeenCalledOnce()
+    expect(coreConsultas.listSales.mock.calls[0]?.[1]).toEqual(ctx)
+
+    await receber!.execute({}, ctx)
+    expect(coreConsultas.listReceivables).toHaveBeenCalledOnce()
+    expect(coreConsultas.listReceivables.mock.calls[0]?.[1]).toEqual(ctx)
+  })
+})
+
+describe('buildAgentDeps — US4 registerSale idempotencia agent:requestId', () => {
+  const ctx = {
+    companyId: 'emp-1',
+    userId: 'user-1',
+    role: 'owner' as const,
+    channel: 'app' as const,
+    requestId: 'req-venda-1',
+    now: new Date('2026-09-11T15:00:00.000Z'),
+  }
+
+  const entrada = {
+    items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
+    payments: [{ method: 'pix' as const, amountCents: 9_980 }],
+  }
+
+  const saidaVenda = {
+    sale: {
+      id: 's1',
+      number: 1042,
+      grossAmountCents: 9_980,
+      costAmountCents: 4_000,
+      taxAmountCents: 0,
+      cardFeeAmountCents: 0,
+      netAmountCents: 9_980,
+      changeCents: 0,
+      createdAt: '2026-09-11T15:00:00.000Z',
+    },
+    replayed: false,
+    stockWarnings: [],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    coreConsultas.registerSale.mockResolvedValue(saidaVenda)
+    coreConsultas.searchProducts.mockResolvedValue([])
+  })
+
+  it('injeta idempotencyKey agent:requestId quando o contexto nao trouxe chave', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    const tool = deps.runtime.tools.find((t) => t.id === 'create_sale')
+    expect(tool).toBeDefined()
+
+    await tool!.execute(entrada, ctx)
+
+    expect(coreConsultas.registerSale).toHaveBeenCalledOnce()
+    const ctxPassado = coreConsultas.registerSale.mock.calls[0]?.[1]
+    expect(ctxPassado).toMatchObject({
+      companyId: 'emp-1',
+      requestId: 'req-venda-1',
+      idempotencyKey: 'agent:req-venda-1',
+    })
+    expect(coreConsultas.registerSale.mock.calls[0]?.[2]).toEqual(entrada)
+  })
+
+  it('preserva idempotencyKey ja presente no contexto', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    const tool = deps.runtime.tools.find((t) => t.id === 'create_sale')
+    await tool!.execute(entrada, { ...ctx, idempotencyKey: 'chave-externa' })
+
+    const ctxPassado = coreConsultas.registerSale.mock.calls[0]?.[1]
+    expect(ctxPassado?.idempotencyKey).toBe('chave-externa')
+  })
+})
+
+describe('buildAgentDeps — US5 sendCustomerCharge + MessageSender fake', () => {
+  const ctx = {
+    companyId: 'emp-1',
+    userId: 'user-1',
+    role: 'owner' as const,
+    channel: 'app' as const,
+    requestId: 'req-cobranca-1',
+    now: new Date('2026-09-11T15:00:00.000Z'),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    coreConsultas.sendCustomerCharge.mockResolvedValue({
+      status: 'sent',
+      customerName: 'Joao',
+      amountCents: 5_000,
+      to: '5511988887777',
+    })
+  })
+
+  it('tool send_charge chama sendCustomerCharge de core', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    const tool = deps.runtime.tools.find((t) => t.id === 'send_charge')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+
+    const entrada = { customerId: 'cli-1' }
+    await tool!.execute(entrada, ctx)
+
+    expect(coreConsultas.sendCustomerCharge).toHaveBeenCalledOnce()
+    expect(coreConsultas.sendCustomerCharge.mock.calls[0]?.[1]).toEqual(ctx)
+    expect(coreConsultas.sendCustomerCharge.mock.calls[0]?.[2]).toEqual(entrada)
+  })
+})
+
+describe('buildAgentDeps — US6 period_summary / buildDre', () => {
+  const ctx = {
+    companyId: 'emp-1',
+    userId: 'user-1',
+    role: 'owner' as const,
+    channel: 'app' as const,
+    requestId: 'req-dre-1',
+    now: new Date('2026-09-11T15:00:00.000Z'),
+  }
+
+  const saidaDre = {
+    from: '2026-09-01',
+    to: '2026-09-30',
+    grossRevenueCents: 100_000,
+    deductionsCents: 5_000,
+    netRevenueCents: 95_000,
+    costCents: 40_000,
+    grossProfitCents: 55_000,
+    expensesCents: 20_000,
+    resultCents: 12_345,
+    grossMarginPoints: 58,
+    lines: [],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    coreConsultas.buildDre.mockResolvedValue(saidaDre)
+  })
+
+  it('tool period_summary chama buildDre de core', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    const tool = deps.runtime.tools.find((t) => t.id === 'period_summary')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(false)
+
+    const entrada = { from: '2026-09-01', to: '2026-09-30' }
+    const out = await tool!.execute(entrada, ctx)
+
+    expect(coreConsultas.buildDre).toHaveBeenCalledOnce()
+    expect(coreConsultas.buildDre.mock.calls[0]?.[1]).toEqual(ctx)
+    expect(coreConsultas.buildDre.mock.calls[0]?.[2]).toEqual(entrada)
+    expect(out).toEqual(saidaDre)
+    expect(tool!.formatReply(out)).toContain('Faturamento')
+    expect(tool!.formatReply(out)).toContain('Resultado')
   })
 })

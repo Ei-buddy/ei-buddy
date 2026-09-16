@@ -84,14 +84,14 @@ flowchart TB
 Cada um implementa uma **porta declarada por `core`** e isola um provedor
 externo. O que ainda não foi escolhido continua atrás de `DEC`.
 
-| Módulo              | Porta que implementa                                | Provedor                                                        | Decisão                                                  | Trilha | Doc                                         |
-| ------------------- | --------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | ------ | ------------------------------------------- |
+| Módulo              | Porta que implementa                                | Provedor                                                                          | Decisão                                                  | Trilha | Doc                                         |
+| ------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- | ------ | ------------------------------------------- |
 | `packages/agent`    | Runtime do assistente: tools, memória, confirmações | Mastra (`Agent`+tools) + OpenAI `gpt-4o-mini` — [contrato](integracoes/mastra.md) | [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md) | 🟠 2   | [README](../../packages/agent/README.md)    |
-| `packages/fiscal`   | `InvoiceIssuer`                                     | NFC-e / NFS-e                                                   | [DEC-004](../decisoes/README.md#dec-004)                 | 🟠 2   | [README](../../packages/fiscal/README.md)   |
-| `packages/whatsapp` | `MessageSender`                                     | Meta Cloud API ([doc](integracoes/meta-cloud-api.md))           | [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)       | 🟠 2   | [README](../../packages/whatsapp/README.md) |
-| `packages/banking`  | `BankStatementProvider`                             | Open Finance                                                    | [DEC-005](../decisoes/README.md#dec-005)                 | 🟠 2   | [README](../../packages/banking/README.md)  |
-| `packages/billing`  | `SubscriptionProvider`                              | Cobrança SaaS (Asaas `/v3/subscriptions` na conta-pai)          | [ADR-0004](../decisoes/adr/0004-asaas.md)                | 🟠 2   | [README](../../packages/billing/README.md)  |
-| `packages/payments` | `PaymentGateway`                                    | PSP — Pix, boleto, link, cartão ([Asaas](integracoes/asaas.md)) | [ADR-0004](../decisoes/adr/0004-asaas.md)                | 🟠 2   | [README](../../packages/payments/README.md) |
+| `packages/fiscal`   | `InvoiceIssuer`                                     | NFC-e / NFS-e                                                                     | [DEC-004](../decisoes/README.md#dec-004)                 | 🟠 2   | [README](../../packages/fiscal/README.md)   |
+| `packages/whatsapp` | `MessageSender`                                     | Meta Cloud API ([doc](integracoes/meta-cloud-api.md))                             | [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)       | 🟠 2   | [README](../../packages/whatsapp/README.md) |
+| `packages/banking`  | `BankStatementProvider`                             | Open Finance                                                                      | [DEC-005](../decisoes/README.md#dec-005)                 | 🟠 2   | [README](../../packages/banking/README.md)  |
+| `packages/billing`  | `SubscriptionProvider`                              | Cobrança SaaS (Asaas `/v3/subscriptions` na conta-pai)                            | [ADR-0004](../decisoes/adr/0004-asaas.md)                | 🟠 2   | [README](../../packages/billing/README.md)  |
+| `packages/payments` | `PaymentGateway`                                    | PSP — Pix, boleto, link, cartão ([Asaas](integracoes/asaas.md))                   | [ADR-0004](../decisoes/adr/0004-asaas.md)                | 🟠 2   | [README](../../packages/payments/README.md) |
 
 ### Interface
 

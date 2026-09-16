@@ -83,6 +83,19 @@ export const apiEnvSchema = baseEnvSchema.extend({
   OPENAI_API_KEY: opcionalNaoVazia,
   AGENT_MODEL: z.string().min(1).default('openai/gpt-4o-mini'),
   /**
+   * Porteiro do harness (FR-001b / NR-060).
+   *
+   * `1` libera `POST /agent/messages` quando `NODE_ENV=production` (staging
+   * com env proximo de prod). Ausente, vazio ou `0` = desligado em producao.
+   * Nao-producao nao precisa desta flag. `fake` continua barrado em producao
+   * mesmo com a flag — o canal nao e produto do lojista nesta fatia.
+   */
+  AGENT_HARNESS: z.preprocess((v) => {
+    if (v === undefined || v === '' || v === '0') return false
+    if (v === '1') return true
+    return v
+  }, z.boolean().default(false)),
+  /**
    * Ausente ou vazio = sem teto configurado. A medicao (RNF-073) entra com o
    * runtime; o numero so existe quando alguem definiu um.
    */
