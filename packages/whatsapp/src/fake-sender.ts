@@ -15,7 +15,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
  * Remetente falso — `WHATSAPP_PROVIDER=fake`.
  *
  * Responde de forma deterministica, sem rede: o sistema sobe local sem
- * credencial e o trabalho nao espera a DEC-003.
+ * credencial. Chip de verdade e `WHATSAPP_PROVIDER=meta` (ADR-0014, NR-046).
  *
  * **Implementa a mesma porta que o real, inclusive os caminhos de erro** — e no
  * WhatsApp os caminhos de erro sao a parte que mais gera bug, porque nenhum
@@ -306,8 +306,7 @@ export class FakeMessageSender {
        * (loja, cliente): no recebimento o adapter conhece o numero da loja, no
        * envio conhece a empresa, e ele nao tem como ligar os dois — esse mapa e
        * de `core` (RF-094). Indexar por cliente e o que os dois lados
-       * enxergam. O adapter real deve trocar isto pelo id de conversa do
-       * provedor, assim que a DEC-003 disser qual e o provedor.
+       * enxergam. O adapter real troca isto pelo id de conversa da Cloud API.
        */
       const ultima = this.ultimaEntrada.get(pedido.to)
       const agora = new Date(pedido.requestedAt).getTime()

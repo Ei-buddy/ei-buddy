@@ -2,7 +2,7 @@
 
 Adapter do provedor de WhatsApp.
 
-**Estado:** 🟡 porta e adapter falso prontos (`NR-045`) · 🚧 adapter real bloqueado por [DEC-003](../../docs/decisoes/README.md#dec-003) (`NR-046`)
+**Estado:** 🟡 porta e adapter falso prontos (`NR-045`) · ⬜ adapter Meta Cloud API ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md), `NR-046`)
 
 ## Responsabilidade
 
@@ -66,10 +66,9 @@ Isso volta como `outside_service_window` — uma recusa explícita, e não uma
 falha. A distinção importa porque **retentar não resolve**: sem ela, alguém
 reenfileira a mesma mensagem para sempre.
 
-O envio de mensagem de modelo **não está na porta**, e isso é deliberado: nome,
-idioma e variáveis de modelo são específicos do provedor, e inventar a
-assinatura antes da [DEC-003](../../docs/decisoes/README.md#dec-003) seria
-desenhar às cegas. Entra com `NR-046`.
+O envio de mensagem de modelo **não está na porta** ainda: nome, idioma e
+variáveis são do Graph (`type: template`). Entra com `NR-046`, no adapter,
+sem vazar o vocabulário da Meta para `core`.
 
 ## O adapter não interpreta
 
@@ -94,9 +93,9 @@ com todas as consequências, inclusive a fragilidade a SIM swap. Ver
 
 ## Modo falso
 
-`WHATSAPP_PROVIDER=fake` responde de forma determinística, sem rede. Isso permite
-que o sistema suba local sem credencial nenhuma e que o trabalho não espere a
-decisão do fornecedor.
+`WHATSAPP_PROVIDER=fake` responde de forma determinística, sem rede. O sistema
+sobe local sem credencial. Staging/produção usam `meta`
+([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)).
 
 **O adapter falso implementa a mesma porta, inclusive os caminhos de erro.**
 Falso que só devolve sucesso esconde exatamente o que precisa ser testado.
@@ -132,8 +131,7 @@ reentregar para sempre.
 > A janela de 24h do falso é indexada pelo número do **cliente**, não pelo par
 > (loja, cliente): no recebimento o adapter conhece o número da loja, no envio
 > conhece a empresa, e ele não tem como ligar os dois — esse mapa é de `core`
-> (RF-094). O adapter real deve trocar isso pelo id de conversa do provedor,
-> assim que a DEC-003 disser qual é o provedor.
+> (RF-094). O adapter real troca isso pelo id de conversa da Cloud API.
 
 ## Testes
 

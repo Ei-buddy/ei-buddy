@@ -6,8 +6,8 @@ Runtime do assistente: tools, memória e confirmações.
 (Mastra + `openai/gpt-4o-mini`) · identidade do canal
 [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)
 (`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
-com `AGENT_PROVIDER=fake` · webhook de provedor ainda espera
-[DEC-003](../../docs/decisoes/README.md#dec-003) / `NR-046` · confirmação
+com `AGENT_PROVIDER=fake` · webhook Meta é `NR-046`
+([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
 persistente é `NR-061` (hoje in-memory) · memória da conversa ainda é
 [DEC-011](../../docs/decisoes/README.md#dec-011) (`NR-062`)
 

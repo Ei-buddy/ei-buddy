@@ -148,8 +148,9 @@ cadastro **para** cobrar e enviar comprovante direto da conversa.
 - **DADO** um cliente sem consentimento registrado **QUANDO** tento enviar mensagem **ENTÃO** sou informado de que preciso do aceite dele primeiro
 - **DADO** que o cliente pede para não receber mais **QUANDO** ele responde o opt-out **ENTÃO** o sistema para de enviar e registra a data
 
-> Depende de [DEC-003](../decisoes/README.md#dec-003) (provedor de WhatsApp) e
-> [DEC-008](../decisoes/README.md#dec-008) (vínculo telefone ↔ identidade).
+> Envio no chip é a [NR-046](../processo/task-ledger.md)
+> ([ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)). Vínculo telefone ↔
+> identidade: [DEC-008](../decisoes/README.md#dec-008) / ADR-0002.
 
 ---
 
@@ -556,9 +557,11 @@ compromisso.
 > A tese central do produto. O runtime fechou
 > ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)). A identidade do
 > canal fechou ([DEC-023](../decisoes/README.md#dec-023) /
-> [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)). Ainda
-> dependem de [DEC-003](../decisoes/README.md#dec-003) (provedor) e
-> [DEC-011](../decisoes/README.md#dec-011) (memória).
+> [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)). O provedor
+> fechou ([DEC-003](../decisoes/README.md#dec-003) /
+> [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)): Meta Cloud API; o
+> adapter real é a NR-046. Ainda depende de [DEC-011](../decisoes/README.md#dec-011)
+> (memória).
 >
 > O agente **não** reimplementa regra: cada tool chama o mesmo caso de uso do
 > app. Nota fiscal não é comando — entra como efeito da venda ou do

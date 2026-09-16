@@ -44,11 +44,11 @@ flowchart TB
 ```
 
 **Seis integrações externas, cada uma atrás de um adapter.** Fiscal (Focus NFe),
-PSP/mensalidade (Asaas) e LLM (Mastra + `gpt-4o-mini`,
-[ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)) já fecharam. WhatsApp
-([DEC-003](../decisoes/README.md#dec-003)) e Open Finance
-([DEC-005](../decisoes/README.md#dec-005)) continuam abertos. O trabalho de
-`core` e `domain` não espera essas decisões.
+PSP/mensalidade (Asaas), LLM (Mastra + `gpt-4o-mini`,
+[ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)) e WhatsApp
+([ADR-0014](../decisoes/adr/0014-meta-cloud-api.md), Meta Cloud API) já
+fecharam. Open Finance ([DEC-005](../decisoes/README.md#dec-005)) continua
+aberto. O trabalho de `core` e `domain` não espera essa decisão.
 
 ## Nível 2 — Containers
 
@@ -162,6 +162,8 @@ validações e a auditoria.
 | Isolamento             | RLS no PostgreSQL          | Isolamento que não depende de o desenvolvedor lembrar do `WHERE` — [ADR-0001](../decisoes/adr/0001-rls-por-linha.md) |
 | Validação              | Zod em `contracts`         | O mesmo schema serve a HTTP, tipos e tools do agente                                                                 |
 | Runtime do agente      | Mastra + `gpt-4o-mini`     | Tools em Zod, modelo trocável por config — [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)                  |
+| WhatsApp               | Meta Cloud API             | Um WABA da plataforma — [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)                                           |
+| Hospedagem             | VPS + Docker Compose       | A VM que já roda — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                                            |
 
 ## Decisões estruturais ainda em aberto
 
@@ -169,8 +171,8 @@ Estas **não** estão decididas e não devem ser assumidas em código:
 
 | Tema                | Decisão                                  | Impacto se decidida errado                        |
 | ------------------- | ---------------------------------------- | ------------------------------------------------- |
-| Hospedagem e deploy | [DEC-009](../decisoes/README.md#dec-009) | Define `infra/` e os workflows de deploy          |
 | Memória da conversa | [DEC-011](../decisoes/README.md#dec-011) | O que o assistente lembra, por quanto tempo, onde |
+| Open Finance        | [DEC-005](../decisoes/README.md#dec-005) | Extrato ao vivo vs. só OFX/CSV no MVP             |
 
 ## Documentos relacionados
 

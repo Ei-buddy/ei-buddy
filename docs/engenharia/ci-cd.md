@@ -11,8 +11,8 @@ Os pipelines do GitHub Actions, o que cada um barra, e o que ainda não existe.
 | [`ci.yml`](../../.github/workflows/ci.yml)                     | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                        | ✅                   |
 | [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)       | PR aberto ou editado | título, nome da branch, referência à tarefa                                                               | ✅                   |
 | [`security.yml`](../../.github/workflows/security.yml)         | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                | ✅ (severidade alta) |
-| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | tag / manual         | **esqueleto** — [DEC-009](../decisoes/README.md#dec-009)                                                  | —                    |
-| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | tag / manual         | **esqueleto** — [DEC-009](../decisoes/README.md#dec-009)                                                  | —                    |
+| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | tag / manual         | **esqueleto** — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                        | —                    |
+| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | tag / manual         | **esqueleto** — NR-015, mesmo compose da VM                                                               | —                    |
 | [`mobile-build.yml`](../../.github/workflows/mobile-build.yml) | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)) | —                    |
 
 ## `ci.yml` — a verificação principal
@@ -131,22 +131,22 @@ E em _Settings → General → Pull Requests_:
 O `default message: pull request title` é o que faz o título do PR virar a
 mensagem do commit — e é por isso que `pr-checks.yml` valida o título.
 
-## Deploy — ainda não existe
+## Deploy — esqueleto até a NR-015
 
-Os três workflows de deploy são **esqueleto que falha de propósito**, com uma
-mensagem dizendo o que falta.
+Os workflows de deploy ainda **falham de propósito**, com uma mensagem do que
+falta. A [DEC-009](../decisoes/README.md#dec-009) fechou
+([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)): o alvo é a VPS com
+`infra/docker-compose.prod.yml`. Preencher os passos é a NR-015.
 
-Isso é deliberado. A alternativa era deixar o repositório sem nenhum caminho de
-deploy desenhado até [DEC-009](../decisoes/README.md#dec-009) fechar — pior,
-porque a decisão seria tomada às pressas, no dia em que precisasse subir.
+`deploy-api.yml` (e o compose na VM) precisa:
 
-Quando DEC-009 fechar, `deploy-api.yml` precisa fazer:
-
-1. Build da imagem Docker de `apps/api`
-2. Push para o registry
+1. SSH na VPS (ou runner na própria máquina)
+2. `docker compose -f infra/docker-compose.prod.yml build` no commit da tag
 3. Migrations com `DATABASE_MIGRATION_URL` (papel com `BYPASSRLS`)
-4. Deploy com verificação de `/health`
-5. **Reversão automática** se `/health` não passar em 2 minutos ([RNF-064](../produto/requisitos-nao-funcionais.md))
+4. `up -d` com verificação de `/health`
+5. **Reversão** para a imagem/commit anterior se `/health` não passar em 2 minutos ([RNF-064](../produto/requisitos-nao-funcionais.md))
+
+Não há registry obrigatório neste recorte — o build é na VM.
 
 E os requisitos que o deploy precisa atender:
 
@@ -163,7 +163,7 @@ E os requisitos que o deploy precisa atender:
 | --------------------- | ---------------- | ------------------------------------------- |
 | `GITHUB_TOKEN`        | gitleaks, CodeQL | automático                                  |
 | `EXPO_TOKEN`          | build mobile     | ⏳ falta conta EAS                          |
-| credenciais de deploy | deploy           | ⏳ [DEC-009](../decisoes/README.md#dec-009) |
+| credenciais de deploy | deploy           | ⏳ NR-015 (SSH / acesso à VPS)              |
 
 Segredos de produção ficam em _Environments_ com **aprovação obrigatória**, não
 em _Repository secrets_: assim um workflow de PR de fork não os alcança.
@@ -189,7 +189,7 @@ despercebida junto com o resto.
 | Changelog         | ✅ `pnpm changelog` — gerado dos commits ([git-workflow](git-workflow.md#como-cortar-um-release)) |
 | `CODEOWNERS`      | 🟡 escrito com placeholders `@TRILHA-1/2/3` — **trocar pelos usuários reais**                     |
 | Branch protection | 🔴 manual, ainda não configurada                                                                  |
-| Deploy            | 🔴 esqueleto — [DEC-009](../decisoes/README.md#dec-009)                                           |
+| Deploy            | 🔴 esqueleto — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                 |
 | Build mobile      | 🔴 esqueleto — falta conta EAS                                                                    |
 
 ## Documentos relacionados

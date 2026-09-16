@@ -18,7 +18,7 @@ evento, fila e chave de tradução.
 | PT-BR       | Identificador    | Observações                                                                                      |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------ |
 | EiBuddy     | — (marca)        | Nome comercial ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)). Grafia: uma palavra |
-| Site        | `eibuddy.com.br` | Domínio público. DNS e TLS esperam a [DEC-009](../decisoes/README.md#dec-009)                    |
+| Site        | `eibuddy.com.br` | Domínio público. DNS e TLS na VPS ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)) |
 | Repositório | `na-regua`       | Não muda com a marca                                                                             |
 | Pacote npm  | `@na-regua/*`    | Atrelado ao repositório, de propósito                                                            |
 

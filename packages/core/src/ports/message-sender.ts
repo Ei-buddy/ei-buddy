@@ -27,9 +27,8 @@ import type {
  * Enviar para muitos e enfileirar muitos envios — e a fila tem limite de taxa.
  *
  * **Nao tem envio de mensagem de modelo.** Fora da janela de 24 horas so sai
- * modelo aprovado, e nome, idioma e variaveis de modelo sao especificos do
- * provedor. Inventar essa assinatura antes da DEC-003 seria desenhar as cegas;
- * ela entra com a NR-046. Por ora, `outside_service_window` volta como recusa
+ * modelo aprovado. O vocabulário Graph (`type: template`) entra no adapter da
+ * NR-046, não em `core`. Por ora, `outside_service_window` volta como recusa
  * explicita, para `core` saber que precisa de modelo em vez de retentar.
  */
 export type MessageSender = {

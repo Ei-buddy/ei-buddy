@@ -43,7 +43,7 @@ abrir a subconta.
 ### O que é o campo `whatsapp_linked_at`?
 
 Data/hora em que a **empresa** vinculou o WhatsApp Cloud API
-([DEC-003](../../decisoes/README.md#dec-003)). Nulo = assistente e
+([ADR-0014](../../decisoes/adr/0014-meta-cloud-api.md)). Nulo = assistente e
 cobrança por WhatsApp ainda não têm canal da loja.
 
 Não acho extremamente necessário, mas seria bom para termos o controle de quem já está com o WhatsApp "ativado", ou seja, que já enviou pelo menos uma mensagem ao agente.

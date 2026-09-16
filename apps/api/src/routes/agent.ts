@@ -10,7 +10,7 @@ import { validate } from '../plugins/validate.js'
  *
  * A mesma `processMessage` do webhook futuro. Aqui o contexto vem da sessao
  * (`channel: 'app'`), nao do numero. E o que permite testar o runtime com o
- * lojista logado enquanto a DEC-003 nao fecha.
+ * lojista logado enquanto o webhook Meta (NR-046) nao existe.
  */
 
 export type AgentRouteDeps = {

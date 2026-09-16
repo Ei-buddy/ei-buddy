@@ -1,10 +1,9 @@
 # infra
 
-Ambiente local em Docker Compose, e — quando
-[DEC-009](../docs/decisoes/README.md#dec-009) fechar — a infraestrutura de
-staging e produção.
+Ambiente local em Docker Compose, e produção na VPS
+([ADR-0015](../docs/decisoes/adr/0015-vps-docker-compose.md)).
 
-**Estado:** ✅ ambiente local funcionando · 🚧 produção bloqueada por DEC-009 · `NR-015`
+**Estado:** ✅ ambiente local · ⬜ produção na VM, NR-015 (workflows, backup, PITR)
 
 ## Ambiente local
 
@@ -93,28 +92,27 @@ O script **recusa** se já houver Super Admin: a partir do segundo, use a tela
 `/admin`, que registra quem concedeu. Ele também não cria conta — promove uma
 que já existe.
 
-## Produção — ainda não existe
+## Produção — VPS + Compose
 
-Bloqueado por [DEC-009](../docs/decisoes/README.md#dec-009). **Este
-`docker-compose.yml` não é para produção** — não tem TLS, nem backup, nem
-segredo gerenciado, nem limite de recurso.
+Alvo: [ADR-0015](../docs/decisoes/adr/0015-vps-docker-compose.md).
+**Este `docker-compose.yml` não é para produção** — use
+[`docker-compose.prod.yml`](docker-compose.prod.yml) (Caddy, sem porta pública
+em Postgres/Redis).
 
-Quando a decisão fechar, o que a infraestrutura precisa atender:
+O que a NR-015 ainda precisa atender na VM:
 
 | Requisito                                               | O que exige                                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------------- |
 | [RNF-009](../docs/produto/requisitos-nao-funcionais.md) | disponibilidade ≥ 99,5%                                             |
-| [RNF-013](../docs/produto/requisitos-nao-funcionais.md) | RPO ≤ 15 min, RTO ≤ 4 h — Postgres com recuperação a ponto no tempo |
+| [RNF-013](../docs/produto/requisitos-nao-funcionais.md) | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho      |
 | [RNF-014](../docs/produto/requisitos-nao-funcionais.md) | backup diário, **com restauração testada mensalmente**              |
-| [RNF-020](../docs/produto/requisitos-nao-funcionais.md) | TLS 1.2+; banco e Redis sem exposição pública                       |
+| [RNF-020](../docs/produto/requisitos-nao-funcionais.md) | TLS 1.2+ (Caddy); banco e Redis sem exposição pública               |
 | [RNF-037](../docs/produto/requisitos-nao-funcionais.md) | object storage com retenção de 5 anos para XML fiscal               |
 | [RNF-064](../docs/produto/requisitos-nao-funcionais.md) | deploy rastreável ao commit e reversível em ≤ 10 min                |
 | [RNF-074](../docs/produto/requisitos-nao-funcionais.md) | custo ≤ 8% da mensalidade por empresa ativa                         |
 
-**Recomendação:** PaaS com Postgres gerenciado. Três desenvolvedores sem SRE não
-devem operar Kubernetes — o custo aparece em indisponibilidade, não na fatura.
-
-Backup não testado não é backup: o teste mensal é requisito, não boa prática.
+PaaS com Postgres gerenciado foi abdicado neste recorte. Backup não testado
+não é backup: o teste mensal é requisito, não boa prática.
 
 ## Documentos relacionados
 

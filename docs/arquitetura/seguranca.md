@@ -157,7 +157,7 @@ recurso existe.
 | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Nenhum segredo em código, `.env` versionado ou log        | Varredura bloqueante na CI ([RNF-022](../produto/requisitos-nao-funcionais.md)) |
 | `.env.example` só com nomes e valores falsos              | Revisão de PR                                                                   |
-| Segredos em gerenciador dedicado, por ambiente            | [DEC-009](../decisoes/README.md#dec-009)                                        |
+| Segredos em `.env.production` na VM, fora do git          | [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                          |
 | Rotação documentada, com prazo                            | [`ambientes.md`](../engenharia/ambientes.md)                                    |
 | Desenvolvedor nunca usa credencial de produção            | [RNF-070](../produto/requisitos-nao-funcionais.md)                              |
 | Vazamento suspeito → rotação imediata, sem análise prévia | Procedimento de incidente                                                       |
@@ -295,9 +295,9 @@ seria um ponto de exfiltração por funcionário. E ninguém pelo WhatsApp
 | Análise de causa raiz, sem busca de culpado         | ≤ 7 dias                                                                  |
 | Correção e verificação                              | Rastreada como tarefa no ledger                                           |
 
-O procedimento operacional detalhado depende da hospedagem
-([DEC-009](../decisoes/README.md#dec-009)) e será escrito quando ela for
-definida.
+O procedimento operacional detalhado segue a VPS
+([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)) e entra na NR-015
+(backup, acesso SSH, restore).
 
 ## Documentos relacionados
 

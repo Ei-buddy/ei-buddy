@@ -59,8 +59,8 @@ import { registerSaleRoutes } from '../routes/sales.js'
  * ## O que ele ainda NAO cobre, e por que
  *
  * O fluxo 3 do `docs/engenharia/testes.md` — cobranca no WhatsApp, link de
- * pagamento, baixa por webhook — nao tem NENHUMA rota na api (DEC-003,
- * DEC-006). E o navegador continua de fora: as listas de produto e de cliente
+ * pagamento, baixa por webhook — nao tem NENHUMA rota na api (NR-046,
+ * NR-044). E o navegador continua de fora: as listas de produto e de cliente
  * do web ainda leem `lib/mock-data`, entao um Playwright sobre elas
  * exercitaria mock. Suite verde que prova nada e pior que suite nenhuma.
  */

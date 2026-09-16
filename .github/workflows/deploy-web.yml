@@ -2,10 +2,8 @@ name: Deploy — web
 
 # ESQUELETO. Nao faz deploy de nada ainda.
 #
-# O alvo de hospedagem e DEC-009 (docs/decisoes/README.md#dec-009) e ainda
-# esta em aberto. Este arquivo existe desabilitado de proposito: a alternativa
-# era deixar o repositorio sem nenhum caminho de deploy desenhado, o que e pior
-# — quando a decisao fechar, preenche-se os passos marcados.
+# Alvo: VPS + Compose (ADR-0015 / DEC-009). Preencher os passos e a NR-015.
+# Web sobe no mesmo compose da api — nao ha registry separado neste recorte.
 
 on:
   workflow_dispatch:
@@ -30,13 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Bloqueado por DEC-009
+      - name: Bloqueado ate a NR-015
         run: |
-          echo "::warning::Deploy nao configurado — DEC-009 (hospedagem) em aberto."
-          echo "Quando a decisao fechar, implementar aqui:"
-          echo "  1. build de apps/web"
-          echo "  2. publicar no alvo escolhido"
-          echo "  3. configurar variaveis de ambiente"
-          echo "  4. apontar o dominio"
-          echo "  5. reversao automatica se /health nao passar em 2 min (RNF-064)"
+          echo "::warning::Deploy nao configurado — NR-015 (VPS + Compose, ADR-0015)."
+          echo "Web sobe no mesmo compose da api."
           exit 1

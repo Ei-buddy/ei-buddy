@@ -444,9 +444,10 @@ Decisões que travam implementação de provedor (portas e testes com dublê pod
 
 | Decisão | Impacto na spec                                  |
 | ------- | ------------------------------------------------ |
-| DEC-003 | Canal WhatsApp (RF-015, 016, 048, 068, 094, 095) |
+| DEC-003 | Canal WhatsApp ✅ Meta Cloud API ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)); adapter NR-046 |
 | DEC-004 | Provedor fiscal (RF-045–054)                     |
 | DEC-005 | Open Finance (RF-074, 075) — SHOULD              |
+| DEC-009 | Hospedagem ✅ VPS + Compose ([ADR-0015](../../docs/decisoes/adr/0015-vps-docker-compose.md)); workflows NR-015 |
 | DEC-011 | Memória do assistente (RF-105, 106)              |
 | DEC-012 | Cupons (RF-114, 115) — SHOULD                    |
 | QST-002 | Preço, trial e limites comerciais                |

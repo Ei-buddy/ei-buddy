@@ -2,10 +2,7 @@ name: Deploy — api
 
 # ESQUELETO. Nao faz deploy de nada ainda.
 #
-# O alvo de hospedagem e DEC-009 (docs/decisoes/README.md#dec-009) e ainda
-# esta em aberto. Este arquivo existe desabilitado de proposito: a alternativa
-# era deixar o repositorio sem nenhum caminho de deploy desenhado, o que e pior
-# — quando a decisao fechar, preenche-se os passos marcados.
+# Alvo: VPS + Compose (ADR-0015 / DEC-009). Preencher os passos e a NR-015.
 
 on:
   workflow_dispatch:
@@ -30,13 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Bloqueado por DEC-009
+      - name: Bloqueado ate a NR-015
         run: |
-          echo "::warning::Deploy nao configurado — DEC-009 (hospedagem) em aberto."
-          echo "Quando a decisao fechar, implementar aqui:"
-          echo "  1. build da imagem Docker de apps/api"
-          echo "  2. push para o registry"
-          echo "  3. rodar migrations com DATABASE_MIGRATION_URL"
-          echo "  4. deploy com health check em /health"
-          echo "  5. reversao automatica se /health nao passar em 2 min (RNF-064)"
+          echo "::warning::Deploy nao configurado — NR-015 (VPS + Compose, ADR-0015)."
+          echo "Quando a tarefa fechar, implementar aqui:"
+          echo "  1. SSH na VPS (ou runner na maquina)"
+          echo "  2. docker compose -f infra/docker-compose.prod.yml build no commit da tag"
+          echo "  3. migrations com DATABASE_MIGRATION_URL"
+          echo "  4. up -d com health check em /health"
+          echo "  5. reversao se /health nao passar em 2 min (RNF-064)"
           exit 1

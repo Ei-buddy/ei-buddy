@@ -1,5 +1,12 @@
 # Destravar os bloqueios
 
+> **Atualização 2026-09-15.** [DEC-003](../decisoes/README.md#dec-003) e
+> [DEC-009](../decisoes/README.md#dec-009) fecharam
+> ([ADR-0014](../decisoes/adr/0014-meta-cloud-api.md),
+> [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)). O quadro vivo é o
+> [`task-ledger.md`](task-ledger.md). O texto abaixo descreve o *padrão* (porta
+> antes do adapter) e números de uma foto antiga.
+
 > **Pergunta que este documento responde:** o painel diz que os 35
 > dias-desenvolvedor restantes estão _todos_ bloqueados, 33 por decisão e 2 por
 > dependência. Isso significa que não dá para escrever mais nenhuma linha até

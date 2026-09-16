@@ -52,9 +52,9 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 | ----------------------------- | ------: | ---: |
 | Total                         |      98 |  246 |
 | ✅ Concluídas                 |      82 |  199 |
-| 🚧 Bloqueadas por decisão     |       6 |   20 |
-| 🚧 Bloqueadas por dependência |       7 |   16 |
-| ⬜ A fazer, pode começar hoje |       3 |   11 |
+| 🚧 Bloqueadas por decisão     |       3 |   10 |
+| 🚧 Bloqueadas por dependência |       0 |    0 |
+| ⬜ A fazer, pode começar hoje |      13 |   37 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -79,10 +79,10 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **47 dias que faltam, 11 podem começar hoje**: NR-044, NR-063 e NR-113. A fila
-NR-088–098 (catálogo 0909) está ✅. Sobram 36 dias atrás de decisão (20) ou de
-dependência (16) — a cascata da DEC-003 agora inclui as tools do E11
-(NR-115–119).
+Dos **47 dias que faltam, 37 podem começar hoje** — inclusive NR-015 (deploy na
+VM), NR-046 (adapter Meta) e a cascata do agente (NR-060, 061, 115–119).
+Sobram 10 dias atrás de decisão: Open Finance (DEC-005), memória da conversa
+(DEC-011) e a NR-075 ainda marcada na DEC-012 (já fechada na ADR-0013).
 
 ---
 
@@ -111,7 +111,7 @@ Objetivo: as três trilhas conseguem trabalhar em paralelo sem esperar uma à ou
 | NR-012 | `mobile`: shell de navegação e sessão                                           |   🟢   | `mobile`          |   3 | NR-011 | DEC-008             | US-059                  |   ✅   |
 | NR-013 | `web`: shell de layout e sessão                                                 |   🟢   | `web`             |   2 | NR-011 | —                   | US-059                  |   ✅   |
 | NR-014 | Autenticação: login, papéis, usuário em várias empresas                         |   🟠   | `api` `core` `db` |   5 | NR-009 | —                   | RF-119, RF-120          |   ✅   |
-| NR-015 | `infra`: definir hospedagem e preencher os workflows de deploy                  |   🟠   | `infra`           |   3 | —      | **DEC-009**         | RNF-064, RNF-013        |   🚧   |
+| NR-015 | `infra`: definir hospedagem e preencher os workflows de deploy                  |   🟠   | `infra`           |   3 | —      | —                   | RNF-064, RNF-013        |   ⬜   |
 
 ## Sprint 2 — Cadastros e venda
 
@@ -157,16 +157,16 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
 | NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
 | NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter real, webhook e consentimento                       |   🟠   | `whatsapp`                 |   4 | NR-045         | **DEC-003**      | RF-016                 |   🚧   |
+| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045         | —                | RF-016, ADR-0014       |   ⬜   |
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | US-046, RF-094, RF-095, RF-132 |   ⬜   |
-| NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005 | NR-046 → DEC-003 | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   🚧   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | US-050, RF-103, RF-104     |   🚧   |
+| NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005 | —                | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ⬜   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060         | —                | US-050, RF-103, RF-104     |   ⬜   |
 | NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | US-051, RF-105, RF-106     |   🚧   |
-| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060         | NR-060 → DEC-003 | US-065–067, RF-133–135     |   🚧   |
-| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061 | NR-060 → DEC-003 | US-068, RF-137–139         |   🚧   |
-| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061 | NR-060 → DEC-003 | US-069–071, RF-140–142     |   🚧   |
-| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-042 | NR-060 → DEC-003 | US-072–075, RF-143–145, RF-147 |   🚧   |
-| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-034 | NR-060 → DEC-003 | US-076, RF-148             |   🚧   |
+| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060         | —                | US-065–067, RF-133–135     |   ⬜   |
+| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061 | —                | US-068, RF-137–139         |   ⬜   |
+| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061 | —                | US-069–071, RF-140–142     |   ⬜   |
+| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-042 | —          | US-072–075, RF-143–145, RF-147 |   ⬜   |
+| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-034 | —                | US-076, RF-148             |   ⬜   |
 | NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —              | —                | RF-114, RF-115         |   ✅   |
 | NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
@@ -191,7 +191,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-035 | `db`: schema de agenda (`appointments`)                         |   🔵   | `db`                    |   1 | NR-008 | —           | RF-089, RF-090         |   ✅   |
 | NR-036 | `api`: rotas de agenda                                          |   🟠   | `api`                   |   1 | NR-035 | —           | RF-089–093             |   ✅   |
 | NR-037 | `db`: repositórios da venda e trilha de estoque                 |   🔵   | `db`                    |   2 | NR-020 | —           | RF-024, RNF-046        |   ✅   |
-| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | **DEC-003** | RNF-068                |   🚧   |
+| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | —           | RNF-068                |   ⬜   |
 | NR-078 | `mobile`: agenda                                                |   🟢   | `mobile`                |   2 | NR-036 | —           | US-043–045             |   ✅   |
 | NR-079 | `web`: conteúdo real da landing                                 |   🟢   | `web`                   |   1 | —      | —           | —                      |   ✅   |
 | NR-080 | Suporte: schema, casos de uso, rotas e web                      |   🔵   | `db` `core` `api` `web` |   3 | NR-008 | —           | US-062                 |   ✅   |
@@ -298,49 +298,50 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 
 | Decisão                                                                                  | Diretas                | Em cascata | Dias parados |
 | ---------------------------------------------------------------------------------------- | ---------------------- | ---------: | -----------: |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 via DEC-003) |          — |            0 |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ⬜)          |          — |            0 |
 | [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅)          |          — |            0 |
-| [DEC-003](../decisoes/README.md#dec-003) WhatsApp                                        | NR-046                 |          7 |           20 |
+| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜)          |          — |            0 |
 | [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜)          |          — |            0 |
 | [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜)          |          — |            0 |
 | [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048                 |          — |            4 |
-| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E                                  | NR-049                 |          — |            3 |
-| [DEC-009](../decisoes/README.md#dec-009) hospedagem                                      | NR-015                 |          — |            3 |
+| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜)          |          — |            0 |
+| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜)          |          — |            0 |
 | [DEC-011](../decisoes/README.md#dec-011) contexto da conversa                            | NR-062                 |          — |            3 |
 | [DEC-012](../decisoes/README.md#dec-012) usuário e cupons                                | NR-075                 |          — |            3 |
 | [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅)          |          — |            0 |
 
-> **Bloqueio de tarefa não é bloqueio de trabalho.** Quebrando as tarefas na
-> costura da porta — como a NR-042 fez de fato com a DEC-004 — cerca de 19 dos
-> 36 dias voltam ao quadro sem decidir nada. Ver
+> **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003 e DEC-009
+> fecharam. O que ainda está 🚧 por decisão é Open Finance, memória da conversa
+> e a NR-075 (DEC-012 já ADR). Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 47 dias-desenvolvedor que restam, 11 estão liberados** — NR-044, NR-063 e
-NR-113.
-Os outros 36 continuam atrás de decisão (20) ou de dependência (16).
+**Dos 47 dias-desenvolvedor que restam, 37 estão liberados.**
+Os outros 10 continuam atrás de decisão (DEC-005, DEC-011, e NR-075 na DEC-012).
 
-A de maior alcance que ainda trava o assistente é a
-[DEC-003](../decisoes/README.md#dec-003) (WhatsApp + runtime do agente em
-cascata + fluxo 3 do E2E): a [DEC-007](../decisoes/README.md#dec-007) fechou
-pela [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md) (Mastra +
-`gpt-4o-mini`). O cérebro tem runtime; o canal não.
+A de maior alcance que ainda trava o **recorte** do assistente é a
+[DEC-011](../decisoes/README.md#dec-011) (memória): a
+[DEC-003](../decisoes/README.md#dec-003) fechou pela
+[ADR-0014](../decisoes/adr/0014-meta-cloud-api.md) (Meta Cloud API) e a
+[DEC-007](../decisoes/README.md#dec-007) pela
+[ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md). Canal e cérebro
+têm provedor; o que a conversa lembra não.
 
 Cada tarefa é contada **uma vez**, na decisão que aparece na sua própria coluna
 `Bloq`. Uma tarefa pode estar atrás de mais de uma: NR-075 espera a DEC-012 e,
 via NR-063, o adapter de cobrança — somar as duas contaria o mesmo dia duas vezes.
 
-**Nenhuma decisão restante domina como a DEC-002 dominava.** A maior é a
-[DEC-003](../decisoes/README.md#dec-003). O bloqueio continua
-espalhado — o que antes permitia tocar código enquanto se decidia, e agora
-significa apenas que nenhuma decisão isolada resolve o impasse.
+**Nenhuma decisão restante domina como a DEC-002 dominava, nem como a DEC-003
+dominava.** A [DEC-009](../decisoes/README.md#dec-009) fechou pela
+[ADR-0015](../decisoes/adr/0015-vps-docker-compose.md) (VPS + Compose).
+O bloqueio que sobra está espalhado.
 
 A [DEC-008](../decisoes/README.md#dec-008) fechou pela
 [ADR-0002](../decisoes/adr/0002-autenticacao-identidade-propria.md) e devolveu
 6 dias — `NR-013` e `NR-014`. Vale registrar como ela fechou, porque o padrão
 serve para as que faltam: a decisão travada era **qual provedor**, e o que
 travava o código era **quem é dono do papel e da sessão**. Separadas, a segunda
-foi decidida na hora e a primeira virou escolha de configuração que espera a
-[DEC-009](../decisoes/README.md#dec-009) sem parar nada.
+foi decidida na hora e a primeira virou escolha de configuração. A hospedagem
+já não espera ninguém.
 
 A [DEC-001](../decisoes/README.md#dec-001) fechou pela
 [ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md): produto **EiBuddy**,

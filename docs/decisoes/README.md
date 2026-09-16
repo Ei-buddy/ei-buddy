@@ -44,31 +44,29 @@ PR**, e a linha sai da tabela de abertas.
 
 | Estado             | Qtd | Quais                                                               |
 | ------------------ | --: | ------------------------------------------------------------------- |
-| 🔴 Aberta          |   7 | DEC-003, 005, 009, 011, 013, 016, 018                               |
+| 🔴 Aberta          |   5 | DEC-005, 011, 013, 016, 018                                         |
 | 🟡 Em análise      |   0 | —                                                                   |
 | ⚪ Adiada          |   1 | DEC-014                                                             |
-| 🟢 Decidida        |  13 | DEC-001, 002, 006, 007, 008, 010, 012, 015, 019, 020, 021, 022, 023 |
+| 🟢 Decidida        |  16 | DEC-001–004, 006–010, 012, 015, 019–023                             |
 | ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                          |
 
-**Bloqueando o MVP agora:** DEC-003, DEC-009.
-Essas duas travam trabalho de implementação já na Sprint 1. A DEC-016 não trava
-código, mas trava **operação comercial**: os documentos existem e têm lacunas
-declaradas na própria página.
+**Bloqueando o MVP agora:** [DEC-011](#dec-011) (memória da conversa).
+A DEC-003 fechou — [ADR-0014](adr/0014-meta-cloud-api.md): Meta Cloud API.
+A DEC-009 fechou — [ADR-0015](adr/0015-vps-docker-compose.md): VPS + Compose.
+A DEC-016 não trava código, mas trava **operação comercial**: os documentos
+existem e têm lacunas declaradas na própria página.
 
 A DEC-001 fechou — [ADR-0011](adr/0011-eibuddy-nome-e-dominio.md): o produto
 é **EiBuddy**, domínio **eibuddy.com.br**; pacotes continuam `@na-regua/*`.
 A DEC-007 fechou — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md): Mastra como
 runtime, `gpt-4o-mini` no começo. A identidade do canal fechou —
 [DEC-023](#dec-023) / [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md).
-O adapter real ainda espera o WhatsApp ([DEC-003](#dec-003)) e a memória da
-conversa continua [DEC-011](#dec-011).
+O adapter real do WhatsApp é a [NR-046](../processo/task-ledger.md) (já ⬜).
+A memória da conversa continua [DEC-011](#dec-011).
 A DEC-008 fechou — [ADR-0002](adr/0002-autenticacao-identidade-propria.md) e
 [ADR-0003](adr/0003-better-auth-como-prova-de-identidade.md).
-A DEC-009 continua aberta, e **a autenticação deixou de esperar por ela**: a
-ADR-0003 escolheu o Better Auth (opção D) antes de a hospedagem fechar, porque
-o provedor era o último item de desenvolvimento no caminho de produção. Se a
-DEC-009 cair em plataforma onde processo próprio seja inviável, trocar para a
-opção C é trocar uma função de composição.
+A hospedagem é a VM que já roda: Better Auth auto-hospedado permanece; a
+NR-015 preenche backup, PITR e os workflows de deploy.
 
 ---
 
@@ -76,29 +74,23 @@ opção C é trocar uma função de composição.
 
 ### DEC-003 — Provedor de WhatsApp
 
-|              |                                                                                                                                                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🔴 Aberta                                                                                                                                                                                   |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                                         |
-| **Prazo**    | **Sprint 2**                                                                                                                                                                                |
-| **Bloqueia** | adapter real (`NR-046`) · [RF-015](../produto/requisitos-funcionais.md), RF-016, RF-048, RF-068 · envio e webhook de provedor do [E11](../produto/user-stories.md#e11--assistente-whatsapp) |
+|              |                                                                                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                                                                         |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                              |
+| **Prazo**    | **Sprint 2**                                                                                                                                                     |
+| **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011).                                                       |
 
-A identidade do canal **não** espera esta DEC — [DEC-023](#dec-023). RF-094 e
-RF-095 passam a ser resolvidos em `users.phone` + `processMessage`, com
-`WHATSAPP_PROVIDER=fake`.
+**Decisão (2026-09-15): Meta Cloud API.**
 
-**Opções:** Meta Cloud API direto · BSP (Twilio, Z-API, 360dialog, Gupshup) ·
-biblioteca não oficial.
+Um WABA da plataforma, um número de negócio. O celular do owner é o peer
+([ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)). `WHATSAPP_PROVIDER=meta`
+no adapter real; `fake` no local. Biblioteca não oficial descartada. BSP
+abdicado.
 
-**Critérios de decisão:** custo por conversa (entra em
-[RNF-072](../produto/requisitos-nao-funcionais.md)) · janela de 24h e template de
-mensagem · confiabilidade do webhook · **risco de banimento** — biblioteca não
-oficial derruba o produto inteiro sem aviso e sem recurso.
-
-**Recomendação preliminar.** Descartar solução não oficial: o produto todo
-depende deste canal. Entre Meta direto e BSP, é troca de custo por velocidade —
-BSP entrega mais rápido, Meta sai mais barato em escala. A porta
-`MessageSender` deve ser escrita antes da decisão.
+Contrato: [`integracoes/meta-cloud-api.md`](../arquitetura/integracoes/meta-cloud-api.md).
+A NR-046 implementa o adapter; template fora da janela de 24 h entra nesse
+mesmo trabalho, atrás da porta `MessageSender`.
 
 ---
 
@@ -154,7 +146,7 @@ significaria emitir sem poder.
 
 | Requisito                         | Estado | Por quê                                                                                                                                                                                                                                                                                                                              |
 | --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `RF-048` DANFE por WhatsApp       | ⬜     | Depende da [DEC-003](#dec-003), que segue aberta                                                                                                                                                                                                                                                                                     |
+| `RF-048` DANFE por WhatsApp       | ⬜     | Adapter real é a NR-046 ([ADR-0014](adr/0014-meta-cloud-api.md)); a DEC-003 fechou                                                                                                                                                                                                                                                   |
 | `RF-053` retransmissão automática | ⬜     | **Decisão consciente, não pendência de tempo.** A documentação da Focus não define como retransmitir uma nota offline: existe um campo `contingencia_offline_efetivada` que _sugere_ que o provedor resolve sozinho, e sugerir não basta para documento fiscal. Inventar a chamada produziria nota duplicada ou nota que nunca chega |
 
 O caso de uso `reconcileContingency` faz o que dá para fazer com segurança:
@@ -196,7 +188,7 @@ mesma porta `BankStatementProvider`.
 | **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                                                                     |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                |
 | **Prazo**    | Sprint 3                                                                                                                                                           |
-| **Bloqueia** | — (NR-060 ainda espera o adapter real: [DEC-003](#dec-003) / NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
+| **Bloqueia** | — (NR-060 ⬜, atrás da NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
 
@@ -212,33 +204,32 @@ Duas perguntas que costumavam ser confundidas, as duas respondidas:
 Contrato: [`integracoes/mastra.md`](../arquitetura/integracoes/mastra.md).
 O runtime continua dentro de `apps/api`. `AGENT_PROVIDER=fake` no local.
 
-O que **não** fecha aqui: o que a conversa lembra ([DEC-011](#dec-011)), o
-provedor de WhatsApp ([DEC-003](#dec-003)), e o denominador do teto de custo
+O que **não** fecha aqui: o que a conversa lembra ([DEC-011](#dec-011)) e o
+denominador do teto de custo
 ([QST-002](#qst-002) / [RNF-072](../produto/requisitos-nao-funcionais.md)).
+O provedor de WhatsApp fechou — [ADR-0014](adr/0014-meta-cloud-api.md).
 
 ---
 
 ### DEC-009 — Hospedagem e alvo de deploy
 
-|              |                                                                                                                        |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🔴 Aberta                                                                                                              |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                    |
-| **Prazo**    | **Sprint 1** — os workflows de deploy estão como esqueleto até isto fechar                                             |
-| **Bloqueia** | `infra/` · [`ci-cd.md`](../engenharia/ci-cd.md) · [RNF-009](../produto/requisitos-nao-funcionais.md), RNF-013, RNF-064 |
+|              |                                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0015](adr/0015-vps-docker-compose.md)**                             |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                      |
+| **Prazo**    | **Sprint 1**                                                                             |
+| **Bloqueia** | — (NR-015 ⬜). PITR, backup testado e workflows de deploy são trabalho, não decisão      |
 
-**Opções:** PaaS (Railway, Render, Fly.io) · nuvem gerenciada (AWS, GCP) ·
-VPS + Docker Compose.
+**Decisão (2026-09-15): VPS + Docker Compose**, a VM que já está no ar.
 
-**Critérios:** custo por empresa ativa
-([RNF-074](../produto/requisitos-nao-funcionais.md): ≤ 8% da mensalidade) ·
-Postgres gerenciado com recuperação a ponto no tempo
-([RNF-013](../produto/requisitos-nao-funcionais.md)) · esforço de operação para
-um time sem pessoa dedicada a infra · reversão de deploy em ≤ 10 min.
+Produção é [`infra/docker-compose.prod.yml`](../../infra/docker-compose.prod.yml)
+(Caddy, api, worker, web, Postgres e Redis na rede interna). O compose local
+não vai para o servidor. PaaS com Postgres gerenciado foi abdicado neste
+recorte: o custo de PITR e de patch passa a ser nosso.
 
-**Recomendação preliminar.** PaaS com Postgres gerenciado. Três desenvolvedores
-sem SRE não devem operar Kubernetes — o custo aparece em indisponibilidade, não
-na fatura.
+A NR-015 preenche o que a máquina ainda não tem — deploy pelo GitHub Actions,
+[RNF-013](../produto/requisitos-nao-funcionais.md), restore mensal,
+reversão ≤ 10 min.
 
 ---
 
@@ -354,7 +345,7 @@ inventário de fato e é gerada a partir de
 | Razão social e CNPJ do controlador           | Nome do produto é EiBuddy ([ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)); razão social e CNPJ ainda são da empresa            |
 | Contato do encarregado (LGPD art. 41)        | Exige uma pessoa designada, não um endereço genérico                                                                            |
 | Prazo de retenção após encerramento da conta | Escolha de negócio acima do mínimo fiscal, que já são 5 anos                                                                    |
-| Lista completa de operadores                 | Asaas ([ADR-0004](adr/0004-asaas.md)) e OpenAI ([ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)) já são; faltam DEC-003, 005 e 009 |
+| Lista completa de operadores                 | Asaas, OpenAI e Meta ([ADR-0014](adr/0014-meta-cloud-api.md)) já são; faltam DEC-005 (Open Finance) e o provedor da VPS na [ADR-0015](adr/0015-vps-docker-compose.md) |
 | Preço, prazo de pagamento e nível de serviço | [QST-002](#qst-002) — o provedor já é Asaas ([ADR-0004](adr/0004-asaas.md))                                                     |
 | Limite de responsabilidade, rescisão e foro  | Cláusula contratual; escrita por quem responde por ela                                                                          |
 
@@ -433,6 +424,10 @@ links que já apontam para cá.
 | [ADR-0009](adr/0009-sugestao-de-conexao-por-ramo.md)           | Sugestão de conexão por ramo, sem lista de palavra-chave e sem IA | 2026-09-10 |
 | [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)                   | Mastra como runtime do agente; `gpt-4o-mini` no começo            | 2026-09-11 |
 | [ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)                 | Produto EiBuddy; domínio eibuddy.com.br; pacotes `@na-regua/*`    | 2026-09-11 |
+| [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)           | Identidade do canal WhatsApp pelo celular do owner                | 2026-09-13 |
+| [ADR-0013](adr/0013-conta-de-parceiro-e-esquema-de-cupons.md)  | Conta de Parceiro e esquema de cupons                             | 2026-09-13 |
+| [ADR-0014](adr/0014-meta-cloud-api.md)                         | Meta Cloud API como provedor de WhatsApp                          | 2026-09-15 |
+| [ADR-0015](adr/0015-vps-docker-compose.md)                     | Produção em VPS com Docker Compose                                | 2026-09-15 |
 
 ### <a id="dec-001"></a>DEC-001 — Nome do produto
 
@@ -476,9 +471,9 @@ das operações que exigem segundo canal está em
 respondida no mesmo canal que o atacante controla. Segue valendo como controle
 de usabilidade.
 
-Escolher entre provedor gerenciado e biblioteca auto-hospedada depende da
-[DEC-009](#dec-009) e **não bloqueia código**: as duas implementam a mesma
-porta.
+A prova de identidade já é Better Auth auto-hospedado
+([ADR-0003](adr/0003-better-auth-como-prova-de-identidade.md)). A
+[DEC-009](#dec-009) fechou em VPS, então essa escolha permanece.
 
 ### <a id="dec-006"></a>DEC-006 — PSP / adquirente
 
@@ -589,7 +584,8 @@ registrado na DEC-021.
 O webhook não consulta Better Auth. Não há Workflow Mastra, Channel
 `@chat-adapter/whatsapp` nem `MastraServer`. Número desconhecido = silêncio
 (RF-095). Chip cola na primeira empresa; só o owner opera; troca no app
-substitui. Redis continua fila. DEC-003 e DEC-011 seguem abertas. Isolamento
+substitui. Redis continua fila. WhatsApp é [ADR-0014](adr/0014-meta-cloud-api.md);
+DEC-011 segue aberta. Isolamento
 cruzado é contexto + RLS, não processor.
 
 ## Documentos relacionados

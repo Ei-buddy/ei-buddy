@@ -11,8 +11,9 @@ import 'server-only'
  * ## Por que a api nao e chamada direto do navegador
  *
  * A api devolve o token no CORPO, sem `Set-Cookie` (decisao registrada na
- * NR-014: cookie exigiria CSRF, e CSRF exige uma decisao de dominio que a
- * DEC-009 ainda nao tomou). Se o navegador guardasse esse token — em
+ * NR-014: cookie exigiria CSRF. A hospedagem fechou em VPS (ADR-0015);
+ * o token no corpo + cookie httpOnly no Next permanece. Se o navegador
+ * guardasse esse token — em
  * `localStorage` ou em cookie legivel — qualquer XSS o levaria embora, e com
  * ele doze horas de sessao.
  *

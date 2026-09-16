@@ -58,7 +58,7 @@ const SCHEMA = 'identidade'
  * `signUpEmail` exige e-mail, e a RF-005 permite convidar so por telefone. O
  * plugin de telefone do Better Auth resolve o LOGIN por numero, mas nao oferece
  * cadastro sem e-mail — o caminho dele passa por OTP, e OTP depende de mandar
- * mensagem, que e a DEC-003 (consentimento no WhatsApp), ainda aberta.
+ * mensagem, que e a NR-046 (adapter Meta / consentimento no WhatsApp).
  *
  * Entao o e-mail existe, e e falso de forma declarada: `.invalid` e reservado
  * pela RFC 2606 justamente para isso, e nunca resolve. Ele NAO sai daqui —
@@ -136,12 +136,12 @@ function criarAuth(pool: Pool, config: IdentidadeBetterAuthConfig) {
          * O plugin exige a funcao para expor os endpoints de OTP, que nao
          * montamos. Um `sendOTP` vazio faria o codigo ser "enviado" para lugar
          * nenhum e a verificacao ficar esperando para sempre; lancar transforma
-         * "alguem ligou um caminho que depende da DEC-003" em erro imediato,
+         * "alguem ligou um caminho que depende da NR-046" em erro imediato,
          * com o motivo escrito.
          */
         sendOTP: async () => {
           throw new Error(
-            'Envio de OTP por telefone depende da DEC-003 (consentimento no WhatsApp). ' +
+            'Envio de OTP por telefone depende da NR-046 (adapter WhatsApp / Meta Cloud API). ' +
               'O login por telefone usa senha, nao codigo.',
           )
         },

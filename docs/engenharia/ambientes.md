@@ -18,9 +18,10 @@ Os ambientes do sistema e a matriz completa de variáveis de ambiente.
 > ([RNF-034](../produto/requisitos-nao-funcionais.md), LGPD). Precisa de massa
 > realista? gere sintética a partir do schema.
 
-**Staging e production ainda não existem** — dependem de
-[DEC-009](../decisoes/README.md#dec-009). O domínio público de produção é
+**Staging e production** rodam na VPS
+([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)). O domínio público de produção é
 **eibuddy.com.br** ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)).
+Staging, se existir, é outra máquina — nunca cópia de dado de produção.
 
 ## Regras
 
@@ -95,14 +96,19 @@ Split nas vendas: [DEC-018](../decisoes/README.md#dec-018) (aberta — não envi
 Chave da subconta e `authToken` do webhook por lojista **não** são env global:
 vão ao cofre, referenciados pelo satélite de integração da empresa.
 
-### WhatsApp — [DEC-003](../decisoes/README.md#dec-003)
+### WhatsApp — Meta Cloud API · [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)
+
+Detalhes em [`integracoes/meta-cloud-api.md`](../arquitetura/integracoes/meta-cloud-api.md).
 
 | Variável                   | Obr. | Seg. | local  | Descrição                                                                    |
 | -------------------------- | :--: | :--: | ------ | ---------------------------------------------------------------------------- |
-| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| provedor escolhido                                                 |
-| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | —                                                                            |
-| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | número da plataforma                                                         |
-| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | validação de assinatura ([RNF-028](../produto/requisitos-nao-funcionais.md)) |
+| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| `meta`                                                             |
+| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | Bearer do system user. Obrigatório se `provider=meta`                        |
+| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | ID Graph do número da plataforma                                             |
+| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | HMAC `X-Hub-Signature-256` (App Secret)                                      |
+
+A NR-046 pode acrescentar `WHATSAPP_VERIFY_TOKEN` (handshake `GET` do webhook)
+quando o adapter real passar a lê-lo.
 
 ### Fiscal — [DEC-004](../decisoes/README.md#dec-004)
 
@@ -168,7 +174,7 @@ Isso é decisão de arquitetura, não conveniência:
 | O sistema sobe local sem credencial nenhuma                   | ninguém precisa de conta em fornecedor para trabalhar                    |
 | Ninguém tem motivo para pôr credencial de produção na máquina | [RNF-070](../produto/requisitos-nao-funcionais.md) fica fácil de cumprir |
 | Teste de integração roda na CI sem segredo                    | pipeline mais simples e mais rápido                                      |
-| Trabalho não espera decisão de fornecedor                     | destrava as 6 decisões de provedor em aberto                             |
+| Trabalho não espera decisão de fornecedor                     | destrava as decisões de provedor que ainda estão abertas         |
 
 Regra: **o adapter falso implementa a mesma porta**, inclusive os caminhos de
 erro. Falso que só devolve sucesso esconde exatamente o que precisa ser testado.
@@ -178,7 +184,7 @@ erro. Falso que só devolve sucesso esconde exatamente o que precisa ser testado
 | Ambiente             | Onde ficam                                                                                   |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | local                | `.env`, no `.gitignore`, com valores de mentira                                              |
-| staging / production | gerenciador de segredos do provedor de hospedagem — [DEC-009](../decisoes/README.md#dec-009) |
+| staging / production | `.env.production` na VPS, fora do git — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md) |
 | CI                   | GitHub Secrets, por ambiente, com aprovação para produção                                    |
 
 ### Se vazar

@@ -51,19 +51,16 @@ vira um ciclo de tentativa e erro.
 
 ## Por que a matriz não está inteira aqui
 
-`ambientes.md` lista variáveis para seis adapters — PagMaxx, WhatsApp, fiscal,
-Open Finance, agente, autenticação — e todas as seis decisões de provedor
-seguem abertas (DEC-003 a DEC-008). Este pacote valida o que os apps **de
-fato leem hoje**: exigir uma variável que nenhum código consome ainda
-barraria o boot local por algo que não existe, na direção oposta do "modo
-`fake`" que `ambientes.md` descreve.
+`ambientes.md` lista variáveis para os adapters. Vários provedores já
+fecharam (Asaas, Focus, Mastra, Meta Cloud API, Better Auth). Este pacote
+valida o que os apps **de fato leem hoje**: exigir uma variável que nenhum
+código consome ainda barraria o boot local por algo que não existe, na
+direção oposta do "modo `fake`" que `ambientes.md` descreve.
 
 O nome do provedor (`providerSchema`) aceita qualquer string não vazia, com
-`fake` como padrão — nunca um enum com nomes de fornecedor. Inventar um valor
-antes da decisão fechar seria pior que aceitar a string.
-
-Quando um adapter for implementado, o schema do app correspondente ganha as
-variáveis dele, condicionadas ao provedor escolhido — não antes.
+`fake` como padrão — nunca um enum com nomes de fornecedor. Quando um
+adapter for implementado, o schema do app correspondente ganha as variáveis
+dele, condicionadas ao provedor escolhido — não antes.
 
 ## Como usar
 

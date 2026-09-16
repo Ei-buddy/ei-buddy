@@ -181,8 +181,9 @@ export interface InvoiceIssuer {
 export function createFocusNfeIssuer(config: FocusConfig): InvoiceIssuer
 ```
 
-Isso vale ouro agora: [DEC-003](../decisoes/README.md#dec-003) e
-[DEC-005](../decisoes/README.md#dec-005) ainda estão em aberto; o PSP já é
+Isso vale ouro agora: o WhatsApp já é a Cloud API
+([ADR-0014](../decisoes/adr/0014-meta-cloud-api.md));
+[DEC-005](../decisoes/README.md#dec-005) ainda está em aberto; o PSP já é
 Asaas ([ADR-0004](../decisoes/adr/0004-asaas.md)). **A porta pode ser escrita e
 testada hoje**, com um adapter falso, e o provedor real entra depois sem tocar
 em `core`.

@@ -1,5 +1,5 @@
-# Deploy de producao — ver DEC-009 (aberta; VPS + Compose escolhido por
-# enquanto). Builda as imagens direto na VM (sem registry):
+# Deploy de producao — ADR-0015 (VPS + Compose). Builda as imagens direto
+# na VM (sem registry):
 #
 #   docker compose -f infra/docker-compose.prod.yml build
 #   docker compose -f infra/docker-compose.prod.yml up -d

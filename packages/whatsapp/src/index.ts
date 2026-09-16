@@ -3,9 +3,9 @@
  * declarada por `core`: envio de texto e midia, e leitura de webhook com
  * assinatura verificada.
  *
- * O provedor ainda nao foi escolhido (DEC-003) e o adapter real entra com a
- * NR-046. O que existe hoje e o falso — `WHATSAPP_PROVIDER=fake` — que satisfaz
- * a porta inteira, inclusive os caminhos de erro. E aqui os caminhos de erro
+ * A Cloud API e a escolha (ADR-0014). O adapter real entra com a NR-046.
+ * O que existe hoje e o falso — `WHATSAPP_PROVIDER=fake` — que satisfaz a
+ * porta inteira, inclusive os caminhos de erro. E aqui os caminhos de erro
  * sao a parte que mais gera bug, porque nenhum deles e falha de
  * infraestrutura: numero sem WhatsApp, cliente que bloqueou a loja, e a
  * **janela de atendimento de 24 horas**.

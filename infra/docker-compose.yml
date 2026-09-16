@@ -10,7 +10,7 @@
 #   full      + minio + mailpit       — object storage e e-mail locais
 #             docker compose --profile full up -d
 #
-# Producao NAO usa este arquivo — ver DEC-009.
+# Producao NAO usa este arquivo — ver infra/docker-compose.prod.yml (ADR-0015).
 
 name: na-regua
 

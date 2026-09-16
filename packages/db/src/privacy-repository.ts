@@ -126,7 +126,7 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
     'Credito de mes gratis por indicacao (ADR-0013) — tenant normal, exportacao ainda nao ligada porque o caso de uso de leitura (NR-116) nao existe.',
   subscriptions: 'Billing SaaS ainda sem caso de uso ligado — tabela vazia no baseline.',
   subscription_cycles: 'Billing SaaS ainda sem caso de uso ligado — tabela vazia no baseline.',
-  attachments: 'Anexo de arquivo; DEC-009 ainda aberta.',
+  attachments: 'Anexo de arquivo; object storage de producao e NR-015 (ADR-0015).',
   idempotency_keys: 'Controle de reenvio, nao dado do titular.',
   company_connections:
     'Pedido de conexao entre lojistas (ADR-0008) — exportacao ainda nao ligada, fast-follow.',
@@ -388,7 +388,7 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
      * ## As conversas
      *
      * `messagesDeleted` volta zero, e nao e omissao: nao existe tabela de
-     * mensagem de WhatsApp — o adapter esta bloqueado pela DEC-003. Quando ela
+     * mensagem de WhatsApp — a tabela espera a NR-046. Quando ela
      * existir, o apagamento entra aqui, e o comprovante ja tem o campo.
      */
     anonymizeCustomer: async (pedido) =>
@@ -450,7 +450,7 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
           salesPreserved: Number(contagens?.vendas ?? 0),
           receivablesPreserved: Number(contagens?.recebiveis ?? 0),
           fiscalDocumentsPreserved: Number(contagens?.notas ?? 0),
-          /* Ver o cabecalho: a tabela nao existe ate a DEC-003 fechar. */
+          /* Ver o cabecalho: a tabela nao existe ate a NR-046. */
           messagesDeleted: 0,
         }
       }),

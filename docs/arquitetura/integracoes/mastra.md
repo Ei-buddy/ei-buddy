@@ -99,11 +99,12 @@ A OpenAI é subprocessador. Declarar isso na política é a [DEC-016](../../deci
 
 ## Canal
 
-Esta página não escolhe o **provedor** WhatsApp ([DEC-003](../../decisoes/README.md#dec-003)).
+O provedor WhatsApp é a Cloud API
+([ADR-0014](../../decisoes/adr/0014-meta-cloud-api.md)).
 A identidade do canal fechou na [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
 não há Workflow Mastra, `MastraServer`, `@chat-adapter/whatsapp` nem
 `MastraAuthBetterAuth` no webhook. Sem o adapter real o runtime se exercita
-pelo `POST /agent/messages` e `AGENT_PROVIDER=fake`. O webhook, quando existir,
+pelo `POST /agent/messages` e `AGENT_PROVIDER=fake`. O webhook, na NR-046,
 entra atrás da mesma `processMessage`.
 
 Isolamento cruzado é `ExecutionContext` + tools sem id de terceiro + RLS — não
