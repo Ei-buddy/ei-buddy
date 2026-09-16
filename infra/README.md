@@ -101,15 +101,15 @@ em Postgres/Redis).
 
 O que a NR-015 ainda precisa atender na VM:
 
-| Requisito                                               | O que exige                                                         |
-| ------------------------------------------------------- | ------------------------------------------------------------------- |
-| [RNF-009](../docs/produto/requisitos-nao-funcionais.md) | disponibilidade ≥ 99,5%                                             |
-| [RNF-013](../docs/produto/requisitos-nao-funcionais.md) | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho      |
-| [RNF-014](../docs/produto/requisitos-nao-funcionais.md) | backup diário, **com restauração testada mensalmente**              |
-| [RNF-020](../docs/produto/requisitos-nao-funcionais.md) | TLS 1.2+ (Caddy); banco e Redis sem exposição pública               |
-| [RNF-037](../docs/produto/requisitos-nao-funcionais.md) | object storage com retenção de 5 anos para XML fiscal               |
-| [RNF-064](../docs/produto/requisitos-nao-funcionais.md) | deploy rastreável ao commit e reversível em ≤ 10 min                |
-| [RNF-074](../docs/produto/requisitos-nao-funcionais.md) | custo ≤ 8% da mensalidade por empresa ativa                         |
+| Requisito                                               | O que exige                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| [RNF-009](../docs/produto/requisitos-nao-funcionais.md) | disponibilidade ≥ 99,5%                                        |
+| [RNF-013](../docs/produto/requisitos-nao-funcionais.md) | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho |
+| [RNF-014](../docs/produto/requisitos-nao-funcionais.md) | backup diário, **com restauração testada mensalmente**         |
+| [RNF-020](../docs/produto/requisitos-nao-funcionais.md) | TLS 1.2+ (Caddy); banco e Redis sem exposição pública          |
+| [RNF-037](../docs/produto/requisitos-nao-funcionais.md) | object storage com retenção de 5 anos para XML fiscal          |
+| [RNF-064](../docs/produto/requisitos-nao-funcionais.md) | deploy rastreável ao commit e reversível em ≤ 10 min           |
+| [RNF-074](../docs/produto/requisitos-nao-funcionais.md) | custo ≤ 8% da mensalidade por empresa ativa                    |
 
 PaaS com Postgres gerenciado foi abdicado neste recorte. Backup não testado
 não é backup: o teste mensal é requisito, não boa prática.

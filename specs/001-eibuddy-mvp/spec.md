@@ -10,15 +10,15 @@
 
 **Fonte de verdade**: esta spec amarra o recorte do MVP já documentado em `docs/` para o fluxo Spec Kit (`/speckit-plan`, `/speckit-tasks`, `/speckit-implement`). Não substitui os catálogos permanentes. Em conflito de detalhe, prevalecem a [constitution](../../.specify/memory/constitution.md), o [escopo do MVP](../../docs/produto/escopo-mvp.md) e os IDs `US-xxx` / `RF-xxx` / `RNF-xxx`.
 
-| Artefato permanente                                                  | Papel nesta spec                                 |
-| -------------------------------------------------------------------- | ------------------------------------------------ |
-| [Visão](../../docs/produto/visao.md)                                 | Problema, público, princípios e métricas         |
-| [Escopo do MVP](../../docs/produto/escopo-mvp.md)                    | O que entra, o que fica fora, critérios de saída |
-| [User Stories](../../docs/produto/user-stories.md)                   | 64 histórias com aceite (US-001–064)             |
-| [Requisitos funcionais](../../docs/produto/requisitos-funcionais.md) | 131 RFs rastreáveis                              |
-| [RNFs](../../docs/produto/requisitos-nao-funcionais.md)              | Comportamento mensurável                         |
+| Artefato permanente                                                  | Papel nesta spec                                              |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [Visão](../../docs/produto/visao.md)                                 | Problema, público, princípios e métricas                      |
+| [Escopo do MVP](../../docs/produto/escopo-mvp.md)                    | O que entra, o que fica fora, critérios de saída              |
+| [User Stories](../../docs/produto/user-stories.md)                   | 64 histórias com aceite (US-001–064)                          |
+| [Requisitos funcionais](../../docs/produto/requisitos-funcionais.md) | 131 RFs rastreáveis                                           |
+| [RNFs](../../docs/produto/requisitos-nao-funcionais.md)              | Comportamento mensurável                                      |
 | [Personas](../../docs/produto/personas.md)                           | Cláudia (`owner`); Marcos fora do recorte; Roberto, João, Ana |
-| [Glossário](../../docs/produto/glossario.md)                         | Linguagem ubíqua                                 |
+| [Glossário](../../docs/produto/glossario.md)                         | Linguagem ubíqua                                              |
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -442,15 +442,15 @@ Itens explícitos de [Fora do MVP](../../docs/produto/escopo-mvp.md#fora-do-mvp)
 
 Decisões que travam implementação de provedor (portas e testes com dublê podem existir antes):
 
-| Decisão | Impacto na spec                                  |
-| ------- | ------------------------------------------------ |
-| DEC-003 | Canal WhatsApp ✅ Meta Cloud API ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)); adapter NR-046 |
-| DEC-004 | Provedor fiscal (RF-045–054)                     |
-| DEC-005 | Open Finance (RF-074, 075) — SHOULD              |
+| Decisão | Impacto na spec                                                                                                |
+| ------- | -------------------------------------------------------------------------------------------------------------- |
+| DEC-003 | Canal WhatsApp ✅ Meta Cloud API ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)); adapter NR-046  |
+| DEC-004 | Provedor fiscal (RF-045–054)                                                                                   |
+| DEC-005 | Open Finance (RF-074, 075) — SHOULD                                                                            |
 | DEC-009 | Hospedagem ✅ VPS + Compose ([ADR-0015](../../docs/decisoes/adr/0015-vps-docker-compose.md)); workflows NR-015 |
-| DEC-011 | Memória do assistente (RF-105, 106)              |
-| DEC-012 | Cupons (RF-114, 115) — SHOULD                    |
-| QST-002 | Preço, trial e limites comerciais                |
-| QST-007 | Recalibração das métricas de sucesso             |
+| DEC-011 | Memória do assistente (RF-105, 106)                                                                            |
+| DEC-012 | Cupons (RF-114, 115) — SHOULD                                                                                  |
+| QST-002 | Preço, trial e limites comerciais                                                                              |
+| QST-007 | Recalibração das métricas de sucesso                                                                           |
 
 Já fechadas e assumidas: marca e domínio EiBuddy / eibuddy.com.br (ADR-0011); identidade própria no aplicativo (ADR-0002 / ADR-0003); isolamento por linha (ADR-0001).

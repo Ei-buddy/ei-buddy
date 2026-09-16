@@ -95,7 +95,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | ID     | Requisito                                                                                           | US     | Módulo dono | Pri | St  |
 | ------ | --------------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
 | RF-045 | Emitir NFC-e a partir de uma venda fechada e registrar a chave de acesso                            | US-022 | `fiscal`    |  M  | ✅  |
-| RF-046 | Validar dados fiscais obrigatórios (NCM, CFOP, CST/CSOSN) antes de chamar a Focus NFe                | US-022 | `fiscal`    |  M  | ✅  |
+| RF-046 | Validar dados fiscais obrigatórios (NCM, CFOP, CST/CSOSN) antes de chamar a Focus NFe               | US-022 | `fiscal`    |  M  | ✅  |
 | RF-047 | Traduzir rejeição devolvida pela Focus em mensagem compreensível, preservando a venda registrada    | US-022 | `fiscal`    |  M  | ✅  |
 | RF-048 | Enviar DANFE ou link da nota ao cliente por WhatsApp após a autorização                             | US-023 | `core`      |  M  | ⬜  |
 | RF-049 | Exibir QR Code da nota na tela para cliente sem WhatsApp cadastrado                                 | US-023 | `fiscal`    |  M  | ✅  |
@@ -192,23 +192,23 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                                               | US-053 | `agent`     |  S  | ⬜  |
 | RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ⬜  |
 | RF-133 | Consultar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-065 | `agent`     |  M  | ⬜  |
-| RF-134 | Consultar contas a pagar por vencimento por mensagem usando o mesmo caso de uso do aplicativo                       | US-066 | `agent`     |  M  | ⬜  |
-| RF-135 | Consultar saldo em carteira do cliente por mensagem usando o mesmo caso de uso do aplicativo                        | US-067 | `agent`     |  M  | ⬜  |
-| RF-136 | Interpretar desconto, pagamento misto/parcelado e fiado na venda por mensagem, com as mesmas recusas do app         | US-049 | `agent`     |  M  | ⬜  |
-| RF-137 | Tratar foto de código de barras, sem pedido de cadastro, como item de venda                                         | US-068 | `agent`     |  S  | ⬜  |
-| RF-138 | Tratar foto de código com pedido explícito de cadastro como cadastro de produto                                     | US-068 | `agent`     |  S  | ⬜  |
-| RF-139 | Recusar foto ilegível ou código sem produto e orientar venda ou cadastro por texto                                  | US-068 | `agent`     |  S  | ⬜  |
-| RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                             | US-069 | `agent`     |  S  | ⬜  |
-| RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                          | US-070 | `agent`     |  S  | ⬜  |
-| RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                       | US-071 | `agent`     |  S  | ⬜  |
-| RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                    | US-072 | `agent`     |  S  | ⬜  |
-| RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                        | US-073 | `agent`     |  S  | ⬜  |
-| RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-074 | `agent`     |  S  | ⬜  |
-| RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota          | US-075 | `agent`     |  S  | ⬜  |
-| RF-148 | Criar compromisso por mensagem usando o mesmo caso de uso do aplicativo                                             | US-076 | `agent`     |  C  | ⬜  |
-| RF-149 | Recusar certificado A1, senha e cadastro de emitente pelo WhatsApp, orientando o app                                | US-077 | `agent`     |  M  | ⬜  |
-| RF-150 | Recusar importação de extrato, Open Finance e conciliação pelo WhatsApp, orientando o app                           | US-078 | `agent`     |  M  | ⬜  |
-| RF-151 | Recusar comando avulso de emitir ou cancelar nota; nota só como efeito da venda ou do cancelamento da venda         | US-079 | `agent`     |  M  | ⬜  |
+| RF-134 | Consultar contas a pagar por vencimento por mensagem usando o mesmo caso de uso do aplicativo                         | US-066 | `agent`     |  M  | ⬜  |
+| RF-135 | Consultar saldo em carteira do cliente por mensagem usando o mesmo caso de uso do aplicativo                          | US-067 | `agent`     |  M  | ⬜  |
+| RF-136 | Interpretar desconto, pagamento misto/parcelado e fiado na venda por mensagem, com as mesmas recusas do app           | US-049 | `agent`     |  M  | ⬜  |
+| RF-137 | Tratar foto de código de barras, sem pedido de cadastro, como item de venda                                           | US-068 | `agent`     |  S  | ⬜  |
+| RF-138 | Tratar foto de código com pedido explícito de cadastro como cadastro de produto                                       | US-068 | `agent`     |  S  | ⬜  |
+| RF-139 | Recusar foto ilegível ou código sem produto e orientar venda ou cadastro por texto                                    | US-068 | `agent`     |  S  | ⬜  |
+| RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                               | US-069 | `agent`     |  S  | ⬜  |
+| RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                            | US-070 | `agent`     |  S  | ⬜  |
+| RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                         | US-071 | `agent`     |  S  | ⬜  |
+| RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                      | US-072 | `agent`     |  S  | ⬜  |
+| RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                          | US-073 | `agent`     |  S  | ⬜  |
+| RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                                 | US-074 | `agent`     |  S  | ⬜  |
+| RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota            | US-075 | `agent`     |  S  | ⬜  |
+| RF-148 | Criar compromisso por mensagem usando o mesmo caso de uso do aplicativo                                               | US-076 | `agent`     |  C  | ⬜  |
+| RF-149 | Recusar certificado A1, senha e cadastro de emitente pelo WhatsApp, orientando o app                                  | US-077 | `agent`     |  M  | ⬜  |
+| RF-150 | Recusar importação de extrato, Open Finance e conciliação pelo WhatsApp, orientando o app                             | US-078 | `agent`     |  M  | ⬜  |
+| RF-151 | Recusar comando avulso de emitir ou cancelar nota; nota só como efeito da venda ou do cancelamento da venda           | US-079 | `agent`     |  M  | ⬜  |
 
 ## E12 — Assinatura & Cobrança SaaS
 
@@ -249,18 +249,18 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 Quem implementa o quê. Base para a divisão de trilhas em
 [`task-ledger.md`](../processo/task-ledger.md).
 
-| Módulo             | Qtd | Faixas de requisitos                                                                                                                                                         |
-| ------------------ | --: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Módulo             | Qtd | Faixas de requisitos                                                                                                                                                |
+| ------------------ | --: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/core`    |  69 | RF-001, 002, 009–011, 014–019, 022–029, 032–034, 036, 037, 043, 044, 048, 054, 055, 057–062, 065–073, 078–080, 082–094, 099, 101, 119, 123, 125, 127, 128, 131, 132 |
-| `packages/domain`  |  14 | RF-003, 007, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                                 |
-| `packages/agent`   |  31 | RF-095–098, 100, 102–109, 133–145, 147–151                                                                                                                               |
-| `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                              |
-| `packages/fiscal`  |  10 | RF-004, 045–047, 049–053, 146                                                                                                                                                |
-| `packages/banking` |   4 | RF-074–077                                                                                                                                                                   |
-| `packages/db`      |   4 | RF-081, 121, 122, 124                                                                                                                                                        |
-| `apps/api`         |   2 | RF-120, 129                                                                                                                                                                  |
-| `packages/money`   |   1 | RF-039                                                                                                                                                                       |
-| `apps/worker`      |   1 | RF-130                                                                                                                                                                       |
+| `packages/domain`  |  14 | RF-003, 007, 013, 020, 021, 030, 031, 035, 038, 040, 041, 056, 063, 064                                                                                             |
+| `packages/agent`   |  31 | RF-095–098, 100, 102–109, 133–145, 147–151                                                                                                                          |
+| `packages/billing` |  10 | RF-110–118, 126                                                                                                                                                     |
+| `packages/fiscal`  |  10 | RF-004, 045–047, 049–053, 146                                                                                                                                       |
+| `packages/banking` |   4 | RF-074–077                                                                                                                                                          |
+| `packages/db`      |   4 | RF-081, 121, 122, 124                                                                                                                                               |
+| `apps/api`         |   2 | RF-120, 129                                                                                                                                                         |
+| `packages/money`   |   1 | RF-039                                                                                                                                                              |
+| `apps/worker`      |   1 | RF-130                                                                                                                                                              |
 
 > Nenhum requisito tem `apps/mobile` ou `apps/web` como dono — **por construção**.
 > Os apps consomem casos de uso; não são donos de regra de negócio. Se um
@@ -271,7 +271,7 @@ Quem implementa o quê. Base para a divisão de trilhas em
 
 | Decisão                                                                | Requisitos bloqueados                                                                        |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API    | — (NR-046 ⬜, [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md))                 |
+| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API    | — (NR-046 ⬜, [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md))                            |
 | [DEC-023](../decisoes/README.md#dec-023) identidade do canal ✅        | — (RF-094, RF-095, RF-132: [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
 | [DEC-004](../decisoes/README.md#dec-004) provedor fiscal               | RF-045 a RF-054, RF-146                                                                      |
 | [DEC-005](../decisoes/README.md#dec-005) Open Finance                  | RF-074, RF-075                                                                               |

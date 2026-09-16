@@ -11,7 +11,7 @@ Os pipelines do GitHub Actions, o que cada um barra, e o que ainda não existe.
 | [`ci.yml`](../../.github/workflows/ci.yml)                     | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                        | ✅                   |
 | [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)       | PR aberto ou editado | título, nome da branch, referência à tarefa                                                               | ✅                   |
 | [`security.yml`](../../.github/workflows/security.yml)         | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                | ✅ (severidade alta) |
-| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | tag / manual         | **esqueleto** — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                        | —                    |
+| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | tag / manual         | **esqueleto** — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                       | —                    |
 | [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | tag / manual         | **esqueleto** — NR-015, mesmo compose da VM                                                               | —                    |
 | [`mobile-build.yml`](../../.github/workflows/mobile-build.yml) | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)) | —                    |
 
@@ -159,11 +159,11 @@ E os requisitos que o deploy precisa atender:
 
 ## Segredos da CI
 
-| Segredo               | Usado por        | Estado                                      |
-| --------------------- | ---------------- | ------------------------------------------- |
-| `GITHUB_TOKEN`        | gitleaks, CodeQL | automático                                  |
-| `EXPO_TOKEN`          | build mobile     | ⏳ falta conta EAS                          |
-| credenciais de deploy | deploy           | ⏳ NR-015 (SSH / acesso à VPS)              |
+| Segredo               | Usado por        | Estado                         |
+| --------------------- | ---------------- | ------------------------------ |
+| `GITHUB_TOKEN`        | gitleaks, CodeQL | automático                     |
+| `EXPO_TOKEN`          | build mobile     | ⏳ falta conta EAS             |
+| credenciais de deploy | deploy           | ⏳ NR-015 (SSH / acesso à VPS) |
 
 Segredos de produção ficam em _Environments_ com **aprovação obrigatória**, não
 em _Repository secrets_: assim um workflow de PR de fork não os alcança.
@@ -189,7 +189,7 @@ despercebida junto com o resto.
 | Changelog         | ✅ `pnpm changelog` — gerado dos commits ([git-workflow](git-workflow.md#como-cortar-um-release)) |
 | `CODEOWNERS`      | 🟡 escrito com placeholders `@TRILHA-1/2/3` — **trocar pelos usuários reais**                     |
 | Branch protection | 🔴 manual, ainda não configurada                                                                  |
-| Deploy            | 🔴 esqueleto — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                 |
+| Deploy            | 🔴 esqueleto — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                |
 | Build mobile      | 🔴 esqueleto — falta conta EAS                                                                    |
 
 ## Documentos relacionados

@@ -36,21 +36,21 @@ erro. Uma história sem caminho de erro não está pronta para ser pega — ver
 
 ## Índice de épicos
 
-| Épico                                  | Tema                         | Histórias  | Prioridade dominante |
-| -------------------------------------- | ---------------------------- | ---------- | -------------------- |
-| [E1](#e1--onboarding--empresa)         | Onboarding & Empresa         | US-001–004 | MUST (US-003 `WON'T`) |
-| [E2](#e2--clientes--crm)               | Clientes / CRM               | US-005–008 | MUST                 |
-| [E3](#e3--produtos--estoque)           | Produtos & Estoque           | US-009–013 | MUST                 |
-| [E4](#e4--vendas--pdv)                 | Vendas & PDV                 | US-014–021 | MUST                 |
-| [E5](#e5--emissão-fiscal)              | Emissão Fiscal               | US-022–025 | MUST                 |
-| [E6](#e6--contas-a-pagar)              | Contas a Pagar               | US-026–029 | MUST                 |
-| [E7](#e7--contas-a-receber)            | Contas a Receber             | US-030–034 | MUST                 |
-| [E8](#e8--bancos--conciliação)         | Bancos & Conciliação         | US-035–038 | SHOULD               |
-| [E9](#e9--plano-de-contas--relatórios) | Plano de Contas & Relatórios | US-039–042 | SHOULD               |
-| [E10](#e10--agenda)                    | Agenda                       | US-043–045 | COULD                |
+| Épico                                  | Tema                         | Histórias  | Prioridade dominante           |
+| -------------------------------------- | ---------------------------- | ---------- | ------------------------------ |
+| [E1](#e1--onboarding--empresa)         | Onboarding & Empresa         | US-001–004 | MUST (US-003 `WON'T`)          |
+| [E2](#e2--clientes--crm)               | Clientes / CRM               | US-005–008 | MUST                           |
+| [E3](#e3--produtos--estoque)           | Produtos & Estoque           | US-009–013 | MUST                           |
+| [E4](#e4--vendas--pdv)                 | Vendas & PDV                 | US-014–021 | MUST                           |
+| [E5](#e5--emissão-fiscal)              | Emissão Fiscal               | US-022–025 | MUST                           |
+| [E6](#e6--contas-a-pagar)              | Contas a Pagar               | US-026–029 | MUST                           |
+| [E7](#e7--contas-a-receber)            | Contas a Receber             | US-030–034 | MUST                           |
+| [E8](#e8--bancos--conciliação)         | Bancos & Conciliação         | US-035–038 | SHOULD                         |
+| [E9](#e9--plano-de-contas--relatórios) | Plano de Contas & Relatórios | US-039–042 | SHOULD                         |
+| [E10](#e10--agenda)                    | Agenda                       | US-043–045 | COULD                          |
 | [E11](#e11--assistente-whatsapp)       | Assistente WhatsApp          | US-046–079 | MUST (SHOULD/WON'T no recorte) |
-| [E12](#e12--assinatura--cobrança-saas) | Assinatura & Cobrança SaaS   | US-054–058 | MUST                 |
-| [E13](#e13--plataforma)                | Plataforma                   | US-059–064 | MUST                 |
+| [E12](#e12--assinatura--cobrança-saas) | Assinatura & Cobrança SaaS   | US-054–058 | MUST                           |
+| [E13](#e13--plataforma)                | Plataforma                   | US-059–064 | MUST                           |
 
 ---
 
