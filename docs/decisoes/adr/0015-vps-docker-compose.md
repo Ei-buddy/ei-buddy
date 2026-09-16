@@ -11,12 +11,12 @@ substituida_por: null
 
 # ADR-0015 — Produção em VPS com Docker Compose
 
-|                       |                                 |
-| --------------------- | ------------------------------- |
-| **Status**            | Aceita                          |
-| **Data**              | 2026-09-15                      |
+|                       |                                     |
+| --------------------- | ----------------------------------- |
+| **Status**            | Aceita                              |
+| **Data**              | 2026-09-15                          |
 | **Decisores**         | Trilha 2 — Plataforma & Integrações |
-| **Decisão de origem** | [DEC-009](../README.md#dec-009) |
+| **Decisão de origem** | [DEC-009](../README.md#dec-009)     |
 
 ## Contexto
 
@@ -46,29 +46,29 @@ próprio; VPS não o invalida.
 
 ### Opção A — PaaS (Railway, Render, Fly.io)
 
-| Prós                                      | Contras                                                    |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| Postgres gerenciado e deploy por git      | Custo cresce com o sono da máquina, não só com o cliente   |
-| Menos SSH e menos patch de SO             | Menos controle de *where* o dado mora                      |
-| A recomendação original da DEC            | Migrar a VM que já roda é retrabalho agora                 |
+| Prós                                 | Contras                                                  |
+| ------------------------------------ | -------------------------------------------------------- |
+| Postgres gerenciado e deploy por git | Custo cresce com o sono da máquina, não só com o cliente |
+| Menos SSH e menos patch de SO        | Menos controle de _where_ o dado mora                    |
+| A recomendação original da DEC       | Migrar a VM que já roda é retrabalho agora               |
 
 ### Opção B — Nuvem gerenciada (AWS, GCP)
 
-| Prós                         | Contras                                              |
-| ---------------------------- | ---------------------------------------------------- |
-| RDS com PITR de verdade      | Superfície e conta que o time não opera hoje         |
-| Object storage nativo        | Kubernetes / ECS são o que a DEC pedia para evitar   |
+| Prós                    | Contras                                            |
+| ----------------------- | -------------------------------------------------- |
+| RDS com PITR de verdade | Superfície e conta que o time não opera hoje       |
+| Object storage nativo   | Kubernetes / ECS são o que a DEC pedia para evitar |
 
 ### Opção C — VPS + Docker Compose
 
 A VM já está no ar. Compose de produção já descreve a pilha.
 
-| Prós                                                    | Contras                                                                 |
-| ------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Zero migração de runtime; o alvo é o que já existe      | Postgres no volume da VM — PITR (RNF-013) é script nosso, não botão     |
-| Caddy + Compose batem com TLS e isolamento de porta     | Patch de SO, disco, firewall e restore mensal são operação contínua     |
-| Better Auth, worker e Redis no mesmo host, latência baixa | Segredo em `.env.production` no disco, não em gerenciador do PaaS     |
-| Custo previsível no começo, alinhado a RNF-074          | Uma VM só é ponto único até existir staging e réplica                   |
+| Prós                                                      | Contras                                                             |
+| --------------------------------------------------------- | ------------------------------------------------------------------- |
+| Zero migração de runtime; o alvo é o que já existe        | Postgres no volume da VM — PITR (RNF-013) é script nosso, não botão |
+| Caddy + Compose batem com TLS e isolamento de porta       | Patch de SO, disco, firewall e restore mensal são operação contínua |
+| Better Auth, worker e Redis no mesmo host, latência baixa | Segredo em `.env.production` no disco, não em gerenciador do PaaS   |
+| Custo previsível no começo, alinhado a RNF-074            | Uma VM só é ponto único até existir staging e réplica               |
 
 ## Decisão
 

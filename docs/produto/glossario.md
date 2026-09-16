@@ -18,7 +18,7 @@ evento, fila e chave de tradução.
 | PT-BR       | Identificador    | Observações                                                                                      |
 | ----------- | ---------------- | ------------------------------------------------------------------------------------------------ |
 | EiBuddy     | — (marca)        | Nome comercial ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)). Grafia: uma palavra |
-| Site        | `eibuddy.com.br` | Domínio público. DNS e TLS na VPS ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)) |
+| Site        | `eibuddy.com.br` | Domínio público. DNS e TLS na VPS ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md))       |
 | Repositório | `na-regua`       | Não muda com a marca                                                                             |
 | Pacote npm  | `@na-regua/*`    | Atrelado ao repositório, de propósito                                                            |
 
@@ -26,19 +26,19 @@ evento, fila e chave de tradução.
 
 ## Cadastros
 
-| PT-BR                     | Código (inglês)  | Observações                                                                               |
-| ------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
-| Empresa / Loja (o tenant) | `Company`        | Unidade de isolamento multi-tenant. Nunca `Store`, `Tenant` nem `Organization` no domínio |
-| Usuário                   | `User`           | Pessoa que faz login                                                                      |
+| PT-BR                     | Código (inglês)  | Observações                                                                                                                                                 |
+| ------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Empresa / Loja (o tenant) | `Company`        | Unidade de isolamento multi-tenant. Nunca `Store`, `Tenant` nem `Organization` no domínio                                                                   |
+| Usuário                   | `User`           | Pessoa que faz login                                                                                                                                        |
 | Papel / Perfil de acesso  | `Role`           | `owner` opera a loja. `staff` é valor reservado, fora do recorte ([US-003](user-stories.md#us-003--convidar-equipe)). Também `accountant`, `platform_admin` |
-| Cliente                   | `Customer`       | Cliente da loja. Nunca `Client` (reservado para clientes HTTP)                            |
-| Fornecedor                | `Supplier`       |                                                                                           |
-| Produto                   | `Product`        |                                                                                           |
-| Variação (tamanho, cor)   | `ProductVariant` |                                                                                           |
-| Código de barras          | `barcode`        | EAN/GTIN                                                                                  |
-| Categoria                 | `Category`       |                                                                                           |
-| Unidade de medida         | `UnitOfMeasure`  | `un`, `kg`, `m`, `cx`                                                                     |
-| Estoque                   | `Inventory`      | Saldo. Movimentação é `InventoryMovement`                                                 |
+| Cliente                   | `Customer`       | Cliente da loja. Nunca `Client` (reservado para clientes HTTP)                                                                                              |
+| Fornecedor                | `Supplier`       |                                                                                                                                                             |
+| Produto                   | `Product`        |                                                                                                                                                             |
+| Variação (tamanho, cor)   | `ProductVariant` |                                                                                                                                                             |
+| Código de barras          | `barcode`        | EAN/GTIN                                                                                                                                                    |
+| Categoria                 | `Category`       |                                                                                                                                                             |
+| Unidade de medida         | `UnitOfMeasure`  | `un`, `kg`, `m`, `cx`                                                                                                                                       |
+| Estoque                   | `Inventory`      | Saldo. Movimentação é `InventoryMovement`                                                                                                                   |
 
 ## Vendas
 
@@ -87,22 +87,22 @@ evento, fila e chave de tradução.
 
 ## Fiscal
 
-| PT-BR                | Código (inglês)   | Observações                                         |
-| -------------------- | ----------------- | --------------------------------------------------- |
-| Nota fiscal          | `Invoice`         | Genérico                                            |
-| NFC-e (consumidor)   | `ConsumerInvoice` | Mantém a sigla `nfce` em campos técnicos            |
-| NFS-e (serviço)      | `ServiceInvoice`  | Sigla `nfse` em campos técnicos                     |
-| Emissão              | `issue`           | `issueInvoice()`                                    |
-| Cancelamento de nota | `cancelInvoice`   | Prazo legal distinto do cancelamento de venda       |
+| PT-BR                | Código (inglês)   | Observações                                                                                             |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| Nota fiscal          | `Invoice`         | Genérico                                                                                                |
+| NFC-e (consumidor)   | `ConsumerInvoice` | Mantém a sigla `nfce` em campos técnicos                                                                |
+| NFS-e (serviço)      | `ServiceInvoice`  | Sigla `nfse` em campos técnicos                                                                         |
+| Emissão              | `issue`           | `issueInvoice()`                                                                                        |
+| Cancelamento de nota | `cancelInvoice`   | Prazo legal distinto do cancelamento de venda                                                           |
 | Contingência         | `contingency`     | Emissão offline quando a Focus (ou o fisco atrás dela) cai. O sistema fala com a Focus, não com a SEFAZ |
-| Chave de acesso      | `accessKey`       | 44 dígitos                                          |
-| DANFE                | `danfe`           | Representação impressa                              |
-| Regime tributário    | `TaxRegime`       | `simples_nacional`, `lucro_presumido`, `lucro_real` |
-| NCM                  | `ncm`             |                                                     |
-| CFOP                 | `cfop`            |                                                     |
-| CST / CSOSN          | `cst` / `csosn`   |                                                     |
-| Imposto              | `Tax`             |                                                     |
-| Alíquota             | `taxRate`         |                                                     |
+| Chave de acesso      | `accessKey`       | 44 dígitos                                                                                              |
+| DANFE                | `danfe`           | Representação impressa                                                                                  |
+| Regime tributário    | `TaxRegime`       | `simples_nacional`, `lucro_presumido`, `lucro_real`                                                     |
+| NCM                  | `ncm`             |                                                                                                         |
+| CFOP                 | `cfop`            |                                                                                                         |
+| CST / CSOSN          | `cst` / `csosn`   |                                                                                                         |
+| Imposto              | `Tax`             |                                                                                                         |
+| Alíquota             | `taxRate`         |                                                                                                         |
 
 ## Assistente / IA
 

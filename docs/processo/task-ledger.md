@@ -117,20 +117,20 @@ Objetivo: as três trilhas conseguem trabalhar em paralelo sem esperar uma à ou
 
 Objetivo: registrar uma venda de ponta a ponta pelo aplicativo.
 
-| ID     | Tarefa                                                                      | Trilha | Módulo         | Est | Dep            | Bloq | US/RF                  | Status |
-| ------ | --------------------------------------------------------------------------- | :----: | -------------- | --: | -------------- | ---- | ---------------------- | :----: |
-| NR-020 | `db`: schema de vendas e financeiro                                         |   🔵   | `db`           |   3 | NR-008         | —    | RF-027–044, RF-063     |   ✅   |
+| ID     | Tarefa                                                                      | Trilha | Módulo         | Est | Dep            | Bloq | US/RF                                      | Status |
+| ------ | --------------------------------------------------------------------------- | :----: | -------------- | --: | -------------- | ---- | ------------------------------------------ | :----: |
+| NR-020 | `db`: schema de vendas e financeiro                                         |   🔵   | `db`           |   3 | NR-008         | —    | RF-027–044, RF-063                         |   ✅   |
 | NR-021 | `core`: casos de uso de cadastro (empresa, cliente, produto)                |   🔵   | `core`         |   3 | NR-008         | —    | RF-001–004, RF-007, RF-009–011, RF-013–019 |   ✅   |
-| NR-022 | `core`: `registerSale` — transação única com estoque, recebível e auditoria |   🔵   | `core`         |   4 | NR-020, NR-004 | —    | RF-034–039, RNF-046    |   ✅   |
-| NR-023 | `core`: movimentação de estoque e ajuste com autoria                        |   🔵   | `core`         |   2 | NR-021         | —    | RF-022–024             |   ✅   |
-| NR-024 | `domain`: desconto (sem alçada por papel) e troco                       |   🔵   | `domain`       |   2 | NR-004         | —    | RF-030, RF-031, RF-035 |   ✅   |
-| NR-025 | `core`: trilha de auditoria somente-inserção                                |   🔵   | `core`         |   2 | NR-020         | —    | RF-123, RF-124         |   ✅   |
+| NR-022 | `core`: `registerSale` — transação única com estoque, recebível e auditoria |   🔵   | `core`         |   4 | NR-020, NR-004 | —    | RF-034–039, RNF-046                        |   ✅   |
+| NR-023 | `core`: movimentação de estoque e ajuste com autoria                        |   🔵   | `core`         |   2 | NR-021         | —    | RF-022–024                                 |   ✅   |
+| NR-024 | `domain`: desconto (sem alçada por papel) e troco                           |   🔵   | `domain`       |   2 | NR-004         | —    | RF-030, RF-031, RF-035                     |   ✅   |
+| NR-025 | `core`: trilha de auditoria somente-inserção                                |   🔵   | `core`         |   2 | NR-020         | —    | RF-123, RF-124                             |   ✅   |
 | NR-026 | `api`: rotas de cadastro                                                    |   🟠   | `api`          |   2 | NR-021, NR-009 | —    | RF-001–004, RF-007, RF-009–011, RF-013–019 |   ✅   |
-| NR-027 | `api`: rota de venda com chave de idempotência                              |   🟠   | `api`          |   2 | NR-022         | —    | RF-036, RNF-043        |   ✅   |
-| NR-030 | `api`: observabilidade — `requestId`, log estruturado, rastreamento         |   🟠   | `api` `worker` |   2 | NR-009         | —    | RNF-058, RNF-059       |   ✅   |
-| NR-070 | `mobile`: cadastro de produto com leitor de código de barras                |   🟢   | `mobile`       |   3 | NR-026         | —    | US-009, RF-017         |   ✅   |
-| NR-071 | `mobile`: carrinho, seleção de cliente e fechamento de venda                |   🟢   | `mobile`       |   5 | NR-027         | —    | US-014–019             |   ✅   |
-| NR-072 | `web`: backoffice de cadastros                                              |   🟢   | `web`          |   3 | NR-026         | —    | E1, E2, E3             |   ✅   |
+| NR-027 | `api`: rota de venda com chave de idempotência                              |   🟠   | `api`          |   2 | NR-022         | —    | RF-036, RNF-043                            |   ✅   |
+| NR-030 | `api`: observabilidade — `requestId`, log estruturado, rastreamento         |   🟠   | `api` `worker` |   2 | NR-009         | —    | RNF-058, RNF-059                           |   ✅   |
+| NR-070 | `mobile`: cadastro de produto com leitor de código de barras                |   🟢   | `mobile`       |   3 | NR-026         | —    | US-009, RF-017                             |   ✅   |
+| NR-071 | `mobile`: carrinho, seleção de cliente e fechamento de venda                |   🟢   | `mobile`       |   5 | NR-027         | —    | US-014–019                                 |   ✅   |
+| NR-072 | `web`: backoffice de cadastros                                              |   🟢   | `web`          |   3 | NR-026         | —    | E1, E2, E3                                 |   ✅   |
 
 ## Sprint 3 — Fiscal e financeiro
 
@@ -153,23 +153,23 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 
-| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep            | Bloq             | US/RF                  | Status |
-| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | -------------- | ---------------- | ---------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028         | —                | RF-125–128             |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005         | —                | RF-015                 |   ✅   |
-| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045         | —                | RF-016, ADR-0014       |   ⬜   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084 | —                | US-046, RF-094, RF-095, RF-132 |   ⬜   |
-| NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005 | —                | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ⬜   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060         | —                | US-050, RF-103, RF-104     |   ⬜   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060         | **DEC-011**      | US-051, RF-105, RF-106     |   🚧   |
-| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060         | —                | US-065–067, RF-133–135     |   ⬜   |
-| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061 | —                | US-068, RF-137–139         |   ⬜   |
-| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061 | —                | US-069–071, RF-140–142     |   ⬜   |
-| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-042 | —          | US-072–075, RF-143–145, RF-147 |   ⬜   |
-| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-034 | —                | US-076, RF-148             |   ⬜   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044         | —                | RF-110–118             |   ⬜   |
-| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —              | —                | RF-114, RF-115         |   ✅   |
-| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063         | DEC-012          | E12                    |   🚧   |
+| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep                    | Bloq        | US/RF                                                         | Status |
+| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | ---------------------- | ----------- | ------------------------------------------------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028                 | —           | RF-125–128                                                    |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                 | —           | RF-015                                                        |   ✅   |
+| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045                 | —           | RF-016, ADR-0014                                              |   ⬜   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084         | —           | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
+| NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005         | —           | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ⬜   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060                 | —           | US-050, RF-103, RF-104                                        |   ⬜   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060                 | **DEC-011** | US-051, RF-105, RF-106                                        |   🚧   |
+| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060                 | —           | US-065–067, RF-133–135                                        |   ⬜   |
+| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061         | —           | US-068, RF-137–139                                            |   ⬜   |
+| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061         | —           | US-069–071, RF-140–142                                        |   ⬜   |
+| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-042 | —           | US-072–075, RF-143–145, RF-147                                |   ⬜   |
+| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-034         | —           | US-076, RF-148                                                |   ⬜   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044                 | —           | RF-110–118                                                    |   ⬜   |
+| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —                      | —           | RF-114, RF-115                                                |   ✅   |
+| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                 | DEC-012     | E12                                                           |   🚧   |
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -184,23 +184,23 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 
 ## Backlog
 
-| ID     | Tarefa                                                          | Trilha | Módulo                  | Est | Dep    | Bloq        | US/RF                  | Status |
-| ------ | --------------------------------------------------------------- | :----: | ----------------------- | --: | ------ | ----------- | ---------------------- | :----: |
-| NR-016 | `CHANGELOG` gerado dos commits + processo de release            |   🟠   | `repo`                  |   1 | —      | —           | —                      |   ✅   |
-| NR-034 | `core`: agenda e lembretes                                      |   🔵   | `core`                  |   2 | —      | —           | RF-089–093             |   ✅   |
-| NR-035 | `db`: schema de agenda (`appointments`)                         |   🔵   | `db`                    |   1 | NR-008 | —           | RF-089, RF-090         |   ✅   |
-| NR-036 | `api`: rotas de agenda                                          |   🟠   | `api`                   |   1 | NR-035 | —           | RF-089–093             |   ✅   |
-| NR-037 | `db`: repositórios da venda e trilha de estoque                 |   🔵   | `db`                    |   2 | NR-020 | —           | RF-024, RNF-046        |   ✅   |
-| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | —           | RNF-068                |   ⬜   |
-| NR-078 | `mobile`: agenda                                                |   🟢   | `mobile`                |   2 | NR-036 | —           | US-043–045             |   ✅   |
-| NR-079 | `web`: conteúdo real da landing                                 |   🟢   | `web`                   |   1 | —      | —           | —                      |   ✅   |
-| NR-080 | Suporte: schema, casos de uso, rotas e web                      |   🔵   | `db` `core` `api` `web` |   3 | NR-008 | —           | US-062                 |   ✅   |
-| NR-082 | `mobile`: suporte                                               |   🟢   | `mobile`                |   2 | NR-080 | —           | US-062                 |   ✅   |
-| NR-083 | Sessão persistente e revogável, e desaceleração no banco        |   🔵   | `db` `core` `api`       |   3 | NR-014 | —           | RF-119, RF-120         |   ✅   |
-| NR-084 | Better Auth como provedor de identidade, em schema próprio      |   🟠   | `api` `db`              |   3 | NR-083 | —           | RF-119, RF-120         |   ✅   |
-| NR-085 | Cookies, privacidade e termos: páginas e inventário com portão  |   🟢   | `web` `docs`            |   2 | —      | —           | RF-125, RNF-029        |   ✅   |
-| NR-086 | Direitos do titular: exportação completa e anonimização ligadas |   🔵   | `db` `api` `web`        |   3 | NR-031 | —           | RF-125, RF-127, RF-128 |   ✅   |
-| NR-087 | Trilha de auditoria persistente, e dentro da transação          |   🔵   | `db` `core` `api`       |   3 | NR-025 | —           | RF-123, RF-124, US-061 |   ✅   |
+| ID     | Tarefa                                                          | Trilha | Módulo                  | Est | Dep    | Bloq | US/RF                  | Status |
+| ------ | --------------------------------------------------------------- | :----: | ----------------------- | --: | ------ | ---- | ---------------------- | :----: |
+| NR-016 | `CHANGELOG` gerado dos commits + processo de release            |   🟠   | `repo`                  |   1 | —      | —    | —                      |   ✅   |
+| NR-034 | `core`: agenda e lembretes                                      |   🔵   | `core`                  |   2 | —      | —    | RF-089–093             |   ✅   |
+| NR-035 | `db`: schema de agenda (`appointments`)                         |   🔵   | `db`                    |   1 | NR-008 | —    | RF-089, RF-090         |   ✅   |
+| NR-036 | `api`: rotas de agenda                                          |   🟠   | `api`                   |   1 | NR-035 | —    | RF-089–093             |   ✅   |
+| NR-037 | `db`: repositórios da venda e trilha de estoque                 |   🔵   | `db`                    |   2 | NR-020 | —    | RF-024, RNF-046        |   ✅   |
+| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | —    | RNF-068                |   ⬜   |
+| NR-078 | `mobile`: agenda                                                |   🟢   | `mobile`                |   2 | NR-036 | —    | US-043–045             |   ✅   |
+| NR-079 | `web`: conteúdo real da landing                                 |   🟢   | `web`                   |   1 | —      | —    | —                      |   ✅   |
+| NR-080 | Suporte: schema, casos de uso, rotas e web                      |   🔵   | `db` `core` `api` `web` |   3 | NR-008 | —    | US-062                 |   ✅   |
+| NR-082 | `mobile`: suporte                                               |   🟢   | `mobile`                |   2 | NR-080 | —    | US-062                 |   ✅   |
+| NR-083 | Sessão persistente e revogável, e desaceleração no banco        |   🔵   | `db` `core` `api`       |   3 | NR-014 | —    | RF-119, RF-120         |   ✅   |
+| NR-084 | Better Auth como provedor de identidade, em schema próprio      |   🟠   | `api` `db`              |   3 | NR-083 | —    | RF-119, RF-120         |   ✅   |
+| NR-085 | Cookies, privacidade e termos: páginas e inventário com portão  |   🟢   | `web` `docs`            |   2 | —      | —    | RF-125, RNF-029        |   ✅   |
+| NR-086 | Direitos do titular: exportação completa e anonimização ligadas |   🔵   | `db` `api` `web`        |   3 | NR-031 | —    | RF-125, RF-127, RF-128 |   ✅   |
+| NR-087 | Trilha de auditoria persistente, e dentro da transação          |   🔵   | `db` `core` `api`       |   3 | NR-025 | —    | RF-123, RF-124, US-061 |   ✅   |
 
 ## Sprint 6 — Catálogo 0909
 
@@ -208,33 +208,33 @@ Objetivo: o banco vivo é o recorte `db_0909.sql` no domínio, com identidade,
 sessão, cofre e extrato da `main` às margens. Baseline novo; IDs antigos não
 voltam a ⬜.
 
-| ID     | Tarefa                                                                                     | Trilha | Módulo                                       | Est | Dep                                    | Bloq | US/RF                      | Status |
-| ------ | ------------------------------------------------------------------------------------------ | :----: | -------------------------------------------- | --: | -------------------------------------- | ---- | -------------------------- | :----: |
-| NR-088 | Adendo oficial 0909 + plataforma, DEC-019/ADR-0006, abrir NR-089–098                       |   —    | `docs`                                       |   1 | —                                      | —    | RNF-048                    |   ✅   |
-| NR-089 | `db`: baseline 0001–0007 (0909 + identidade/sessão/cofre/banco); apaga 0001–0025 velhos    |   🔵   | `db`                                         |   2 | NR-088                                 | —    | RF-121, RF-122, RNF-021    |   ✅   |
-| NR-090 | `db`: repositórios de cadastro no shape 0909 (endereço, produto, categoria)                |   🔵   | `db`                                         |   2 | NR-089                                 | —    | RF-001, RF-009, RF-017     |   ✅   |
-| NR-091 | `db` + `contracts`: venda, itens, pagamentos PSP, estoque, idempotência                    |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | RF-034–039, RNF-046        |   ✅   |
-| NR-092 | `db` + `contracts`: `ledger_accounts`, `outstanding_cents`, `settlements` unificados       |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | RF-055–067, RF-081         |   ✅   |
-| NR-093 | `db`: `invoices` 0909 + `company_integrations` convivendo com o cofre fiscal               |   🔵   | `db`                                         |   2 | NR-089                                 | —    | RF-004, RF-045–054, RF-146 |   ✅   |
-| NR-094 | `db` + `contracts`: `ticket_messages`, status EN de suporte, `audit_logs`                  |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | US-062, RF-123, RF-124     |   ✅   |
-| NR-095 | `db`: conciliação nas FKs novas + inventário da exportação LGPD                            |   🔵   | `db`                                         |   2 | NR-090, NR-092                         | —    | RF-078–080, RF-125, RF-127 |   ✅   |
+| ID     | Tarefa                                                                                     | Trilha | Módulo                                       | Est | Dep                                    | Bloq | US/RF                                              | Status |
+| ------ | ------------------------------------------------------------------------------------------ | :----: | -------------------------------------------- | --: | -------------------------------------- | ---- | -------------------------------------------------- | :----: |
+| NR-088 | Adendo oficial 0909 + plataforma, DEC-019/ADR-0006, abrir NR-089–098                       |   —    | `docs`                                       |   1 | —                                      | —    | RNF-048                                            |   ✅   |
+| NR-089 | `db`: baseline 0001–0007 (0909 + identidade/sessão/cofre/banco); apaga 0001–0025 velhos    |   🔵   | `db`                                         |   2 | NR-088                                 | —    | RF-121, RF-122, RNF-021                            |   ✅   |
+| NR-090 | `db`: repositórios de cadastro no shape 0909 (endereço, produto, categoria)                |   🔵   | `db`                                         |   2 | NR-089                                 | —    | RF-001, RF-009, RF-017                             |   ✅   |
+| NR-091 | `db` + `contracts`: venda, itens, pagamentos PSP, estoque, idempotência                    |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | RF-034–039, RNF-046                                |   ✅   |
+| NR-092 | `db` + `contracts`: `ledger_accounts`, `outstanding_cents`, `settlements` unificados       |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | RF-055–067, RF-081                                 |   ✅   |
+| NR-093 | `db`: `invoices` 0909 + `company_integrations` convivendo com o cofre fiscal               |   🔵   | `db`                                         |   2 | NR-089                                 | —    | RF-004, RF-045–054, RF-146                         |   ✅   |
+| NR-094 | `db` + `contracts`: `ticket_messages`, status EN de suporte, `audit_logs`                  |   🔵   | `db` `contracts`                             |   2 | NR-089                                 | —    | US-062, RF-123, RF-124                             |   ✅   |
+| NR-095 | `db`: conciliação nas FKs novas + inventário da exportação LGPD                            |   🔵   | `db`                                         |   2 | NR-090, NR-092                         | —    | RF-078–080, RF-125, RF-127                         |   ✅   |
 | NR-096 | `api`: composition e rotas cujo SQL/contrato mudou                                         |   🟠   | `api`                                        |   2 | NR-090, NR-091, NR-092, NR-093, NR-094 | —    | RF-001–004, RF-007, RF-009–011, RF-013–019, RF-036 |   ✅   |
-| NR-097 | `web` + `mobile`: vocabulário e campos (venda, suporte, endereço, categoria)               |   🟢   | `web` `mobile`                               |   2 | NR-096                                 | —    | US-014–019, US-062         |   ✅   |
-| NR-098 | Merge do baseline na `main` e `infra:reset` no setup                                       |   🟠   | `repo` `infra`                               |   1 | NR-095, NR-096, NR-097                 | —    | RNF-048                    |   ✅   |
-| NR-099 | Tema claro do painel: alternancia com persistencia e paridade AA de contraste              |   🟢   | `web` `ui`                                   |   1 | —                                      | —    | RNF-055                    |   ✅   |
-| NR-100 | Polish do painel: som e animacao na venda fechada, skeleton e mascote nos vazios           |   🟢   | `web`                                        |   1 | —                                      | —    | RNF-055                    |   ✅   |
-| NR-101 | Tutorial guiado no primeiro login: spotlight pelo dashboard e pela barra lateral           |   🟢   | `web`                                        |   1 | —                                      | —    | —                          |   ✅   |
-| NR-102 | Corrige o tema claro: sidebar/topbar e ~20 preenchimentos que so funcionavam no escuro     |   🟢   | `web`                                        |   1 | —                                      | —    | RNF-055                    |   ✅   |
-| NR-103 | Logo "Ei Buddy" no painel so atualiza a tela — nao navega mais pro site institucional      |   🟢   | `web`                                        |   1 | —                                      | —    | —                          |   ✅   |
-| NR-104 | Sino com aviso de cliente inativo, meta diaria e checklist de primeiros passos             |   🟢   | `web`                                        |   2 | —                                      | —    | —                          |   ✅   |
-| NR-105 | Super Admin: "entrar como" auditado (ADR-0007), do banco ao painel                         |   🔵   | `db` `contracts` `core` `api` `web`          |   4 | —                                      | —    | RF-131                     |   ✅   |
-| NR-106 | DEC-021: conexao entre usuarios por proximidade adiada para a Fase 4 (Rede)                |   —    | `docs`                                       |   1 | —                                      | —    | —                          |   ✅   |
-| NR-107 | Conexao entre usuarios por proximidade: busca cross-tenant e pedido auditado (ADR-0008)    |   🔵   | `db` `contracts` `core` `api` `web`          |   5 | —                                      | —    | RF-01–05 (spec)            |   ✅   |
-| NR-108 | Sugestao de conexao por filtragem colaborativa de ramo, sem IA (ADR-0009)                  |   🔵   | `db` `contracts` `core` `api` `web`          |   1 | NR-107                                 | —    | RF-01 (spec, aditivo)      |   ✅   |
-| NR-109 | Quadro de CRM: pendencias e contatos em Kanban, do banco ao mobile (comentario e equipe)   |   🟢   | `db` `contracts` `core` `api` `web` `mobile` |   4 | —                                      | —    | —                          |   ✅   |
-| NR-110 | Custos fixos: cadastro, edicao e "gerar contas do mes", do banco a tela                    |   🟢   | `db` `contracts` `core` `api` `web`          |   4 | NR-077                                 | —    | —                          |   ✅   |
-| NR-111 | Pre-lancamento: landing sem acesso, lista de espera e painel de respostas do Super Admin   |   🟢   | `db` `contracts` `core` `api` `web`          |   5 | —                                      | —    | —                          |   ✅   |
-| NR-112 | Painel da lista de espera: acesso provisorio por chave, sem esperar o primeiro Super Admin |   🟢   | `api` `web`                                  |   1 | NR-111                                 | —    | —                          |   ✅   |
+| NR-097 | `web` + `mobile`: vocabulário e campos (venda, suporte, endereço, categoria)               |   🟢   | `web` `mobile`                               |   2 | NR-096                                 | —    | US-014–019, US-062                                 |   ✅   |
+| NR-098 | Merge do baseline na `main` e `infra:reset` no setup                                       |   🟠   | `repo` `infra`                               |   1 | NR-095, NR-096, NR-097                 | —    | RNF-048                                            |   ✅   |
+| NR-099 | Tema claro do painel: alternancia com persistencia e paridade AA de contraste              |   🟢   | `web` `ui`                                   |   1 | —                                      | —    | RNF-055                                            |   ✅   |
+| NR-100 | Polish do painel: som e animacao na venda fechada, skeleton e mascote nos vazios           |   🟢   | `web`                                        |   1 | —                                      | —    | RNF-055                                            |   ✅   |
+| NR-101 | Tutorial guiado no primeiro login: spotlight pelo dashboard e pela barra lateral           |   🟢   | `web`                                        |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-102 | Corrige o tema claro: sidebar/topbar e ~20 preenchimentos que so funcionavam no escuro     |   🟢   | `web`                                        |   1 | —                                      | —    | RNF-055                                            |   ✅   |
+| NR-103 | Logo "Ei Buddy" no painel so atualiza a tela — nao navega mais pro site institucional      |   🟢   | `web`                                        |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-104 | Sino com aviso de cliente inativo, meta diaria e checklist de primeiros passos             |   🟢   | `web`                                        |   2 | —                                      | —    | —                                                  |   ✅   |
+| NR-105 | Super Admin: "entrar como" auditado (ADR-0007), do banco ao painel                         |   🔵   | `db` `contracts` `core` `api` `web`          |   4 | —                                      | —    | RF-131                                             |   ✅   |
+| NR-106 | DEC-021: conexao entre usuarios por proximidade adiada para a Fase 4 (Rede)                |   —    | `docs`                                       |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-107 | Conexao entre usuarios por proximidade: busca cross-tenant e pedido auditado (ADR-0008)    |   🔵   | `db` `contracts` `core` `api` `web`          |   5 | —                                      | —    | RF-01–05 (spec)                                    |   ✅   |
+| NR-108 | Sugestao de conexao por filtragem colaborativa de ramo, sem IA (ADR-0009)                  |   🔵   | `db` `contracts` `core` `api` `web`          |   1 | NR-107                                 | —    | RF-01 (spec, aditivo)                              |   ✅   |
+| NR-109 | Quadro de CRM: pendencias e contatos em Kanban, do banco ao mobile (comentario e equipe)   |   🟢   | `db` `contracts` `core` `api` `web` `mobile` |   4 | —                                      | —    | —                                                  |   ✅   |
+| NR-110 | Custos fixos: cadastro, edicao e "gerar contas do mes", do banco a tela                    |   🟢   | `db` `contracts` `core` `api` `web`          |   4 | NR-077                                 | —    | —                                                  |   ✅   |
+| NR-111 | Pre-lancamento: landing sem acesso, lista de espera e painel de respostas do Super Admin   |   🟢   | `db` `contracts` `core` `api` `web`          |   5 | —                                      | —    | —                                                  |   ✅   |
+| NR-112 | Painel da lista de espera: acesso provisorio por chave, sem esperar o primeiro Super Admin |   🟢   | `api` `web`                                  |   1 | NR-111                                 | —    | —                                                  |   ✅   |
 
 ---
 
@@ -296,19 +296,19 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 
 ## Bloqueios por decisão
 
-| Decisão                                                                                  | Diretas                | Em cascata | Dias parados |
-| ---------------------------------------------------------------------------------------- | ---------------------- | ---------: | -----------: |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ⬜)          |          — |            0 |
-| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅)          |          — |            0 |
-| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜)          |          — |            0 |
-| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜)          |          — |            0 |
-| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜)          |          — |            0 |
-| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048                 |          — |            4 |
-| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜)          |          — |            0 |
-| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜)          |          — |            0 |
-| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa                            | NR-062                 |          — |            3 |
-| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons                                | NR-075                 |          — |            3 |
-| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅)          |          — |            0 |
+| Decisão                                                                                  | Diretas       | Em cascata | Dias parados |
+| ---------------------------------------------------------------------------------------- | ------------- | ---------: | -----------: |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ⬜) |          — |            0 |
+| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅) |          — |            0 |
+| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜) |          — |            0 |
+| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜) |          — |            0 |
+| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜) |          — |            0 |
+| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048        |          — |            4 |
+| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜) |          — |            0 |
+| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜) |          — |            0 |
+| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa                            | NR-062        |          — |            3 |
+| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons                                | NR-075        |          — |            3 |
+| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅) |          — |            0 |
 
 > **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003 e DEC-009
 > fecharam. O que ainda está 🚧 por decisão é Open Finance, memória da conversa

@@ -63,16 +63,16 @@ Ao fechar a venda o sistema calcula automaticamente, sem intervenção:
 O assistente **não** precisa cobrir 100% do ERP para o MVP ter valor. A
 prioridade é o que a lojista faz várias vezes por dia:
 
-| Prioridade      | Capacidade                                                                           |
-| --------------- | ------------------------------------------------------------------------------------ |
-| **MUST**        | Consultar (vendas do dia, a receber, a pagar, estoque, saldo de cliente)             |
-| **MUST**        | Cadastrar cliente                                                                    |
-| **MUST**        | Lançar venda por texto (desconto, misto, fiado; nota via Focus se a loja estiver apta) |
-| **MUST**        | Enviar cobrança                                                                      |
-| **SHOULD**      | Lançar conta a pagar/receber; dar baixa; ajustar estoque; cancelar/devolver venda    |
-| **SHOULD**      | Cadastrar produto por texto; foto do código (padrão = venda; cadastro só se pedir)   |
-| **SHOULD**      | Gerar e enviar relatório                                                             |
-| **COULD**       | Criar compromisso; enviar catálogo                                                   |
+| Prioridade      | Capacidade                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **MUST**        | Consultar (vendas do dia, a receber, a pagar, estoque, saldo de cliente)                                                  |
+| **MUST**        | Cadastrar cliente                                                                                                         |
+| **MUST**        | Lançar venda por texto (desconto, misto, fiado; nota via Focus se a loja estiver apta)                                    |
+| **MUST**        | Enviar cobrança                                                                                                           |
+| **SHOULD**      | Lançar conta a pagar/receber; dar baixa; ajustar estoque; cancelar/devolver venda                                         |
+| **SHOULD**      | Cadastrar produto por texto; foto do código (padrão = venda; cadastro só se pedir)                                        |
+| **SHOULD**      | Gerar e enviar relatório                                                                                                  |
+| **COULD**       | Criar compromisso; enviar catálogo                                                                                        |
 | **WON'T (MVP)** | Certificado A1, banco/conciliação, comando avulso emitir/cancelar nota, cadastrar empresa pelo Zap, alterar preço em lote |
 
 Ações que criam ou alteram valor exigem confirmação explícita — princípio 3 da
@@ -82,22 +82,22 @@ Ações que criam ou alteram valor exigem confirmação explícita — princípi
 
 Explicitamente adiado. Registrar aqui evita rediscussão a cada sprint.
 
-| Item                                         | Por que fica fora                                                             |
-| -------------------------------------------- | ----------------------------------------------------------------------------- |
-| Marketplace de lojas                         | Depende de massa crítica de lojistas que ainda não existe                     |
-| Vitrine de especialidades                    | Idem                                                                          |
-| Espaço para propaganda                       | Modelo de receita secundário; não valida a tese                               |
-| Gamificação                                  | Retenção via valor primeiro; gamificação não salva produto sem uso            |
-| IA proativa (recomendações)                  | Precisa de histórico real para não recomendar besteira                        |
-| Parcerias por elegibilidade                  | Depende de volume e de dado consolidado                                       |
-| Atendimento ao cliente final pelo assistente | Multiplica risco de LGPD e custo de IA antes de validar o principal           |
-| Múltiplas filiais / depósitos                | Fora do público-alvo do MVP                                                   |
+| Item                                         | Por que fica fora                                                                                        |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Marketplace de lojas                         | Depende de massa crítica de lojistas que ainda não existe                                                |
+| Vitrine de especialidades                    | Idem                                                                                                     |
+| Espaço para propaganda                       | Modelo de receita secundário; não valida a tese                                                          |
+| Gamificação                                  | Retenção via valor primeiro; gamificação não salva produto sem uso                                       |
+| IA proativa (recomendações)                  | Precisa de histórico real para não recomendar besteira                                                   |
+| Parcerias por elegibilidade                  | Depende de volume e de dado consolidado                                                                  |
+| Atendimento ao cliente final pelo assistente | Multiplica risco de LGPD e custo de IA antes de validar o principal                                      |
+| Múltiplas filiais / depósitos                | Fora do público-alvo do MVP                                                                              |
 | Equipe / usuário `staff` na loja             | O operador é o owner; convite e alçada ficam [US-003](user-stories.md#us-003--convidar-equipe) (`WON'T`) |
-| Portal do contador                           | Exportação manual resolve no MVP                                              |
-| App para o cliente final                     | Sem demanda validada                                                          |
-| Aplicativo web offline-first completo        | Offline fica restrito ao PDV mobile ([RNF-051](requisitos-nao-funcionais.md)) |
-| Integração com e-commerce / ERP terceiro     | Sem demanda validada                                                          |
-| NFS-e                                        | Público secundário; entra logo após o MVP                                     |
+| Portal do contador                           | Exportação manual resolve no MVP                                                                         |
+| App para o cliente final                     | Sem demanda validada                                                                                     |
+| Aplicativo web offline-first completo        | Offline fica restrito ao PDV mobile ([RNF-051](requisitos-nao-funcionais.md))                            |
+| Integração com e-commerce / ERP terceiro     | Sem demanda validada                                                                                     |
+| NFS-e                                        | Público secundário; entra logo após o MVP                                                                |
 
 ## Roadmap pós-MVP
 
