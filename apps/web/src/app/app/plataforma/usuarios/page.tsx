@@ -3,7 +3,7 @@ import { BRAND } from '@/content/site'
 import AdminUsuariosView from '@/components/admin/AdminUsuariosView'
 
 export const metadata: Metadata = {
-  title: `Usuários — Super Admin — ${BRAND}`,
+  title: `Usuários — Plataforma — ${BRAND}`,
   description: 'Contas da plataforma, com as lojas de cada uma e o acesso de Super Admin.',
 }
 

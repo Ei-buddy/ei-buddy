@@ -150,20 +150,6 @@ export const ARMAZENAMENTO_LOCAL: readonly ArmazenamentoLocal[] = [
       'Guardar o estado da assinatura para as telas saberem o que liberar. Provisorio: sai quando a cobranca passar a ser consultada no servidor.',
     duracao: 'Ate voce limpar os dados do navegador',
   },
-  {
-    chave: 'na-regua:lista-vip-admin-key',
-    /*
-     * `essencial`, e nao `preferencia`: sem ela a tela do painel administrativo
-     * nao funciona (nao ha o que mostrar sem a chave). So existe no navegador
-     * de quem administra o pre-lancamento, nunca no de um visitante ou lojista.
-     * Provisorio: sai quando o painel passar a exigir sessao de Super Admin
-     * (NR-111).
-     */
-    categoria: 'essencial',
-    finalidade:
-      'Guardar a chave de acesso provisoria ao painel interno de respostas do pre-lancamento, so para quem administra o sistema.',
-    duracao: 'Ate voce limpar os dados do navegador',
-  },
 ]
 
 /** Ha algo que dependa de consentimento? Hoje, nao — e a pagina diz isso. */

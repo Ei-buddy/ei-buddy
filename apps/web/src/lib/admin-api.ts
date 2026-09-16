@@ -66,46 +66,6 @@ export const revogarSuperAdmin = (userId: string): Promise<Resultado<void>> =>
 /* Lista de espera do pre-lancamento — NR-111                                 */
 /* -------------------------------------------------------------------------- */
 
-const CABECALHO_CHAVE_LISTA_VIP = 'x-waitlist-admin-key'
-const CHAVE_LISTA_VIP_LOCALSTORAGE = 'na-regua:lista-vip-admin-key'
-
-/**
- * A chave provisoria do painel, guardada so neste navegador — NR-111.
- *
- * Existe para o painel funcionar sem o primeiro Super Admin (ver
- * `ChaveDeAcessoListaVip`, `proxy.ts`, `routes/waitlist.ts`). `try/catch`:
- * modo privado e alguns navegadores derrubam o acesso a `localStorage`, e
- * pedir a chave de novo e melhor que a tela quebrar.
- */
-export function lerChaveDaListaVip(): string | null {
-  try {
-    return localStorage.getItem(CHAVE_LISTA_VIP_LOCALSTORAGE)
-  } catch {
-    return null
-  }
-}
-
-export function salvarChaveDaListaVip(chave: string): void {
-  try {
-    localStorage.setItem(CHAVE_LISTA_VIP_LOCALSTORAGE, chave)
-  } catch {
-    /* Sem storage disponivel: a chave vale so para esta renderizacao. */
-  }
-}
-
-export function esquecerChaveDaListaVip(): void {
-  try {
-    localStorage.removeItem(CHAVE_LISTA_VIP_LOCALSTORAGE)
-  } catch {
-    /* Nada gravado, nada para apagar. */
-  }
-}
-
-function cabecalhoDaChave(): Record<string, string> {
-  const chave = lerChaveDaListaVip()
-  return chave === null ? {} : { [CABECALHO_CHAVE_LISTA_VIP]: chave }
-}
-
 export type RespostaListaVip = {
   id: string
   name: string
@@ -136,7 +96,7 @@ export const listarRespostasListaVip = (
   if (params.page) query.set('page', String(params.page))
   if (params.pageSize) query.set('pageSize', String(params.pageSize))
   const qs = query.toString()
-  return pedir(`/api/admin/lista-vip${qs === '' ? '' : `?${qs}`}`, { headers: cabecalhoDaChave() })
+  return pedir(`/api/admin/lista-vip${qs === '' ? '' : `?${qs}`}`)
 }
 
 export type ContagemPorChave<T extends string> = { value: T; count: number }
@@ -150,7 +110,7 @@ export type ResumoDaListaVip = {
 }
 
 export const resumoListaVip = (): Promise<Resultado<ResumoDaListaVip>> =>
-  pedir('/api/admin/lista-vip/resumo', { headers: cabecalhoDaChave() })
+  pedir('/api/admin/lista-vip/resumo')
 
 /* --- Usuarios da plataforma — NR-121 ---------------------------------- */
 

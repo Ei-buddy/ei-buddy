@@ -23,6 +23,8 @@ export type Perfil = {
   memberships: Vinculo[]
   /** Sessao de Super Admin "dentro" desta empresa — ADR-0007. */
   isImpersonating: boolean
+  /** Acesso a plataforma inteira — o que liga a secao Plataforma na barra. */
+  isPlatformAdmin: boolean
 }
 
 export const carregarPerfil = (): Promise<Resultado<Perfil>> => pedir('/api/perfil')

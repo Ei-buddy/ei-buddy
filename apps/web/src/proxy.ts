@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/session'
 
 /**
- * Protecao das rotas de `/app/*` e `/admin/*` (ADR-0007).
+ * Protecao das rotas de `/app/*` (ADR-0007).
  *
  * No Next 16 o antigo Middleware passou a se chamar Proxy — mesma
  * funcionalidade, arquivo `src/proxy.ts`.
@@ -22,15 +22,6 @@ import { SESSION_COOKIE } from '@/lib/session'
  * presa: o proxy veria o cookie e deixaria passar, e cada tela receberia 401.
  */
 export function proxy(request: NextRequest) {
-  /*
-   * Excecao provisoria — NR-111. Antes de existir o primeiro Super Admin, o
-   * painel da lista de espera aceita a chave de `x-waitlist-admin-key` em vez
-   * de sessao (ver ChaveDeAcessoListaVip/apps/api/routes/waitlist.ts). Sem
-   * isto o proxy redirecionaria para `/login` antes da pagina sequer
-   * perguntar pela chave. Remover quando o painel exigir sessao de verdade.
-   */
-  if (request.nextUrl.pathname === '/admin/lista-vip') return NextResponse.next()
-
   const temSessao = Boolean(request.cookies.get(SESSION_COOKIE)?.value)
 
   if (temSessao) return NextResponse.next()
@@ -44,5 +35,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app/:path*', '/admin/:path*'],
+  matcher: ['/app/:path*'],
 }
