@@ -10,6 +10,7 @@
  */
 export * from './accounting/account.js'
 export * from './agent/message.js'
+export * from './agent/send-charge.js'
 export * from './audit/entry.js'
 export * from './common/index.js'
 export * from './company/company.js'

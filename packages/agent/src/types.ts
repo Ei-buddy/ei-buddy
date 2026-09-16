@@ -1,3 +1,4 @@
+import type { AiUsageCounter } from './ai-usage.js'
 import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
 import type { Channel, ExecutionContext } from '@na-regua/core'
 import type { z } from 'zod'
@@ -74,4 +75,6 @@ export type AgentRuntime = {
   readonly timeZone: string
   readonly confirmationTtlMs: number
   readonly peers?: PeerDirectory
+  /** Contador de decides por empresa; ausente = sem teto e sem medicao. */
+  readonly aiUsage?: AiUsageCounter
 }

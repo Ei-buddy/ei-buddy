@@ -51,14 +51,16 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     100 |  250 |
-| ✅ Concluídas                 |      82 |  199 |
+| ✅ Concluídas                 |      83 |  204 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      17 |   47 |
+| ⬜ A fazer, pode começar hoje |      16 |   42 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
 > exceção — foi mesclado antes de a convenção de rodapé existir (PR #15).
+> A **NR-060** entra como ✅ **neste PR** (branch `feat/NR-060-runtime-agente`);
+> a `main` só passa a contar o squash depois do merge — sem URL de PR ainda.
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi
@@ -81,11 +83,11 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **51 dias que faltam, 47 podem começar hoje** — inclusive NR-015 (deploy na
-VM), a cascata do agente no Studio (NR-060 → NR-121 → 061/062 → 115–119 →
-NR-120), depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
-DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava tarefa no
-quadro (NR-048). Studio é substituto do WhatsApp em engenharia
+Dos **46 dias que faltam, 42 podem começar hoje** — inclusive NR-015 (deploy na
+VM), a cascata do agente no Studio (NR-121 → 061/062 → 115–119 →
+NR-120) agora que a NR-060 está ✅, depois o canal real (NR-113 + NR-046), e a
+NR-075 (cupons; DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava
+tarefa no quadro (NR-048). Studio é substituto do WhatsApp em engenharia
 ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md) revisão 2026-09-16);
 **não** é runtime do lojista.
 
@@ -158,25 +160,33 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 
-| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep                                                              | Bloq | US/RF                                                         | Status |
-| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | ---------------------------------------------------------------- | ---- | ------------------------------------------------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028                                                           | —    | RF-125–128                                                    |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                                                           | —    | RF-015                                                        |   ✅   |
-| NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-005                                                           | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ⬜   |
-| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                           | —    | ADR-0010 (rev.), RNF-006                                      |   ⬜   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                                   | —    | US-050, RF-103, RF-104                                        |   ⬜   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                                   | —    | US-051, RF-105, RF-106, ADR-0016                              |   ⬜   |
-| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                           | —    | US-065–067, RF-133–135                                        |   ⬜   |
-| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                           | —    | US-068, RF-137–139                                            |   ⬜   |
-| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                           | —    | US-069–071, RF-140–142                                        |   ⬜   |
-| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062, NR-042                                   | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
-| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-061, NR-062, NR-034                                   | —    | US-076, RF-148                                                |   ⬜   |
-| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`               |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119           | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084, NR-120                                           | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
-| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045, NR-113                                                   | —    | RF-016, ADR-0014                                              |   ⬜   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044                                                           | —    | RF-110–118                                                    |   ⬜   |
-| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —                                                                | —    | RF-114, RF-115                                                |   ✅   |
-| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                                                           | —    | E12, ADR-0013                                                 |   ⬜   |
+| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep                                                    | Bloq | US/RF                                                         | Status |
+| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | ------------------------------------------------------ | ---- | ------------------------------------------------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028                                                 | —    | RF-125–128                                                    |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                                                 | —    | RF-015                                                        |   ✅   |
+| NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-005                                                 | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ✅   |
+| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ⬜   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ⬜   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ⬜   |
+| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ⬜   |
+| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ⬜   |
+| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ⬜   |
+| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
+| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ⬜   |
+| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`               |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
+| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044                                                 | —    | RF-110–118                                                    |   ⬜   |
+| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
+| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
+
+**NR-060 (entregue neste PR):** runtime mínimo Mastra + tools de `contracts`
+(US-047–049, US-052, US-053/RF-108, recusas RF-149–151), harness de fixture
+com FakeLlm. Status ✅ nesta branch — sem URL de PR ainda. O resumo de
+período cobre RF-108 (faturamento, custo, despesas, resultado; texto
+truncado se não couber). **RF-109** (arquivo ou link para detalhe grande)
+permanece dívida técnica explícita e **não** bloqueia o merge; não há
+linha nova no ledger para isso. Ver `packages/agent/README.md`.
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -303,26 +313,26 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 
 ## Bloqueios por decisão
 
-| Decisão                                                                                  | Diretas       | Em cascata | Dias parados |
-| ---------------------------------------------------------------------------------------- | ------------- | ---------: | -----------: |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ⬜; Studio NR-121) |          — |            0 |
-| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅) |          — |            0 |
+| Decisão                                                                                  | Diretas                        | Em cascata | Dias parados |
+| ---------------------------------------------------------------------------------------- | ------------------------------ | ---------: | -----------: |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ✅; Studio NR-121)   |          — |            0 |
+| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅)                  |          — |            0 |
 | [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜, após NR-113/120) |          — |            0 |
-| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜) |          — |            0 |
-| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜) |          — |            0 |
-| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048        |          — |            4 |
-| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜) |          — |            0 |
-| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜) |          — |            0 |
-| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa ✅                         | — (NR-062 ⬜) |          — |            0 |
-| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons ✅                             | — (NR-075 ⬜) |          — |            0 |
-| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅) |          — |            0 |
+| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜)                  |          — |            0 |
+| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜)                  |          — |            0 |
+| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048                         |          — |            4 |
+| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜)                  |          — |            0 |
+| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜)                  |          — |            0 |
+| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa ✅                         | — (NR-062 ⬜)                  |          — |            0 |
+| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons ✅                             | — (NR-075 ⬜)                  |          — |            0 |
+| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅)                  |          — |            0 |
 
 > **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003, DEC-009,
 > DEC-011 e DEC-012 fecharam. O que ainda está 🚧 por decisão no quadro é
 > Open Finance (DEC-005 / NR-048). Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 51 dias-desenvolvedor que restam, 47 estão liberados.**
+**Dos 46 dias-desenvolvedor que restam, 42 estão liberados.**
 O único bloqueio de decisão no ledger é Open Finance (DEC-005, 4 dias).
 
 Cada tarefa é contada **uma vez**, na decisão que aparece na sua própria coluna

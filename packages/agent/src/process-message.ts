@@ -1,5 +1,6 @@
 import { isAppError, type ExecutionContext } from '@na-regua/core'
 import type { AgentReply } from '@na-regua/contracts'
+import { TEXTO_TETO_IA } from './ai-usage.js'
 import { novaConfirmacao } from './confirmations.js'
 import { textoDasCapacidades } from './catalog.js'
 import { parseToolArgs } from './define-tool.js'
@@ -32,12 +33,17 @@ export async function processMessage(
     return tratarConfirmacao(runtime, ctx, pendente, input)
   }
 
+  if (estourouTeto(runtime, ctx)) {
+    return avisoDeTeto()
+  }
+
   const today = diaIso(ctx.now, runtime.timeZone)
   const decisao = await runtime.llm.decide({
     text: input.text,
     tools: runtime.tools,
     today,
   })
+  runtime.aiUsage?.record(ctx.companyId, ctx.now)
 
   if (decisao.type === 'unknown') {
     return { kind: 'unknown', text: textoDasCapacidades(runtime.tools) }
@@ -59,6 +65,9 @@ export async function processMessage(
   }
 
   if (tool.mutatesValue) {
+    if (estourouTeto(runtime, ctx)) {
+      return avisoDeTeto()
+    }
     const pending = novaConfirmacao({
       conversationKey,
       toolId: tool.id,
@@ -98,6 +107,9 @@ async function tratarConfirmacao(
   }
 
   if (SIM.test(compacto)) {
+    if (estourouTeto(runtime, ctx)) {
+      return avisoDeTeto()
+    }
     await runtime.confirmations.resolve(pendente.id, 'accepted')
     const tool = runtime.tools.find((t) => t.id === pendente.toolId)
     if (tool === undefined) {
@@ -118,6 +130,14 @@ async function tratarConfirmacao(
 
 function pareceIntencaoNova(texto: string): boolean {
   return texto.length > 12
+}
+
+function estourouTeto(runtime: AgentRuntime, ctx: ExecutionContext): boolean {
+  return runtime.aiUsage?.isOverBudget(ctx.companyId, ctx.now) === true
+}
+
+function avisoDeTeto(): AgentReply {
+  return { kind: 'answer', text: TEXTO_TETO_IA }
 }
 
 async function executar(

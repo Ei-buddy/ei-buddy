@@ -1,5 +1,5 @@
 import { agentReplySchema } from '@na-regua/contracts'
-import { createAgentRuntime, FakeLlm, type AgentUseCases } from '@na-regua/agent'
+import { createAgentRuntime, type AgentUseCases } from '@na-regua/agent'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
@@ -45,6 +45,12 @@ const useCases: AgentUseCases = {
     months: [],
     totalNetCents: 0,
   }),
+  buildDre: async () => {
+    throw new Error('nao deveria montar DRE neste teste')
+  },
+  sendCustomerCharge: async () => {
+    throw new Error('nao deveria cobrar neste teste')
+  },
 }
 
 function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL): FastifyInstance {
@@ -53,7 +59,7 @@ function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL): Fastify
   app.addHook('onRequest', async (request) => {
     if (principal !== null) request.principal = principal
   })
-  registerAgentRoutes(app, { runtime: createAgentRuntime({ useCases, llm: new FakeLlm() }) })
+  registerAgentRoutes(app, { runtime: createAgentRuntime({ useCases }) })
   return app
 }
 
@@ -69,6 +75,37 @@ describe('POST /agent/messages', () => {
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
     expect(corpo.kind).toBe('answer')
     expect(corpo.text).toContain('1 venda')
+    await app.close()
+  })
+
+  it('intencao desconhecida lista capacidades, sem inventar — RF-097', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'me conta uma piada' },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('unknown')
+    expect(corpo.text).toContain('list_sales')
+    expect(corpo.text).toContain('create_sale')
+    expect(corpo.text).not.toMatch(/US-065|estoque|em breve/i)
+    await app.close()
+  })
+
+  it('consulta fora do catalogo (estoque) tambem so lista capacidades', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto tem de camiseta?' },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('unknown')
+    expect(corpo.text).toContain('list_sales')
+    expect(corpo.text).not.toMatch(/US-065|estoque|em breve/i)
     await app.close()
   })
 
@@ -93,6 +130,17 @@ describe('POST /agent/messages', () => {
     expect(res.statusCode).toBe(400)
     await app.close()
   })
+
+  it('recusa companyId no body — tenant vem so da sessao da fixture', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto vendi hoje?', companyId: 'outra-loja' },
+    })
+    expect(res.statusCode).toBe(400)
+    await app.close()
+  })
 })
 
 /**
@@ -103,13 +151,13 @@ describe('POST /agent/messages', () => {
  * nenhuma outra rota respondendo.
  */
 describe('POST /agent/messages sem runtime', () => {
-  function buildAppSemRuntime(): FastifyInstance {
+  function buildAppSemRuntime(motivo?: string): FastifyInstance {
     const app = Fastify({ logger: false })
     registerErrorHandler(app)
     app.addHook('onRequest', async (request) => {
       request.principal = PRINCIPAL
     })
-    registerAgentRoutes(app, null)
+    registerAgentRoutes(app, null, motivo)
     return app
   }
 
@@ -124,8 +172,28 @@ describe('POST /agent/messages sem runtime', () => {
     expect(res.statusCode).toBe(503)
     const corpo = JSON.parse(res.body) as { error: { code: string; message: string } }
     expect(corpo.error.code).toBe('UNAVAILABLE')
-    /* A tela precisa poder dizer o que houve sem mandar o lojista adivinhar. */
     expect(corpo.error.message).toMatch(/indisponivel/i)
+    expect(corpo.error.message).toMatch(/harness/i)
+    expect(corpo.error.message).toMatch(/fixture/i)
+    await app.close()
+  })
+
+  it('propaga o motivo de harness off / fake em prod (FR-001b)', async () => {
+    const app = buildAppSemRuntime(
+      'Harness do assistente desligado em producao (FR-001b). ' +
+        'Defina AGENT_HARNESS=1 so para staging de engenharia.',
+    )
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto vendi hoje?' },
+    })
+
+    expect(res.statusCode).toBe(503)
+    const corpo = JSON.parse(res.body) as { error: { code: string; message: string } }
+    expect(corpo.error.code).toBe('UNAVAILABLE')
+    expect(corpo.error.message).toMatch(/FR-001b/)
+    expect(corpo.error.message).toMatch(/AGENT_HARNESS=1/)
     await app.close()
   })
 })

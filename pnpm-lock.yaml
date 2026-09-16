@@ -91,6 +91,9 @@ importers:
       '@na-regua/money':
         specifier: workspace:*
         version: link:../../packages/money
+      '@na-regua/whatsapp':
+        specifier: workspace:*
+        version: link:../../packages/whatsapp
       better-auth:
         specifier: ^1.7.4
         version: 1.7.4(next@16.3.4(@types/node@26.5.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.3.0(react@19.2.8))(react@19.2.8)(vitest@4.1.11)
@@ -8240,7 +8243,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@lukeed/csprng@1.1.0': {}
 

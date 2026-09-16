@@ -135,7 +135,75 @@ degradação avisada em vez de conta surpresa —
 [RNF-073](../../docs/produto/requisitos-nao-funcionais.md).
 O denominador da mensalidade ainda é [QST-002](../../docs/decisoes/README.md#qst-002).
 
+## Harness local (NR-060)
+
+Canal de engenharia: `POST /agent/messages` com sessão de **fixture**
+(criar usuário + empresa de teste, popular dados, autenticar). Não é o
+canal de produto do lojista. Opera em não-produção, ou com
+`AGENT_HARNESS=1` quando o `NODE_ENV` está próximo de prod (staging).
+Produção não serve `AGENT_PROVIDER=fake` e o endpoint permanece desligado
+para o lojista até NR-113 / NR-121.
+
+Smoke passo a passo (FakeLlm, sem OpenAI):
+[quickstart da feature](../../specs/002-agent-mastra-runtime/quickstart.md).
+
+### Dívida: relatório por arquivo/link (RF-109)
+
+`period_summary` cobre [RF-108](../../docs/produto/requisitos-funcionais.md)
+(faturamento, custo, despesas e resultado via `buildDre`). Se o detalhe
+estourar o teto de uma mensagem (4096 caracteres, o mesmo do
+`MessageSender`), a resposta é **só o texto truncado**. Arquivo ou link
+para o restante — [RF-109](../../docs/produto/requisitos-funcionais.md) —
+fica dívida explícita desta fatia e **não** entra no aceite da NR-060.
+
+```bash
+pnpm --filter @na-regua/agent test
+pnpm --filter @na-regua/api exec vitest run src/routes/agent.test.ts src/composition.test.ts
+```
+
+O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
+linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
+
+| #   | Mensagem                           | Teste                                                                                                    |
+| --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 1   | `quanto vendi hoje?`               | `process-message.test.ts` (totais = `listSales`); `apps/api/src/routes/agent.test.ts` (POST autenticado) |
+| 2   | `quem está me devendo?`            | `process-message.test.ts` (totais = `listReceivables`)                                                   |
+| 3   | `quanto tem de camiseta?`          | `process-message.test.ts` + rota: `unknown` / capacidades, sem NR-115                                    |
+| 4   | cadastrar cliente                  | `process-message.test.ts` (`create_customer` → confirmação → sim; duplicata; “talvez”)                   |
+| 5   | venda scriptada                    | `process-message.test.ts` (`create_sale` → sim; líquido = core)                                          |
+| 6   | produto ambíguo                    | `process-message.test.ts` (`search_products` → `clarify`)                                                |
+| 7   | cobrança                           | `process-message.test.ts` (`send_charge` → sim / sem dívida)                                             |
+| 8   | `resumo do mês`                    | `process-message.test.ts` + `format.test.ts` (quatro eixos DRE; truncamento; sem arquivo/link)           |
+| 9   | certificado / OFX / “emite a nota” | `process-message.test.ts` (`refuse_*`; zero efeito)                                                      |
+| 10  | mutação sem `sim` / TTL            | `process-message.test.ts` (não grava; expiração)                                                         |
+
+## Fumaça opcional — Mastra real (SC-006, fora da CI)
+
+Com chave e `AGENT_PROVIDER=mastra` (mesmo contrato de `POST /agent/messages`):
+
+```bash
+AGENT_PROVIDER=mastra OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+```
+
+1. Subir a API em não-produção (ou `AGENT_HARNESS=1` em staging). Produção
+   não serve `fake` e o endpoint permanece desligado para o lojista.
+2. Autenticar como fixture.
+3. Repetir **uma consulta** (`quanto vendi hoje?`) e **uma venda**
+   (proposta → `sim`). Só a origem da intenção muda (`Agent.generate`);
+   tools → `core` é o mesmo laço do FakeLlm.
+
+Não rode isto na CI. Sem chave, o runtime permanece em `fake`. Não subir
+Studio (NR-121) nem webhook Meta (NR-046) nesta fumaça.
+
 ## Variáveis de ambiente
 
-`AGENT_PROVIDER` (`fake` \| `mastra`), `OPENAI_API_KEY`, `AGENT_MODEL`
-(`openai/gpt-4o-mini`), `AGENT_MONTHLY_BUDGET_CENTS`.
+Cópia para `.env`: [`.env.example`](../../.env.example) na raiz. Matriz
+completa: [`ambientes.md`](../../docs/engenharia/ambientes.md).
+
+| Variável                     | Local                | Função                                                                                     |
+| ---------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| `AGENT_PROVIDER`             | `fake` \| `mastra`   | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.        |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini` | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                   |
+| `AGENT_HARNESS`              | ausente \| `1`       | Porteiro (FR-001b): `1` libera o harness fora do `development` local. Default off em prod. |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).   |
+| `OPENAI_API_KEY`             | vazia                | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                |

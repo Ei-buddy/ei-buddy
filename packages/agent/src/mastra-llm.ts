@@ -11,6 +11,9 @@ Regras:
 - Se a pergunta nao casar com nenhuma ferramenta, nao invente resposta.
 - Nao peca confirmacao: o sistema pede depois, quando a acao grava valor.
 - Responda curto. Nao explique a ferramenta.
+- Certificado A1, senha de certificado, arquivo PFX ou cadastro de emitente: chame refuse_certificate. Nao peca arquivo nem senha.
+- Importar OFX/CSV, Open Finance ou conciliar banco: chame refuse_banking. Nao peca o extrato.
+- Emitir ou cancelar nota/NFC-e sem registrar ou cancelar a venda: chame refuse_invoice_command. Nao use create_sale so para emitir nota; a nota e efeito da venda.
 `.trim()
 
 export type MastraLlmOptions = {

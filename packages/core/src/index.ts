@@ -133,6 +133,13 @@ export type {
 export { listReceivables } from './receivables/list-receivables.js'
 export { createReceivable } from './receivables/create-receivable.js'
 export type { CreateReceivableDeps } from './receivables/create-receivable.js'
+export { sendCustomerCharge, textoDaCobrancaAoCliente } from './receivables/send-customer-charge.js'
+export type {
+  SendCustomerChargeDeps,
+  SendCustomerChargeResult,
+  WhatsappConsent,
+  WhatsappConsentReader,
+} from './receivables/send-customer-charge.js'
 export { InMemoryManualReceivables, InMemoryReceivables } from './receivables/fakes.js'
 export type {
   GrupoDeRecebimento,

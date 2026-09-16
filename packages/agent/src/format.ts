@@ -1,7 +1,39 @@
+import type { DreOutput } from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
+
+/** Teto de uma mensagem no canal (mesmo max do MessageSender). RF-108. */
+export const LIMITE_TEXTO_MENSAGEM = 4096
+
+const SUFIXO_TRUNCADO = '\n…'
 
 export function formatarCentavos(cents: number): string {
   return Money.fromCents(cents).format()
+}
+
+/**
+ * Corta texto que nao cabe numa mensagem. Nao inventa arquivo nem link
+ * (RF-109 fica fora desta fatia).
+ */
+export function truncarTexto(texto: string, limite = LIMITE_TEXTO_MENSAGEM): string {
+  if (texto.length <= limite) return texto
+  const corte = Math.max(0, limite - SUFIXO_TRUNCADO.length)
+  return `${texto.slice(0, corte)}${SUFIXO_TRUNCADO}`
+}
+
+/**
+ * Quatro eixos do DRE ja calculados por `core` — o formatador so exibe.
+ * Linhas extras entram depois e sao a primeira coisa a cair no corte (RF-108).
+ */
+export function formatarResumoDre(out: DreOutput, limite = LIMITE_TEXTO_MENSAGEM): string {
+  const eixos = [
+    `Resumo de ${out.from} a ${out.to}.`,
+    `Faturamento ${formatarCentavos(out.netRevenueCents)}.`,
+    `Custo ${formatarCentavos(out.costCents)}.`,
+    `Despesas ${formatarCentavos(out.expensesCents)}.`,
+    `Resultado ${formatarCentavos(out.resultCents)}.`,
+  ]
+  const linhas = out.lines.map((l) => `- ${l.accountName}: ${formatarCentavos(l.amountCents)}`)
+  return truncarTexto([...eixos, ...linhas].join('\n'), limite)
 }
 
 export function diaIso(now: Date, timeZone: string): string {

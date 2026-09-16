@@ -7,6 +7,8 @@
  * Runtime: Mastra + gpt-4o-mini (ADR-0010). Sem WhatsApp, o canal e HTTP
  * autenticado (`POST /agent/messages`) e `AGENT_PROVIDER=fake`.
  */
+export { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
+export type { AiUsageCounter, InMemoryAiUsageOptions } from './ai-usage.js'
 export { createToolCatalog, textoDasCapacidades } from './catalog.js'
 export type { AgentUseCases } from './catalog.js'
 export { InMemoryConfirmations, novaConfirmacao } from './confirmations.js'

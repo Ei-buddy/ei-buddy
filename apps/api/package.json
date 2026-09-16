@@ -24,6 +24,7 @@
     "@na-regua/env": "workspace:*",
     "@na-regua/fiscal": "workspace:*",
     "@na-regua/money": "workspace:*",
+    "@na-regua/whatsapp": "workspace:*",
     "better-auth": "^1.7.4",
     "bullmq": "^6.3.4",
     "fastify": "^5.12.4",

@@ -1,3 +1,4 @@
+import type { AiUsageCounter } from './ai-usage.js'
 import { createToolCatalog, type AgentUseCases } from './catalog.js'
 import { CONFIRMATION_TTL_MS } from './process-message.js'
 import { InMemoryConfirmations } from './confirmations.js'
@@ -10,6 +11,7 @@ export type CreateRuntimeOptions = {
   readonly timeZone?: string
   readonly confirmationTtlMs?: number
   readonly peers?: PeerDirectory
+  readonly aiUsage?: AiUsageCounter
 }
 
 /**
@@ -24,5 +26,6 @@ export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
     timeZone: opcoes.timeZone ?? 'America/Sao_Paulo',
     confirmationTtlMs: opcoes.confirmationTtlMs ?? CONFIRMATION_TTL_MS,
     ...(opcoes.peers === undefined ? {} : { peers: opcoes.peers }),
+    ...(opcoes.aiUsage === undefined ? {} : { aiUsage: opcoes.aiUsage }),
   }
 }

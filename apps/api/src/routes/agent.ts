@@ -6,23 +6,34 @@ import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
 
 /**
- * Canal HTTP do assistente — NR-060, sem WhatsApp.
+ * Canal HTTP do assistente — NR-060, FR-001b, sem WhatsApp.
  *
- * A mesma `processMessage` do webhook futuro. Aqui o contexto vem da sessao
- * (`channel: 'app'`), nao do numero. E o que permite testar o runtime com o
- * lojista logado enquanto o webhook Meta (NR-046) nao existe.
+ * Harness de engenharia: a mesma `processMessage` do webhook futuro. O
+ * contexto vem da sessao autenticada da fixture (`channel: 'app'`), nunca de
+ * `companyId` no body (schema strict so aceita `text`). Nao e canal de
+ * produto do lojista nesta fatia — producao fica 503 ate NR-113 / NR-121,
+ * salvo `AGENT_HARNESS=1` em staging.
  */
 
 export type AgentRouteDeps = {
   readonly runtime: AgentRuntime
 }
 
-export function registerAgentRoutes(app: FastifyInstance, deps: AgentRouteDeps | null): void {
+const MENSAGEM_HARNESS_DESLIGADO =
+  'Assistente indisponivel: harness de engenharia desligado (FR-001b). ' +
+  'Use sessao de fixture em nao-producao, ou AGENT_HARNESS=1 em staging. ' +
+  'Nenhum usuario final do produto usa este canal.'
+
+export function registerAgentRoutes(
+  app: FastifyInstance,
+  deps: AgentRouteDeps | null,
+  motivo?: string,
+): void {
   /*
    * Sem runtime configurado, a rota recusa e o resto da api continua servindo
    * — mesmo desfecho da emissao fiscal sem `SECRETS_KEY`. O caminho fica
    * registrado de proposito: 503 com motivo e uma resposta, e 404 seria a tela
-   * do lojista concluindo que o assistente nunca existiu.
+   * concluindo que o assistente nunca existiu.
    */
   if (deps === null) {
     app.post(
@@ -32,9 +43,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AgentRouteDeps |
         reply.code(503).send({
           error: {
             code: 'UNAVAILABLE',
-            message:
-              'Assistente indisponivel: o servidor esta sem runtime de IA configurado. ' +
-              'Fale com o suporte.',
+            message: motivo ?? MENSAGEM_HARNESS_DESLIGADO,
           },
         }),
     )
