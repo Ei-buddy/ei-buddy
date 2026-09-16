@@ -45,27 +45,27 @@ provedor que exigisse cadastro Meta por lojista quebraria esse recorte.
 A plataforma opera **um** WhatsApp Business Account e **um** número de
 negócio. Envio e webhook passam por `graph.facebook.com`. Sem BSP no meio.
 
-| Prós                                                                 | Contras                                                                                          |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Canal oficial — o critério de banimento da DEC-003 sai da mesa       | Verificação de negócio, nome de exibição e limites de taxa são nossos                            |
-| Preço de conversa sem margem de intermediário                        | Sem buffer: suspensão da WABA pela Meta cai o assistente inteiro                                 |
+| Prós                                                                      | Contras                                                                                    |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Canal oficial — o critério de banimento da DEC-003 sai da mesa            | Verificação de negócio, nome de exibição e limites de taxa são nossos                      |
+| Preço de conversa sem margem de intermediário                             | Sem buffer: suspensão da WABA pela Meta cai o assistente inteiro                           |
 | Webhook e mídia documentados; HMAC `X-Hub-Signature-256` casa com RNF-028 | Modelo fora da janela de 24 h é Graph `type: template` — a porta ainda não tem esse método |
-| Casa com ADR-0012: um número nosso, o chip do owner é o peer         | App Secret e token de system user são mais um operador na [DEC-016](../README.md#dec-016)        |
+| Casa com ADR-0012: um número nosso, o chip do owner é o peer              | App Secret e token de system user são mais um operador na [DEC-016](../README.md#dec-016)  |
 
 ### Opção B — BSP (Twilio, 360dialog, Z-API, Gupshup)
 
-| Prós                                      | Contras                                                          |
-| ----------------------------------------- | ---------------------------------------------------------------- |
-| Cadastro e template mais rápidos no começo | Margem por conversa, em cima do preço da Meta                    |
-| Alguns isolam a WABA se a Meta pune o BSP  | Mais um subprocessador de dado de conversa                       |
-|                                            | Z-API e similares flertam com o não-oficial que a DEC descartou  |
+| Prós                                       | Contras                                                         |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| Cadastro e template mais rápidos no começo | Margem por conversa, em cima do preço da Meta                   |
+| Alguns isolam a WABA se a Meta pune o BSP  | Mais um subprocessador de dado de conversa                      |
+|                                            | Z-API e similares flertam com o não-oficial que a DEC descartou |
 
 ### Opção C — Biblioteca não oficial
 
-| Prós    | Contras                                                                 |
-| ------- | ----------------------------------------------------------------------- |
-| Barato  | Banimento sem recurso — o produto inteiro depende deste canal           |
-|         | Fora de cogitação: a própria DEC-003 pedia descartar esta opção         |
+| Prós   | Contras                                                         |
+| ------ | --------------------------------------------------------------- |
+| Barato | Banimento sem recurso — o produto inteiro depende deste canal   |
+|        | Fora de cogitação: a própria DEC-003 pedia descartar esta opção |
 
 ## Decisão
 
@@ -111,7 +111,7 @@ ADR não a relê, salvo se a Meta passar a exigir identificador por loja.
 ### Neutras
 
 - `WHATSAPP_PROVIDER=fake|meta`. Token, `PHONE_NUMBER_ID` e segredo de
-  webhook já estão na matriz; a NR-046 acrescenta o *verify token* do
+  webhook já estão na matriz; a NR-046 acrescenta o _verify token_ do
   handshake `GET` se ainda não houver variável.
 - `POST /agent/messages` e o fake **não saem**. São o caminho de teste sem
   chip ([ADR-0012](0012-identidade-do-canal-whatsapp.md)).
@@ -135,4 +135,4 @@ ADR não a relê, salvo se a Meta passar a exigir identificador por loja.
   não cobre, e a ADR-0012 também reabre.
 - Janela de 24 h ou política de template impedir cobrança/DANFE no recorte
   do MVP.
-- BSP passar a ser mais barato *e* mais estável, com a mesma porta.
+- BSP passar a ser mais barato _e_ mais estável, com a mesma porta.

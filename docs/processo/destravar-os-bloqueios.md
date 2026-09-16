@@ -4,7 +4,7 @@
 > [DEC-009](../decisoes/README.md#dec-009) fecharam
 > ([ADR-0014](../decisoes/adr/0014-meta-cloud-api.md),
 > [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)). O quadro vivo é o
-> [`task-ledger.md`](task-ledger.md). O texto abaixo descreve o *padrão* (porta
+> [`task-ledger.md`](task-ledger.md). O texto abaixo descreve o _padrão_ (porta
 > antes do adapter) e números de uma foto antiga.
 
 > **Pergunta que este documento responde:** o painel diz que os 35

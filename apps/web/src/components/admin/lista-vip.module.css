@@ -135,3 +135,10 @@
 .chaveTrocar:hover {
   color: var(--app-text);
 }
+
+.chaveAviso {
+  margin-bottom: 14px;
+  max-width: 60ch;
+  font-size: 13px;
+  color: var(--app-muted);
+}

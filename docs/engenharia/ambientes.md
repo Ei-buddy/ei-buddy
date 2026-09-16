@@ -100,12 +100,12 @@ vão ao cofre, referenciados pelo satélite de integração da empresa.
 
 Detalhes em [`integracoes/meta-cloud-api.md`](../arquitetura/integracoes/meta-cloud-api.md).
 
-| Variável                   | Obr. | Seg. | local  | Descrição                                                                    |
-| -------------------------- | :--: | :--: | ------ | ---------------------------------------------------------------------------- |
-| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| `meta`                                                             |
-| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | Bearer do system user. Obrigatório se `provider=meta`                        |
-| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | ID Graph do número da plataforma                                             |
-| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | HMAC `X-Hub-Signature-256` (App Secret)                                      |
+| Variável                   | Obr. | Seg. | local  | Descrição                                             |
+| -------------------------- | :--: | :--: | ------ | ----------------------------------------------------- |
+| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| `meta`                                      |
+| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | Bearer do system user. Obrigatório se `provider=meta` |
+| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | ID Graph do número da plataforma                      |
+| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | HMAC `X-Hub-Signature-256` (App Secret)               |
 
 A NR-046 pode acrescentar `WHATSAPP_VERIFY_TOKEN` (handshake `GET` do webhook)
 quando o adapter real passar a lê-lo.
@@ -174,18 +174,18 @@ Isso é decisão de arquitetura, não conveniência:
 | O sistema sobe local sem credencial nenhuma                   | ninguém precisa de conta em fornecedor para trabalhar                    |
 | Ninguém tem motivo para pôr credencial de produção na máquina | [RNF-070](../produto/requisitos-nao-funcionais.md) fica fácil de cumprir |
 | Teste de integração roda na CI sem segredo                    | pipeline mais simples e mais rápido                                      |
-| Trabalho não espera decisão de fornecedor                     | destrava as decisões de provedor que ainda estão abertas         |
+| Trabalho não espera decisão de fornecedor                     | destrava as decisões de provedor que ainda estão abertas                 |
 
 Regra: **o adapter falso implementa a mesma porta**, inclusive os caminhos de
 erro. Falso que só devolve sucesso esconde exatamente o que precisa ser testado.
 
 ## Gestão de segredos
 
-| Ambiente             | Onde ficam                                                                                   |
-| -------------------- | -------------------------------------------------------------------------------------------- |
-| local                | `.env`, no `.gitignore`, com valores de mentira                                              |
+| Ambiente             | Onde ficam                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| local                | `.env`, no `.gitignore`, com valores de mentira                                                |
 | staging / production | `.env.production` na VPS, fora do git — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md) |
-| CI                   | GitHub Secrets, por ambiente, com aprovação para produção                                    |
+| CI                   | GitHub Secrets, por ambiente, com aprovação para produção                                      |
 
 ### Se vazar
 

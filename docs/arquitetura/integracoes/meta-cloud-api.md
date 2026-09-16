@@ -38,28 +38,28 @@ verdade é `meta`, na NR-046.
 
 ## Termos em uma linha
 
-| Falamos…              | Quer dizer                                                                                          |
-| --------------------- | --------------------------------------------------------------------------------------------------- |
-| **WABA**              | WhatsApp Business Account da **plataforma**. Uma só.                                                |
-| **Phone number ID**   | Identificador Graph do nosso número. É `WHATSAPP_PHONE_NUMBER_ID`.                                  |
-| **System user token** | Bearer permanente. É `WHATSAPP_API_TOKEN`.                                                          |
-| **App secret**        | HMAC do webhook (`X-Hub-Signature-256`). Cabe em `WHATSAPP_WEBHOOK_SECRET`.                         |
-| **Verify token**      | String nossa no handshake `GET` do webhook. A NR-046 adiciona a variável se ainda faltar.           |
-| **Janela de 24 h**    | Depois da última mensagem **do lojista**, texto livre não sai; só modelo aprovado.                  |
-| **Modelo**            | Template na Meta. A porta ainda recusa com `outside_service_window` até a NR-046 expor o envio.     |
-| **Peer**              | O número de quem mandou. Liga em `users.phone` do owner — não no WABA.                              |
+| Falamos…              | Quer dizer                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| **WABA**              | WhatsApp Business Account da **plataforma**. Uma só.                                            |
+| **Phone number ID**   | Identificador Graph do nosso número. É `WHATSAPP_PHONE_NUMBER_ID`.                              |
+| **System user token** | Bearer permanente. É `WHATSAPP_API_TOKEN`.                                                      |
+| **App secret**        | HMAC do webhook (`X-Hub-Signature-256`). Cabe em `WHATSAPP_WEBHOOK_SECRET`.                     |
+| **Verify token**      | String nossa no handshake `GET` do webhook. A NR-046 adiciona a variável se ainda faltar.       |
+| **Janela de 24 h**    | Depois da última mensagem **do lojista**, texto livre não sai; só modelo aprovado.              |
+| **Modelo**            | Template na Meta. A porta ainda recusa com `outside_service_window` até a NR-046 expor o envio. |
+| **Peer**              | O número de quem mandou. Liga em `users.phone` do owner — não no WABA.                          |
 
 ---
 
 ## O que entra neste adapter
 
-| Entra                                                         | Não entra                                              |
-| ------------------------------------------------------------- | ------------------------------------------------------ |
-| `POST /{phone-number-id}/messages` texto e mídia              | BSP, Baileys, whatsapp-web.js                          |
-| Webhook `POST` com corpo bruto + HMAC                         | Decidir se o número está vinculado (isso é `core`)     |
-| Handshake `GET` de verificação                                | WABA ou embedded signup por lojista                    |
-| Recusa `outside_service_window` sem retentar                  | Envio em massa                                         |
-| `WHATSAPP_PROVIDER=fake` no local                             | Interpretar opt-out ou comando (isso é `core` / agent) |
+| Entra                                            | Não entra                                              |
+| ------------------------------------------------ | ------------------------------------------------------ |
+| `POST /{phone-number-id}/messages` texto e mídia | BSP, Baileys, whatsapp-web.js                          |
+| Webhook `POST` com corpo bruto + HMAC            | Decidir se o número está vinculado (isso é `core`)     |
+| Handshake `GET` de verificação                   | WABA ou embedded signup por lojista                    |
+| Recusa `outside_service_window` sem retentar     | Envio em massa                                         |
+| `WHATSAPP_PROVIDER=fake` no local                | Interpretar opt-out ou comando (isso é `core` / agent) |
 
 Consentimento continua declarado em todo `send*` — a Meta não substitui
 [RF-016](../../produto/requisitos-funcionais.md).

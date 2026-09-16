@@ -42,13 +42,13 @@ PR**, e a linha sai da tabela de abertas.
 
 ## Painel
 
-| Estado             | Qtd | Quais                                                               |
-| ------------------ | --: | ------------------------------------------------------------------- |
-| 🔴 Aberta          |   5 | DEC-005, 011, 013, 016, 018                                         |
-| 🟡 Em análise      |   0 | —                                                                   |
-| ⚪ Adiada          |   1 | DEC-014                                                             |
-| 🟢 Decidida        |  16 | DEC-001–004, 006–010, 012, 015, 019–023                             |
-| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012                                          |
+| Estado             | Qtd | Quais                                   |
+| ------------------ | --: | --------------------------------------- |
+| 🔴 Aberta          |   5 | DEC-005, 011, 013, 016, 018             |
+| 🟡 Em análise      |   0 | —                                       |
+| ⚪ Adiada          |   1 | DEC-014                                 |
+| 🟢 Decidida        |  16 | DEC-001–004, 006–010, 012, 015, 019–023 |
+| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012              |
 
 **Bloqueando o MVP agora:** [DEC-011](#dec-011) (memória da conversa).
 A DEC-003 fechou — [ADR-0014](adr/0014-meta-cloud-api.md): Meta Cloud API.
@@ -74,12 +74,12 @@ NR-015 preenche backup, PITR e os workflows de deploy.
 
 ### DEC-003 — Provedor de WhatsApp
 
-|              |                                                                                                                                                                  |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                                                                         |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                              |
-| **Prazo**    | **Sprint 2**                                                                                                                                                     |
-| **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011).                                                       |
+|              |                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                    |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                         |
+| **Prazo**    | **Sprint 2**                                                                                                |
+| **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
 
 **Decisão (2026-09-15): Meta Cloud API.**
 
@@ -183,11 +183,11 @@ mesma porta `BankStatementProvider`.
 
 ### <a id="dec-007"></a>DEC-007 — Modelo de LLM e mecanismo de recuperação de informação
 
-|              |                                                                                                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                                                                     |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                |
-| **Prazo**    | Sprint 3                                                                                                                                                           |
+|              |                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                               |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                          |
+| **Prazo**    | Sprint 3                                                                                                                     |
 | **Bloqueia** | — (NR-060 ⬜, atrás da NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
@@ -213,12 +213,12 @@ O provedor de WhatsApp fechou — [ADR-0014](adr/0014-meta-cloud-api.md).
 
 ### DEC-009 — Hospedagem e alvo de deploy
 
-|              |                                                                                          |
-| ------------ | ---------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0015](adr/0015-vps-docker-compose.md)**                             |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                      |
-| **Prazo**    | **Sprint 1**                                                                             |
-| **Bloqueia** | — (NR-015 ⬜). PITR, backup testado e workflows de deploy são trabalho, não decisão      |
+|              |                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0015](adr/0015-vps-docker-compose.md)**                        |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                 |
+| **Prazo**    | **Sprint 1**                                                                        |
+| **Bloqueia** | — (NR-015 ⬜). PITR, backup testado e workflows de deploy são trabalho, não decisão |
 
 **Decisão (2026-09-15): VPS + Docker Compose**, a VM que já está no ar.
 
@@ -340,14 +340,14 @@ inventário de fato e é gerada a partir de
 
 **O que falta, e não dá para inferir de código nenhum:**
 
-| Lacuna                                       | Por que só o negócio decide                                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Razão social e CNPJ do controlador           | Nome do produto é EiBuddy ([ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)); razão social e CNPJ ainda são da empresa            |
-| Contato do encarregado (LGPD art. 41)        | Exige uma pessoa designada, não um endereço genérico                                                                            |
-| Prazo de retenção após encerramento da conta | Escolha de negócio acima do mínimo fiscal, que já são 5 anos                                                                    |
+| Lacuna                                       | Por que só o negócio decide                                                                                                                                           |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Razão social e CNPJ do controlador           | Nome do produto é EiBuddy ([ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)); razão social e CNPJ ainda são da empresa                                                  |
+| Contato do encarregado (LGPD art. 41)        | Exige uma pessoa designada, não um endereço genérico                                                                                                                  |
+| Prazo de retenção após encerramento da conta | Escolha de negócio acima do mínimo fiscal, que já são 5 anos                                                                                                          |
 | Lista completa de operadores                 | Asaas, OpenAI e Meta ([ADR-0014](adr/0014-meta-cloud-api.md)) já são; faltam DEC-005 (Open Finance) e o provedor da VPS na [ADR-0015](adr/0015-vps-docker-compose.md) |
-| Preço, prazo de pagamento e nível de serviço | [QST-002](#qst-002) — o provedor já é Asaas ([ADR-0004](adr/0004-asaas.md))                                                     |
-| Limite de responsabilidade, rescisão e foro  | Cláusula contratual; escrita por quem responde por ela                                                                          |
+| Preço, prazo de pagamento e nível de serviço | [QST-002](#qst-002) — o provedor já é Asaas ([ADR-0004](adr/0004-asaas.md))                                                                                           |
+| Limite de responsabilidade, rescisão e foro  | Cláusula contratual; escrita por quem responde por ela                                                                                                                |
 
 **Por que as lacunas estão visíveis na página, e não preenchidas com texto
 plausível.** Documento com cara de oficial e conteúdo inventado é pior que a
