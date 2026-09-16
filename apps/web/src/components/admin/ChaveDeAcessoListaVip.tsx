@@ -1,7 +1,12 @@
 'use client'
 
-import { useSyncExternalStore, type FormEvent, type ReactNode, useState } from 'react'
-import { esquecerChaveDaListaVip, lerChaveDaListaVip, salvarChaveDaListaVip } from '@/lib/admin-api'
+import { useEffect, useSyncExternalStore, type FormEvent, type ReactNode, useState } from 'react'
+import {
+  esquecerChaveDaListaVip,
+  lerChaveDaListaVip,
+  listarSuperAdmins,
+  salvarChaveDaListaVip,
+} from '@/lib/admin-api'
 import { Button } from '@/components/ui/Button'
 import { Card, Field, Input, PageHeader } from '@/components/ui/UI'
 import styles from './lista-vip.module.css'
@@ -29,6 +34,19 @@ import styles from './lista-vip.module.css'
  * Sem verificacao previa: um valor errado so aparece quando as chamadas do
  * painel falharem (a chave nao viaja de volta com "certa"/"errada", so como
  * 401/403 na resposta) — "Usar outra chave" cobre o caso de digitar errado.
+ *
+ * ## A chave nao pode ser a UNICA porta
+ *
+ * A api ja aceita as duas coisas nesta rota: a chave OU sessao de Super
+ * Admin (`routes/waitlist.ts`). Esta tela, porem, so olhava a chave — e o
+ * efeito era o pior possivel: quem ja e Super Admin fazia login, abria o
+ * painel e via um pedido de chave que ninguem tinha. As respostas estavam
+ * gravadas o tempo todo, e o painel dizia o contrario por omissao.
+ *
+ * Por isso, sem chave guardada, a tela PERGUNTA a api quem esta logado
+ * (`/admin/super-admins` so responde a Super Admin) antes de pedir qualquer
+ * coisa. A chave continua existindo para quem ainda nao tem conta — que era
+ * o caso que a criou.
  */
 
 const ouvintes = new Set<() => void>()
@@ -44,9 +62,24 @@ function avisarOuvintes(): void {
   for (const ouvinte of ouvintes) ouvinte()
 }
 
+/** O que a tela sabe sobre quem esta do outro lado. */
+type Acesso = 'perguntando' | 'super-admin' | 'precisa-de-chave'
+
 export default function ChaveDeAcessoListaVip({ children }: { children: ReactNode }) {
   const chave = useSyncExternalStore(assinar, lerChaveDaListaVip, chaveNoServidor)
   const [rascunho, setRascunho] = useState('')
+  const [acesso, setAcesso] = useState<Acesso>('perguntando')
+
+  /* Uma pergunta so, na abertura: quem ja e Super Admin nao ve porta nenhuma.
+     Com chave guardada nem pergunta — a chave ja e a resposta. */
+  useEffect(() => {
+    if (chave !== null) return
+
+    void (async () => {
+      const r = await listarSuperAdmins()
+      setAcesso(r.ok ? 'super-admin' : 'precisa-de-chave')
+    })()
+  }, [chave])
 
   function entrar(evento: FormEvent) {
     evento.preventDefault()
@@ -63,6 +96,14 @@ export default function ChaveDeAcessoListaVip({ children }: { children: ReactNod
     avisarOuvintes()
   }
 
+  /* Sessao de Super Admin: o painel abre direto, sem chave e sem botao de
+     trocar chave — nao ha chave nenhuma nesse caminho. */
+  if (chave === null && acesso === 'super-admin') return <>{children}</>
+
+  if (chave === null && acesso === 'perguntando') {
+    return <PageHeader title="Lista de espera" subtitle="Conferindo seu acesso..." />
+  }
+
   if (chave === null) {
     return (
       <>
@@ -70,6 +111,12 @@ export default function ChaveDeAcessoListaVip({ children }: { children: ReactNod
           title="Lista de espera"
           subtitle="Acesso provisório — cole a chave para entrar"
         />
+        {/* Quem chegou aqui logado como Super Admin nao precisaria de chave —
+            dizer isso evita a caca a uma chave que ninguem tem. */}
+        <p className={styles.chaveAviso}>
+          Se você já é Super Admin, entre na sua conta que este painel abre sozinho. A chave é só
+          para quem ainda não tem conta.
+        </p>
         <Card title="Chave de acesso">
           <form className={styles.chaveForm} onSubmit={entrar}>
             <Field label="Chave" htmlFor="chave-lista-vip">
