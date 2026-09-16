@@ -1,12 +1,8 @@
 'use client'
 
 import { useEffect, useSyncExternalStore, type FormEvent, type ReactNode, useState } from 'react'
-import {
-  esquecerChaveDaListaVip,
-  lerChaveDaListaVip,
-  listarSuperAdmins,
-  salvarChaveDaListaVip,
-} from '@/lib/admin-api'
+import Link from 'next/link'
+import { esquecerChaveDaListaVip, lerChaveDaListaVip, salvarChaveDaListaVip } from '@/lib/admin-api'
 import { Button } from '@/components/ui/Button'
 import { Card, Field, Input, PageHeader } from '@/components/ui/UI'
 import styles from './lista-vip.module.css'
@@ -62,8 +58,34 @@ function avisarOuvintes(): void {
   for (const ouvinte of ouvintes) ouvinte()
 }
 
-/** O que a tela sabe sobre quem esta do outro lado. */
-type Acesso = 'perguntando' | 'super-admin' | 'precisa-de-chave'
+/**
+ * O que a tela sabe sobre quem esta do outro lado.
+ *
+ * `sem-sessao` e `sem-permissao` sao separados porque o que falta em cada um e
+ * diferente: um precisa entrar na conta, o outro precisa que alguem promova a
+ * conta dele. Juntar os dois em "precisa de chave" foi o que mandou alguem
+ * procurar por uma chave quando o que faltava era login.
+ */
+type Acesso = 'perguntando' | 'super-admin' | 'sem-sessao' | 'sem-permissao'
+
+/**
+ * Pergunta a api quem esta logado — 200, 401 e 403 sao respostas diferentes.
+ *
+ * `fetch` cru, e nao `pedir()`: aquele devolve so `{ ok, erro }` e joga fora o
+ * codigo, e e exatamente o codigo que diz qual das duas faltas e a desta
+ * pessoa. `/admin/super-admins` serve de pergunta por ser barata e por so
+ * responder 200 a quem e Super Admin.
+ */
+async function perguntarAcesso(): Promise<Exclude<Acesso, 'perguntando'>> {
+  try {
+    const r = await fetch('/api/admin/super-admins', { credentials: 'same-origin' })
+    if (r.ok) return 'super-admin'
+    return r.status === 403 ? 'sem-permissao' : 'sem-sessao'
+  } catch {
+    /* Sem rede: a chave e o unico caminho que ainda pode dar certo. */
+    return 'sem-sessao'
+  }
+}
 
 export default function ChaveDeAcessoListaVip({ children }: { children: ReactNode }) {
   const chave = useSyncExternalStore(assinar, lerChaveDaListaVip, chaveNoServidor)
@@ -76,8 +98,7 @@ export default function ChaveDeAcessoListaVip({ children }: { children: ReactNod
     if (chave !== null) return
 
     void (async () => {
-      const r = await listarSuperAdmins()
-      setAcesso(r.ok ? 'super-admin' : 'precisa-de-chave')
+      setAcesso(await perguntarAcesso())
     })()
   }, [chave])
 
@@ -111,12 +132,24 @@ export default function ChaveDeAcessoListaVip({ children }: { children: ReactNod
           title="Lista de espera"
           subtitle="Acesso provisório — cole a chave para entrar"
         />
-        {/* Quem chegou aqui logado como Super Admin nao precisaria de chave —
-            dizer isso evita a caca a uma chave que ninguem tem. */}
-        <p className={styles.chaveAviso}>
-          Se você já é Super Admin, entre na sua conta que este painel abre sozinho. A chave é só
-          para quem ainda não tem conta.
-        </p>
+        {/* Dizer O QUE FALTA, e nao so pedir a chave: sem isto, quem esta
+            logado sem ser Super Admin sai procurando uma chave que nao
+            resolve o caso dele. */}
+        {acesso === 'sem-permissao' ? (
+          <p className={styles.chaveAviso}>
+            Você está logado, mas esta conta ainda não tem acesso de Super Admin. Peça para
+            promoverem sua conta — depois disso este painel abre sozinho, sem chave.
+          </p>
+        ) : (
+          <p className={styles.chaveAviso}>
+            Você não está logado.{' '}
+            <Link href="/login" className={styles.chaveLink}>
+              Entre na sua conta
+            </Link>{' '}
+            — se ela for Super Admin, este painel abre sozinho. A chave é só para quem ainda não tem
+            conta.
+          </p>
+        )}
         <Card title="Chave de acesso">
           <form className={styles.chaveForm} onSubmit={entrar}>
             <Field label="Chave" htmlFor="chave-lista-vip">

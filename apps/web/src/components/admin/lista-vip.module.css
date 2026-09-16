@@ -142,3 +142,9 @@
   font-size: 13px;
   color: var(--app-muted);
 }
+
+.chaveLink {
+  color: var(--app-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
