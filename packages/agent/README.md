@@ -8,8 +8,10 @@ Runtime do assistente: tools, memória e confirmações.
 (`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
 com `AGENT_PROVIDER=fake` · webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
-persistente é `NR-061` (hoje in-memory) · memória da conversa ainda é
-[DEC-011](../../docs/decisoes/README.md#dec-011) (`NR-062`)
+persistente é `NR-061` (hoje in-memory) · memória da conversa
+[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
+(`NR-062`: tabelas nossas, 12 msgs / 2 h idle / 30 dias) · RAG auxiliar
+[ADR-0017](../../docs/decisoes/adr/0017-rag-com-tools-e-rls.md) (`NR-120`)
 
 ## Responsabilidade
 
@@ -28,12 +30,28 @@ inteira de erro em que o número da conversa não bate com o número do relatór
 
 ## Runtime
 
-[Mastra](https://mastra.ai) como biblioteca — `Agent` + `createTool` — **dentro**
-deste pacote, composto em `apps/api`. Não é o servidor HTTP do Mastra. Contrato:
-[`integracoes/mastra.md`](../../docs/arquitetura/integracoes/mastra.md).
+[Mastra](https://mastra.ai) como biblioteca — `Agent` (`@mastra/core/agent`) +
+`createTool` (`@mastra/core/tools`) — **dentro** deste pacote, composto em
+`apps/api`. Não é o servidor HTTP do Mastra, nem Studio, nem Factory.
+Contrato: [`integracoes/mastra.md`](../../docs/arquitetura/integracoes/mastra.md).
 
 Modelo inicial: `openai/gpt-4o-mini`. Trocar de modelo é `AGENT_MODEL`. Trocar
 de framework reabre a ADR-0010.
+
+### Como o laço gira
+
+```
+mensagem → processMessage
+        → LlmPort.decide()          # FakeLlm | Agent.generate(maxSteps: 1)
+        → parseToolArgs(contracts)
+        → se mutatesValue: confirmação nossa
+        → AgentTool.execute → core
+```
+
+O `execute` das tools no `Agent` Mastra é identidade (devolve args). O efeito
+em `core` só acontece no catálogo (`defineTool` / `catalog.ts`), depois da
+confirmação quando a ação mexe em valor. HITL do Mastra (`requireApproval`)
+não é usado.
 
 ## Fronteiras
 
@@ -80,7 +98,10 @@ ao aparelho ainda precisa confirmar cada lançamento.
 
 A máquina de estados **vai** morar na tabela `confirmations` (NR-061). Até lá
 o runtime usa `InMemoryConfirmations`. O Mastra não substitui essa máquina.
-Não se grava `conversations` / `messages` enquanto a DEC-011 estiver aberta.
+
+Histórico de conversa (NR-062) mora em `conversations` / `messages` com RLS —
+[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md).
+Sem Memory do Mastra.
 
 ## Riscos específicos de ter um LLM no caminho
 
@@ -93,11 +114,15 @@ Não se grava `conversations` / `messages` enquanto a DEC-011 estiver aberta.
 | Dado sensível ao provedor              | envia o mínimo necessário ([RNF-075](../../docs/produto/requisitos-nao-funcionais.md)); OpenAI é subprocessador |
 | Alucinação com consequência financeira | o agente não calcula                                                                                            |
 
-## Não haverá busca semântica sobre o banco de negócio
+## RAG recupera; `core` / `domain` decidem o número
 
-"Quanto vendi hoje?" vira consulta SQL determinística via `core`, não busca
-vetorial. Mastra tem RAG; **não se liga** sobre dado financeiro. Fechado na
-[ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md).
+Busca semântica **entra** ([ADR-0017](../../docs/decisoes/adr/0017-rag-com-tools-e-rls.md)):
+catálogo, FAQ e, se preciso, trechos de conversa da mesma empresa — sempre em
+store com `company_id` + RLS.
+
+"Quanto vendi hoje?" **continua** consulta determinística via `core`, não o
+texto do chunk. O RAG sugere candidatos (ex.: qual produto); a tool confirma
+o valor. Citar preço ou saldo só do retrieve é bug.
 
 ## Custo
 

@@ -44,13 +44,14 @@ PR**, e a linha sai da tabela de abertas.
 
 | Estado             | Qtd | Quais                                   |
 | ------------------ | --: | --------------------------------------- |
-| 🔴 Aberta          |   5 | DEC-005, 011, 013, 016, 018             |
+| 🔴 Aberta          |   4 | DEC-005, 013, 016, 018                  |
 | 🟡 Em análise      |   0 | —                                       |
 | ⚪ Adiada          |   1 | DEC-014                                 |
-| 🟢 Decidida        |  16 | DEC-001–004, 006–010, 012, 015, 019–023 |
+| 🟢 Decidida        |  17 | DEC-001–004, 006–012, 015, 019–023      |
 | ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012              |
 
-**Bloqueando o MVP agora:** [DEC-011](#dec-011) (memória da conversa).
+**Bloqueando o MVP agora:** nenhuma DEC de assistente — [DEC-011](#dec-011)
+fechou na [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
 A DEC-003 fechou — [ADR-0014](adr/0014-meta-cloud-api.md): Meta Cloud API.
 A DEC-009 fechou — [ADR-0015](adr/0015-vps-docker-compose.md): VPS + Compose.
 A DEC-016 não trava código, mas trava **operação comercial**: os documentos
@@ -62,7 +63,9 @@ A DEC-007 fechou — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md): Mastra como
 runtime, `gpt-4o-mini` no começo. A identidade do canal fechou —
 [DEC-023](#dec-023) / [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md).
 O adapter real do WhatsApp é a [NR-046](../processo/task-ledger.md) (já ⬜).
-A memória da conversa continua [DEC-011](#dec-011).
+A memória da conversa fechou — [DEC-011](#dec-011) /
+[ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md) (tabelas nossas;
+sem Memory Mastra). A NR-062 implementa.
 A DEC-008 fechou — [ADR-0002](adr/0002-autenticacao-identidade-propria.md) e
 [ADR-0003](adr/0003-better-auth-como-prova-de-identidade.md).
 A hospedagem é a VM que já roda: Better Auth auto-hospedado permanece; a
@@ -79,7 +82,7 @@ NR-015 preenche backup, PITR e os workflows de deploy.
 | **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                    |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                         |
 | **Prazo**    | **Sprint 2**                                                                                                |
-| **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
+| **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
 
 **Decisão (2026-09-15): Meta Cloud API.**
 
@@ -188,7 +191,7 @@ mesma porta `BankStatementProvider`.
 | **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                               |
 | **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                          |
 | **Prazo**    | Sprint 3                                                                                                                     |
-| **Bloqueia** | — (NR-060 ⬜, atrás da NR-046). Identidade do canal é [DEC-023](#dec-023). Memória da conversa continua [DEC-011](#dec-011). |
+| **Bloqueia** | — (NR-060 ⬜, atrás da NR-046). Identidade do canal é [DEC-023](#dec-023). Memória é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
 
@@ -198,15 +201,23 @@ Duas perguntas que costumavam ser confundidas, as duas respondidas:
    modelo inicial `openai/gpt-4o-mini` (`AGENT_MODEL`). Trocar de modelo é
    configuração; trocar de framework reabre a ADR.
 2. **Como o agente acessa o dado** — **tools tipadas geradas de `contracts`**,
-   chamando casos de uso de `core`. Não é RAG sobre texto. Mastra tem busca
-   semântica; **não se liga** sobre o banco de negócio.
+   chamando casos de uso de `core`, são a **fonte de verdade** de valor
+   (saldo, total, estoque). **RAG entra** como recuperação auxiliar
+   ([ADR-0017](adr/0017-rag-com-tools-e-rls.md)): candidatos e trechos, nunca
+   o número inventado do chunk. A proibição absoluta de busca semântica da
+   [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md) fica **revisada** por essa ADR.
 
 Contrato: [`integracoes/mastra.md`](../arquitetura/integracoes/mastra.md).
 O runtime continua dentro de `apps/api`. `AGENT_PROVIDER=fake` no local.
+Factory, Studio, servidor HTTP do Mastra e Workflow **não** entram no
+caminho do lojista — só `Agent` + tools atrás de `processMessage`. Memory do
+Mastra permanece desligada ([ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md));
+RAG usa store nosso ([ADR-0017](adr/0017-rag-com-tools-e-rls.md)).
 
-O que **não** fecha aqui: o que a conversa lembra ([DEC-011](#dec-011)) e o
-denominador do teto de custo
+O que **não** fecha aqui: o denominador do teto de custo
 ([QST-002](#qst-002) / [RNF-072](../produto/requisitos-nao-funcionais.md)).
+A memória da conversa fechou depois — [DEC-011](#dec-011) /
+[ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
 O provedor de WhatsApp fechou — [ADR-0014](adr/0014-meta-cloud-api.md).
 
 ---
@@ -233,33 +244,32 @@ reversão ≤ 10 min.
 
 ---
 
-### DEC-011 — Memória e contexto da conversa
+### <a id="dec-011"></a>DEC-011 — Memória e contexto da conversa
 
 |              |                                                                                                                                    |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🔴 Aberta                                                                                                                          |
+| **Status**   | 🟢 **Decidida — [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md)**                                                        |
 | **Dono**     | Trilha 2                                                                                                                           |
 | **Prazo**    | Sprint 3                                                                                                                           |
-| **Bloqueia** | [RF-105](../produto/requisitos-funcionais.md), RF-106 · [US-051](../produto/user-stories.md#us-051--manter-o-contexto-da-conversa) |
+| **Bloqueia** | — (NR-062 ⬜). RF-105, RF-106 · [US-051](../produto/user-stories.md#us-051--manter-o-contexto-da-conversa)                          |
 
-**Contexto.** Herdada da apresentação: "como manter o contexto da conversa" e
-"como a IA vai aprender/melhorar com o uso".
+**Decisão (2026-09-16): tabelas nossas + janela curta; sem Memory Mastra.**
 
-**Decidir:** o que é lembrado (só a conversa recente? preferências? histórico?) ·
-por quanto tempo ([RNF-035](../produto/requisitos-nao-funcionais.md)) · onde é
-armazenado · e se "aprendizado contínuo" significa memória por lojista ou
-ajuste de modelo.
+1. **O quê** — turnos recentes para anáfora ("ele", "essa venda"); sem perfil
+   de preferências e sem treino de modelo.
+2. **Onde** — `conversations` / `messages` / `confirmations` com `company_id`
+   e RLS. Memory/Storage do Mastra em `public` continuam desligados. RAG
+   (recuperação auxiliar) é [ADR-0017](adr/0017-rag-com-tools-e-rls.md) — não
+   substitui este histórico de turnos.
+3. **Chave** — por empresa + canal + peer (`wa:${companyId}:${peer}`),
+   [ADR-0012](adr/0012-identidade-do-canal-whatsapp.md).
+4. **Ativo** — no máximo **12** mensagens no prompt; idle de **2 h** sem
+   aplicar anáfora antiga a ação nova ([RF-106](../produto/requisitos-funcionais.md)).
+5. **Retenção** — corpos de mensagem **30 dias**, depois expurgo
+   ([RNF-035](../produto/requisitos-nao-funcionais.md)).
 
-**Alerta.** "Aprendizado contínuo" com dado de cliente é campo minado de LGPD.
-Memória **por empresa**, isolada e expirável, é uma coisa; treinar modelo com
-dado de lojista é outra, e exige base legal e consentimento próprios
-([RNF-036](../produto/requisitos-nao-funcionais.md)).
-
-**Recorte de 2026-09-13 ([ADR-0012](adr/0012-identidade-do-canal-whatsapp.md)).**
-Esta DEC **não** fecha agora. Sem Memory do Mastra (nem por `user_id`). Sem
-gravar `conversations` / `messages`. Confirmação do agente continua in-memory
-até a NR-061. Chave em memória, quando existir persistência, é por empresa
-(`wa:${companyId}:${peer}`), não por pessoa.
+Contrato: [`integracoes/mastra.md`](../arquitetura/integracoes/mastra.md).
+Confirmação persistente continua NR-061; contexto isolado é NR-062.
 
 ---
 
@@ -428,6 +438,8 @@ links que já apontam para cá.
 | [ADR-0013](adr/0013-conta-de-parceiro-e-esquema-de-cupons.md)  | Conta de Parceiro e esquema de cupons                             | 2026-09-13 |
 | [ADR-0014](adr/0014-meta-cloud-api.md)                         | Meta Cloud API como provedor de WhatsApp                          | 2026-09-15 |
 | [ADR-0015](adr/0015-vps-docker-compose.md)                     | Produção em VPS com Docker Compose                                | 2026-09-15 |
+| [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md)     | Memória da conversa nas tabelas nossas; sem Memory Mastra         | 2026-09-16 |
+| [ADR-0017](adr/0017-rag-com-tools-e-rls.md)                    | RAG auxiliar com store nosso; tools/domain são a verdade de valor | 2026-09-16 |
 
 ### <a id="dec-001"></a>DEC-001 — Nome do produto
 
@@ -585,8 +597,8 @@ O webhook não consulta Better Auth. Não há Workflow Mastra, Channel
 `@chat-adapter/whatsapp` nem `MastraServer`. Número desconhecido = silêncio
 (RF-095). Chip cola na primeira empresa; só o owner opera; troca no app
 substitui. Redis continua fila. WhatsApp é [ADR-0014](adr/0014-meta-cloud-api.md);
-DEC-011 segue aberta. Isolamento
-cruzado é contexto + RLS, não processor.
+memória da conversa é [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
+Isolamento cruzado é contexto + RLS, não processor.
 
 ## Documentos relacionados
 

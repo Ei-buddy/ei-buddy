@@ -18,6 +18,11 @@ substituida_por: null
 | **Decisores**         | Trilha 2 — Plataforma & Integrações |
 | **Decisão de origem** | [DEC-007](../README.md#dec-007)     |
 
+> **Revisão parcial (2026-09-16):** o item 3 da decisão abaixo (proibição de
+> RAG / _semantic recall_) foi **revisado** pela
+> [ADR-0017](0017-rag-com-tools-e-rls.md). Runtime Mastra, modelo inicial e a
+> regra “tools + `domain` calculam valor” permanecem.
+
 ## Contexto
 
 A [DEC-007](../README.md#dec-007) misturava duas perguntas. A segunda já tinha

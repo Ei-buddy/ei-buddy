@@ -4,8 +4,10 @@ O lojista manda uma mensagem. O Mastra interpreta a intenção e escolhe uma
 _tool_. A tool chama um caso de uso de `core`. `domain` calcula. O lojista
 recebe um número que é o mesmo do relatório.
 
-Este texto diz **o que o Mastra faz aqui** e **o que ele está proibido de
-fazer**. Não substitui a [documentação do Mastra](https://mastra.ai/docs).
+Este texto diz **o que o Mastra faz aqui**, **como o laço gira** e **o que ele
+está proibido de fazer**. Não substitui a
+[documentação do Mastra](https://mastra.ai/docs). Versão de referência no
+código: `@mastra/core` ^1.66.
 
 Decisão: [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 ([DEC-007](../../decisoes/README.md#dec-007)). Origem das regras de negócio:
@@ -16,37 +18,80 @@ Decisão: [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 
 ## Em uma frase
 
-**O Mastra é biblioteca dentro de `packages/agent`, não é um serviço.** O
-modelo inicial é `openai/gpt-4o-mini`. Dado financeiro nunca passa por busca
-semântica.
+**O Mastra é biblioteca dentro de `packages/agent`, não é um serviço.** Usamos
+**Agent** + **tools** (`createTool`), chamados por `processMessage()`. O
+modelo inicial é `openai/gpt-4o-mini`. **RAG entra** como recuperação auxiliar
+([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)): achar candidatos
+e trechos; **totais e efeitos em dinheiro** continuam só via tool → `core` →
+`domain`. Factory, Studio, servidor HTTP do Mastra, Workflow e Memory do
+Mastra **não** entram no caminho do lojista.
 
 ```mermaid
 flowchart LR
   L["Lojista"] -->|"mensagem"| API["apps/api"]
-  API --> AG["packages/agent<br/>Mastra Agent"]
+  API --> PM["processMessage"]
+  PM -->|"decide"| AG["Agent.generate<br/>maxSteps: 1"]
   AG -->|"prompt mínimo + tools"| OAI["OpenAI<br/>gpt-4o-mini"]
   OAI -->|"tool call"| AG
-  AG -->|"schema de contracts"| C["core"]
+  AG -->|"args validados"| PM
+  PM -->|"se mutatesValue"| CONF["confirmação<br/>nossa"]
+  CONF -->|"sim"| C["core"]
+  PM -->|"leitura"| C
   C --> D["domain calcula"]
   C --> DB[("Postgres + RLS")]
-  AG -->|"resposta"| L
+  PM -->|"resposta"| L
 ```
 
-## O que entra e o que não entra
+## Laço de execução (o que o código faz)
 
-| Entra                                                              | Não entra                                                         |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `Agent` + `createTool` do `@mastra/core`                           | `MastraServer` / `@mastra/fastify` expondo `/api/agents`          |
-| `inputSchema` = schema Zod de `contracts`                          | Tool escrita à mão, paralela à rota HTTP                          |
-| `agent.generate()` (ou equivalente) chamado por `processMessage()` | Processo Mastra na porta 4111                                     |
-| Modelo `openai/gpt-4o-mini` via `AGENT_MODEL`                      | RAG / _semantic recall_ sobre venda, estoque, cliente, financeiro |
-| `AGENT_PROVIDER=fake` no local                                     | Chave da OpenAI obrigatória para `pnpm dev`                       |
-| Confirmação de valor na tabela `confirmations`                     | "Confirma?" resolvido só pelo prompt                              |
+O dono do fluxo **não** é o Mastra. É `processMessage` em `packages/agent`:
 
-A confirmação explícita ([RF-103](../../produto/requisitos-funcionais.md)) é
-máquina de estados nossa. O modelo sugere a tool; o lojista confirma; só então
-`core` executa. Resposta ambígua conta como não
-([RF-104](../../produto/requisitos-funcionais.md)).
+1. Resolve `ExecutionContext` (app: sessão; WhatsApp: `PeerDirectory` pelo
+   celular do owner — [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md)).
+2. Se há confirmação aberta, trata sim/não/ambiguidade/expiração
+   ([RF-103](../../produto/requisitos-funcionais.md),
+   [RF-104](../../produto/requisitos-funcionais.md)) — **máquina nossa**, não
+   `requireApproval` do Mastra.
+3. Chama `LlmPort.decide()` — implementação real: `Agent` + `agent.generate(text, { maxSteps: 1 })`.
+4. Valida os args com o mesmo schema Zod de `contracts`.
+5. Se a tool `mutatesValue`, grava proposta e pede confirmação; só no "sim"
+   executa.
+6. Execução real chama o caso de uso de `core` via catálogo em `catalog.ts`.
+
+Detalhe deliberado: nas tools registradas no `Agent` do Mastra, `execute`
+**só devolve os argumentos**. Quem grava valor é o catálogo nosso, depois da
+confirmação. Assim o `generate` não tem efeito colateral financeiro mesmo se o
+modelo disparar a tool.
+
+```
+contracts (Zod)  ──→  createTool (Mastra)     → só escolhe intenção + args
+                 ──→  defineTool (catálogo)   → executa core após confirmação
+                 ──→  rota HTTP               → mesmo schema
+```
+
+Porta `LlmPort`: `AGENT_PROVIDER=fake` (local) ou `mastra` (OpenAI). Sem chave,
+sobe no falso.
+
+## Primitivos Mastra: o que entra e o que não
+
+| Entra no produto                                                         | Não entra — e por quê                                                                                          |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `Agent` de `@mastra/core/agent`                                          | `new Mastra({ agents })` + rotas `/api/agents` — segunda composição de deps                                    |
+| `createTool` de `@mastra/core/tools` com `inputSchema` de `contracts`    | Tool escrita à mão, paralela à rota HTTP                                                                       |
+| `agent.generate(..., { maxSteps: 1 })` atrás de `processMessage()`       | Processo `mastra dev` / Studio na porta 4111 como runtime do lojista                                           |
+| Modelo `openai/gpt-4o-mini` via `AGENT_MODEL` (`provedor/modelo`)        | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                  |
+| RAG sobre store **nosso** com `company_id` + RLS ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)) | Índice vetorial sem tenant; Memory/Storage padrão do Mastra em `public`                         |
+| `AGENT_PROVIDER=fake` no local                                           | Chave da OpenAI obrigatória para `pnpm dev`                                                                    |
+| Confirmação na tabela/store `confirmations` (hoje in-memory, NR-061)     | HITL do Mastra (`requireApproval` / `approveToolCall`) — não isola por empresa nem expira como RF-103 pede     |
+| —                                                                        | **Workflow** Mastra — canal e confirmação não são pipeline do framework ([ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md)) |
+| —                                                                        | **Memory / Storage** do Mastra em `public` — fechado na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md): histórico de turnos é tabelas nossas |
+| —                                                                        | **Channels** / `@chat-adapter/whatsapp` / `MastraAuthBetterAuth`                                               |
+| —                                                                        | **Mastra Factory** — plano operacional de projetos de agente; fora do caminho do lojista (ver abaixo)          |
+
+Agent vs Workflow (conceitos do framework): o assistente do lojista é tarefa
+aberta (interpretar português → escolher tool) → **Agent**. Sequências fixas
+(emitir nota, cobrar, lembrete) ficam em `apps/worker` + `core`, não em
+Workflow Mastra.
 
 ## Fronteira com o resto do sistema
 
@@ -63,6 +108,9 @@ O agente **nunca calcula**. Se alguém ligar uma tool de calculadora, ou deixar
 o modelo "somar os itens", isso viola [RF-101](../../produto/requisitos-funcionais.md)
 e a linha mais importante de [`seguranca.md`](../seguranca.md#segurança-do-assistente).
 
+Isolamento cruzado é `ExecutionContext` + tools sem id de terceiro + RLS — não
+processor Mastra.
+
 ## Modelo
 
 | Variável         | Valor inicial                       | Notas                                      |
@@ -76,14 +124,61 @@ o framework reabre a [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 
 ## Memória
 
-As tabelas `conversations`, `messages` e `confirmations` já existem, com RLS.
-O que é lembrado, por quanto tempo e se o Mastra Memory entra no caminho
-**ainda é a [DEC-011](../../decisoes/README.md#dec-011)**.
+Fechada na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
+([DEC-011](../../decisoes/README.md#dec-011)):
 
-Até ela fechar: nenhum `PostgresStore` / `Memory` do Mastra grava em `public`.
-Tabelas sem `company_id` quebram a [ADR-0001](../../decisoes/adr/0001-rls-por-linha.md).
-O precedente, se um dia o Mastra precisar de schema próprio, é o `identidade`
-do Better Auth ([ADR-0003](../../decisoes/adr/0003-better-auth-como-prova-de-identidade.md)).
+| Regra            | Valor                                                                 |
+| ---------------- | --------------------------------------------------------------------- |
+| Onde             | `conversations` / `messages` / `confirmations` com `company_id` + RLS |
+| Mastra Memory    | **desligado** (sem Storage padrão em `public`)                        |
+| Chave            | empresa + canal + peer (`wa:${companyId}:${peer}` no WhatsApp)        |
+| Prompt           | no máximo **12** mensagens da conversa ativa                          |
+| Idle (RF-106)    | **2 h** sem mensagem → não aplicar anáfora antiga a ação nova         |
+| Retenção (RNF-035) | corpos de mensagem **30 dias**, depois expurgo verificável          |
+| Aprendizado      | só contexto por empresa — **sem** treino de modelo                    |
+
+Confirmação sensível continua máquina nossa (NR-061). Contexto isolado é
+NR-062. O precedente de schema isolado do Better Auth (`identidade`) **não**
+se aplica aqui: as tabelas do assistente já nascem no domínio com RLS.
+
+## RAG
+
+Fechado na [ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)
+(revisa o ponto 3 da [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)):
+
+| Regra            | Valor                                                                 |
+| ---------------- | --------------------------------------------------------------------- |
+| Papel            | Recuperar candidatos / trechos (catálogo, FAQ, opcionalmente chat)    |
+| Verdade de valor | Só tool → `core` → `domain` — chunk **não** vira saldo nem total      |
+| Store            | Nosso, com `company_id` + RLS; API de RAG do Mastra só se apontar nele |
+| Prompt           | top‑k do tenant atual, teto de tokens (RNF-075)                       |
+| Fora             | Memory Mastra como índice; RAG cross-tenant; preço “lido” do chunk    |
+
+Implementação: [NR-120](../../processo/task-ledger.md).
+
+## Mastra Factory — fora do caminho do produto
+
+[Mastra Factory](https://mastra.ai) é o plano de controle operacional de
+**projetos de agente** no ecossistema Mastra (`mastra api factory`: projects,
+work items, stages, decisions, attention, supervisor). Serve para filas de
+trabalho de desenvolvimento/automação de agentes — Intake → Triage → Planning →
+execução com sessões duráveis, aprovações e métricas.
+
+**No Na Régua isso não é runtime do lojista.** Conversas do assistente não
+viram work item Factory; confirmação de venda não é `decision approve` do
+Factory; o webhook WhatsApp não passa por `/web/*`.
+
+O que existe no repositório:
+
+| Peça                                         | Papel                                                                 |
+| -------------------------------------------- | --------------------------------------------------------------------- |
+| `@mastra/core` em `packages/agent`           | Biblioteca de Agent/tools no produto                                  |
+| `.agents/skills/mastra`                      | Skill para agentes de código seguirem a API atual do framework        |
+| `.agents/skills/mastra-factory`              | Skill para supervisionar Factory **quando** houver projeto Factory    |
+
+Se no futuro a equipe usar Factory para construir ou operar um agente na
+plataforma Mastra, isso é processo de engenharia — não muda a composição em
+`apps/api` nem a ADR-0010.
 
 ## Dado que viaja para a OpenAI
 
@@ -91,9 +186,10 @@ do Better Auth ([ADR-0003](../../decisoes/adr/0003-better-auth-como-prova-de-ide
 mínimo necessário. Na prática:
 
 - a tool devolve o resultado já calculado por `core` / `domain`;
-- o prompt não leva extrato, lista de clientes nem XML;
+- o RAG manda só top‑k chunks do tenant (não extrato, não XML, não lista
+  inteira de clientes);
 - consumo medido por empresa desde o primeiro dia
-  ([RNF-073](../../produto/requisitos-nao-funcionais.md)).
+  ([RNF-073](../../produto/requisitos-nao-funcionais.md)), inclusive embedding.
 
 A OpenAI é subprocessador. Declarar isso na política é a [DEC-016](../../decisoes/README.md#dec-016).
 
@@ -102,10 +198,7 @@ A OpenAI é subprocessador. Declarar isso na política é a [DEC-016](../../deci
 O provedor WhatsApp é a Cloud API
 ([ADR-0014](../../decisoes/adr/0014-meta-cloud-api.md)).
 A identidade do canal fechou na [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
-não há Workflow Mastra, `MastraServer`, `@chat-adapter/whatsapp` nem
-`MastraAuthBetterAuth` no webhook. Sem o adapter real o runtime se exercita
-pelo `POST /agent/messages` e `AGENT_PROVIDER=fake`. O webhook, na NR-046,
-entra atrás da mesma `processMessage`.
-
-Isolamento cruzado é `ExecutionContext` + tools sem id de terceiro + RLS — não
-processor Mastra. Memória do framework (DEC-011) continua desligada.
+não há Workflow Mastra, `MastraServer`, Channel adapter nem auth Mastra no
+webhook. Sem o adapter real o runtime se exercita pelo `POST /agent/messages` e
+`AGENT_PROVIDER=fake`. O webhook, na NR-046, entra atrás da mesma
+`processMessage`.

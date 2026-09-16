@@ -50,11 +50,11 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |      98 |  246 |
+| Total                         |      99 |  248 |
 | ✅ Concluídas                 |      82 |  199 |
-| 🚧 Bloqueadas por decisão     |       3 |   10 |
+| 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      13 |   37 |
+| ⬜ A fazer, pode começar hoje |      16 |   45 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -79,10 +79,11 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **47 dias que faltam, 37 podem começar hoje** — inclusive NR-015 (deploy na
-VM), NR-046 (adapter Meta) e a cascata do agente (NR-060, 061, 115–119).
-Sobram 10 dias atrás de decisão: Open Finance (DEC-005), memória da conversa
-(DEC-011) e a NR-075 ainda marcada na DEC-012 (já fechada na ADR-0013).
+Dos **49 dias que faltam, 45 podem começar hoje** — inclusive NR-015 (deploy na
+VM), NR-046 (adapter Meta), a cascata do agente (NR-060, 061, 115–119), o
+RAG (NR-120, [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md)) e a
+NR-075 (cupons; DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda
+trava tarefa no quadro (NR-048).
 
 ---
 
@@ -161,15 +162,16 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084         | —           | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
 | NR-060 | `agent`: runtime com tools geradas de `contracts`                       |   🟠   | `agent`                    |   5 | NR-046, NR-005         | —           | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ⬜   |
 | NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060                 | —           | US-050, RF-103, RF-104                                        |   ⬜   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060                 | **DEC-011** | US-051, RF-105, RF-106                                        |   🚧   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060                 | —           | US-051, RF-105, RF-106                                        |   ⬜   |
 | NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060                 | —           | US-065–067, RF-133–135                                        |   ⬜   |
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061         | —           | US-068, RF-137–139                                            |   ⬜   |
 | NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061         | —           | US-069–071, RF-140–142                                        |   ⬜   |
 | NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-042 | —           | US-072–075, RF-143–145, RF-147                                |   ⬜   |
 | NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-034         | —           | US-076, RF-148                                                |   ⬜   |
+| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`               |   2 | NR-060, NR-007         | —           | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
 | NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044                 | —           | RF-110–118                                                    |   ⬜   |
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —                      | —           | RF-114, RF-115                                                |   ✅   |
-| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                 | DEC-012     | E12                                                           |   🚧   |
+| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                 | —           | E12, ADR-0013                                                 |   ⬜   |
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -306,34 +308,25 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 | [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048        |          — |            4 |
 | [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜) |          — |            0 |
 | [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜) |          — |            0 |
-| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa                            | NR-062        |          — |            3 |
-| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons                                | NR-075        |          — |            3 |
+| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa ✅                         | — (NR-062 ⬜) |          — |            0 |
+| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons ✅                             | — (NR-075 ⬜) |          — |            0 |
 | [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅) |          — |            0 |
 
-> **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003 e DEC-009
-> fecharam. O que ainda está 🚧 por decisão é Open Finance, memória da conversa
-> e a NR-075 (DEC-012 já ADR). Ver
+> **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003, DEC-009,
+> DEC-011 e DEC-012 fecharam. O que ainda está 🚧 por decisão no quadro é
+> Open Finance (DEC-005 / NR-048). Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 47 dias-desenvolvedor que restam, 37 estão liberados.**
-Os outros 10 continuam atrás de decisão (DEC-005, DEC-011, e NR-075 na DEC-012).
-
-A de maior alcance que ainda trava o **recorte** do assistente é a
-[DEC-011](../decisoes/README.md#dec-011) (memória): a
-[DEC-003](../decisoes/README.md#dec-003) fechou pela
-[ADR-0014](../decisoes/adr/0014-meta-cloud-api.md) (Meta Cloud API) e a
-[DEC-007](../decisoes/README.md#dec-007) pela
-[ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md). Canal e cérebro
-têm provedor; o que a conversa lembra não.
+**Dos 49 dias-desenvolvedor que restam, 45 estão liberados.**
+O único bloqueio de decisão no ledger é Open Finance (DEC-005, 4 dias).
 
 Cada tarefa é contada **uma vez**, na decisão que aparece na sua própria coluna
-`Bloq`. Uma tarefa pode estar atrás de mais de uma: NR-075 espera a DEC-012 e,
-via NR-063, o adapter de cobrança — somar as duas contaria o mesmo dia duas vezes.
+`Bloq`.
 
-**Nenhuma decisão restante domina como a DEC-002 dominava, nem como a DEC-003
-dominava.** A [DEC-009](../decisoes/README.md#dec-009) fechou pela
-[ADR-0015](../decisoes/adr/0015-vps-docker-compose.md) (VPS + Compose).
-O bloqueio que sobra está espalhado.
+**Nenhuma decisão restante domina como a DEC-002 dominava.** A que ainda
+trava linha no ledger é a [DEC-005](../decisoes/README.md#dec-005) (Open
+Finance, SHOULD). Assistente: memória [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md),
+RAG [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md).
 
 A [DEC-008](../decisoes/README.md#dec-008) fechou pela
 [ADR-0002](../decisoes/adr/0002-autenticacao-identidade-propria.md) e devolveu
@@ -355,11 +348,11 @@ O retrabalho que resta é visual (tokens), não naming.
 | Trilha                          | Tarefas | Dias | Observação                                         |
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      34 |   85 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
-| 🟠 2 — Plataforma & Integrações |      34 |   87 | NR-113 + tools E11 (NR-115–119)                    |
+| 🟠 2 — Plataforma & Integrações |      35 |   89 | NR-113 + E11 + RAG (NR-120, ADR-0017)                  |
 | 🟢 3 — Clientes                 |      27 |   68 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **246 dias-desenvolvedor** em 98 tarefas. Com 3 pessoas, isso é cerca
+Somando: **248 dias-desenvolvedor** em 99 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

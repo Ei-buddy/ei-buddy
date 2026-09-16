@@ -560,8 +560,10 @@ compromisso.
 > [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)). O provedor
 > fechou ([DEC-003](../decisoes/README.md#dec-003) /
 > [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)): Meta Cloud API; o
-> adapter real é a NR-046. Ainda depende de [DEC-011](../decisoes/README.md#dec-011)
-> (memória).
+> adapter real é a NR-046. Memória fechou
+> ([DEC-011](../decisoes/README.md#dec-011) /
+> [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md));
+> implementação é a NR-062.
 >
 > O agente **não** reimplementa regra: cada tool chama o mesmo caso de uso do
 > app. Nota fiscal não é comando — entra como efeito da venda ou do
@@ -639,13 +641,14 @@ não criar lançamento errado por engano.
 repetir tudo a cada mensagem.
 `MUST` · P1 · `packages/agent` · RF-105, RF-106
 
-> Ainda depende da [DEC-011](../decisoes/README.md#dec-011). O recorte da
-> [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md) não persiste
-> conversa nem liga Memory do Mastra.
+> Fechada na [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md):
+> tabelas `conversations` / `messages` com RLS; no máximo 12 msgs no prompt;
+> idle 2 h; retenção 30 dias; sem Memory Mastra. Implementação: NR-062.
 
 - **DADO** que acabei de falar de um cliente **QUANDO** digo "manda a cobrança pra ele" **ENTÃO** o assistente sabe quem é "ele"
-- **DADO** uma conversa parada por muito tempo **QUANDO** volto **ENTÃO** o contexto antigo não é aplicado silenciosamente a uma ação nova
+- **DADO** uma conversa parada por mais de 2 horas **QUANDO** volto e peço uma ação com referência ("ele") **ENTÃO** o contexto antigo não é aplicado silenciosamente — o assistente pede de novo
 - **DADO** o contexto de uma empresa **QUANDO** outra empresa conversa **ENTÃO** nunca há vazamento entre conversas
+- **DADO** mensagens com mais de 30 dias **QUANDO** roda o expurgo **ENTÃO** os corpos não permanecem no banco
 
 #### US-052 — Enviar cobrança por mensagem
 

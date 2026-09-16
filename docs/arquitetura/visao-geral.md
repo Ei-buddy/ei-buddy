@@ -118,6 +118,10 @@ flowchart TB
 ### O runtime do agente mora na API
 
 O `packages/agent` roda **dentro** de `apps/api`, não como serviço separado.
+O Mastra entra só como biblioteca (`Agent` + `createTool`); `processMessage`
+é o dono do laço (confirmação, execução em `core`). Não há `MastraServer`,
+Studio, Workflow nem Factory no caminho do lojista — ver
+[`integracoes/mastra.md`](integracoes/mastra.md).
 
 Motivo: o agente precisa do mesmo contexto de execução, da mesma autenticação e
 das mesmas portas de `core` que uma requisição HTTP. Separá-lo criaria uma
@@ -161,7 +165,9 @@ validações e a auditoria.
 | ORM                    | Drizzle                    | SQL explícito e tipado, essencial para trabalhar com RLS sem surpresa                                                |
 | Isolamento             | RLS no PostgreSQL          | Isolamento que não depende de o desenvolvedor lembrar do `WHERE` — [ADR-0001](../decisoes/adr/0001-rls-por-linha.md) |
 | Validação              | Zod em `contracts`         | O mesmo schema serve a HTTP, tipos e tools do agente                                                                 |
-| Runtime do agente      | Mastra + `gpt-4o-mini`     | Tools em Zod, modelo trocável por config — [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)                  |
+| Runtime do agente      | Mastra + `gpt-4o-mini`     | Tools em Zod; RAG auxiliar com store nosso — [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md), [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md) |
+| Recuperação (RAG)      | Store nosso + RLS          | Chunk não é saldo/total — [ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md)                                                                            |
+| Memória da conversa    | Tabelas nossas + RLS       | Sem Memory Mastra; 12 msgs / 2 h idle / 30 dias — [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md) |
 | WhatsApp               | Meta Cloud API             | Um WABA da plataforma — [ADR-0014](../decisoes/adr/0014-meta-cloud-api.md)                                           |
 | Hospedagem             | VPS + Docker Compose       | A VM que já roda — [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                                            |
 
@@ -169,10 +175,11 @@ validações e a auditoria.
 
 Estas **não** estão decididas e não devem ser assumidas em código:
 
-| Tema                | Decisão                                  | Impacto se decidida errado                        |
-| ------------------- | ---------------------------------------- | ------------------------------------------------- |
-| Memória da conversa | [DEC-011](../decisoes/README.md#dec-011) | O que o assistente lembra, por quanto tempo, onde |
-| Open Finance        | [DEC-005](../decisoes/README.md#dec-005) | Extrato ao vivo vs. só OFX/CSV no MVP             |
+| Tema         | Decisão                                  | Impacto se decidida errado            |
+| ------------ | ---------------------------------------- | ------------------------------------- |
+| Open Finance | [DEC-005](../decisoes/README.md#dec-005) | Extrato ao vivo vs. só OFX/CSV no MVP |
+
+Memória da conversa fechou — [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md).
 
 ## Documentos relacionados
 

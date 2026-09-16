@@ -52,7 +52,7 @@ provedor nenhum.
 | **NR-046** |    4 | o adapter HTTP do provedor                 | consentimento (RF-016), webhook de entrada, roteamento de comando |          ~3 |
 | **NR-060** |    5 | o adapter HTTP do WhatsApp (DEC-003)       | as tools tipadas, o laço Mastra e o `LlmClient` falso             |          ~4 |
 | **NR-061** |    2 | nada próprio — herda de NR-060             | a máquina de estados da confirmação e a expiração são `core` puro |           2 |
-| **NR-062** |    3 | **onde** o contexto persiste (DEC-011)     | o isolamento por empresa é a mesma RLS que já existe              |          ~2 |
+| **NR-062** |    3 | — (DEC-011 / ADR-0016)                     | o isolamento por empresa é a mesma RLS que já existe              |          ~2 |
 | **NR-063** |    4 | a cobrança em si                           | trial, estados e o que cada estado permite                        |          ~2 |
 | **NR-075** |    3 | o catálogo de planos e o desenho do cupom  | as telas contra um catálogo falso                                 |          ~2 |
 | **NR-048** |    4 | o provedor de Open Finance                 | pouco: o importador de OFX/CSV (NR-047) já cobre o caminho manual |          ~1 |
@@ -109,7 +109,8 @@ diferem de forma material.
 
 Fechou na [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md): Mastra como
 biblioteca em `packages/agent`, modelo inicial `openai/gpt-4o-mini`, tools
-geradas de `contracts`, sem RAG sobre o banco de negócio.
+geradas de `contracts`; RAG auxiliar ([ADR-0017](../decisoes/adr/0017-rag-com-tools-e-rls.md))
+recupera candidatos — totais continuam vindos de `core` / `domain`.
 
 A identidade do canal fechou ([DEC-023](../decisoes/README.md#dec-023) /
 [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md)): celular do
@@ -135,9 +136,10 @@ Sendo justo com o outro lado:
   pagamento falha" é decisão de produto, e a US-054 já dá metade da resposta
   ("continuo podendo ler e exportar"). Mas o prazo de tolerância, o aviso e o
   ponto de corte são escolha, não código.
-- **DEC-011** (contexto da conversa) decide _onde_ o histórico mora, e isso muda
-  o schema. Escrever o caso de uso contra uma porta é possível; escolher a
-  tabela depois é barato. Escolher errado e migrar depois, não.
+- **DEC-011** (contexto da conversa) fechou na
+  [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md):
+  histórico nas tabelas do catálogo. A NR-062 implementa; não há mais espera
+  de schema alternativo.
 - **DEC-015** (conta no PSP: uma por lojista ou split na conta da plataforma) é
   decisão **regulatória e contábil**, não técnica. Ela muda quem é o titular do
   dinheiro. Nada de código adianta aqui.

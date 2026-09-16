@@ -88,7 +88,8 @@ sequenceDiagram
 O mesmo caso de uso, outro canal. Requisitos: RF-100 a RF-104. A identidade
 do remetente é [ADR-0012](../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
 `processMessage` resolve o `peer` para o owner da primeira empresa. Contexto
-de conversa (RF-105) espera a [DEC-011](../decisoes/README.md#dec-011).
+de conversa (RF-105/106) é [ADR-0016](../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
+(NR-062): tabelas nossas, janela de 12 msgs, idle 2 h.
 
 ```mermaid
 sequenceDiagram
@@ -96,7 +97,8 @@ sequenceDiagram
     actor L as Lojista
     participant WA as Provedor WhatsApp
     participant A as apps/api
-    participant AG as packages/agent
+    participant AG as packages/agent<br/>processMessage
+    participant M as Mastra Agent<br/>generate maxSteps:1
     participant LLM as OpenAI gpt-4o-mini
     participant C as core.registerSale
 
@@ -110,18 +112,21 @@ sequenceDiagram
         AG-->>WA: ignora, sem revelar informação
     end
 
-    Note over AG: RF-105 (contexto) espera DEC-011 — neste recorte não há histórico
-    AG->>LLM: mensagem + contexto + tools geradas de contracts
-    LLM-->>AG: tool call registerSale(...)
+    Note over AG: RF-105 — histórico recente (ADR-0016); idle 2 h corta anáfora
+    AG->>M: decide(texto + tools de contracts)
+    M->>LLM: prompt mínimo + schemas
+    LLM-->>M: tool call registerSale(args)
+    Note over M: execute Mastra = identidade<br/>não grava valor
+    M-->>AG: tool + args
 
-    AG->>AG: resolve cliente e produtos
-    alt produto ambíguo
+    AG->>AG: parseToolArgs (mesmo Zod da rota HTTP)
+    alt produto ambíguo / args inválidos
         AG-->>L: "Camiseta M azul ou branca?" (RF-102)
         L->>AG: responde
     end
 
     rect rgba(200,150,60,0.15)
-        Note over AG,L: ação que mexe em valor exige confirmação — RF-103
+        Note over AG,L: mutatesValue → confirmação nossa (não HITL Mastra) — RF-103
         AG-->>L: "Venda para João: 2× Camiseta M — R$ 99,80 no Pix. Confirma?"
         alt confirma
             L->>AG: "sim"
@@ -136,6 +141,9 @@ sequenceDiagram
     C-->>AG: venda registrada
     AG-->>L: "Pronto. Venda #1042 — R$ 99,80. Nota sendo emitida."
 ```
+
+Detalhe do runtime e do que o Mastra **não** faz neste caminho:
+[`integracoes/mastra.md`](integracoes/mastra.md).
 
 ### Confirmação de ações sensíveis
 

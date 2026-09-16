@@ -45,6 +45,7 @@ Público: desenvolvedores.
 | [`arquitetura/seguranca.md`](arquitetura/seguranca.md)                   | Autenticação, autorização, gestão de segredos e conformidade com a LGPD      |
 | [`arquitetura/modulos.md`](arquitetura/modulos.md)                       | Tabela-índice de todos os módulos, com fronteiras e donos                    |
 | [`arquitetura/integracoes/`](arquitetura/integracoes/)                   | Avaliação e desenho de cada provedor externo — uma página por fornecedor     |
+| [`arquitetura/integracoes/mastra.md`](arquitetura/integracoes/mastra.md) | Runtime do assistente: laço `processMessage`, Agent/tools, o que Factory não faz |
 
 ### 🔧 Engenharia — _como trabalhamos_
 
