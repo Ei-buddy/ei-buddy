@@ -11,3 +11,6 @@ docs/assets/*.md
 # Credenciais de desenvolvimento gravadas pela api em tempo de execucao.
 # Nao e fonte: e estado local, e o `format:check` reprovava por causa dele.
 .dev
+
+# Ponteiro local do Spec Kit (gitignored).
+.specify

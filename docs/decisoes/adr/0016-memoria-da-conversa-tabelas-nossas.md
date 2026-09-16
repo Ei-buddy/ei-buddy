@@ -57,39 +57,39 @@ Persistir turnos em `conversations` / `messages` (RLS). Contexto ativo = última
 mensagens da conversa vigente, até um teto. Ociosidade longa encerra o contexto
 ativo para ações novas. Sem Memory Mastra. Sem treino de modelo.
 
-| Prós                                                                                         | Contras                                                                 |
-| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Casa com o catálogo e com RF-105/106                                                         | Expõe corpo de mensagem no Postgres — exige expurgo (RNF-035)           |
-| Isolamento por `company_id` é o mesmo do resto do sistema                                    | `processMessage` precisa carregar histórico antes do `generate`         |
-| Confirmação (NR-061) passa a FK real em `conversations`                                      | Janela curta pode falhar em anáfora após muitas mensagens intermediárias |
-| "Aprendizado" da apresentação vira memória de turno, não LGPD de treino                      |                                                                         |
+| Prós                                                                    | Contras                                                                  |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Casa com o catálogo e com RF-105/106                                    | Expõe corpo de mensagem no Postgres — exige expurgo (RNF-035)            |
+| Isolamento por `company_id` é o mesmo do resto do sistema               | `processMessage` precisa carregar histórico antes do `generate`          |
+| Confirmação (NR-061) passa a FK real em `conversations`                 | Janela curta pode falhar em anáfora após muitas mensagens intermediárias |
+| "Aprendizado" da apresentação vira memória de turno, não LGPD de treino |                                                                          |
 
 ### Opção B — Memory / Storage do Mastra
 
 Ligar `@mastra/memory` (histórico, working memory, semantic recall).
 
-| Prós                          | Contras                                                                                      |
-| ----------------------------- | -------------------------------------------------------------------------------------------- |
-| Menos código de histórico     | Tabelas sem `company_id` em `public` quebram ADR-0001                                        |
-| Docs do framework descrevem   | Semantic recall sobre conversa financeira é vizinho do RAG que a ADR-0010 proibiu no negócio |
-|                               | Fecha a DEC por omissão, sem controle de idle/expurgo nossos                                 |
+| Prós                        | Contras                                                                                      |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| Menos código de histórico   | Tabelas sem `company_id` em `public` quebram ADR-0001                                        |
+| Docs do framework descrevem | Semantic recall sobre conversa financeira é vizinho do RAG que a ADR-0010 proibiu no negócio |
+|                             | Fecha a DEC por omissão, sem controle de idle/expurgo nossos                                 |
 
 ### Opção C — Só estado volátil (Redis / memória de processo)
 
-| Prós                         | Contras                                                                          |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| Sem dado sensível no Postgres de longo prazo | Reinício do processo apaga contexto — RF-105 falha entre deploys      |
-|                              | Confirmação sensível já precisa sobreviver a restart (NR-061)                    |
-|                              | Esvazia o catálogo `conversations` / `messages` que a ADR-0006 já materializou   |
+| Prós                                         | Contras                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| Sem dado sensível no Postgres de longo prazo | Reinício do processo apaga contexto — RF-105 falha entre deploys               |
+|                                              | Confirmação sensível já precisa sobreviver a restart (NR-061)                  |
+|                                              | Esvazia o catálogo `conversations` / `messages` que a ADR-0006 já materializou |
 
 ### Opção D — Preferências duráveis + "aprendizado" de modelo
 
 Guardar perfil do lojista e/ou fine-tune / feedback loop com dado de conversa.
 
-| Prós                    | Contras                                                                 |
-| ----------------------- | ----------------------------------------------------------------------- |
-| Cobre o slogan da deck  | Campo minado de LGPD ([RNF-036](../../produto/requisitos-nao-funcionais.md)); DEC-011 já alertava |
-|                         | Fora do MVP de RF-105 (anáfora), não do de treino                       |
+| Prós                   | Contras                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| Cobre o slogan da deck | Campo minado de LGPD ([RNF-036](../../produto/requisitos-nao-funcionais.md)); DEC-011 já alertava |
+|                        | Fora do MVP de RF-105 (anáfora), não do de treino                                                 |
 
 ## Decisão
 

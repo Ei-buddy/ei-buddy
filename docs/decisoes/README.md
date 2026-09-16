@@ -42,13 +42,13 @@ PR**, e a linha sai da tabela de abertas.
 
 ## Painel
 
-| Estado             | Qtd | Quais                                   |
-| ------------------ | --: | --------------------------------------- |
-| 🔴 Aberta          |   4 | DEC-005, 013, 016, 018                  |
-| 🟡 Em análise      |   0 | —                                       |
-| ⚪ Adiada          |   1 | DEC-014                                 |
-| 🟢 Decidida        |  17 | DEC-001–004, 006–012, 015, 019–023      |
-| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012              |
+| Estado             | Qtd | Quais                              |
+| ------------------ | --: | ---------------------------------- |
+| 🔴 Aberta          |   4 | DEC-005, 013, 016, 018             |
+| 🟡 Em análise      |   0 | —                                  |
+| ⚪ Adiada          |   1 | DEC-014                            |
+| 🟢 Decidida        |  17 | DEC-001–004, 006–012, 015, 019–023 |
+| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012         |
 
 **Bloqueando o MVP agora:** nenhuma DEC de assistente — [DEC-011](#dec-011)
 fechou na [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
@@ -77,11 +77,11 @@ NR-015 preenche backup, PITR e os workflows de deploy.
 
 ### DEC-003 — Provedor de WhatsApp
 
-|              |                                                                                                             |
-| ------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                    |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                         |
-| **Prazo**    | **Sprint 2**                                                                                                |
+|              |                                                                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0014](adr/0014-meta-cloud-api.md)**                                                                                                          |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                               |
+| **Prazo**    | **Sprint 2**                                                                                                                                                      |
 | **Bloqueia** | — (NR-046 ⬜). Identidade do canal é [DEC-023](#dec-023). Memória da conversa é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
 
 **Decisão (2026-09-15): Meta Cloud API.**
@@ -186,11 +186,11 @@ mesma porta `BankStatementProvider`.
 
 ### <a id="dec-007"></a>DEC-007 — Modelo de LLM e mecanismo de recuperação de informação
 
-|              |                                                                                                                              |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                               |
-| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                          |
-| **Prazo**    | Sprint 3                                                                                                                     |
+|              |                                                                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md)**                                                                                                                                                      |
+| **Dono**     | Trilha 2 — Plataforma & Integrações                                                                                                                                                                                 |
+| **Prazo**    | Sprint 3                                                                                                                                                                                                            |
 | **Bloqueia** | — (NR-060 ⬜; harness Studio NR-121; canal Meta NR-046 após E11/RAG/NR-113). Identidade do canal é [DEC-023](#dec-023). Memória é [DEC-011](#dec-011) / [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md). |
 
 **Decisão (2026-09-11): Mastra + OpenAI `gpt-4o-mini` no começo.**
@@ -249,12 +249,12 @@ reversão ≤ 10 min.
 
 ### <a id="dec-011"></a>DEC-011 — Memória e contexto da conversa
 
-|              |                                                                                                                                    |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**   | 🟢 **Decidida — [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md)**                                                        |
-| **Dono**     | Trilha 2                                                                                                                           |
-| **Prazo**    | Sprint 3                                                                                                                           |
-| **Bloqueia** | — (NR-062 ⬜). RF-105, RF-106 · [US-051](../produto/user-stories.md#us-051--manter-o-contexto-da-conversa)                          |
+|              |                                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟢 **Decidida — [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md)**                               |
+| **Dono**     | Trilha 2                                                                                                   |
+| **Prazo**    | Sprint 3                                                                                                   |
+| **Bloqueia** | — (NR-062 ⬜). RF-105, RF-106 · [US-051](../produto/user-stories.md#us-051--manter-o-contexto-da-conversa) |
 
 **Decisão (2026-09-16): tabelas nossas + janela curta; sem Memory Mastra.**
 

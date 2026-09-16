@@ -12,11 +12,11 @@ substituida_por: null
 
 # ADR-0017 — RAG como recuperação auxiliar; tools e domain continuam a verdade
 
-|                       |                                     |
-| --------------------- | ----------------------------------- |
-| **Status**            | Aceita                              |
-| **Data**              | 2026-09-16                          |
-| **Decisores**         | Produto · Trilha 2                  |
+|                       |                                                              |
+| --------------------- | ------------------------------------------------------------ |
+| **Status**            | Aceita                                                       |
+| **Data**              | 2026-09-16                                                   |
+| **Decisores**         | Produto · Trilha 2                                           |
 | **Decisão de origem** | revisa o ponto 3 da [ADR-0010](0010-mastra-e-gpt-4o-mini.md) |
 
 ## Contexto
@@ -54,25 +54,25 @@ embedding e tokens ([RNF-072](../../produto/requisitos-nao-funcionais.md) /
 `company_id`. O retrieve alimenta o prompt ou uma tool de "candidatos". Totais,
 saldos e efeitos em dinheiro continuam só via tool → `core` → `domain`.
 
-| Prós                                                              | Contras                                                          |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Casa com RF-101/102 sem abrir mão de português frouxo             | Embedding e índice são dado pessoal / de negócio a mais          |
-| Isolamento igual ao resto do sistema se o store tiver `company_id` | Mais tokens se o retrieve for guloso (RNF-075)                   |
-| Não reabre Memory Mastra nem servidor Mastra                      | Job de indexação / reindexação quando produto ou FAQ muda        |
+| Prós                                                               | Contras                                                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------- |
+| Casa com RF-101/102 sem abrir mão de português frouxo              | Embedding e índice são dado pessoal / de negócio a mais   |
+| Isolamento igual ao resto do sistema se o store tiver `company_id` | Mais tokens se o retrieve for guloso (RNF-075)            |
+| Não reabre Memory Mastra nem servidor Mastra                       | Job de indexação / reindexação quando produto ou FAQ muda |
 
 ### Opção B — Manter a proibição da ADR-0010
 
-| Prós                         | Contras                                                    |
-| ---------------------------- | ---------------------------------------------------------- |
-| Superfície menor             | Desambiguação e FAQ só por match exato ou alucinação       |
-| Menos PII em índice vetorial | Contradiz a escolha de produto de **usar** RAG             |
+| Prós                         | Contras                                              |
+| ---------------------------- | ---------------------------------------------------- |
+| Superfície menor             | Desambiguação e FAQ só por match exato ou alucinação |
+| Menos PII em índice vetorial | Contradiz a escolha de produto de **usar** RAG       |
 
 ### Opção C — RAG como fonte do número ("quanto vendi" no chunk)
 
-| Prós                | Contras                                                                 |
-| ------------------- | ----------------------------------------------------------------------- |
-| Um caminho só       | Quebra RF-101: o chunk pode estar desatualizado ou misturar tenants     |
-|                     | Relatório e Zap deixam de ser a mesma verdade                           |
+| Prós          | Contras                                                             |
+| ------------- | ------------------------------------------------------------------- |
+| Um caminho só | Quebra RF-101: o chunk pode estar desatualizado ou misturar tenants |
+|               | Relatório e Zap deixam de ser a mesma verdade                       |
 
 ## Decisão
 
