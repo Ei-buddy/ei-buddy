@@ -1,4 +1,10 @@
-import type { CompanyOverview, PlatformAdminOutput, Role } from '@na-regua/contracts'
+import type {
+  CompanyOverview,
+  PlatformAdminOutput,
+  PlatformUser,
+  PlatformUserQuery,
+  Role,
+} from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
 
 /**
@@ -47,6 +53,18 @@ export type PlatformAdminAccess = {
 
   /** Quem e Super Admin hoje. */
   listAdmins(requestedBy: UserId): Promise<readonly PlatformAdminOutput[]>
+
+  /**
+   * Toda pessoa com conta, com as lojas onde atua — NR-121.
+   *
+   * Separado de `listAdmins` porque responde a outra pergunta: aquele diz
+   * quem JA tem o acesso, este diz a quem ele pode ser dado. Uma lista so
+   * obrigaria a tela de promocao a adivinhar quem existe.
+   */
+  listUsers(
+    requestedBy: UserId,
+    filtro: PlatformUserQuery,
+  ): Promise<{ readonly users: readonly PlatformUser[]; readonly total: number }>
 }
 
 /** O papel que uma sessao de Super Admin sempre assume ao entrar numa empresa. */

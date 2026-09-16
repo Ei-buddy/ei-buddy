@@ -43,6 +43,9 @@ export default function AdminView() {
   const [erroConvite, setErroConvite] = useState<string | null>(null)
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null)
 
+  /** Conta logada que nao e Super Admin — tem tela propria, ver o efeito. */
+  const [semAcesso, setSemAcesso] = useState(false)
+
   /** Quem sou eu — para nao oferecer "revogar" na propria linha. */
   const [meuUserId, setMeuUserId] = useState<string | null>(null)
   const [revogando, setRevogando] = useState<string | null>(null)
@@ -60,6 +63,22 @@ export default function AdminView() {
 
   useEffect(() => {
     void (async () => {
+      /*
+       * Primeiro a pergunta "esta conta pode?", e so depois os dados.
+       *
+       * Sem isto, uma conta comum via TRES caixas vermelhas de erro dizendo a
+       * mesma coisa, e nenhuma delas dizia o que fazer. Falta de permissao
+       * nao e falha de carregamento: e uma resposta, e merece uma tela.
+       */
+      const podeVer = await fetch('/api/admin/super-admins', { credentials: 'same-origin' })
+        .then((r) => (r.status === 403 ? false : true))
+        .catch(() => true)
+
+      if (!podeVer) {
+        setSemAcesso(true)
+        return
+      }
+
       const [e, a, p] = await Promise.all([listarEmpresas(), listarSuperAdmins(), carregarPerfil()])
 
       /* Falha em silencio: sem saber quem sou, o botao aparece na propria
@@ -125,6 +144,32 @@ export default function AdminView() {
     setNome('')
     if (r.dados.temporaryPassword !== undefined) setSenhaGerada(r.dados.temporaryPassword)
     await carregarAdmins()
+  }
+
+  if (semAcesso) {
+    return (
+      <>
+        <div className={styles.intro}>
+          <h1 className={styles.introTitle}>Painel do Super Admin</h1>
+          <p className={styles.introSubtitle}>
+            Você está logado, mas esta conta não tem acesso de Super Admin.
+          </p>
+        </div>
+
+        <Card title="Como conseguir o acesso">
+          <p className={styles.explicacao}>
+            Criar conta não torna ninguém Super Admin: o acesso é concedido por quem já tem, e fica
+            registrado quem concedeu e quando (é o que permite auditar depois).
+          </p>
+          <p className={styles.explicacao}>
+            Peça a um Super Admin que abra <strong>Usuários</strong> aqui no painel e mude o seu
+            perfil. Se ainda não existe nenhum Super Admin na plataforma, o primeiro é promovido por
+            um comando no servidor — está em <code className={styles.codigo}>infra/README.md</code>,
+            na seção &ldquo;Primeiro Super Admin&rdquo;.
+          </p>
+        </Card>
+      </>
+    )
   }
 
   return (

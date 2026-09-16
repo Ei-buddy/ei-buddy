@@ -198,3 +198,25 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* --- Conta logada sem acesso de Super Admin --- */
+
+.explicacao {
+  max-width: 62ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--app-muted);
+}
+
+.explicacao + .explicacao {
+  margin-top: 10px;
+}
+
+.codigo {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--app-field);
+  color: var(--app-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+}

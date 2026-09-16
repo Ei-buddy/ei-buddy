@@ -1,4 +1,8 @@
-import { enterCompanyInputSchema, grantPlatformAdminInputSchema } from '@na-regua/contracts'
+import {
+  enterCompanyInputSchema,
+  grantPlatformAdminInputSchema,
+  platformUserQuerySchema,
+} from '@na-regua/contracts'
 import {
   AppError,
   enterCompany,
@@ -7,6 +11,7 @@ import {
   revokePlatformAdmin,
   listPlatformAdmins,
   listPlatformCompanies,
+  listPlatformUsers,
   type IdentityRegistrar,
   type PlatformAdminAccess,
   type SessionClaims,
@@ -48,6 +53,23 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRouteDeps):
     users: deps.users,
     registrar: deps.registrar,
   }
+
+  /**
+   * Quem tem conta na plataforma — NR-121.
+   *
+   * Vizinha de `/admin/super-admins` e nao a mesma rota: aquela lista quem JA
+   * tem o acesso, esta lista a quem ele pode ser dado. A promocao continua
+   * saindo por `POST /admin/super-admins`, que e onde a concessao fica
+   * registrada com `granted_by`.
+   */
+  app.get('/admin/usuarios', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+
+    const input = validate(platformUserQuerySchema, request.query ?? {})
+    const pagina = await listPlatformUsers(usoDeps, sessao.userId, input)
+
+    return reply.code(200).send(pagina)
+  })
 
   /**
    * Toda empresa cadastrada — a visao geral do Super Admin.
