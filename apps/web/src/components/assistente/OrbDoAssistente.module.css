@@ -1,0 +1,32 @@
+/*
+ * A orb do assistente — NR-127.
+ *
+ * O gradiente aqui NAO e enfeite do enfeite: e a versao que aparece para quem
+ * pediu menos movimento e para quem nao tem WebGL, e e o que se ve enquanto o
+ * Three.js carrega. As cores sao as mesmas do shader.
+ */
+
+.orb {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 60% at 32% 28%, rgba(244, 196, 48, 0.35) 0%, rgba(244, 196, 48, 0) 62%),
+    radial-gradient(75% 75% at 70% 72%, #26a69a 0%, rgba(38, 166, 154, 0) 70%),
+    linear-gradient(145deg, #1e88e5 0%, #26a69a 100%);
+  /* Dois brilhos: um interno na borda, para a esfera nao ler como circulo
+     chapado (mesmo papel do realce de borda no shader), e um halo externo
+     que a assenta na tela em vez de coloca-la por cima. Ambos em CSS, que
+     custa zero GPU — o shader nao precisa desenhar nenhum dos dois. */
+  box-shadow:
+    inset 0 -2px 8px rgba(255, 255, 255, 0.28),
+    0 0 0 1px rgba(38, 166, 154, 0.22),
+    0 6px 26px -6px rgba(30, 136, 229, 0.5);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+}

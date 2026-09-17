@@ -9,6 +9,11 @@
      abaixo do conteudo — com ele, o overflow da conversa nunca ativa e a
      pagina inteira e que cresce. */
   grid-template-rows: minmax(0, 1fr) auto auto;
+  /* O mesmo `minmax(0, ...)` vale para a COLUNA, e faltava: a coluna
+     implicita e `auto`, cresce ate o conteudo mais largo (os chips de
+     sugestao) e empurrava a tela inteira para 421px num celular de 390 —
+     rolagem lateral em toda a tela do assistente. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 
   /* Altura fechada, nao minima: e o teto que faz a conversa rolar por
