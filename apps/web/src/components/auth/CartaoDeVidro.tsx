@@ -51,6 +51,14 @@ export default function CartaoDeVidro({ children }: { children: ReactNode }) {
   const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [INCLINACAO, -INCLINACAO]), mola)
   const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-INCLINACAO, INCLINACAO]), mola)
 
+  /*
+   * O `style` vai sempre, mesmo com movimento reduzido — e o que impede a
+   * inclinacao e o `aoMover` nao escrever nada.
+   *
+   * `useReducedMotion` e `null` no servidor e `true` no navegador de quem
+   * pediu menos movimento: escolher o `style` por ele fazia o HTML do servidor
+   * e o da hidratacao divergirem, e o React reclamava.
+   */
   function aoMover(e: PointerEvent<HTMLDivElement>) {
     if (semMovimento || e.pointerType !== 'mouse') return
     const caixa = e.currentTarget.getBoundingClientRect()
@@ -74,7 +82,7 @@ export default function CartaoDeVidro({ children }: { children: ReactNode }) {
         data-vidro=""
         onPointerMove={aoMover}
         onPointerLeave={aoSair}
-        style={semMovimento ? undefined : { rotateX, rotateY, transformPerspective: 1200 }}
+        style={{ rotateX, rotateY, transformPerspective: 1200 }}
       >
         {children}
       </motion.div>

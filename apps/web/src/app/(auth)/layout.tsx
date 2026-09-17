@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { BRAND } from '@/content/site'
+import CaminhosDeFundo from '@/components/auth/CaminhosDeFundo'
 import CartaoDeVidro from '@/components/auth/CartaoDeVidro'
 import styles from './auth.module.css'
 
@@ -28,6 +29,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       {/* Os halos sao so fundo: um por cor da marca, desfocados e fixos. */}
       <span className={`${styles.halo} ${styles.haloAzul}`} aria-hidden="true" />
       <span className={`${styles.halo} ${styles.haloTeal}`} aria-hidden="true" />
+
+      {/* As linhas correm por cima dos halos e por baixo de tudo o mais. O
+          vidro do cartao as desfoca, e e isso que o faz ler como vidro. */}
+      <CaminhosDeFundo />
 
       <header className={styles.topo}>
         <Link href="/" className={styles.brand}>

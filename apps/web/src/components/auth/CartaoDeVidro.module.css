@@ -21,13 +21,17 @@
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.64);
-  backdrop-filter: blur(20px) saturate(140%);
+  /* Prefixada ANTES da padrao. Na ordem inversa o compilador de CSS do Next
+     descartava as duas, e o cartao chegava ao navegador sem vidro nenhum —
+     translucido, com as linhas do fundo passando nitidas atras dos campos. */
   -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 30px 70px -32px rgba(19, 42, 90, 0.35),
     0 8px 24px -16px rgba(19, 42, 90, 0.18);
-  transform-style: preserve-3d;
+  /* Sem `transform-style: preserve-3d`: os filhos nao tem profundidade
+     propria, e a perspectiva da inclinacao ja vem do `.palco`. */
   will-change: transform;
 }
 
