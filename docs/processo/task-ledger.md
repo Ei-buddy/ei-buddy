@@ -51,16 +51,19 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     100 |  250 |
-| ✅ Concluídas                 |      83 |  204 |
+| ✅ Concluídas                 |      84 |  206 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      16 |   42 |
+| ⬜ A fazer, pode começar hoje |      15 |   40 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
 > exceção — foi mesclado antes de a convenção de rodapé existir (PR #15).
 > A **NR-060** entra como ✅ **neste PR** (branch `feat/NR-060-runtime-agente`);
 > a `main` só passa a contar o squash depois do merge — sem URL de PR ainda.
+> A **NR-121** entra como ✅ nesta mesma linha de entrega (branch
+> `feat/NR-121-harness-studio`); a `main` só passa a contar o squash depois
+> do merge — sem URL de PR ainda.
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi
@@ -83,11 +86,11 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **46 dias que faltam, 42 podem começar hoje** — inclusive NR-015 (deploy na
-VM), a cascata do agente no Studio (NR-121 → 061/062 → 115–119 →
-NR-120) agora que a NR-060 está ✅, depois o canal real (NR-113 + NR-046), e a
-NR-075 (cupons; DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava
-tarefa no quadro (NR-048). Studio é substituto do WhatsApp em engenharia
+Dos **44 dias que faltam, 40 podem começar hoje** — inclusive NR-015 (deploy na
+VM), a cascata E11 no Studio (NR-061/062 → 115–119 → NR-120) agora que a
+NR-121 está ✅, depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
+DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava tarefa no
+quadro (NR-048). Studio é substituto do WhatsApp em engenharia
 ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md) revisão 2026-09-16);
 **não** é runtime do lojista.
 
@@ -165,7 +168,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028                                                 | —    | RF-125–128                                                    |   ✅   |
 | NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                                                 | —    | RF-015                                                        |   ✅   |
 | NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-005                                                 | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ✅   |
-| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ⬜   |
+| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ✅   |
 | NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ⬜   |
 | NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ⬜   |
 | NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ⬜   |
@@ -187,6 +190,15 @@ período cobre RF-108 (faturamento, custo, despesas, resultado; texto
 truncado se não couber). **RF-109** (arquivo ou link para detalhe grande)
 permanece dívida técnica explícita e **não** bloqueia o merge; não há
 linha nova no ledger para isso. Ver `packages/agent/README.md`.
+
+**NR-121 (entregue neste PR):** harness Mastra Studio no Fastify da API
+(`@mastra/fastify` atrás do porteiro). Agent-relé `studio-harness` / tool
+`process_message` chama o mesmo `processMessage` da NR-060 (`channel:
+'whatsapp'`, peer forjado). Sem `/api/agents` de negócio; `POST
+/agent/messages` inalterado. Observabilidade: `durationMs` no envelope da
+tool + log `agent.studio.turn`. Status ✅ nesta branch
+(`feat/NR-121-harness-studio`) — sem URL de PR ainda. Confirmação continua
+in-memory (NR-061); Memory/RAG/Meta ficam fora.
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -313,26 +325,26 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 
 ## Bloqueios por decisão
 
-| Decisão                                                                                  | Diretas                        | Em cascata | Dias parados |
-| ---------------------------------------------------------------------------------------- | ------------------------------ | ---------: | -----------: |
-| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ✅; Studio NR-121)   |          — |            0 |
-| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅)                  |          — |            0 |
-| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜, após NR-113/120) |          — |            0 |
-| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜)                  |          — |            0 |
-| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜)                  |          — |            0 |
-| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048                         |          — |            4 |
-| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜)                  |          — |            0 |
-| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜)                  |          — |            0 |
-| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa ✅                         | — (NR-062 ⬜)                  |          — |            0 |
-| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons ✅                             | — (NR-075 ⬜)                  |          — |            0 |
-| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅)                  |          — |            0 |
+| Decisão                                                                                  | Diretas                         | Em cascata | Dias parados |
+| ---------------------------------------------------------------------------------------- | ------------------------------- | ---------: | -----------: |
+| [DEC-007](../decisoes/README.md#dec-007) LLM ✅ Mastra + `gpt-4o-mini`                   | — (NR-060 ✅; Studio NR-121 ✅) |          — |            0 |
+| [DEC-004](../decisoes/README.md#dec-004) fiscal ✅                                       | — (NR-042 ✅)                   |          — |            0 |
+| [DEC-003](../decisoes/README.md#dec-003) WhatsApp ✅ Meta Cloud API                      | — (NR-046 ⬜, após NR-113/120)  |          — |            0 |
+| [DEC-010](../decisoes/README.md#dec-010) cobrança ✅                                     | — (NR-063 ⬜)                   |          — |            0 |
+| [DEC-006](../decisoes/README.md#dec-006)/[DEC-015](../decisoes/README.md#dec-015) PSP ✅ | — (NR-044 ⬜)                   |          — |            0 |
+| [DEC-005](../decisoes/README.md#dec-005) Open Finance                                    | NR-048                          |          — |            4 |
+| [DEC-003](../decisoes/README.md#dec-003) fluxo 3 do E2E ✅                               | — (NR-049 ⬜)                   |          — |            0 |
+| [DEC-009](../decisoes/README.md#dec-009) hospedagem ✅ VPS                               | — (NR-015 ⬜)                   |          — |            0 |
+| [DEC-011](../decisoes/README.md#dec-011) contexto da conversa ✅                         | — (NR-062 ⬜)                   |          — |            0 |
+| [DEC-012](../decisoes/README.md#dec-012) usuário e cupons ✅                             | — (NR-075 ⬜)                   |          — |            0 |
+| [DEC-001](../decisoes/README.md#dec-001) nome/marca                                      | — (NR-011 ✅)                   |          — |            0 |
 
 > **Bloqueio de tarefa não é bloqueio de trabalho.** DEC-003, DEC-009,
 > DEC-011 e DEC-012 fecharam. O que ainda está 🚧 por decisão no quadro é
 > Open Finance (DEC-005 / NR-048). Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 46 dias-desenvolvedor que restam, 42 estão liberados.**
+**Dos 44 dias-desenvolvedor que restam, 40 estão liberados.**
 O único bloqueio de decisão no ledger é Open Finance (DEC-005, 4 dias).
 
 Cada tarefa é contada **uma vez**, na decisão que aparece na sua própria coluna
@@ -363,7 +375,7 @@ O retrabalho que resta é visual (tokens), não naming.
 | Trilha                          | Tarefas | Dias | Observação                                         |
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      34 |   85 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
-| 🟠 2 — Plataforma & Integrações |      36 |   91 | Studio (NR-121) + E11 + RAG + canal (113/046)      |
+| 🟠 2 — Plataforma & Integrações |      36 |   91 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
 | 🟢 3 — Clientes                 |      27 |   68 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 

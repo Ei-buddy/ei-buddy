@@ -1,0 +1,19 @@
+---
+description: Antes de criar, atualizar ou pedir review de um PR, rode pnpm format:check. A job Verificar da CI falha só nisso.
+alwaysApply: true
+---
+
+# Formatação antes de PR
+
+A CI (`pnpm format:check`, job **Verificar**) é o primeiro passo e já reprovou PRs por Prettier. Não abra, não dê push de “PR pronto” e não peça review com isso vermelho.
+
+## Obrigatório, nesta ordem
+
+1. `pnpm format:check`
+2. Se falhar: `pnpm format` (ou `prettier --write` só nos arquivos listados)
+3. Inclua a formatação no commit do PR
+4. Só então `git push` / `gh pr create`
+
+Não pule o `pre-commit` (Husky + lint-staged). Se o hook não rodou, o `format:check` na raiz ainda é o mesmo da CI.
+
+O Prettier da raiz vale para `ts`, `md`, `json`, `yml` — specs e README também. Formatação não se discute em review ([code-style.md](../../docs/engenharia/code-style.md)).

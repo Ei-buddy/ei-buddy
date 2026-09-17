@@ -30,7 +30,10 @@ pnpm format:check   # verifica (é o que a CI roda)
 ```
 
 Formatação **não se discute em revisão**. É automática, roda no `pre-commit`, e
-não é assunto de PR.
+não é assunto de PR. Quem abre o PR (humano ou agente) ainda assim **roda
+`pnpm format:check` antes do push** — a job Verificar da CI é o mesmo comando
+e já reprovou PR por markdown/ts fora do Prettier. Ver
+[`.cursor/rules/pr-formatacao.mdc`](../../.cursor/rules/pr-formatacao.mdc).
 
 Mais [`.editorconfig`](../../.editorconfig) (o editor respeita sozinho) e
 [`.gitattributes`](../../.gitattributes) (normaliza fim de linha).

@@ -12,10 +12,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "studio": "tsx --env-file-if-exists=../../.env ./scripts/studio.mjs"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",
+    "@mastra/fastify": "1.5.10",
     "@na-regua/agent": "workspace:*",
     "@na-regua/banking": "workspace:*",
     "@na-regua/contracts": "workspace:*",
@@ -36,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^26.5.1",
     "@types/pg": "^8.23.1",
+    "mastra": "1.30.0",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"

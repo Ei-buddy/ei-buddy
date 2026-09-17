@@ -6,6 +6,8 @@ build
 .turbo
 coverage
 pnpm-lock.yaml
+package-lock.json
+yarn.lock
 docs/assets/*.md
 
 # Credenciais de desenvolvimento gravadas pela api em tempo de execucao.

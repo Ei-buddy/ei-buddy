@@ -54,12 +54,18 @@ git switch -c feat/NR-042-carrinho-codigo-barras
 # 3. draft PR já no primeiro push — visibilidade
 git push -u origin HEAD && gh pr create --draft
 
-# 4. antes de pedir revisão, rode o que a CI vai rodar
-pnpm typecheck && pnpm test && pnpm boundaries && pnpm format:check
+# 4. antes de pedir revisão, rode o que a CI vai rodar.
+#    Formatação primeiro: a job Verificar cai nela e já reprovou PRs por isso.
+pnpm format:check
+pnpm typecheck && pnpm test && pnpm boundaries
 ```
 
 O passo 4 economiza a viagem de ida e volta: descobrir em 30 segundos na sua
 máquina é melhor que em 3 minutos na CI.
+
+**Agente / PR:** a regra Cursor [`.cursor/rules/pr-formatacao.mdc`](../../.cursor/rules/pr-formatacao.mdc)
+(`alwaysApply`) exige `pnpm format:check` **antes** de `gh pr create` ou de
+marcar o PR pronto. Se falhar, `pnpm format`, commit, só então o push.
 
 ## Definition of Ready
 

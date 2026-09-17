@@ -116,11 +116,13 @@ Estoque / contas a pagar / saldo de carteira **não** têm tool nesta fatia
 `POST /agent/messages` é canal de **desenvolvedor**, não produto do lojista.
 A sessão é de **fixture** (criar usuário/empresa de teste, popular dados,
 autenticar); `companyId` nunca vem no body. Serve em não-produção; em staging,
-`AGENT_HARNESS=1`. Produção: endpoint desligado até NR-113 / NR-121, e
+`AGENT_HARNESS=1`. Produção: `POST /agent/messages` desligado até NR-113;
+o Studio (NR-121) é só harness de engenharia e **não** monta o adapter.
 `AGENT_PROVIDER=fake` é barrado mesmo com a flag. Teto de IA:
 `AGENT_MONTHLY_BUDGET_CENTS` (degradação avisada; não executa tool que muta
 valor). Smoke FakeLlm:
 [quickstart](../../../specs/002-agent-mastra-runtime/quickstart.md).
+Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 
 ## Primitivos Mastra: o que entra e o que não
 
@@ -164,13 +166,14 @@ processor Mastra.
 
 ## Modelo
 
-| Variável                     | Valor inicial                       | Notas                                                     |
-| ---------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| `AGENT_PROVIDER`             | `fake` no local, `mastra` com chave | Sem chave, o sistema sobe no falso; prod não serve `fake` |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                | Formato Mastra `provedor/modelo`                          |
-| `AGENT_HARNESS`              | ausente                             | `1` libera o harness fora do `development` (staging)      |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                    | Teto de IA por empresa/mês (RNF-073)                      |
-| `OPENAI_API_KEY`             | vazia no local                      | Obrigatória só com `AGENT_PROVIDER=mastra`                |
+| Variável                     | Valor inicial                        | Notas                                                                    |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| `AGENT_PROVIDER`             | `fake` no local, `mastra` com chave  | Sem chave, o sistema sobe no falso; prod não serve `fake`                |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`                                         |
+| `AGENT_HARNESS`              | ausente                              | `1` libera HTTP + Studio fora do `development` (staging). Mesmo porteiro |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default           |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês (RNF-073)                                     |
+| `OPENAI_API_KEY`             | vazia no local                       | Obrigatória só com `AGENT_PROVIDER=mastra`                               |
 
 Trocar o modelo (tamanho ou provedor que o Mastra roteie) é configuração. Trocar
 o framework reabre a [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md).
@@ -253,8 +256,52 @@ O provedor WhatsApp é a Cloud API
 A identidade do canal fechou na [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
 não há Workflow Mastra, Channel adapter nem auth Mastra no webhook. Sem o
 adapter real o runtime se exercita pelo `POST /agent/messages` (sessão de
-fixture, `AGENT_PROVIDER=fake`, porteiro FR-001b) e, na
-[NR-121](../../processo/task-ledger.md), pelo **Mastra Studio** como
-substituto do Zap em engenharia (preset / número forjado no body → mesmo
-`processMessage`). O webhook Meta (NR-046), depois do E11 + RAG +
-PeerDirectory (NR-113), entra atrás da mesma `processMessage`.
+fixture, `AGENT_PROVIDER=fake`, porteiro FR-001b) e pelo **Mastra Studio**
+([NR-121](../../processo/task-ledger.md)) como substituto do Zap em
+engenharia. O webhook Meta (NR-046), depois do E11 + RAG + PeerDirectory
+(NR-113), entra atrás da mesma `processMessage`.
+
+### Studio = relé → `processMessage`
+
+O adapter [`@mastra/fastify`](https://mastra.ai/reference/server/fastify-adapter.md)
+monta no **mesmo** Fastify de `apps/api`, prefixo `/api`, **só** quando o
+porteiro libera (`motivoDoAgenteIndisponivel() === undefined`) **e** o
+arquivo de presets carregou. Produção e lojista: adapter **não** monta
+(`/api/agents` = 404).
+
+A instância Mastra do harness registra **um** agent, `studio-harness`. A
+única tool é `process_message`. O `execute` chama `processMessage` com
+`channel: 'whatsapp'` e o peer forjado resolvido no servidor. O generate do
+Studio **não** chama OpenAI: o model do relé só encaminha o texto. FakeLlm
+(ou `gpt-4o-mini`) vive **só** dentro do laço.
+
+**Não há `/api/agents` de negócio.** O `erp-agent` (tools de catálogo com
+`execute` identidade) continua atrás de `LlmPort.decide()` — não aparece na
+lista do Studio. Registrar tools de venda/cadastro no adapter furaria a
+confirmação e o `core`.
+
+```
+Studio chat → POST /api/agents/studio-harness/generate
+           → relé (tool process_message)
+           → processMessage({ channel: 'whatsapp', peer })
+           → LlmPort → catálogo → core
+```
+
+Envelope da tool (visível no painel): `{ kind, text, durationMs, confirmationId? }`.
+`durationMs` é envio → `processMessage` retornou (RNF-006). Log estruturado
+`agent.studio.turn` (`companyId`, peer mascarado, `durationMs`, `kind`,
+`requestId`) — sem PII em claro (RNF-034).
+
+### Presets (número forjado)
+
+Arquivo JSON (`AGENT_STUDIO_PRESETS`, default
+`packages/agent/studio/presets.json`). Exemplo versionado:
+`packages/agent/studio/presets.example.json`. Cada preset amarra `id` +
+peer E.164 forjado + `companyId` / `userId` / `role: 'owner'` da fixture.
+`companyId` no request context do cliente é **ignorado**. Peer duplicado
+recusa o load (adapter não monta; API segue). Contrato:
+[studio-harness.md](../../../specs/003-studio-harness/contracts/studio-harness.md),
+[presets.md](../../../specs/003-studio-harness/contracts/presets.md).
+
+`POST /agent/messages` permanece estrito (`text` só, `channel: 'app'`).
+Studio não altera esse schema.

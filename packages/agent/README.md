@@ -142,10 +142,68 @@ Canal de engenharia: `POST /agent/messages` com sessão de **fixture**
 canal de produto do lojista. Opera em não-produção, ou com
 `AGENT_HARNESS=1` quando o `NODE_ENV` está próximo de prod (staging).
 Produção não serve `AGENT_PROVIDER=fake` e o endpoint permanece desligado
-para o lojista até NR-113 / NR-121.
+para o lojista até NR-113. O Studio (NR-121) é harness de engenharia, não
+canal de produto.
 
 Smoke passo a passo (FakeLlm, sem OpenAI):
 [quickstart da feature](../../specs/002-agent-mastra-runtime/quickstart.md).
+
+### Harness Studio (NR-121)
+
+O painel do Mastra Studio conversa com o agent **`studio-harness`**, um relé
+que chama o mesmo `processMessage` do POST (`channel: 'whatsapp'`, número
+forjado). O generate do Studio **não** chama OpenAI: o modelo do relé só
+encaminha o texto; FakeLlm (ou o provedor real) vive só dentro do laço.
+
+Fluxo mínimo:
+
+1. Copiar `packages/agent/studio/presets.example.json` → `presets.json`
+   (gitignored) **ou** apontar `AGENT_STUDIO_PRESETS` no `.env` para outro
+   arquivo. Preencher `companyId` / `userId` com os UUIDs da fixture.
+2. Subir a API em não-produção (`pnpm --filter @na-regua/api dev`,
+   `AGENT_PROVIDER=fake`). Sem a API na 3333 o painel relata Failed to fetch.
+3. **Outro terminal:** `pnpm studio` — SPA em `http://localhost:3000` contra
+   `API_URL` (`http://localhost:3333`), prefixo `/api`. URL da instância no
+   painel: `http://localhost:3333`; prefixo `/api`; sem headers.
+4. No painel, o único agent listado é `studio-harness`. Na página do agent,
+   o botão **Request Context** (ao lado do envio) só aparece porque o agent
+   declara `requestContextSchema`. Abrir, escolher `claudia-loja-1` no
+   dropdown (ou colar `{ "preset": "claudia-loja-1" }`) e **Save**. Sem isso
+   a tool responde `Numero nao vinculado`. O item de menu `/request-context`
+   é da plataforma Mastra, não deste Fastify local. Depois: `quanto vendi
+hoje?` — centavos/`kind` iguais ao HTTP; `durationMs` no output da tool.
+
+### Smoke SC-003 — tetos RNF-006 (manual, fora da CI)
+
+A CI com FakeLlm só prova que `durationMs` existe e é `number ≥ 0`. Os tetos
+de 5 s / 8 s medem-se **no painel**, com provedor real — não rode isto no
+GitHub Actions nem em job que chame OpenAI.
+
+```bash
+AGENT_PROVIDER=mastra OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+```
+
+1. Subir a API em não-produção e `pnpm studio`. Preset de fixture (número
+   forjado; nunca celular de lojista real).
+2. Consulta típica: `quanto vendi hoje?` — no output da tool, `durationMs`
+   ≤ **5000**.
+3. Ação com confirmação: cadastro ou venda → proposta → `sim`. O `durationMs`
+   **do turno do `sim`** ≤ **8000**.
+4. Se estourar, o valor continua visível no mesmo campo (não se perde no
+   silêncio). Log estruturado `agent.studio.turn` (`companyId`, `peer`
+   mascarado, `durationMs`, `kind`, `requestId`) — sem PII em claro
+   ([RNF-034](../../docs/produto/requisitos-nao-funcionais.md)).
+
+O generate do Studio **ainda** não chama o modelo: só o laço interno
+(`processMessage`) usa `gpt-4o-mini`.
+
+### Fora desta fatia (NR-121)
+
+Confirmação continua **in-memory** (`InMemoryConfirmations`, chave
+`wa:${companyId}:${peer}`) até a [NR-061](../../docs/processo/task-ledger.md).
+Não ligar Memory / Storage Mastra, RAG (NR-120 / ADR-0017) nem webhook Meta
+(NR-046). O harness não antecipa persistência de confirmação, histórico
+multi-turno (NR-062) nem o celular real do owner (NR-113).
 
 ### Dívida: relatório por arquivo/link (RF-109)
 
@@ -200,10 +258,11 @@ Studio (NR-121) nem webhook Meta (NR-046) nesta fumaça.
 Cópia para `.env`: [`.env.example`](../../.env.example) na raiz. Matriz
 completa: [`ambientes.md`](../../docs/engenharia/ambientes.md).
 
-| Variável                     | Local                | Função                                                                                     |
-| ---------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `AGENT_PROVIDER`             | `fake` \| `mastra`   | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.        |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini` | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                   |
-| `AGENT_HARNESS`              | ausente \| `1`       | Porteiro (FR-001b): `1` libera o harness fora do `development` local. Default off em prod. |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).   |
-| `OPENAI_API_KEY`             | vazia                | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                |
+| Variável                     | Local                                | Função                                                                                       |
+| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `AGENT_PROVIDER`             | `fake` \| `mastra`                   | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.          |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                     |
+| `AGENT_HARNESS`              | ausente \| `1`                       | Porteiro (FR-001b): `1` libera HTTP **e** Studio fora do `development`. Default off em prod. |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                              |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).     |
+| `OPENAI_API_KEY`             | vazia                                | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                  |

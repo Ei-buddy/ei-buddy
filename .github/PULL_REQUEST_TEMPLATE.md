@@ -23,7 +23,8 @@ Refs: NR-
 ## Checklist
 
 - [ ] Título no formato de commit, com `NR-xxx`
-- [ ] `pnpm typecheck && pnpm test && pnpm boundaries && pnpm format:check` passa localmente
+- [ ] `pnpm format:check` passou **antes** do push (é o primeiro passo da job Verificar)
+- [ ] `pnpm typecheck && pnpm test && pnpm boundaries` passa localmente
 - [ ] Testes na camada certa ([testes.md](../docs/engenharia/testes.md)) — inclusive um caminho de erro
 - [ ] README do módulo atualizado, se o comportamento mudou
 

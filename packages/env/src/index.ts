@@ -14,7 +14,7 @@
 export { baseEnvSchema, logLevelSchema, nodeEnvSchema, providerSchema, tzSchema } from './base.js'
 export type { BaseEnv } from './base.js'
 
-export { apiEnvSchema, loadApiEnv } from './api.js'
+export { apiEnvSchema, DEFAULT_AGENT_STUDIO_PRESETS, loadApiEnv } from './api.js'
 export type { ApiEnv } from './api.js'
 
 export { loadMigrationEnv, migrationEnvSchema } from './migration.js'
