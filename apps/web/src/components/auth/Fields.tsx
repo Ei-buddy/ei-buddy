@@ -59,6 +59,11 @@ type TextFieldProps = {
   autoComplete?: string
   inputMode?: 'text' | 'email' | 'tel' | 'numeric'
   disabled?: boolean
+  /**
+   * Icone dentro do campo, a esquerda — NR-129. Opcional: so as telas de
+   * entrada usam, e o resto do app segue com o campo liso de sempre.
+   */
+  icone?: ReactNode
 }
 
 export function TextField({
@@ -73,6 +78,7 @@ export function TextField({
   autoComplete,
   inputMode,
   disabled,
+  icone,
 }: TextFieldProps) {
   const id = useId()
   const errorId = `${id}-error`
@@ -83,20 +89,27 @@ export function TextField({
       <label className={styles.label} htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        className={`${styles.input} ${error ? styles.inputError : ''}`}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        inputMode={inputMode}
-        disabled={disabled}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? errorId : hint ? hintId : undefined}
-      />
+      <div className={icone === undefined ? undefined : styles.comIcone}>
+        {icone === undefined ? null : (
+          <span className={styles.icone} aria-hidden="true">
+            {icone}
+          </span>
+        )}
+        <input
+          id={id}
+          className={`${styles.input} ${error ? styles.inputError : ''}`}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          inputMode={inputMode}
+          disabled={disabled}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : hint ? hintId : undefined}
+        />
+      </div>
       {error ? (
         <span id={errorId} className={styles.error} role="alert">
           {error}
@@ -124,6 +137,8 @@ type PasswordFieldProps = {
   /** Mostra a barra de forca da senha (usado so no cadastro). */
   showStrength?: boolean
   disabled?: boolean
+  /** Icone dentro do campo, a esquerda — NR-129. Ver `TextField`. */
+  icone?: ReactNode
 }
 
 export function PasswordField({
@@ -135,6 +150,7 @@ export function PasswordField({
   autoComplete,
   showStrength = false,
   disabled,
+  icone,
 }: PasswordFieldProps) {
   const id = useId()
   const errorId = `${id}-error`
@@ -148,7 +164,12 @@ export function PasswordField({
         {label}
       </label>
 
-      <div className={styles.passwordWrap}>
+      <div className={`${styles.passwordWrap} ${icone === undefined ? '' : styles.comIcone}`}>
+        {icone === undefined ? null : (
+          <span className={styles.icone} aria-hidden="true">
+            {icone}
+          </span>
+        )}
         <input
           id={id}
           className={`${styles.input} ${styles.passwordInput} ${error ? styles.inputError : ''}`}
@@ -243,6 +264,46 @@ export function Spinner({ size = 16 }: { size?: number }) {
 /* ------------------------------------------------------------------ *
  * Icones locais dos campos
  * ------------------------------------------------------------------ */
+
+/** Envelope, para o campo de e-mail ou telefone das telas de entrada. */
+export function IconeEmail() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+      <path d="M3.5 7l8.5 6 8.5-6" />
+    </svg>
+  )
+}
+
+/** Cadeado, para o campo de senha das telas de entrada. */
+export function IconeSenha() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+    </svg>
+  )
+}
 
 function Eye() {
   return (

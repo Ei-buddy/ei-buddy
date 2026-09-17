@@ -1,0 +1,84 @@
+/*
+ * O cartao de vidro das telas de entrada — NR-129.
+ *
+ * Vidro CLARO sobre fundo claro. A referencia era vidro escuro sobre preto; a
+ * inversao nao e so trocar roxo por azul — e o vidro que passa a ser branco
+ * translucido, e o contraste do texto que passa a vir de tinta escura.
+ */
+
+.palco {
+  width: 100%;
+  /* A perspectiva mora no pai, e nao no cartao: e o que faz a inclinacao ter
+     profundidade em vez de so achatar o retangulo. */
+  perspective: 1200px;
+}
+
+.cartao {
+  position: relative;
+  /* Topo mais alto que o resto: o Buddy encosta por cima da borda, e sem esta
+     folga o titulo do formulario ficaria por baixo dele. */
+  padding: 58px 28px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.64);
+  /* Prefixada ANTES da padrao. Na ordem inversa o compilador de CSS do Next
+     descartava as duas, e o cartao chegava ao navegador sem vidro nenhum —
+     translucido, com as linhas do fundo passando nitidas atras dos campos. */
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 30px 70px -32px rgba(19, 42, 90, 0.35),
+    0 8px 24px -16px rgba(19, 42, 90, 0.18);
+  /* Sem `transform-style: preserve-3d`: os filhos nao tem profundidade
+     propria, e a perspectiva da inclinacao ja vem do `.palco`. */
+  will-change: transform;
+}
+
+/*
+ * Halos de luz nos cantos, como na referencia.
+ *
+ * Por baixo do conteudo (`z-index: -1` dentro do contexto do cartao) e com
+ * `pointer-events: none`: sao luz, e luz nao pode roubar clique de campo.
+ */
+.cartao::before,
+.cartao::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.cartao::before {
+  top: -60px;
+  left: -50px;
+  background: rgba(30, 136, 229, 0.22);
+}
+
+.cartao::after {
+  right: -50px;
+  bottom: -60px;
+  background: rgba(38, 166, 154, 0.2);
+}
+
+/* No celular o cartao ocupa quase a largura toda: menos respiro lateral, e
+   os campos ficam com espaco para o dedo. */
+@media (max-width: 480px) {
+  .cartao {
+    padding: 52px 20px 24px;
+    border-radius: 22px;
+  }
+}
+
+/* Sem suporte a `backdrop-filter`, o translucido vira cinza sujo sobre os
+   halos. Nesse caso o cartao fica branco quase solido, que e o que o vidro
+   quer parecer de qualquer forma. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cartao {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}

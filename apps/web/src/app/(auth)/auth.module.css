@@ -1,166 +1,123 @@
+/*
+ * Moldura das telas de entrada — NR-129.
+ *
+ * Fundo claro com dois halos da marca. A referencia usava gradiente roxo sobre
+ * preto; aqui a cor aparece como mancha suave sobre branco, e o texto segue
+ * escuro — a hierarquia de contraste inverte, e e por isso que nao basta trocar
+ * roxo por azul.
+ */
+
 .shell {
-  display: grid;
-  min-height: 100vh;
-  background: var(--bg);
-}
-
-/* --------------------------------------------------------------------- *
- * Painel de marca (gradiente)
- * No mobile vira uma faixa compacta no topo.
- * --------------------------------------------------------------------- */
-
-.brandPanel {
   position: relative;
-  padding: 22px 20px;
-  background: var(--brand-gradient);
-  color: #fff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
   overflow: hidden;
+  background: #f7fafc;
 }
 
-/* Brilho suave para o gradiente nao ficar chapado */
-.brandPanel::after {
-  content: '';
+/* --- Halos de fundo --- */
+
+.halo {
   position: absolute;
-  inset: -30% -20% auto -20%;
-  height: 70%;
-  background: radial-gradient(
-    50% 50% at 50% 50%,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0) 70%
-  );
+  border-radius: 50%;
+  filter: blur(80px);
   pointer-events: none;
 }
 
-.brandInner {
+.haloAzul {
+  top: -12%;
+  left: -8%;
+  width: 55vw;
+  height: 55vw;
+  max-width: 720px;
+  max-height: 720px;
+  background: rgba(30, 136, 229, 0.12);
+}
+
+.haloTeal {
+  right: -10%;
+  bottom: -14%;
+  width: 50vw;
+  height: 50vw;
+  max-width: 660px;
+  max-height: 660px;
+  background: rgba(38, 166, 154, 0.1);
+}
+
+/* --- Topo --- */
+
+.topo {
   position: relative;
   z-index: 1;
-  display: grid;
-  gap: 26px;
-  height: 100%;
-  max-width: 430px;
-  margin-inline: auto;
+  display: flex;
+  padding: 20px 24px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
 }
 
 .brandName {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: #fff;
+  color: var(--brand-primary);
 }
 
-/* O bloco de argumentos some no mobile para nao empurrar o formulario */
-.pitch {
-  display: none;
-}
+/* --- Centro --- */
 
-.pitchTitle {
-  font-size: clamp(26px, 2.6vw, 34px);
-  font-weight: 600;
-  color: #fff;
-}
-
-.highlights {
-  display: grid;
-  gap: 20px;
-  margin-top: 34px;
-}
-
-.highlight {
+.centro {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.highlightIcon {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  padding: 12px 16px 48px;
 }
 
-.highlightText {
-  display: grid;
-  gap: 3px;
-}
-
-.highlightText strong {
-  font-family: var(--font-display);
-  font-size: 15.5px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.highlightText span {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.footNote {
-  display: none;
-  font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-/* --------------------------------------------------------------------- *
- * Painel do formulario
- * --------------------------------------------------------------------- */
-
-.formPanel {
-  display: flex;
-  justify-content: center;
-  padding: 34px 20px 56px;
-}
-
-.formInner {
+.coluna {
   width: 100%;
-  max-width: 430px;
+  max-width: 440px;
+  display: grid;
+  justify-items: center;
 }
 
-/* --------------------------------------------------------------------- *
- * Responsivo
- * --------------------------------------------------------------------- */
+/*
+ * O Buddy sobrepoe a borda de cima do cartao.
+ *
+ * Margem negativa, e nao `position: absolute`: continua no fluxo, entao o
+ * cartao nunca fica por baixo dele em tela nenhuma, so encostado.
+ */
+.mascote {
+  position: relative;
+  z-index: 2;
+  width: 84px;
+  height: 84px;
+  margin-bottom: -38px;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 14px 30px -14px rgba(19, 42, 90, 0.45);
+}
+
+.mascote img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rodape {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
 
 @media (min-width: 900px) {
-  .shell {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .brandPanel {
-    display: flex;
-    align-items: center;
-    padding: 56px 48px;
-  }
-
-  .brandInner {
-    grid-template-rows: auto 1fr auto;
-    gap: 40px;
-  }
-
-  .pitch,
-  .footNote {
-    display: block;
-  }
-
-  .formPanel {
-    align-items: center;
-    padding: 56px 48px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .shell {
-    grid-template-columns: 1.05fr 1fr;
+  .topo {
+    padding: 28px 40px;
   }
 }

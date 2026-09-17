@@ -290,3 +290,159 @@
     transform: rotate(360deg);
   }
 }
+
+/* =====================================================================
+ * Dentro do cartao de vidro — NR-129
+ *
+ * Todas as regras abaixo exigem `[data-vidro]` como ancestral. Estes campos
+ * sao os mesmos da lista VIP, da agenda e dos dialogos do painel; so dentro
+ * do cartao das telas de entrada eles mudam. Uma regra sem esse prefixo
+ * repintaria formulario em tela que ninguem pediu para mexer.
+ * ===================================================================== */
+
+[data-vidro] .title {
+  text-align: center;
+}
+
+[data-vidro] .subtitle {
+  text-align: center;
+}
+
+[data-vidro] .input {
+  padding: 13px 15px;
+  border-color: #e1e8ec;
+  border-radius: 12px;
+  background: #f5f8fa;
+}
+
+[data-vidro] .input:hover:not(:disabled) {
+  border-color: #c9d6de;
+}
+
+/* Foco no azul da marca, com o fundo ganhando um tom azul bem leve — a
+   "camada de destaque" do componente de referencia, invertida para claro. */
+[data-vidro] .input:focus {
+  border-color: #1976d2;
+  background: #f3f8fe;
+  box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.14);
+}
+
+/* Erro continua fora da paleta da marca, mesmo aqui. */
+[data-vidro] .inputError,
+[data-vidro] .inputError:focus {
+  border-color: var(--danger-border);
+}
+
+[data-vidro] .inputError:focus {
+  box-shadow: 0 0 0 4px rgba(217, 45, 32, 0.12);
+}
+
+/* O `padding` acima e atalho e apagaria a folga da direita que abriga o botao
+   de mostrar a senha — o texto correria por baixo do olho. */
+[data-vidro] .passwordInput {
+  padding-right: 48px;
+}
+
+/* --- Icone dentro do campo --- */
+
+.comIcone {
+  position: relative;
+  display: flex;
+}
+
+.icone {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color var(--transition);
+}
+
+/* O icone acende junto com o campo: `focus-within` no envoltorio, porque o
+   icone vem ANTES do input e nao ha seletor de irmao anterior. */
+.comIcone:focus-within .icone {
+  color: #1976d2;
+}
+
+.comIcone .input {
+  padding-left: 44px;
+}
+
+/* --- Botao principal --- */
+
+/*
+ * Degrade entre #1565c0 e #1976d2, e nao o #1e88e5 do pedido.
+ *
+ * Branco sobre #1e88e5 da 3,68:1 e reprova o piso AA de 4,5:1 para texto do
+ * tamanho do botao. Os dois tons daqui dao 5,75:1 e 4,60:1 — mesma familia,
+ * legivel. Medido com `contrastRatio` de packages/ui, a mesma conta da CI.
+ */
+[data-vidro] .submit {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+  box-shadow: 0 12px 26px -14px rgba(21, 101, 192, 0.8);
+}
+
+[data-vidro] .submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0f5aa8 0%, #1565c0 100%);
+}
+
+/*
+ * O brilho que atravessa o botao, como na referencia — so que mais sutil,
+ * porque sobre azul um branco forte vira mancha e esconde o texto.
+ */
+[data-vidro] .submit:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  transform: translateX(-100%);
+  animation: brilho 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes brilho {
+  0%,
+  45% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Desabilitado nao pode parecer clicavel: sem isto o degrade azul acima
+   vencia a regra de desabilitado, que tem a mesma especificidade e vem antes. */
+[data-vidro] .submit:disabled {
+  background: #dfe7ec;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+[data-vidro] .submitSecondary {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: #d6e1e8;
+  color: #1565c0;
+  box-shadow: none;
+}
+
+[data-vidro] .submitSecondary::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-vidro] .submit::after {
+    display: none;
+  }
+}

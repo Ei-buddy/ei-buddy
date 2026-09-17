@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 import { validateEmail, type FieldError } from '@/lib/validation'
-import { Alert, FormFooter, FormHeader, SubmitButton, TextField } from './Fields'
+import { Alert, FormFooter, FormHeader, IconeEmail, SubmitButton, TextField } from './Fields'
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
@@ -62,6 +62,7 @@ export default function ForgotPasswordForm() {
           placeholder="voce@empresa.com.br"
           autoComplete="email"
           disabled={loading}
+          icone={<IconeEmail />}
         />
 
         <SubmitButton loading={loading} loadingLabel="Enviando...">

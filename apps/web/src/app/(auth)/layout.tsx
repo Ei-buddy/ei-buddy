@@ -1,75 +1,60 @@
 import type { ReactNode } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { BRAND } from '@/content/site'
-import { IconBolt, IconShield, IconSparkles } from '@/components/Icons'
+import CaminhosDeFundo from '@/components/auth/CaminhosDeFundo'
+import CartaoDeVidro from '@/components/auth/CartaoDeVidro'
 import styles from './auth.module.css'
 
-const destaques = [
-  {
-    icon: IconBolt,
-    title: 'Tudo em um só fluxo',
-    text: 'Vendas, financeiro, estoque e fiscal conversando entre si.',
-  },
-  {
-    icon: IconSparkles,
-    title: 'Assistente em texto',
-    text: 'Pergunte o que precisa e receba o número pronto.',
-  },
-  {
-    icon: IconShield,
-    title: 'Segurança nível bancário',
-    text: 'Dados isolados por empresa e backup diário.',
-  },
-]
-
+/**
+ * As telas de entrada — login, cadastro e recuperacao de senha — NR-129.
+ *
+ * Eram dois paineis: a marca em azul a esquerda, o formulario a direita. Agora
+ * sao um fundo claro com halos azul e verde-agua e um cartao de vidro no
+ * centro, com o Buddy no topo.
+ *
+ * So a moldura mudou. Cada formulario continua validando, enviando e
+ * redirecionando do mesmo jeito; o cartao so os envolve.
+ *
+ * ## O que saiu, e por que
+ *
+ * Os tres destaques do painel de marca ("Tudo em um so fluxo", "Assistente em
+ * texto", "Seguranca nivel bancario") nao couberam: um cartao centralizado
+ * com argumentos em volta vira landing page, e quem chega aqui ja decidiu
+ * entrar. A frase de rodape ficou, abaixo do cartao.
+ */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className={styles.shell}>
-      {/* Painel de marca — gradiente da identidade */}
-      <aside className={styles.brandPanel}>
-        <div className={styles.brandInner}>
-          <Link href="/" className={styles.brand}>
-            <span className={styles.brandName}>{BRAND}</span>
-          </Link>
+      {/* Os halos sao so fundo: um por cor da marca, desfocados e fixos. */}
+      <span className={`${styles.halo} ${styles.haloAzul}`} aria-hidden="true" />
+      <span className={`${styles.halo} ${styles.haloTeal}`} aria-hidden="true" />
 
-          <div className={styles.pitch}>
-            <h2 className={styles.pitchTitle}>A gestão do seu comércio, do balcão ao relatório.</h2>
+      {/* As linhas correm por cima dos halos e por baixo de tudo o mais. O
+          vidro do cartao as desfoca, e e isso que o faz ler como vidro. */}
+      <CaminhosDeFundo />
 
-            <ul className={styles.highlights}>
-              {destaques.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.title} className={styles.highlight}>
-                    <span className={styles.highlightIcon}>
-                      <Icon size={18} />
-                    </span>
-                    <span className={styles.highlightText}>
-                      <strong>{item.title}</strong>
-                      <span>{item.text}</span>
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+      <header className={styles.topo}>
+        <Link href="/" className={styles.brand}>
+          <span className={styles.brandName}>{BRAND}</span>
+        </Link>
+      </header>
+
+      <main className={styles.centro}>
+        <div className={styles.coluna}>
+          {/* O Buddy no lugar da letra-placeholder do componente de
+              referencia. Decorativo: o nome da marca ja esta no topo, e o
+              leitor de tela nao precisa ouvir a mesma coisa duas vezes. */}
+          <div className={styles.mascote}>
+            <Image src="/buddy-azul.png" alt="" width={84} height={84} priority />
           </div>
 
-          {/*
-            Era "Mais de 12 mil negocios ja usam" — numero inventado, e falso:
-            com PRE_LANCAMENTO ligado ninguem usa o produto ainda. A landing ja
-            tinha tirado essa metrica pelo mesmo motivo (ver o comentario de
-            `highlights` em content/site.ts), e esta tela ficou para tras.
+          <CartaoDeVidro>{children}</CartaoDeVidro>
 
-            Volta a ser metrica quando houver numero apurado, nao estimado.
-          */}
-          <p className={styles.footNote}>
+          <p className={styles.rodape}>
             Feito para MEIs e pequenos comércios — do balcão à contabilidade.
           </p>
         </div>
-      </aside>
-
-      {/* Painel do formulario — fundo claro */}
-      <main className={styles.formPanel}>
-        <div className={styles.formInner}>{children}</div>
       </main>
     </div>
   )
