@@ -40,7 +40,7 @@ const SAI_ABAIXO_DE = 0.6
 /** Acima disto, ele volta. */
 const VOLTA_ACIMA_DE = 0.7
 
-const FALA = 'Oi! Ainda estou sendo construído — topa me ajudar a ficar craque?'
+const FALA = 'Oi! Ainda estou sendo construído. Topa me ajudar a ficar craque?'
 
 /** Ease-out-expo suave: corre no comeco e assenta devagar. */
 const CHEGADA = [0.22, 1, 0.36, 1] as const
