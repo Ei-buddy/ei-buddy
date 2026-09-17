@@ -141,7 +141,7 @@ export default function ChatAssistente() {
             <div className={styles.boasVindas}>
               {/* A orb no lugar do icone: e o momento em que ela cabe — uma
                   so na tela, antes da conversa comecar. */}
-              <OrbDoAssistente tamanho={64} />
+              <OrbDoAssistente tamanho={168} />
               <h2>Como posso ajudar?</h2>
               <p>
                 Pergunte sobre vendas, clientes, produtos ou contas. Se citar um cliente, eu guardo
@@ -178,11 +178,11 @@ export default function ChatAssistente() {
 
           {pensando ? (
             <div className={`${styles.mensagem} ${styles.doAssistente}`} aria-live="polite">
-              {/* Enquanto pensa, a orb ocupa o avatar — de novo, uma so na
-                  tela, e ela some assim que a resposta chega. O avatar das
-                  mensagens continua sendo o icone leve: uma conversa longa
-                  viraria dezenas de contextos WebGL vivos ao mesmo tempo. */}
-              <OrbDoAssistente tamanho={30} />
+              {/* Enquanto pensa, a orb ocupa o avatar — na versao em CSS: a
+                  44px o shader vira um anel apagado, e quem mostra atividade
+                  aqui sao os pontinhos ao lado. O avatar das mensagens segue
+                  sendo o icone leve. */}
+              <OrbDoAssistente tamanho={44} animada={false} />
               <div className={`${styles.balao} ${styles.digitando}`}>
                 <span className={styles.ponto} />
                 <span className={styles.ponto} />
