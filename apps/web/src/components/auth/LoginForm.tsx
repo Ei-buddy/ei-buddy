@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { SessionUser } from '@/lib/session'
 import { entrar, escolherEmpresa } from '@/lib/session-client'
 import { validateCredential, validateLoginPassword, type FieldError } from '@/lib/validation'
@@ -16,6 +16,7 @@ import {
   SubmitButton,
   TextField,
 } from './Fields'
+import TravessiaDeVidro from './TravessiaDeVidro'
 import loginStyles from './login.module.css'
 
 /** O papel na tela e em portugues, nao o valor do contrato. */
@@ -46,6 +47,26 @@ export default function LoginForm() {
    * a pessoa nem ve esta tela.
    */
   const [escolhendo, setEscolhendo] = useState<SessionUser | null>(null)
+
+  /**
+   * A travessia para dentro do painel — NR-132.
+   *
+   * Liga quando a credencial ja foi aceita e so falta ir. O destino fica
+   * guardado aqui porque quem navega e a travessia, no fim da animacao, e nao
+   * mais o fluxo que validou.
+   */
+  const [destino, setDestino] = useState<string | null>(null)
+
+  /* A rota do painel e pedida enquanto a pessoa ainda digita: assim a
+     navegacao no fim da animacao e instantanea, e a sequencia nunca vira
+     espera de rede disfarcada. */
+  useEffect(() => {
+    router.prefetch('/app')
+  }, [router])
+
+  const atravessar = useCallback(() => {
+    if (destino) router.push(destino)
+  }, [destino, router])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -96,7 +117,7 @@ export default function LoginForm() {
     /* Super Admin sem loja nenhuma: sem este desvio cairia no "conta sem
        vinculo" logo abaixo, que e o erro certo para todo MUNDO menos ele. */
     if (sessao.isPlatformAdmin) {
-      router.push('/app/plataforma/cargos')
+      setDestino('/app/plataforma/cargos')
       return
     }
 
@@ -140,7 +161,9 @@ export default function LoginForm() {
        Lido de window e nao de useSearchParams para nao exigir Suspense
        numa pagina estatica. */
     const proximo = new URLSearchParams(window.location.search).get('proximo')
-    router.push(proximo && proximo.startsWith('/app') ? proximo : '/app')
+    /* Nao navega aqui: guarda o destino e deixa a travessia levar. Com
+       movimento reduzido ela vai no primeiro quadro, sem animacao nenhuma. */
+    setDestino(proximo && proximo.startsWith('/app') ? proximo : '/app')
   }
 
   /* Escolha de loja — US-059. Substitui o formulario em vez de aparecer abaixo
@@ -155,6 +178,8 @@ export default function LoginForm() {
         />
 
         {formError ? <Alert tone="error">{formError}</Alert> : null}
+
+        {destino !== null ? <TravessiaDeVidro aoTerminar={atravessar} /> : null}
 
         <ul className={loginStyles.lojas}>
           {escolhendo.memberships.map((v) => (
@@ -218,10 +243,17 @@ export default function LoginForm() {
           </Link>
         </div>
 
-        <SubmitButton loading={loading} loadingLabel="Entrando...">
+        <SubmitButton
+          loading={loading}
+          loadingLabel="Entrando..."
+          sucesso={destino !== null}
+          sucessoLabel="Tudo certo"
+        >
           Entrar
         </SubmitButton>
       </form>
+
+      {destino !== null ? <TravessiaDeVidro aoTerminar={atravessar} /> : null}
 
       <FormFooter>
         Não tem conta? <Link href="/criar-conta">Criar conta</Link>

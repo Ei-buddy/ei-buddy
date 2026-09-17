@@ -84,3 +84,24 @@
     width: 100%;
   }
 }
+
+/*
+ * Sai de cena junto com o resto na travessia do login — NR-132.
+ *
+ * O aviso e fixo no `<body>`, fora da moldura da tela de entrada: sem esta
+ * regra ele ficava nitido enquanto todo o resto desfocava, como um adesivo
+ * colado na tela.
+ */
+:global(body[data-entrando]) .aviso {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(body[data-entrando]) .aviso {
+    transition: none;
+  }
+}

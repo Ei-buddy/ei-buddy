@@ -1,0 +1,24 @@
+/*
+ * O clarao da travessia — NR-132.
+ *
+ * Vai no `<body>` por portal: dentro do cartao ele seria cortado pelos cantos
+ * arredondados, e o cartao e justamente o que esta encolhendo por baixo dele.
+ */
+
+.clarao {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 200;
+  width: 120vmax;
+  height: 120vmax;
+  margin: -60vmax 0 0 -60vmax;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 255, 255, 0.92),
+    rgba(226, 240, 255, 0.55) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+}

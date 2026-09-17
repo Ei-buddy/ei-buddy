@@ -226,6 +226,8 @@ export function SubmitButton({
   type = 'submit',
   onClick,
   variant = 'primary',
+  sucesso = false,
+  sucessoLabel = 'Pronto',
 }: {
   children: ReactNode
   loading?: boolean
@@ -234,7 +236,26 @@ export function SubmitButton({
   type?: 'submit' | 'button'
   onClick?: () => void
   variant?: 'primary' | 'secondary'
+  /** Credencial aceita: o botao vira um ✓ com pulso — NR-132. */
+  sucesso?: boolean
+  sucessoLabel?: string
 }) {
+  if (sucesso) {
+    return (
+      <button
+        type="button"
+        className={`${styles.submit} ${styles.submitSucesso}`}
+        disabled
+        /* `status`, e nao so o icone: quem usa leitor de tela ouve a
+           confirmacao que o ✓ da a quem enxerga. */
+        role="status"
+      >
+        <IconeCerto />
+        {sucessoLabel}
+      </button>
+    )
+  }
+
   return (
     <button
       type={type}
@@ -266,6 +287,24 @@ export function Spinner({ size = 16 }: { size?: number }) {
  * ------------------------------------------------------------------ */
 
 /** Envelope, para o campo de e-mail ou telefone das telas de entrada. */
+export function IconeCerto() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
 export function IconeEmail() {
   return (
     <svg
