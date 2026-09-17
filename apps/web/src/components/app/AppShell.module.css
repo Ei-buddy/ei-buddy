@@ -1,6 +1,14 @@
 .shell {
   display: grid;
   min-height: 100vh;
+  /*
+   * Distancia da barra flutuante ate a borda da janela (so no desktop).
+   *
+   * Mora aqui, no shell, e nao na barra: quem calcula a largura da coluna
+   * reservada e o shell, e variavel so desce na arvore. Declarada na barra, o
+   * `calc()` da coluna virava invalido e o molde de colunas caia fora.
+   */
+  --barra-respiro: 24px;
 }
 
 /* --- Sobreposicao mobile --- */
@@ -26,11 +34,136 @@
   align-content: start;
   gap: 16px;
   padding: 20px 14px;
-  border-right: 1px solid var(--app-border);
+  /* So no modo celular, onde a barra encosta na borda da janela; no desktop
+     ela vira moldura inteira, logo abaixo. */
+  border-right: 1px solid var(--menu-borda-painel);
+  /* Painel solido, na cor que a barra ja tinha: o vidro e dos BOTOES. */
   background: var(--app-bg);
   transform: translateX(-100%);
   transition: transform 260ms var(--ease);
   overflow-y: auto;
+}
+
+/*
+ * O material dos botoes da barra — NR-131.
+ *
+ * ## Gradiente e sombra, e nao `backdrop-filter`
+ *
+ * A primeira versao tentou fazer o vidro com desfoque do que esta atras. Nao
+ * e isso que a referencia faz, e o resultado saiu plano: dentro da barra, o
+ * que esta atras de cada botao e o painel liso, e desfocar liso nao muda
+ * nada. O volume vem de tres coisas empilhadas — um gradiente escuro de cima
+ * para baixo, um fio de luz no topo e uma sombra interna na base (a curvatura
+ * da superficie), mais uma sombra externa que levanta a peca do fundo.
+ *
+ * Sem `backdrop-filter` nenhum aqui: funciona em qualquer navegador e nao
+ * custa desfoque por quadro.
+ *
+ * ## Os dois temas
+ *
+ * O escuro e o padrao do painel e e o da referencia: e ele que fica na
+ * definicao base. O tema claro (NR-099) inverte so a base de luz — mesmo
+ * gradiente, mesma sombra dupla, cores claras — e mantem o azul do item
+ * ativo, que funciona igual nos dois.
+ */
+.sidebar {
+  --menu-borda-painel: rgba(255, 255, 255, 0.06);
+  --menu-sombra-flutuante: 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 20px rgba(0, 0, 0, 0.3);
+  /* Vidro de verdade: quase todo o tom vem do painel por tras. */
+  --menu-item: rgba(255, 255, 255, 0.06);
+  --menu-item-hover: rgba(255, 255, 255, 0.1);
+  --menu-desfoque: blur(18px) saturate(160%);
+  --menu-borda-luz: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.06) 45%,
+    transparent 70%
+  );
+  --menu-reflexo: radial-gradient(
+    closest-side,
+    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 100%
+  );
+  --menu-sombra:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
+    0 6px 14px rgba(0, 0, 0, 0.22);
+  --menu-ativo: linear-gradient(180deg, rgba(96, 165, 250, 0.55), rgba(37, 99, 235, 0.35));
+  --menu-sombra-ativa:
+    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
+    0 8px 24px rgba(59, 130, 246, 0.45);
+  /* Azul chapado nos subitens, que nao tem peca propria para tingir. */
+  --menu-ativo-texto-simples: #90caf9;
+
+  /* O grupo aberto (Financeiro + subitens): a mesma familia dos botoes, um
+     tom mais fundo, para ler como moldura e nao como mais um botao. */
+  --menu-grupo: rgba(255, 255, 255, 0.04);
+  --menu-grupo-borda: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.06) 45%,
+    transparent 70%
+  );
+  --menu-sombra-grupo:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
+    0 6px 14px rgba(0, 0, 0, 0.22);
+  --menu-guia: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  --menu-sub-texto: #9fb4e8;
+  --menu-sub-hover: rgba(255, 255, 255, 0.06);
+}
+
+:global(:root[data-theme='light']) .sidebar {
+  --menu-borda-painel: var(--app-border);
+  /* Sobre fundo claro a sombra do escuro vira um borrao cinza; mesma forma,
+     bem mais fraca. */
+  --menu-sombra-flutuante: 0 30px 60px rgba(15, 42, 58, 0.16), 0 8px 20px rgba(15, 42, 58, 0.1);
+  /*
+   * No claro o vidro nao pode ser quase transparente: o painel atras e claro,
+   * e `rgba(255,255,255,0.06)` sobre claro nao desenha botao nenhum. A peca
+   * aqui e branca, e quem da o volume sao as mesmas sombras, invertidas.
+   */
+  --menu-item: linear-gradient(180deg, #ffffff, #eef1f8);
+  --menu-item-hover: linear-gradient(180deg, #ffffff, #e6ebf5);
+  --menu-desfoque: none;
+  --menu-borda-luz: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(15, 42, 58, 0.1) 45%,
+    rgba(15, 42, 58, 0.04) 70%
+  );
+  --menu-reflexo: radial-gradient(
+    closest-side,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 100%
+  );
+  --menu-sombra:
+    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset,
+    0 6px 14px rgba(15, 42, 58, 0.1);
+  /* Azul chapado, e nao o translucido do escuro: sobre superficie clara o
+     translucido desbota e o texto branco por cima reprova no AA. */
+  --menu-ativo: linear-gradient(180deg, #2f74e0, #1f5bc4);
+  --menu-sombra-ativa:
+    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.12) inset,
+    0 8px 24px rgba(59, 130, 246, 0.35);
+  --menu-ativo-texto-simples: #1565c0;
+
+  --menu-grupo: linear-gradient(180deg, #f4f6fb, #eaeef7);
+  --menu-grupo-borda: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(15, 42, 58, 0.08) 45%,
+    transparent 70%
+  );
+  --menu-sombra-grupo:
+    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset,
+    0 6px 14px rgba(15, 42, 58, 0.1);
+  --menu-guia: linear-gradient(180deg, rgba(15, 42, 58, 0.18), rgba(15, 42, 58, 0.04));
+  /* Nem o #9fb4e8 do tema escuro (2,1:1 sobre o grupo claro) nem o apagado
+     padrao do painel (4,44:1, raspando no AA): o secundario, que passa
+     folgado sobre esta superficie. */
+  --menu-sub-texto: var(--text-secondary);
+  --menu-sub-hover: rgba(15, 42, 58, 0.06);
 }
 
 .sidebarOpen {
@@ -52,15 +185,97 @@
   color: var(--app-text);
 }
 
+/* Folga maior que os 2px de antes: cada item agora e uma peca com borda e
+   sombra, e coladas elas viravam um bloco unico. */
 .nav {
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: 5px;
 }
 
 .navGroup {
   display: grid;
-  gap: 2px;
+  gap: 5px;
+}
+
+/*
+ * Aberto, o Financeiro e os seus subitens viram UMA peca — NR-131.
+ *
+ * Fechado, o grupo e so o botao e nada muda. Aberto, a superficie passa a ser
+ * do grupo inteiro: o botao de cima perde o vidro proprio (senao sao duas
+ * pecas empilhadas, uma dentro da outra) e a lista fica dentro da mesma
+ * moldura, presa a ela.
+ *
+ * Sem `backdrop-filter`, pelo mesmo motivo dos botoes: dentro da barra, o que
+ * esta atras do grupo e o painel liso, e desfocar liso nao muda um pixel.
+ */
+.navGroupAberto {
+  position: relative;
+  gap: 0;
+  border-radius: 18px;
+  background: var(--menu-grupo);
+  overflow: hidden;
+  /* O grupo e a sua propria camada: o `::before` da borda nao encosta em
+     nada de fora. */
+  isolation: isolate;
+  box-shadow: var(--menu-sombra-grupo);
+}
+
+/*
+ * A borda de refracao: um fio de luz que morre na metade da altura.
+ *
+ * E uma borda pintada com gradiente, e nao `border`, que so aceita cor
+ * chapada. A mascara recorta o miolo e deixa visivel apenas a moldura de 1px
+ * — as duas camadas se anulam onde se sobrepoem.
+ */
+.navGroupAberto::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--menu-grupo-borda);
+  /* O prefixo antes do padrao: o compilador descarta o segundo quando a
+     ordem se inverte (foi o que aconteceu na NR-129). */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/*
+ * Dentro do grupo, o botao nao tem superficie propria — quem a tem e o grupo.
+ * Sem isto, sao dois vidros um sobre o outro.
+ *
+ * O `:not()` e o que salva o caso de estar numa tela do Financeiro: ali o
+ * proprio botao e o item ativo, e apagar a superficie dele deixava o rotulo
+ * branco sobre o grupo claro (1,08:1, invisivel). Ativo, ele mantem o azul.
+ */
+.navGroupAberto .navItem:not(.navActive) {
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.navGroupAberto .navItem {
+  border-radius: 18px 18px 0 0;
+}
+
+.navGroupAberto .navItem:not(.navActive):hover {
+  background: var(--menu-item-hover);
+}
+
+/* A borda de refracao e o reflexo sao do grupo, e nao do botao de dentro. */
+.navGroupAberto .navItem:not(.navActive)::before,
+.navGroupAberto .navItem:not(.navActive)::after {
+  background: none;
 }
 
 .navGroupTitle {
@@ -74,28 +289,132 @@
   opacity: 0.75;
 }
 
+/*
+ * Cada item e uma peca de vidro de cantos macios (18px).
+ *
+ * Tres camadas, na ordem em que o olho as le:
+ *   1. a superficie, com sombra interna clara no topo e escura na base — a
+ *      curvatura;
+ *   2. o `::before`, a borda de refracao: um fio de luz de 1px, forte no topo
+ *      e morrendo na base, recortado por mascara;
+ *   3. o `::after`, o reflexo especular: uma elipse branca borrada no terco
+ *      superior esquerdo, como luz batendo de viés no vidro.
+ */
 .navItem {
+  position: relative;
+  /* Sem isto o reflexo do `::after` escapa pelo canto arredondado. */
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--menu-item);
+  -webkit-backdrop-filter: var(--menu-desfoque);
+  backdrop-filter: var(--menu-desfoque);
+  box-shadow: var(--menu-sombra);
   font-size: 14.5px;
   color: var(--app-muted);
   transition:
-    background-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition),
+    transform 120ms var(--ease),
     color var(--transition);
 }
 
+/*
+ * A borda de refracao.
+ *
+ * E uma borda pintada com gradiente — `border` so aceita cor chapada. A
+ * mascara recorta o miolo e deixa visivel so a moldura de 1px: as duas
+ * camadas se anulam onde se sobrepoem.
+ */
+.navItem::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--menu-borda-luz);
+  /* O prefixo antes do padrao: o compilador descarta o segundo quando a ordem
+     se inverte (foi o que aconteceu na NR-129). */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/*
+ * O reflexo especular.
+ *
+ * Fica atras do rotulo (`z-index: -1` dentro da propria camada do item, que o
+ * `isolation` fecha): borrado e branco, por cima do texto ele lavaria a
+ * leitura justamente na altura das letras.
+ */
+.navItem::after {
+  content: '';
+  position: absolute;
+  top: -35%;
+  left: -8%;
+  z-index: -1;
+  width: 62%;
+  height: 90%;
+  border-radius: 50%;
+  background: var(--menu-reflexo);
+  filter: blur(6px);
+  transform: rotate(-12deg);
+  opacity: 0.65;
+  transition: opacity var(--transition);
+  pointer-events: none;
+}
+
 .navItem:hover {
-  background: var(--app-field);
+  background: var(--menu-item-hover);
   color: var(--app-text);
 }
 
-.navActive {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+.navItem:hover::after {
+  opacity: 0.9;
+}
+
+/* O clique afunda a peca de leve — o retorno tatil que falta num botao que
+   so troca de cor. */
+.navItem:active {
+  transform: scale(0.975);
+}
+
+/*
+ * O ativo e azul e brilha para fora.
+ *
+ * O `glow` (a terceira sombra) e o que faltava na versao anterior: sem ele,
+ * "ativo" era so uma troca de cor de fundo e o item nao se descolava da fila.
+ */
+.navActive,
+.navActive:hover {
+  background: var(--menu-ativo);
+  box-shadow: var(--menu-sombra-ativa);
+  color: #ffffff;
   font-weight: 600;
+}
+
+.navActive::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.75),
+    rgba(255, 255, 255, 0.12) 45%,
+    transparent 70%
+  );
+}
+
+.navActive::after {
+  opacity: 0.5;
 }
 
 /* Modulo restrito: continua legivel, mas sinalizado */
@@ -109,6 +428,7 @@
 
 .navLocked:hover {
   opacity: 1;
+  /* Sem o gradiente por cima, senao a cor de aviso nao aparece. */
   background: var(--warning-bg);
   color: var(--warning-text);
 }
@@ -375,23 +695,49 @@
 }
 
 @media (min-width: 1100px) {
+  /*
+   * A coluna reservada para a barra — NR-131.
+   *
+   * A barra flutua (`position: fixed`), entao sai do fluxo e nao ocupa mais a
+   * coluna: quem impede o conteudo de passar por baixo dela e esta largura,
+   * que soma a barra, o respiro da borda e a folga ate o conteudo.
+   */
   .shell {
-    grid-template-columns: 264px 1fr;
+    grid-template-columns: calc(264px + var(--barra-respiro) + 20px) 1fr;
   }
 
+  /*
+   * Painel flutuante, centrado na vertical.
+   *
+   * Altura pelo conteudo, com teto na altura da janela menos os respiros — se
+   * a lista crescer (uma conta com a secao de Plataforma, por exemplo), ela
+   * rola por dentro em vez de vazar pela tela.
+   */
   .sidebar {
-    position: sticky;
-    height: 100vh;
-    transform: none;
-    /*
-     * `inset` de uma vez so, e nao `top: 0` seguido de `inset: auto`.
-     *
-     * Era assim que estava, e nessa ordem o atalho apagava o `top` que a
-     * linha anterior tinha acabado de definir — `sticky` sem `top` nao gruda
-     * em nada, e a barra subia junto com a pagina. O `auto` nos outros tres
-     * lados e o que desfaz o `inset: 0 auto 0 0` do modo celular.
-     */
-    inset: 0 auto auto auto;
+    position: fixed;
+    top: 50%;
+    left: var(--barra-respiro);
+    right: auto;
+    bottom: auto;
+    height: auto;
+    max-height: calc(100vh - var(--barra-respiro) * 2);
+    transform: translateY(-50%);
+    border: 1px solid var(--menu-borda-painel);
+    border-radius: 22px;
+    /* Sombra funda: e ela que diz que o painel esta SOBRE a pagina. */
+    box-shadow: var(--menu-sombra-flutuante);
+  }
+
+  /*
+   * A area principal vai para a SEGUNDA coluna, dita e nao deduzida.
+   *
+   * Flutuando, a barra tem `position: fixed` e sai do fluxo — deixa de ocupar
+   * a celula dela. Sem esta linha, a area principal escorrega para a primeira
+   * coluna (a que existe justamente para reserva-la) e o conteudo fica por
+   * baixo do painel.
+   */
+  .main {
+    grid-column: 2;
   }
 
   .menuButton,
@@ -427,11 +773,21 @@
 }
 
 .subNav {
+  position: relative;
   display: grid;
   gap: 1px;
-  margin: 2px 0 4px 30px;
-  padding-left: 12px;
-  border-left: 1px solid var(--app-border);
+  padding: 2px 8px 10px 40px;
+}
+
+/* A guia vertical que liga os subitens, apagando para baixo. */
+.subNav::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 14px;
+  left: 22px;
+  width: 1px;
+  background: var(--menu-guia);
 }
 
 .subItem {
@@ -439,23 +795,27 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  border-radius: 10px;
   text-align: left;
   font-size: 13.5px;
-  color: var(--app-muted);
+  font-weight: 500;
+  color: var(--menu-sub-texto);
   transition:
     background-color var(--transition),
     color var(--transition);
 }
 
 .subItem:hover {
-  background: var(--app-field);
+  background: var(--menu-sub-hover);
   color: var(--app-text);
 }
 
+/* Sem peca de vidro propria: os subitens sao um nivel abaixo, e dar a eles a
+   mesma superficie dos itens principais achataria a hierarquia. Ativos,
+   pegam o mesmo azul do item ativo. */
 .subActive {
-  color: var(--app-accent);
+  color: var(--menu-ativo-texto-simples);
   font-weight: 600;
 }
 
@@ -630,7 +990,7 @@
 
   /* A largura da coluna e o que de fato recolhe: a barra acompanha. */
   .shellRecolhido {
-    grid-template-columns: 76px 1fr;
+    grid-template-columns: calc(76px + var(--barra-respiro) + 20px) 1fr;
   }
 
   .sidebarRecolhida {
@@ -660,6 +1020,32 @@
   .sidebarRecolhida .navItem {
     justify-content: center;
     padding-inline: 0;
+  }
+
+  /* Recolhida, a lista do Financeiro esta escondida: o grupo nao tem o que
+     emoldurar, e o botao volta a ser um botao inteiro. */
+  .sidebarRecolhida .navGroupAberto {
+    background: none;
+    box-shadow: none;
+  }
+
+  .sidebarRecolhida .navGroupAberto::before {
+    display: none;
+  }
+
+  /* O `:not()` pelo mesmo motivo de sempre: ativo, o botao fica azul, e
+     devolver a ele a superficie neutra apagaria o icone branco. */
+  .sidebarRecolhida .navGroupAberto .navItem:not(.navActive) {
+    background: var(--menu-item);
+    box-shadow: var(--menu-sombra);
+  }
+
+  .sidebarRecolhida .navGroupAberto .navItem {
+    border-radius: 12px;
+  }
+
+  .sidebarRecolhida .navGroupAberto .navItem:not(.navActive)::before {
+    background: var(--menu-borda-luz);
   }
 
   .sidebarRecolhida .topoDaBarra {
