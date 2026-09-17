@@ -11,8 +11,8 @@
   z-index: 1;
   display: flex;
   justify-content: center;
-  /* A folga de cima e onde o balao cabe: ele fica ACIMA do Buddy, e sem ela
-     encostaria no botao. */
+  /* A folga de cima e onde o balao cabe: no celular ele fica ACIMA do Buddy,
+     e sem ela encostaria no botao. */
   margin-top: 96px;
 }
 
@@ -73,8 +73,8 @@
  */
 .balao {
   position: absolute;
-  /* Acima da cabeca, nunca por cima dela: sobre o rosto, o balao tapa
-     justamente quem esta falando. */
+  /* No celular, acima da cabeca: ao lado nao ha largura, e sobre o rosto o
+     balao taparia justamente quem esta falando. */
   bottom: calc(100% - 4px);
   left: 50%;
   width: 208px;
@@ -153,19 +153,28 @@
   }
 
   /*
-   * Acima dele, e nao ao lado.
-   *
-   * Ao lado, o balao invadia o titulo e a linha de apoio — a coluna de texto
-   * e centrada e larga, e a sobra da direita e só do Buddy. Em cima, ele fica
-   * na faixa vazia acima da cabeca e nao encosta em texto nenhum.
+   * No desktop ele fala do lado esquerdo, para a sobra da direita continuar
+   * sendo so dele. Um pouco mais alto que a linha dos olhos: na altura do
+   * peito, o balao encostava no fim do titulo.
    */
   .balao {
-    bottom: calc(100% - 4px);
-    left: 50%;
-    width: 236px;
-    margin-left: -118px;
+    bottom: 94%;
+    left: auto;
+    right: 68%;
+    width: 232px;
+    margin-left: 0;
     font-size: 14px;
-    transform-origin: 50% 100%;
+    text-align: left;
+    transform-origin: 100% 60%;
+  }
+
+  /* Ao lado, a cauda aponta para a direita — para ele. */
+  .balao::after {
+    top: auto;
+    right: -6px;
+    bottom: 16px;
+    left: auto;
+    margin-left: 0;
   }
 }
 
