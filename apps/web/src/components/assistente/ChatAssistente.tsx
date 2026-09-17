@@ -14,6 +14,7 @@ import { COMANDOS_DESTAQUE, GRUPOS_COMANDOS } from '@/lib/comandos'
 import { PageHeader } from '@/components/ui/UI'
 import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
+import dynamic from 'next/dynamic'
 import { IconSparkles } from '@/components/Icons'
 import BlocosResposta from './BlocosResposta'
 import { hoje } from '@/lib/format'
@@ -24,6 +25,16 @@ import styles from './assistente.module.css'
  * assistente datava a conversa em agosto por mais tempo que agosto durasse.
  * Agora vem de `hoje()`, a mesma fonte do resto do app.
  */
+
+/*
+ * A orb entra por import dinamico — NR-127.
+ *
+ * O Three.js pesa, e nenhuma outra tela do app o usa: carregado assim, ele so
+ * baixa quando alguem abre o assistente. `ssr: false` porque WebGL nao existe
+ * no servidor. Enquanto nao chega, o gradiente CSS do proprio componente ja
+ * ocupa o lugar — ninguem ve buraco.
+ */
+const OrbDoAssistente = dynamic(() => import('./OrbDoAssistente'), { ssr: false })
 
 export default function ChatAssistente() {
   const router = useRouter()
@@ -128,9 +139,9 @@ export default function ChatAssistente() {
         <div className={styles.conversa} ref={conversaRef}>
           {conversaVazia ? (
             <div className={styles.boasVindas}>
-              <span className={styles.boasVindasIcone}>
-                <IconSparkles size={26} />
-              </span>
+              {/* A orb no lugar do icone: e o momento em que ela cabe — uma
+                  so na tela, antes da conversa comecar. */}
+              <OrbDoAssistente tamanho={168} />
               <h2>Como posso ajudar?</h2>
               <p>
                 Pergunte sobre vendas, clientes, produtos ou contas. Se citar um cliente, eu guardo
@@ -167,9 +178,11 @@ export default function ChatAssistente() {
 
           {pensando ? (
             <div className={`${styles.mensagem} ${styles.doAssistente}`} aria-live="polite">
-              <span className={styles.avatar} aria-hidden="true">
-                <IconSparkles size={15} />
-              </span>
+              {/* Enquanto pensa, a orb ocupa o avatar — na versao em CSS: a
+                  44px o shader vira um anel apagado, e quem mostra atividade
+                  aqui sao os pontinhos ao lado. O avatar das mensagens segue
+                  sendo o icone leve. */}
+              <OrbDoAssistente tamanho={44} animada={false} />
               <div className={`${styles.balao} ${styles.digitando}`}>
                 <span className={styles.ponto} />
                 <span className={styles.ponto} />
