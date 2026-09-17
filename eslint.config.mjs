@@ -23,6 +23,7 @@ export default tseslint.config(
       '**/.expo/**',
       '**/.turbo/**',
       '**/coverage/**',
+      '**/*.min.js',
     ],
   },
   eslint.configs.recommended,

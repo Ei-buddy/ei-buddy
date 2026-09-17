@@ -141,6 +141,24 @@ describe('POST /agent/messages', () => {
     expect(res.statusCode).toBe(400)
     await app.close()
   })
+
+  it('recusa peer e channel no body — schema continua so text (NR-121)', async () => {
+    const app = buildApp()
+    const comPeer = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto vendi hoje?', peer: '5511999000001' },
+    })
+    expect(comPeer.statusCode).toBe(400)
+
+    const comCanal = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto vendi hoje?', channel: 'whatsapp' },
+    })
+    expect(comCanal.statusCode).toBe(400)
+    await app.close()
+  })
 })
 
 /**

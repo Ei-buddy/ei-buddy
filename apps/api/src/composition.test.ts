@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * A logica dos tres desfechos de `checkIsolation`.
@@ -529,5 +532,63 @@ describe('buildAgentDeps — US6 period_summary / buildDre', () => {
     expect(out).toEqual(saidaDre)
     expect(tool!.formatReply(out)).toContain('Faturamento')
     expect(tool!.formatReply(out)).toContain('Resultado')
+  })
+})
+
+describe('buildAgentDeps — FixturePeerDirectory (NR-121)', () => {
+  const dirs: string[] = []
+
+  afterEach(() => {
+    while (dirs.length > 0) {
+      const dir = dirs.pop()
+      if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('injeta peers quando o arquivo de presets e valido', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'studio-presets-'))
+    dirs.push(dir)
+    const caminho = join(dir, 'presets.json')
+    writeFileSync(
+      caminho,
+      JSON.stringify({
+        presets: [
+          {
+            id: 'claudia-loja-1',
+            peer: '5511999000001',
+            companyId: '00000000-0000-4000-8000-000000000001',
+            userId: '00000000-0000-4000-8000-000000000011',
+            role: 'owner',
+          },
+        ],
+      }),
+    )
+
+    const { buildAgentDeps } = await carregar({
+      AGENT_PROVIDER: 'fake',
+      AGENT_STUDIO_PRESETS: caminho,
+    })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+    expect(deps.studioDirectory).toBeDefined()
+    expect(deps.runtime.peers).toBe(deps.studioDirectory)
+    expect(await deps.runtime.peers?.resolve('5511999000001')).toEqual({
+      companyId: '00000000-0000-4000-8000-000000000001',
+      userId: '00000000-0000-4000-8000-000000000011',
+      role: 'owner',
+    })
+  })
+
+  it('arquivo ausente: runtime HTTP segue sem peers e sem studioDirectory', async () => {
+    const { buildAgentDeps } = await carregar({
+      AGENT_PROVIDER: 'fake',
+      AGENT_STUDIO_PRESETS: join(tmpdir(), 'nao-existe-studio-presets.json'),
+    })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+    expect(deps.studioDirectory).toBeUndefined()
+    expect(deps.runtime.peers).toBeUndefined()
   })
 })

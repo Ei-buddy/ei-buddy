@@ -55,6 +55,7 @@ import { registerPrivacidadeRoutes } from './routes/privacidade.js'
 import { registerSuporteRoutes } from './routes/suporte.js'
 import { registerSaleRoutes } from './routes/sales.js'
 import { registerAgentRoutes } from './routes/agent.js'
+import { montarStudio } from './studio.js'
 
 // RNF-058: log estruturado (JSON) com requestId, companyId e userId.
 const app = Fastify({
@@ -141,7 +142,13 @@ async function registrarRotas(): Promise<void> {
   if (motivoDoAgente !== undefined) {
     app.log.warn({ motivo: motivoDoAgente }, 'assistente desligado — ver AGENT_PROVIDER')
   }
-  registerAgentRoutes(app, await buildAgentDeps(), motivoDoAgente)
+  const agentDeps = await buildAgentDeps()
+  registerAgentRoutes(app, agentDeps, motivoDoAgente)
+  await montarStudio(app, {
+    motivo: motivoDoAgente,
+    runtime: agentDeps?.runtime ?? null,
+    directory: agentDeps?.studioDirectory ?? null,
+  })
 
   /*
    * A falta da chave de cifragem NAO impede a api de subir: ela desliga uma

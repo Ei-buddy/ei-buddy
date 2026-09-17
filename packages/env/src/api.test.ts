@@ -150,3 +150,31 @@ describe('agente — ADR-0010', () => {
     expect(() => loadApiEnv({ ...base, AGENT_HARNESS: 'yes' })).toThrow()
   })
 })
+
+/**
+ * Presets do harness Studio — NR-121.
+ *
+ * Path opcional: ausente ou vazio cai no default versionavel. Customizar e
+ * apontar para um arquivo fora do repo (ou um gitignored local).
+ */
+describe('AGENT_STUDIO_PRESETS', () => {
+  it('aplica o default quando ausente', () => {
+    expect(loadApiEnv(base).AGENT_STUDIO_PRESETS).toBe('packages/agent/studio/presets.json')
+  })
+
+  it('trata vazio e so espaco como default', () => {
+    expect(loadApiEnv({ ...base, AGENT_STUDIO_PRESETS: '' }).AGENT_STUDIO_PRESETS).toBe(
+      'packages/agent/studio/presets.json',
+    )
+    expect(loadApiEnv({ ...base, AGENT_STUDIO_PRESETS: '   ' }).AGENT_STUDIO_PRESETS).toBe(
+      'packages/agent/studio/presets.json',
+    )
+  })
+
+  it('honra um caminho customizado', () => {
+    expect(
+      loadApiEnv({ ...base, AGENT_STUDIO_PRESETS: '/tmp/studio-presets.json' })
+        .AGENT_STUDIO_PRESETS,
+    ).toBe('/tmp/studio-presets.json')
+  })
+})

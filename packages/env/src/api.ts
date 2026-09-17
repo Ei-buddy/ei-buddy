@@ -2,6 +2,9 @@ import { z } from 'zod'
 import { baseEnvSchema, opcionalNaoVazia, providerSchema } from './base.js'
 import { parseEnv } from './parse.js'
 
+/** Caminho default relativo a raiz do repo. Ausente/vazio no .env cai aqui. */
+export const DEFAULT_AGENT_STUDIO_PRESETS = 'packages/agent/studio/presets.json'
+
 /**
  * Variaveis que `apps/api` precisa para subir — ambientes.md#matriz.
  *
@@ -95,6 +98,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
     if (v === '1') return true
     return v
   }, z.boolean().default(false)),
+  /**
+   * Caminho do arquivo de presets do harness Studio (NR-121).
+   *
+   * Opcional: ausente ou vazio aponta para `packages/agent/studio/presets.json`
+   * (relativo a raiz do repo). IDs reais de fixture ficam fora do git.
+   */
+  AGENT_STUDIO_PRESETS: z.preprocess((v) => {
+    if (v === undefined) return DEFAULT_AGENT_STUDIO_PRESETS
+    if (typeof v === 'string' && v.trim() === '') return DEFAULT_AGENT_STUDIO_PRESETS
+    return v
+  }, z.string().min(1)),
   /**
    * Ausente ou vazio = sem teto configurado. A medicao (RNF-073) entra com o
    * runtime; o numero so existe quando alguem definiu um.

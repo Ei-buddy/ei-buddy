@@ -29,3 +29,25 @@ export type {
   PendingConfirmation,
   ToolDescriptor,
 } from './types.js'
+export { FixturePeerDirectory, normalizarPeer } from './studio/fixture-peer-directory.js'
+export type { StudioPeerRef } from './studio/fixture-peer-directory.js'
+export {
+  loadStudioPresets,
+  mapaDeRequestContextPresets,
+  resolverCaminhoDosPresets,
+  StudioPresetsError,
+} from './studio/presets.js'
+export type {
+  StudioPreset,
+  StudioPresetsFile,
+  StudioRequestContextPresetMap,
+} from './studio/presets.js'
+export {
+  createStudioHarnessAgent,
+  createStudioMastra,
+  STUDIO_HARNESS_AGENT_ID,
+  STUDIO_RELAY_TOOL_ID,
+} from './studio/relay-agent.js'
+export type { CreateStudioHarnessOptions, StudioTurnLog } from './studio/relay-agent.js'
+export { studioRequestContextSchema } from './studio/request-context.js'
+export { createStudioRelayModel, StudioRelayModel } from './studio/relay-model.js'

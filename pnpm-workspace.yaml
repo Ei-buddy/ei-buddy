@@ -28,6 +28,10 @@ minimumReleaseAgeExclude:
   - expo@57.0.16
   # Recente demais para o gate de idade — ADR-0010, runtime do assistente.
   - '@mastra/core@1.66.0'
+  # NR-121: adapter Fastify + CLI do Studio, alinhados ao core 1.66.
+  - '@mastra/fastify@1.5.10'
+  - '@mastra/server@1.66.0'
+  - 'mastra@1.30.0'
 
 # vite entra so como engine do vitest (peer). A resolucao natural cai numa
 # versao <=6.4.2, que carrega GHSA-fx2h-pf6j-xcff (alta) e mais duas moderadas.

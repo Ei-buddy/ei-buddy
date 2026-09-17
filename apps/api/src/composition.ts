@@ -25,12 +25,14 @@ import {
   createAgentRuntime,
   createToolCatalog,
   FakeLlm,
+  FixturePeerDirectory,
   InMemoryAiUsageCounter,
+  loadStudioPresets,
+  type AgentRuntime,
   type AgentUseCases,
   type LlmPort,
   type ToolDescriptor,
 } from '@na-regua/agent'
-import type { AgentRouteDeps } from './routes/agent.js'
 import type { AgendaDeps } from './routes/agenda.js'
 import type { IdentityProvider, IdentityRegistrar } from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
@@ -809,8 +811,34 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
  * contexto da sessao, nunca do body. Producao sem `AGENT_HARNESS=1` nao
  * monta runtime. Confirmacoes ficam em memoria ate a NR-061.
  */
+/** Runtime HTTP + diretorio de fixture do Studio, se o arquivo carregou. */
+export type AgentComposition = {
+  readonly runtime: AgentRuntime
+  readonly studioDirectory?: FixturePeerDirectory
+}
+
+/**
+ * Presets ausentes/invalidos nao derrubam o HTTP: o Studio e que deixa de
+ * montar. O aviso no log e o que faz alguem notar.
+ */
+function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
+  try {
+    const arquivo = loadStudioPresets(env.AGENT_STUDIO_PRESETS)
+    return new FixturePeerDirectory(arquivo.presets)
+  } catch (erro) {
+    console.warn(
+      JSON.stringify({
+        level: 40,
+        msg: 'studio presets nao carregados — adapter nao monta; HTTP do assistente segue',
+        motivo: erro instanceof Error ? erro.message : String(erro),
+      }),
+    )
+    return undefined
+  }
+}
+
 /** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
-export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
+export async function buildAgentDeps(): Promise<AgentComposition | null> {
   if (motivoDoAgenteIndisponivel() !== undefined) return null
 
   const sales = buildSaleDeps()
@@ -863,6 +891,7 @@ export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
 
   const tools = createToolCatalog(useCases)
   const llm = await criarLlmDoAgente(tools)
+  const studioDirectory = tentarDiretorioStudio()
 
   return {
     runtime: createAgentRuntime({
@@ -875,6 +904,8 @@ export async function buildAgentDeps(): Promise<AgentRouteDeps | null> {
           : { budgetCents: env.AGENT_MONTHLY_BUDGET_CENTS }),
         timeZone: env.TZ,
       }),
+      ...(studioDirectory === undefined ? {} : { peers: studioDirectory }),
     }),
+    ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }
 }

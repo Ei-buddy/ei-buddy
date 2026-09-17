@@ -81,4 +81,9 @@ Venda pelo agent usa `idempotencyKey` derivado de `agent:${requestId}` na compos
 - Upload de certificado/OFX (recusa só por texto).
 - Streaming / SSE.
 - Multipart arquivo (RF-109 dívida).
-- Rotas Studio Mastra.
+
+Harness Studio (NR-121): rotas `/api/agents/*` do adapter Fastify — agent
+`studio-harness`, tool `process_message` → o mesmo `processMessage`. Ver
+[studio-harness.md](../../003-studio-harness/contracts/studio-harness.md).
+Este contrato (`POST /agent/messages`, `text` só, `channel: 'app'`) **não**
+muda.

@@ -48,8 +48,12 @@ coverage/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+*.tmp
 
 # Editor (mantemos .vscode/settings.json versionado)
 .idea/
 *.swp
 .dev
+
+# Presets locais do Studio (UUIDs de fixture; nao versionar IDs reais) — NR-121
+packages/agent/studio/presets.json
