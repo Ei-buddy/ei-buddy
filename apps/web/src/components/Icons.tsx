@@ -145,6 +145,15 @@ export function IconChevronDown({ size = 24, className }: IconProps) {
   )
 }
 
+/** Recolher a barra lateral — NR-126. */
+export function IconChevronLeft({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M14.5 6l-6 6 6 6" />
+    </svg>
+  )
+}
+
 export function IconShield({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

@@ -1,0 +1,211 @@
+/*
+ * A busca em overlay — NR-126.
+ *
+ * Tudo com os tokens `--app-*`, que acompanham o tema escolhido: a mesma
+ * caixa fica escura no tema padrao e clara em quem ligou o tema claro. Cor
+ * fixa aqui criaria a unica peca do painel que ignora o botao de tema.
+ */
+
+/* --- O gatilho, na barra do topo --- */
+
+.gatilho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  padding: 9px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-full);
+  color: var(--app-muted);
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: left;
+  transition:
+    border-color var(--transition),
+    color var(--transition);
+}
+
+.gatilho:hover {
+  border-color: var(--app-accent);
+  color: var(--app-text);
+}
+
+.gatilhoTexto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tecla {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  color: var(--app-muted);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+/* --- O overlay --- */
+
+.fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* Alto, e nao centralizado: a lista cresce para baixo, e uma caixa centrada
+     pularia para cima a cada resultado novo. */
+  padding: clamp(56px, 12vh, 140px) 16px 24px;
+  background: color-mix(in srgb, var(--app-bg) 62%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.caixa {
+  width: 100%;
+  max-width: 620px;
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-surface);
+  box-shadow: 0 36px 90px -30px rgba(4, 6, 20, 0.6);
+}
+
+/* --- O campo --- */
+
+.campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--app-border);
+  color: var(--app-muted);
+}
+
+.campo input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+}
+
+.campo input::placeholder {
+  color: var(--app-muted);
+}
+
+.campo input:focus {
+  outline: none;
+}
+
+/* --- Resultados --- */
+
+.resultados {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.vazio {
+  padding: 22px 12px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--app-muted);
+}
+
+.grupo {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 6px;
+}
+
+.grupoRotulo {
+  padding: 10px 12px 4px;
+  color: var(--app-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  text-align: left;
+  transition: background-color var(--transition);
+}
+
+/*
+ * O item ativo e o MESMO destaque do menu lateral, de proposito: teclado e
+ * mouse marcam o mesmo estado, e quem desce com a seta ve o mesmo realce que
+ * veria passando o mouse.
+ */
+.itemAtivo {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.itemTitulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDetalhe {
+  margin-left: auto;
+  flex: none;
+  font-size: 12.5px;
+  color: var(--app-muted);
+}
+
+.itemAtivo .itemDetalhe {
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* --- Celular --- */
+
+@media (max-width: 560px) {
+  .gatilhoTexto,
+  .gatilho .tecla {
+    display: none;
+  }
+
+  .gatilho {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .fundo {
+    padding: 16px 12px;
+  }
+
+  .caixa {
+    max-height: 84vh;
+  }
+}
