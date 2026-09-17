@@ -1,6 +1,7 @@
 import type { MembershipOutput } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import type { SessionClaims, UserDirectory } from '../ports/identity.js'
+import type { PlatformAdminAccess } from '../ports/platform-admin.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 
 export type ProfileDeps = {
@@ -16,6 +17,14 @@ export type ProfileDeps = {
    * caminho novo — RLS nao liga para COMO a pessoa chegou naquele tenant.
    */
   readonly companies: CompanyRepository
+  /**
+   * Para o perfil dizer se a conta e Super Admin — NR-122.
+   *
+   * A navegacao do app monta a secao da plataforma a partir deste campo, e
+   * nao de uma rota administrativa chamada "para ver se responde": perguntar
+   * por erro (403) e caro e faz a barra piscar a cada carregamento.
+   */
+  readonly platformAdmin: PlatformAdminAccess
 }
 
 /**
@@ -50,6 +59,15 @@ export type Profile = {
    * `auth_session_enter_company`. O sinal ja estava disponivel de graca.
    */
   readonly isImpersonating: boolean
+  /**
+   * Acesso a plataforma inteira — ADR-0007.
+   *
+   * Eixo diferente de `role`: aquele e o papel DENTRO da loja ativa, este
+   * atravessa todas. Um dono de loja pode ser Super Admin e continuar dono;
+   * as duas coisas convivem na mesma sessao, e e por isso que a barra mostra
+   * os dois blocos para ele.
+   */
+  readonly isPlatformAdmin: boolean
 }
 
 export async function loadProfile(deps: ProfileDeps, claims: SessionClaims): Promise<Profile> {
@@ -106,5 +124,6 @@ export async function loadProfile(deps: ProfileDeps, claims: SessionClaims): Pro
     role: ativo?.role ?? (claims.companyId === null ? null : claims.role),
     memberships: vinculos,
     isImpersonating: empresaSemVinculo !== undefined,
+    isPlatformAdmin: await deps.platformAdmin.isPlatformAdmin(usuario.id),
   }
 }

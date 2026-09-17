@@ -180,6 +180,40 @@ export function createAuditTrail(sql: Sql): AuditTrail {
  */
 export function createAuditQueries(sql: Sql): AuditQueries {
   return {
+    /**
+     * Quem agiu, agrupado — a tela abre por aqui.
+     *
+     * Sem paginacao de proposito: sao PESSOAS, e uma loja nao tem milhares
+     * delas nem quando tem milhares de registros. Paginar aqui seria paginar
+     * o indice do livro.
+     */
+    listActors: (companyId) =>
+      withTenant(sql, companyId, async (tx) => {
+        const linhas = await tx<{ actor_id: string; entries: number; last_action_at: string }[]>`
+          SELECT a.actor_id,
+                 count(*)::int AS entries,
+                 max(a.occurred_at) AS last_action_at
+            FROM audit_logs a
+           GROUP BY a.actor_id
+           ORDER BY max(a.occurred_at) DESC
+        `
+
+        const nomes = new Map<string, string>()
+        if (linhas.length > 0) {
+          const autores = await tx<{ id: string; name: string }[]>`
+            SELECT id, name FROM audit_actor_names(${linhas.map((l) => l.actor_id)}::uuid[])
+          `
+          for (const a of autores) nomes.set(a.id, a.name)
+        }
+
+        return linhas.map((l) => ({
+          actorId: l.actor_id,
+          actorName: nomes.get(l.actor_id) ?? null,
+          entries: l.entries,
+          lastActionAt: new Date(l.last_action_at).toISOString(),
+        }))
+      }),
+
     list: (companyId, filtro) =>
       withTenant(sql, companyId, async (tx) => {
         const condicoes = [

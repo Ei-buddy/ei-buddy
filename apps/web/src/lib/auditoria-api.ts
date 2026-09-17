@@ -97,3 +97,16 @@ export function listarTrilha(filtro: FiltroDaTrilha): Promise<Resultado<PaginaDa
   }
   return pedir(`/api/auditoria?${params.toString()}`)
 }
+
+/* --- Quem agiu na loja — a tela abre por aqui ------------------------- */
+
+export type PessoaDaTrilha = {
+  actorId: string
+  /** Nulo quando o autor nao existe mais — a trilha sobrevive a ele. */
+  actorName: string | null
+  entries: number
+  lastActionAt: string
+}
+
+export const listarPessoasDaTrilha = (): Promise<Resultado<{ actors: PessoaDaTrilha[] }>> =>
+  pedir('/api/auditoria/pessoas')

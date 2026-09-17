@@ -3,8 +3,8 @@ import { BRAND } from '@/content/site'
 import AdminParceirosView from '@/components/admin/AdminParceirosView'
 
 export const metadata: Metadata = {
-  title: `Parceiros — Super Admin — ${BRAND}`,
-  description: 'Candidaturas de Parceiro aguardando aprovação.',
+  title: `Parceiros — Plataforma — ${BRAND}`,
+  description: 'Candidaturas a Parceiro, para aprovar ou recusar.',
 }
 
 export default function AdminParceirosPage() {

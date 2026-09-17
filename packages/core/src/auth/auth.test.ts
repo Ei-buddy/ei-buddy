@@ -743,6 +743,40 @@ describe('perfil de quem esta logado — NR-013, RF-119', () => {
     expect(perfil.activeCompanyId).toBe('empresa-1')
   })
 
+  /**
+   * NR-122: a barra lateral do app monta a secao da plataforma a partir daqui.
+   *
+   * Antes, so o LOGIN sabia que a conta era Super Admin, e a informacao se
+   * perdia no primeiro recarregamento de pagina — o que obrigava a um painel
+   * separado, fora do app, alcancavel so por endereco digitado.
+   */
+  it('diz quando a conta e Super Admin', async () => {
+    const c = comUmaLoja()
+    c.platformAdmin.tornarSuperAdmin(c.usuario.id)
+
+    const perfil = await loadProfile(c.deps, {
+      userId: c.usuario.id,
+      companyId: 'empresa-1',
+      role: 'owner',
+    })
+
+    /* Os dois eixos convivem: dono da loja E Super Admin da plataforma. */
+    expect(perfil.role).toBe('owner')
+    expect(perfil.isPlatformAdmin).toBe(true)
+  })
+
+  it('conta comum nao e Super Admin', async () => {
+    const c = comUmaLoja()
+
+    const perfil = await loadProfile(c.deps, {
+      userId: c.usuario.id,
+      companyId: 'empresa-1',
+      role: 'owner',
+    })
+
+    expect(perfil.isPlatformAdmin).toBe(false)
+  })
+
   it('sessao sem loja escolhida devolve nome sem loja, e nao erro', async () => {
     const c = comUmaLoja()
 

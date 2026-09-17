@@ -1,5 +1,5 @@
 import { auditQueryInputSchema } from '@na-regua/contracts'
-import { listAuditTrail, type ListAuditTrailDeps } from '@na-regua/core'
+import { listAuditActors, listAuditTrail, type ListAuditTrailDeps } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
 import { validate } from '../plugins/validate.js'
@@ -20,6 +20,19 @@ import { validate } from '../plugins/validate.js'
 export type AuditoriaDeps = ListAuditTrailDeps
 
 export function registerAuditoriaRoutes(app: FastifyInstance, deps: AuditoriaDeps): void {
+  /**
+   * Quem agiu na loja — a tela abre por esta lista, e nao pela trilha.
+   *
+   * Rota separada, e nao um `groupBy` na mesma: sao perguntas diferentes, e
+   * juntar as duas num parametro faria a tela pedir a trilha inteira so para
+   * descobrir quem sao as pessoas.
+   */
+  app.get('/auditoria/pessoas', async (request, reply) => {
+    const ctx = requireContext(request)
+
+    return reply.code(200).send(await listAuditActors(deps, ctx))
+  })
+
   app.get('/auditoria', async (request, reply) => {
     const ctx = requireContext(request)
 

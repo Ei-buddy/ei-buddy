@@ -21,7 +21,9 @@
   inset: 0 auto 0 0;
   width: 264px;
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* Sem molde fixo de linhas: a barra ganhou a secao da plataforma (NR-122),
+     e `auto 1fr` esticava a primeira navegacao ate empurrar a segunda. */
+  align-content: start;
   gap: 16px;
   padding: 20px 14px;
   border-right: 1px solid var(--app-border);
@@ -559,6 +561,7 @@
  */
 .navLegal {
   margin-top: auto;
+  margin-top: auto;
   padding: 14px 12px 4px;
   border-top: 1px solid var(--app-border);
   font-size: 13px;
@@ -568,4 +571,15 @@
 
 .navLegal:hover {
   color: var(--app-text);
+}
+
+/* --- Secao da plataforma (Super Admin) — NR-122 --- */
+
+.navSecao {
+  padding: 14px 12px 6px;
+  color: var(--app-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }

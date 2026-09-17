@@ -155,6 +155,31 @@ describe.skipIf(!DATABASE_URL)('consulta da trilha — US-061', () => {
     expect(r.entries[0]?.actorName).toBeNull()
   })
 
+  it('agrupa por pessoa: quantas acoes cada uma, com nome, mais recente primeiro', async () => {
+    const empresa = await criarEmpresa('Loja para agrupar')
+    const marta = await criarUsuario('Marta do Caixa')
+    const joao = await criarUsuario('Joao do Estoque')
+    await registrar(empresa, { actorId: marta, occurredAt: '2026-04-01T12:00:00Z' })
+    await registrar(empresa, { actorId: marta, occurredAt: '2026-04-02T12:00:00Z' })
+    await registrar(empresa, { actorId: joao, occurredAt: '2026-04-05T12:00:00Z' })
+
+    const r = await createAuditQueries(sql).listActors(empresa)
+
+    expect(r).toHaveLength(2)
+    /* Quem mexeu por ultimo primeiro — e a ordem em que se procura. */
+    expect(r[0]?.actorName).toBe('Joao do Estoque')
+    expect(r.find((a) => a.actorId === marta)?.entries).toBe(2)
+  })
+
+  it('a lista de pessoas de uma loja nao aparece para a outra', async () => {
+    const soDaA = await criarUsuario('Exclusiva da Loja A')
+    await registrar(empresaA, { actorId: soDaA })
+
+    const daOutra = await createAuditQueries(sql).listActors(empresaB)
+
+    expect(daOutra.map((a) => a.actorId)).not.toContain(soDaA)
+  })
+
   it('filtra por entidade, por autor e por acao', async () => {
     const empresa = await criarEmpresa('Loja para filtrar')
     const autor = await criarUsuario('Quem Mexeu')

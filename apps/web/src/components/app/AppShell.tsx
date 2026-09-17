@@ -26,6 +26,7 @@ import {
   IconChart,
   IconChevronDown,
   IconClose,
+  IconHeart,
   IconList,
   IconHelp,
   IconLogout,
@@ -75,6 +76,24 @@ const navItems: NavItem[] = [
   { href: '/app/assistente-ia', label: 'Assistente IA', icon: IconSparkles },
   { href: '/app/assinatura', label: 'Assinatura', icon: IconReceipt },
   { href: '/app/suporte', label: 'Suporte', icon: IconBank },
+]
+
+/**
+ * A secao da plataforma — NR-122, ADR-0007.
+ *
+ * Estas telas viviam num painel separado (`/admin`), com barra propria e um
+ * desvio no login perguntando "para onde?". Duas casas para a mesma pessoa:
+ * quem e dono E Super Admin tinha de escolher uma a cada entrada, e voltar
+ * significava digitar endereco. Agora sao uma secao a mais da MESMA barra,
+ * que so existe para quem tem o acesso.
+ *
+ * Fora desta lista, de proposito: Auditoria. Ela e por LOJA, e por isso mora
+ * entre os modulos da loja — o Super Admin a ve depois de entrar numa.
+ */
+const itensDaPlataforma: NavItem[] = [
+  { href: '/app/plataforma/cargos', label: 'Cargos e Super Admin', icon: IconShield },
+  { href: '/app/plataforma/lista-vip', label: 'Lista de espera', icon: IconList },
+  { href: '/app/plataforma/parceiros', label: 'Parceiros', icon: IconHeart },
 ]
 
 /** Cadeado exibido ao lado dos modulos restritos. */
@@ -202,7 +221,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
    */
   async function sairDoAdmin() {
     const r = await sairDoModoAdmin()
-    if (r.ok) router.push('/admin')
+    if (r.ok) router.push('/app/plataforma/cargos')
   }
 
   return (
@@ -328,6 +347,28 @@ export default function AppShell({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+
+        {/* So aparece para quem tem o acesso — a api recusa de qualquer
+            forma, mas um item que sempre responde 403 e ruido. */}
+        {perfil?.isPlatformAdmin === true ? (
+          <nav className={styles.nav} aria-label="Plataforma">
+            <span className={styles.navSecao}>Plataforma</span>
+            {itensDaPlataforma.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navItem} ${isActive(item.href) ? styles.navActive : ''}`}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+        ) : null}
 
         {/*
           Ponto fixo de acesso aos documentos legais — RF-01.

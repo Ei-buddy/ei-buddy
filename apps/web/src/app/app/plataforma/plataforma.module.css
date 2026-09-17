@@ -1,0 +1,10 @@
+.texto {
+  max-width: 62ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--app-muted);
+}
+
+.texto + .texto {
+  margin-top: 10px;
+}

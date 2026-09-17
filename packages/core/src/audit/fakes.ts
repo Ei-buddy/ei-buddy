@@ -89,6 +89,31 @@ export class InMemoryAuditQueries implements AuditQueries {
     this.linhas.push(entrada)
   }
 
+  async listActors(companyId: CompanyId) {
+    const porPessoa = new Map<
+      string,
+      { actorName: string | null; entries: number; lastActionAt: string }
+    >()
+
+    for (const l of this.linhas.filter((l) => l.companyId === companyId)) {
+      const atual = porPessoa.get(l.actorId)
+      porPessoa.set(l.actorId, {
+        actorName: l.actorName,
+        entries: (atual?.entries ?? 0) + 1,
+        /* O mais recente de cada um: e por ele que a lista se ordena, porque
+           quem audita procura primeiro quem mexeu por ultimo. */
+        lastActionAt:
+          atual === undefined || l.occurredAt > atual.lastActionAt
+            ? l.occurredAt
+            : atual.lastActionAt,
+      })
+    }
+
+    return [...porPessoa.entries()]
+      .map(([actorId, dados]) => ({ actorId, ...dados }))
+      .sort((a, b) => b.lastActionAt.localeCompare(a.lastActionAt))
+  }
+
   async list(companyId: CompanyId, filtro: AuditQueryInput) {
     const casa = this.linhas
       .filter((l) => l.companyId === companyId)

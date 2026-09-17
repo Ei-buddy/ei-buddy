@@ -3,7 +3,7 @@ import { isAppError } from '../app-error.js'
 import type { Role } from '@na-regua/contracts'
 import type { ExecutionContext } from '../context.js'
 import { InMemoryAuditQueries } from './fakes.js'
-import { listAuditTrail } from './list-audit-trail.js'
+import { listAuditActors, listAuditTrail } from './list-audit-trail.js'
 
 /**
  * Consultar a trilha — US-061.
@@ -133,6 +133,58 @@ describe('consultar a trilha de auditoria — US-061', () => {
     expect(r.entries).toHaveLength(2)
     expect(r.total).toBe(5)
     expect(r.pageSize).toBe(2)
+  })
+})
+
+/**
+ * A lista de quem agiu — a tela abre por ela (US-061).
+ *
+ * Mostrar a trilha inteira de cara e ilegivel numa loja com movimento: quem
+ * audita comeca por "quem", e so depois olha o que aquela pessoa fez.
+ */
+describe('quem agiu na loja', () => {
+  it('agrupa por pessoa, com quantas acoes cada uma tem', async () => {
+    const c = cenario()
+    c.auditQueries.adicionar(entrada({ actorId: 'func-1', actorName: 'Marta' }))
+    c.auditQueries.adicionar(entrada({ actorId: 'func-1', actorName: 'Marta' }))
+    c.auditQueries.adicionar(entrada({ actorId: 'func-2', actorName: 'Joao' }))
+
+    const r = await listAuditActors(c.deps, ctx('owner'))
+
+    expect(r.actors).toHaveLength(2)
+    expect(r.actors.find((a) => a.actorId === 'func-1')?.entries).toBe(2)
+  })
+
+  it('quem mexeu por ultimo aparece primeiro', async () => {
+    const c = cenario()
+    c.auditQueries.adicionar(entrada({ actorId: 'antigo', occurredAt: '2026-09-01T10:00:00.000Z' }))
+    c.auditQueries.adicionar(
+      entrada({ actorId: 'recente', occurredAt: '2026-09-15T10:00:00.000Z' }),
+    )
+
+    const r = await listAuditActors(c.deps, ctx('owner'))
+
+    expect(r.actors[0]?.actorId).toBe('recente')
+  })
+
+  it('funcionario nao ve nem a lista de quem agiu', async () => {
+    const c = cenario()
+    c.auditQueries.adicionar(entrada())
+
+    const erro = await pegaErro(() => listAuditActors(c.deps, ctx('staff')))
+
+    /* A lista sozinha ja e auditoria: "Marta: 340 acoes" diz o movimento da
+       colega sem mostrar uma linha sequer. */
+    expect(isAppError(erro) && erro.code).toBe('FORBIDDEN')
+  })
+
+  it('so conta a loja do contexto', async () => {
+    const c = cenario()
+    c.auditQueries.adicionar(entrada({ companyId: OUTRA, actorId: 'de-fora' }))
+
+    const r = await listAuditActors(c.deps, ctx('owner'))
+
+    expect(r.actors).toEqual([])
   })
 })
 

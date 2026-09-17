@@ -1,12 +1,8 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 import { chamarApi, chamarApiArquivo } from './api-server'
 import { SESSION_COOKIE } from './session'
-
-/** Cabecalho que carrega a chave provisoria da lista de espera — NR-111. */
-const CABECALHO_CHAVE_LISTA_VIP = 'x-waitlist-admin-key'
 
 /**
  * O encaminhamento do BFF, num lugar so — NR-013, NR-076.
@@ -87,39 +83,6 @@ export async function encaminhar(
        * qual a tela de clientes recebe os candidatos a duplicata.
        */
       NextResponse.json(r.corpo ?? { error: { code: r.code, message: r.message } }, {
-        status: r.status,
-      })
-}
-
-/**
- * Encaminha com sessao OU com a chave provisoria da lista de espera — NR-111.
- *
- * So para `/admin/lista-vip*`: antes de existir o primeiro Super Admin, a
- * pagina roda sem sessao e manda a chave no cabecalho em vez do cookie. A api
- * confere a chave (`chaveValida`, em `routes/waitlist.ts`); aqui so decide o
- * que repassar. Recusa cedo apenas quando FALTAM as duas provas — sessao E
- * chave — porque so a api sabe se a chave apresentada e a certa.
- *
- * Remover quando o painel exigir sessao de verdade (ver o comentario em
- * `proxy.ts`) e voltar a usar `encaminhar` como as outras rotas de `/admin`.
- */
-export async function encaminharComChave(
-  caminho: string,
-  request: NextRequest,
-): Promise<NextResponse> {
-  const chave = request.headers.get(CABECALHO_CHAVE_LISTA_VIP)
-  const token = (await cookies()).get(SESSION_COOKIE)?.value
-
-  if (token === undefined && chave === null) return semSessao()
-
-  const r = await chamarApi(caminho, {
-    token,
-    ...(chave === null ? {} : { headers: { [CABECALHO_CHAVE_LISTA_VIP]: chave } }),
-  })
-
-  return r.ok
-    ? NextResponse.json(r.dados ?? { ok: true }, { status: r.status })
-    : NextResponse.json(r.corpo ?? { error: { code: r.code, message: r.message } }, {
         status: r.status,
       })
 }
