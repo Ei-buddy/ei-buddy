@@ -6,7 +6,16 @@ import { useState, type FormEvent } from 'react'
 import type { SessionUser } from '@/lib/session'
 import { entrar, escolherEmpresa } from '@/lib/session-client'
 import { validateCredential, validateLoginPassword, type FieldError } from '@/lib/validation'
-import { Alert, FormFooter, FormHeader, PasswordField, SubmitButton, TextField } from './Fields'
+import {
+  Alert,
+  FormFooter,
+  FormHeader,
+  IconeEmail,
+  IconeSenha,
+  PasswordField,
+  SubmitButton,
+  TextField,
+} from './Fields'
 import loginStyles from './login.module.css'
 
 /** O papel na tela e em portugues, nao o valor do contrato. */
@@ -186,6 +195,7 @@ export default function LoginForm() {
           placeholder="voce@empresa.com.br"
           autoComplete="username"
           disabled={loading}
+          icone={<IconeEmail />}
         />
 
         <PasswordField
@@ -199,6 +209,7 @@ export default function LoginForm() {
           error={passwordError}
           autoComplete="current-password"
           disabled={loading}
+          icone={<IconeSenha />}
         />
 
         <div className={loginStyles.forgotRow}>
