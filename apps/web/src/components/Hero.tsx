@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { highlights, PRE_LANCAMENTO } from '@/content/site'
+import { highlights, perguntasDoHero, PRE_LANCAMENTO } from '@/content/site'
 import { IconArrowRight, IconBolt, IconTrendUp } from './Icons'
+import TituloQueGira from './TituloQueGira'
 import styles from './Hero.module.css'
 
 /** Alturas do grafico do mockup, em % — apenas ilustrativas. */
@@ -28,9 +29,17 @@ export default function Hero() {
             Gestão para pequenos e médios negócios
           </span>
 
+          {/*
+            A promessa fixa em cima, o que ela cobre girando embaixo — NR-125.
+            As frases vem de `content/site.ts`, e cada uma completa esta
+            mesma linha.
+          */}
           <h1 className={styles.title}>
-            Seu negócio inteiro,
-            <br />a um <span className="gradientText">WhatsApp</span> de distância
+            {/* Sem gradiente na parte fixa: o destaque agora pertence a linha
+                que gira, e duas linhas em gradiente seguidas disputavam o
+                olho — nenhuma das duas vencia. */}
+            Pergunte pelo WhatsApp
+            <TituloQueGira frases={perguntasDoHero} />
           </h1>
 
           <p className={styles.lead}>
