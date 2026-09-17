@@ -265,7 +265,7 @@ export type {
 } from './ports/identity.js'
 
 /* --- Trilha de auditoria: leitura — US-061 --- */
-export { listAuditTrail } from './audit/list-audit-trail.js'
+export { listAuditActors, listAuditTrail } from './audit/list-audit-trail.js'
 export type { ListAuditTrailDeps } from './audit/list-audit-trail.js'
 export type { AuditQueries } from './ports/audit-trail.js'
 export { InMemoryAuditQueries } from './audit/fakes.js'

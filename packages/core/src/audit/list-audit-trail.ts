@@ -1,4 +1,4 @@
-import type { AuditLogOutput, AuditQueryInput } from '@na-regua/contracts'
+import type { AuditActorsOutput, AuditLogOutput, AuditQueryInput } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import type { AuditQueries } from '../ports/audit-trail.js'
@@ -47,4 +47,22 @@ export async function listAuditTrail(
     page: input.page,
     pageSize: input.pageSize,
   }
+}
+
+/**
+ * Quem agiu na loja — a porta de entrada da auditoria (US-061).
+ *
+ * Mesma regra de papel de `listAuditTrail`, e pelo mesmo motivo: a lista de
+ * quem mexeu em que ja e informacao de auditoria. Um funcionario que visse
+ * "Marta: 340 acoes" saberia o movimento da colega sem ver uma linha.
+ */
+export async function listAuditActors(
+  deps: ListAuditTrailDeps,
+  ctx: ExecutionContext,
+): Promise<AuditActorsOutput> {
+  if (ctx.role !== 'owner') {
+    throw AppError.forbidden('Somente o responsável pela loja vê a trilha de auditoria.')
+  }
+
+  return { actors: [...(await deps.auditQueries.listActors(ctx.companyId))] }
 }

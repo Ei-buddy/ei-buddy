@@ -1,4 +1,5 @@
 import type {
+  AuditActor,
   AuditAction,
   AuditEntryOutput,
   AuditLogEntry,
@@ -86,6 +87,15 @@ export type TransactionalAuditTrail = AuditTrail
  * fica registrada. Quem olha a trilha de alguem deixa rastro de que olhou.
  */
 export type AuditQueries = {
+  /**
+   * Quem agiu na loja, agrupado por pessoa — US-061.
+   *
+   * A trilha inteira de uma loja movimentada e ilegivel de cara. Quem audita
+   * comeca por "quem", e so depois olha o que aquela pessoa fez: esta consulta
+   * e a primeira metade dessa pergunta.
+   */
+  listActors(companyId: CompanyId): Promise<readonly AuditActor[]>
+
   list(
     companyId: CompanyId,
     filtro: AuditQueryInput,

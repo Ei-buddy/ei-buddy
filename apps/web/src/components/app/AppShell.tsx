@@ -91,8 +91,7 @@ const navItems: NavItem[] = [
  * entre os modulos da loja — o Super Admin a ve depois de entrar numa.
  */
 const itensDaPlataforma: NavItem[] = [
-  { href: '/app/plataforma/empresas', label: 'Empresas', icon: IconStore },
-  { href: '/app/plataforma/usuarios', label: 'Usuários', icon: IconUsers },
+  { href: '/app/plataforma/cargos', label: 'Cargos e Super Admin', icon: IconShield },
   { href: '/app/plataforma/lista-vip', label: 'Lista de espera', icon: IconList },
   { href: '/app/plataforma/parceiros', label: 'Parceiros', icon: IconHeart },
 ]
@@ -222,7 +221,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
    */
   async function sairDoAdmin() {
     const r = await sairDoModoAdmin()
-    if (r.ok) router.push('/app/plataforma/empresas')
+    if (r.ok) router.push('/app/plataforma/cargos')
   }
 
   return (

@@ -72,18 +72,6 @@
   color: var(--app-text);
 }
 
-.autor {
-  font-weight: 600;
-  color: var(--app-text);
-  text-decoration: underline;
-  text-decoration-color: var(--app-border);
-  text-underline-offset: 3px;
-}
-
-.autor:hover {
-  text-decoration-color: currentColor;
-}
-
 .oque {
   min-width: 0;
 }
@@ -181,4 +169,97 @@
   font-size: 12.5px;
   color: var(--app-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* --- Lista de pessoas — a tela abre por aqui --- */
+
+.busca {
+  width: 100%;
+  max-width: 340px;
+  margin-bottom: 16px;
+}
+
+.pessoas {
+  display: grid;
+  gap: 8px;
+}
+
+.pessoa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  background: var(--app-field);
+  color: var(--app-text);
+  transition: border-color var(--transition);
+}
+
+.pessoa:hover {
+  border-color: var(--app-accent);
+}
+
+.pessoaAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pessoaTexto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pessoaNome {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pessoaDetalhe {
+  font-size: 12.5px;
+  color: var(--app-muted);
+}
+
+.pessoaContagem {
+  font-size: 12.5px;
+  color: var(--app-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .pessoaDetalhe {
+    display: none;
+  }
+}
+
+/* --- Voltar, na trilha de uma pessoa --- */
+
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--app-muted);
+  font-size: 13px;
+  transition: color var(--transition);
+}
+
+.voltar:hover {
+  color: var(--app-text);
 }

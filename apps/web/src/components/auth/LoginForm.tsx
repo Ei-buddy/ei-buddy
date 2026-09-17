@@ -87,7 +87,7 @@ export default function LoginForm() {
     /* Super Admin sem loja nenhuma: sem este desvio cairia no "conta sem
        vinculo" logo abaixo, que e o erro certo para todo MUNDO menos ele. */
     if (sessao.isPlatformAdmin) {
-      router.push('/app/plataforma/empresas')
+      router.push('/app/plataforma/cargos')
       return
     }
 

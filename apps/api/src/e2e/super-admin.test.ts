@@ -251,6 +251,24 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
     await comToken(adminToken, { method: 'POST', url: '/admin/sair' })
   })
 
+  it('GET /auditoria/pessoas lista quem agiu, com quantas acoes cada um', async () => {
+    const r = await comToken(donoToken, { method: 'GET', url: '/auditoria/pessoas' })
+
+    expect(r.statusCode).toBe(200)
+    const corpo = r.json() as { actors: { actorName: string | null; entries: number }[] }
+    const superAdmin = corpo.actors.find((a) => a.actorName === 'Super Admin de Teste')
+
+    expect(superAdmin?.entries).toBeGreaterThan(0)
+  })
+
+  it('funcionario nao ve nem a lista de quem agiu', async () => {
+    const r = await comToken(adminToken, { method: 'GET', url: '/auditoria/pessoas' })
+
+    /* Sem estar dentro de uma loja, nem o Super Admin le a trilha: ela e da
+       loja, e a entrada dele fica registrada. */
+    expect(r.statusCode).toBe(401)
+  })
+
   it('a dona da loja tambem ve o que o Super Admin fez na loja dela', async () => {
     const r = await comToken(donoToken, { method: 'GET', url: '/auditoria' })
 

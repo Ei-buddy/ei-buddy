@@ -50,7 +50,7 @@ export default function PlataformaLayout({ children }: { children: ReactNode }) 
             registrado quem concedeu e quando — é o que permite auditar depois.
           </p>
           <p className={styles.texto}>
-            Peça a um Super Admin que abra <strong>Plataforma › Usuários</strong> e mude o seu
+            Peça a um Super Admin que abra <strong>Cargos e Super Admin</strong> e mude o seu
             perfil. Sua loja continua funcionando normalmente pelo resto do menu.
           </p>
         </Card>

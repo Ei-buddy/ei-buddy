@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   listarTrilha,
   ROTULO_ACAO,
@@ -21,40 +22,42 @@ import {
   PageHeader,
   Select,
 } from '@/components/ui/UI'
+import { IconArrowLeft } from '@/components/Icons'
 import styles from './auditoria.module.css'
 
 const TAMANHO_DA_PAGINA = 50
 
-type Autor = { id: string; nome: string }
-
 /**
- * Trilha de auditoria da loja — US-061.
+ * O que UMA pessoa fez na loja — US-061.
  *
- * A pergunta que a tela responde e "quem mexeu nisso?", e por isso o filtro
- * de pessoa nasce de um clique no nome, e nao de uma lista de funcionarios:
- * a lista da equipe nao tem quem ja saiu nem o Super Admin que entrou na loja
- * — justamente os dois que mais interessam a quem audita.
+ * Segunda metade da tela de auditoria: a primeira escolhe a pessoa, esta
+ * mostra a trilha dela. A separacao e o que tira a poluicao — a trilha de
+ * todo mundo junta e ilegivel numa loja com movimento, e ninguem abre a
+ * auditoria sem ter em mente de quem esta atras.
+ *
+ * O nome sai da primeira linha que voltar, e nao de uma consulta a parte:
+ * quem tem trilha aqui tem pelo menos um registro, e o registro ja carrega o
+ * nome (inclusive de quem saiu da loja).
  */
-export default function AuditoriaView() {
+export default function TrilhaDaPessoa({ actorId }: { actorId: string }) {
   const [pagina, setPagina] = useState<PaginaDaTrilha | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
 
   const [entidade, setEntidade] = useState('')
   const [acao, setAcao] = useState<AcaoDaTrilha | ''>('')
-  const [autor, setAutor] = useState<Autor | null>(null)
   const [de, setDe] = useState('')
   const [ate, setAte] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
 
-  /* O efeito so busca; quem mexe no filtro liga `carregando` (mesmo padrao de
-     AdminListaVipView — setState sincrono no efeito renderiza em cascata). */
+  /* O efeito so busca; quem mexe no filtro liga `carregando` — setState
+     sincrono no corpo do efeito renderiza em cascata. */
   useEffect(() => {
     void (async () => {
       const r = await listarTrilha({
+        actorId,
         ...(entidade === '' ? {} : { entity: entidade }),
         ...(acao === '' ? {} : { action: acao }),
-        ...(autor === null ? {} : { actorId: autor.id }),
         /* O dia escolhido e o dia LOCAL de quem olha: "hoje" no Brasil comeca
            tres horas depois do "hoje" em UTC. */
         ...(de === '' ? {} : { from: new Date(`${de}T00:00:00`).toISOString() }),
@@ -70,7 +73,7 @@ export default function AuditoriaView() {
         setErro(r.erro)
       }
     })()
-  }, [entidade, acao, autor, de, ate, paginaAtual])
+  }, [actorId, entidade, acao, de, ate, paginaAtual])
 
   /** Toda mudanca de filtro volta para a primeira pagina. */
   function filtrar(aplicar: () => void) {
@@ -80,13 +83,23 @@ export default function AuditoriaView() {
   }
 
   const ultimaPagina = Math.max(1, Math.ceil((pagina?.total ?? 0) / TAMANHO_DA_PAGINA))
-  const temFiltro = entidade !== '' || acao !== '' || autor !== null || de !== '' || ate !== ''
+  const temFiltro = entidade !== '' || acao !== '' || de !== '' || ate !== ''
+  const nome = pagina?.entries[0]?.actorName ?? null
 
   return (
     <>
+      <Link href="/app/auditoria" className={styles.voltar}>
+        <IconArrowLeft size={16} />
+        Todas as pessoas
+      </Link>
+
       <PageHeader
-        title="Auditoria"
-        subtitle="Quem fez o quê na loja, quando e por qual canal. Nenhum registro pode ser apagado ou editado."
+        title={nome ?? 'Usuário removido'}
+        subtitle={
+          pagina === null
+            ? 'Auditoria'
+            : `${pagina.total} ${pagina.total === 1 ? 'ação registrada' : 'ações registradas'} nesta loja.`
+        }
       />
 
       <Card>
@@ -142,22 +155,8 @@ export default function AuditoriaView() {
           </Field>
         </FormGrid>
 
-        <div className={styles.chips}>
-          {autor !== null ? (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={() => filtrar(() => setAutor(null))}
-              aria-label={`Remover filtro de pessoa: ${autor.nome}`}
-            >
-              Só {autor.nome} <span aria-hidden="true">×</span>
-            </button>
-          ) : (
-            <span className={styles.dica}>
-              Clique no nome de alguém para ver só o que essa pessoa fez.
-            </span>
-          )}
-          {temFiltro ? (
+        {temFiltro ? (
+          <div className={styles.chips}>
             <button
               type="button"
               className={styles.limpar}
@@ -165,7 +164,6 @@ export default function AuditoriaView() {
                 filtrar(() => {
                   setEntidade('')
                   setAcao('')
-                  setAutor(null)
                   setDe('')
                   setAte('')
                 })
@@ -173,8 +171,8 @@ export default function AuditoriaView() {
             >
               Limpar filtros
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         {erro !== null ? (
           <EmptyState title="Não deu para carregar a trilha" description={erro} />
@@ -184,13 +182,13 @@ export default function AuditoriaView() {
           <EmptyState
             title="Nenhum registro encontrado"
             description={
-              temFiltro ? 'Tente afrouxar os filtros.' : 'As ações feitas na loja aparecem aqui.'
+              temFiltro ? 'Tente afrouxar os filtros.' : 'Esta pessoa não tem ações registradas.'
             }
           />
         ) : (
           <ul className={`${styles.lista} ${carregando ? styles.atualizando : ''}`}>
             {pagina.entries.map((r) => (
-              <Linha key={r.id} registro={r} aoEscolherAutor={(a) => filtrar(() => setAutor(a))} />
+              <Linha key={r.id} registro={r} />
             ))}
           </ul>
         )}
@@ -229,27 +227,18 @@ export default function AuditoriaView() {
   )
 }
 
-function Linha({
-  registro: r,
-  aoEscolherAutor,
-}: {
-  registro: RegistroDaTrilha
-  aoEscolherAutor: (autor: Autor) => void
-}) {
+/**
+ * Uma acao da pessoa.
+ *
+ * Sem o nome de quem fez: a tela inteira e de uma pessoa so, e repetir o nome
+ * em cada linha seria a poluicao que esta separacao veio resolver.
+ */
+function Linha({ registro: r }: { registro: RegistroDaTrilha }) {
   const mudancas = diferencas(r.before, r.after)
-  const nome = r.actorName ?? 'Usuário removido'
 
   return (
     <li className={styles.item}>
       <div className={styles.cabecalho}>
-        <button
-          type="button"
-          className={styles.autor}
-          onClick={() => aoEscolherAutor({ id: r.actorId, nome })}
-          title="Ver só o que esta pessoa fez"
-        >
-          {nome}
-        </button>
         <span className={styles.oque}>
           {ROTULO_ACAO[r.action] ?? r.action} ·{' '}
           <strong>{ROTULO_ENTIDADE[r.entity] ?? r.entity}</strong>

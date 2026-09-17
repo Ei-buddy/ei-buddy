@@ -148,3 +148,24 @@ export const auditLogOutputSchema = z.object({
 })
 
 export type AuditLogOutput = z.infer<typeof auditLogOutputSchema>
+
+/**
+ * Quem agiu na loja, uma linha por pessoa — US-061.
+ *
+ * A tela da trilha abria com centenas de linhas soltas, e quem audita nao
+ * comeca por "o que aconteceu", comeca por "quem". Esta e a primeira
+ * pergunta; a trilha de cada um vem depois, ja recortada.
+ */
+export const auditActorSchema = z.object({
+  actorId: idSchema,
+  /** Nulo quando o autor nao existe mais — a trilha sobrevive a ele. */
+  actorName: z.string().nullable(),
+  entries: z.number().int(),
+  lastActionAt: z.string(),
+})
+
+export type AuditActor = z.infer<typeof auditActorSchema>
+
+export const auditActorsOutputSchema = z.object({ actors: z.array(auditActorSchema) })
+
+export type AuditActorsOutput = z.infer<typeof auditActorsOutputSchema>

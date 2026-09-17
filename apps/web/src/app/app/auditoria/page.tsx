@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { BRAND } from '@/content/site'
-import AuditoriaView from '@/components/auditoria/AuditoriaView'
+import AuditoriaPessoas from '@/components/auditoria/AuditoriaPessoas'
 
 export const metadata: Metadata = {
   title: `Auditoria — ${BRAND}`,
-  description: 'Quem fez o quê na loja, quando e por qual canal.',
+  description: 'Escolha uma pessoa para ver o que ela fez na loja.',
 }
 
 export default function AuditoriaPage() {
-  return <AuditoriaView />
+  return <AuditoriaPessoas />
 }
