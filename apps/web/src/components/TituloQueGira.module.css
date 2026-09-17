@@ -1,0 +1,61 @@
+/*
+ * A linha que gira no titulo do hero — NR-125.
+ *
+ * `overflow: hidden` e o que faz a frase ENTRAR e SAIR em vez de aparecer e
+ * sumir: sem ele, as frases de fora ficariam visiveis por cima do resto do
+ * hero enquanto deslizam.
+ */
+
+.palco {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  /*
+   * Menor que a linha fixa acima, e por dois motivos.
+   *
+   * Hierarquia: "Pergunte pelo WhatsApp" e a promessa, a frase que gira e o
+   * exemplo — ler as duas no mesmo tamanho apaga essa diferenca.
+   *
+   * E cabimento: no corpo do titulo (66px no desktop) uma frase de dezessete
+   * caracteres quebrava em duas linhas, o titulo ia a quatro linhas e o
+   * mockup ao lado descia junto.
+   */
+  font-size: 0.64em;
+  /* Folga em cima e embaixo para a mola poder passar do ponto sem cortar
+     acentos e cedilha — `stiffness` baixo faz a frase ultrapassar um pouco
+     antes de assentar. */
+  padding-block: 0.12em;
+}
+
+/*
+ * Reserva a altura, sem aparecer.
+ *
+ * `visibility: hidden` em vez de `display: none` ou `opacity: 0`: precisa
+ * ocupar espaco (senao nao reserva nada) e nao pode ser lido nem clicado.
+ */
+.medida {
+  visibility: hidden;
+  display: block;
+  /* Mesmo `nowrap` da frase de verdade: se a medida quebrasse e a frase nao
+     (ou o contrario), o bloco reservaria a altura errada. */
+  white-space: nowrap;
+}
+
+.frase {
+  position: absolute;
+  inset: 0;
+  display: block;
+  /* Uma linha, sempre: a altura reservada e de uma linha so, e uma frase que
+     quebrasse vazaria para fora do bloco recortado. */
+  white-space: nowrap;
+  /* Gradiente da marca na frase que gira: e ela que carrega o destaque do
+     titulo agora, no lugar da palavra fixa que o tinha antes. */
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Sem isto a descida da mola corta o rabo do "q" e do "ç" em algumas
+     fontes, porque o texto pintado por `background-clip` nao respeita o
+     transbordo da linha. */
+  padding-block: 0.06em;
+}

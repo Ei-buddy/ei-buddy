@@ -64,6 +64,26 @@ export const nav = [
  * TODO: quando houver numero real de empresas ativas ou volume processado,
  * uma barra de metricas pode voltar — com dado apurado, nao estimado.
  */
+/**
+ * As perguntas que giram no titulo do hero — NR-125.
+ *
+ * Ficam aqui, e nao dentro do componente, pelo mesmo motivo do resto deste
+ * arquivo: sao CONTEUDO. Trocar o que o titulo promete e editar esta lista.
+ *
+ * Cada uma corresponde a algo que o assistente responde de verdade hoje —
+ * faturamento, contas a receber, reposicao e vencimentos. Sao as mesmas
+ * quatro capacidades que a secao do assistente lista logo abaixo, ditas do
+ * jeito que a lojista pergunta. Promessa que a tela nao cumpre nao entra.
+ *
+ * Todas completam a frase "Pergunte pelo WhatsApp ___".
+ */
+export const perguntasDoHero = [
+  'quanto vendi hoje',
+  'quem está devendo',
+  'o que falta repor',
+  'o que vence sexta',
+]
+
 export const highlights = [
   'Gestão completa do negócio',
   'Assistente por WhatsApp',
