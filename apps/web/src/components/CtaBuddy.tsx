@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { PRE_LANCAMENTO } from '@/content/site'
 import { IconArrowRight } from './Icons'
+import GridBloomBackground from './fundos/GridBloomBackground'
 import styles from './CtaBuddy.module.css'
 
 /**
@@ -17,6 +18,10 @@ export default function CtaBuddy() {
     <section className={`section ${styles.section}`}>
       <div className="container">
         <div className={styles.card}>
+          {/* Fundo interativo, atras do texto e do Buddy — NR-130. Dentro do
+              cartao, e nao da secao: o cartao tem fundo proprio e cobriria. */}
+          <GridBloomBackground tema="claro" />
+
           <div className={styles.copy}>
             <span className={styles.badge}>
               {PRE_LANCAMENTO ? 'Ajude a construir' : 'Comece hoje'}

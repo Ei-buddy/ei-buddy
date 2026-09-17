@@ -14,6 +14,8 @@ type FeatureSectionProps = {
   reverse?: boolean
   /** Fundo levemente acinzentado, para separar blocos vizinhos. */
   muted?: boolean
+  /** Camada decorativa atras do conteudo, como os fundos interativos — NR-130. */
+  fundo?: ReactNode
 }
 
 export default function FeatureSection({
@@ -25,9 +27,14 @@ export default function FeatureSection({
   visual,
   reverse = false,
   muted = false,
+  fundo,
 }: FeatureSectionProps) {
   return (
-    <section className={`section ${styles.section} ${muted ? styles.muted : ''}`} id={id}>
+    <section
+      className={`section ${styles.section} ${muted ? styles.muted : ''} ${fundo ? styles.comFundo : ''}`}
+      id={id}
+    >
+      {fundo}
       <div className={`container ${styles.grid} ${reverse ? styles.reverse : ''}`}>
         <div className={styles.copy}>
           <span className="eyebrow">{eyebrow}</span>

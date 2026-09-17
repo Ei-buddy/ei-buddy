@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { BRAND } from '@/content/site'
 import { IconArrowRight, IconBag, IconBox, IconTrendUp, IconWallet } from './Icons'
+import ConstellationBackground from './fundos/ConstellationBackground'
 import styles from './DashboardPreview.module.css'
 
 const salesBars = [42, 58, 47, 71, 63, 88, 76]
@@ -8,7 +9,10 @@ const salesBars = [42, 58, 47, 71, 63, 88, 76]
 export default function DashboardPreview() {
   return (
     <section className={styles.section} id="painel">
-      <div className="container">
+      {/* Fundo interativo, atras de tudo — NR-130. */}
+      <ConstellationBackground tema="escuro" />
+
+      <div className={`container ${styles.conteudo}`}>
         <header className={styles.head}>
           <span className={styles.eyebrow}>Painel</span>
           <h2 className={styles.title}>
