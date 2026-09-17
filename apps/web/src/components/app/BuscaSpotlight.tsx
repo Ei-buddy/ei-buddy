@@ -11,6 +11,7 @@ import {
   type TipoDeResultado,
 } from '@/lib/busca-api'
 import { IconSearch } from '@/components/Icons'
+import { marcarSaida } from '@/lib/saida-de-pagina'
 import styles from './BuscaSpotlight.module.css'
 
 /**
@@ -204,6 +205,9 @@ export default function BuscaSpotlight({ telas }: { telas: readonly TelaBuscavel
     fechar()
     /* `router.push`, e nao `<a href>`: e tela do proprio app, e recarregar a
        pagina inteira jogaria fora a sessao ja carregada e o estado do painel. */
+    /* A mesma saida da barra lateral — NR-133: a navegacao pela busca e uma
+       troca de tela como qualquer outra. */
+    marcarSaida(item.href, window.location.pathname)
     router.push(item.href)
   }
 

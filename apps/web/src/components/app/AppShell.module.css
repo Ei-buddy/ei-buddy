@@ -1080,16 +1080,25 @@
  * para a tela ter vida, longe de uma cascata que se faz notar toda vez que a
  * pessoa entra — e ela entra todo dia.
  */
+/*
+ * `backwards`, e nao `both` — NR-133.
+ *
+ * `both` mantem o ultimo quadro aplicado PARA SEMPRE, e estilo de animacao
+ * vence declaracao normal: com ele, a saida de tela (NR-133) pedia opacidade
+ * zero e nao acontecia nada, porque a chegada continuava mandando. O
+ * `backwards` cobre o atraso inicial, que e o que importa aqui, e devolve o
+ * elemento as regras normais quando termina.
+ */
 .sidebar {
-  animation: chegadaDaBarra 420ms var(--ease) both;
+  animation: chegadaDaBarra 420ms var(--ease) backwards;
 }
 
 .topbar {
-  animation: chegadaDoTopo 380ms var(--ease) 60ms both;
+  animation: chegadaDoTopo 380ms var(--ease) 60ms backwards;
 }
 
 .content {
-  animation: chegadaDoConteudo 420ms var(--ease) 120ms both;
+  animation: chegadaDoConteudo 420ms var(--ease) 120ms backwards;
 }
 
 /* So opacidade na barra: ela ja usa `transform` para deslizar no celular, e
