@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import BuddyDoPreLancamento from './BuddyDoPreLancamento'
 import { IconArrowRight, IconSparkles } from './Icons'
 import styles from './PreLancamentoBanner.module.css'
 
@@ -35,6 +36,9 @@ export default function PreLancamentoBanner() {
           <IconArrowRight size={18} />
         </Link>
       </div>
+
+      {/* Ele chega depois do texto e sai quando a secao sai — NR-135. */}
+      <BuddyDoPreLancamento />
     </section>
   )
 }

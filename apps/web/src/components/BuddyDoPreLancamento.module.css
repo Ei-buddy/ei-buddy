@@ -1,0 +1,182 @@
+/*
+ * O Buddy do topo da landing — NR-135.
+ *
+ * No desktop ele fica solto no canto direito da secao, onde havia espaco
+ * vazio; no celular entra no fluxo, abaixo do botao, porque ao lado do texto
+ * nao cabe sem espremer a leitura.
+ */
+
+.ancora {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  /* A folga de cima e onde o balao cabe: ele fica ACIMA do Buddy, e sem ela
+     encostaria no botao. */
+  margin-top: 96px;
+}
+
+.palco {
+  position: relative;
+  width: 170px;
+}
+
+.buddy {
+  position: relative;
+  /* Altura fixa porque a imagem usa `fill`: sem ela o contentor colapsa. */
+  height: 190px;
+}
+
+.imagem {
+  object-fit: contain;
+  /* Ele pisa na base do bloco — e onde a sombra o espera. */
+  object-position: bottom center;
+}
+
+/*
+ * A sombra sob os pes.
+ *
+ * Elipse bem mais larga que alta, e nao circulo achatado por `transform`: o
+ * pulso ja usa a escala, e duas coisas disputando a mesma propriedade brigam.
+ */
+.sombra {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 120px;
+  height: 18px;
+  margin-left: -60px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.18), transparent 70%);
+  animation: respirar 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Sutil de proposito: se a sombra chamar mais atencao que ele, inverteu o
+   papel dos dois. */
+@keyframes respirar {
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+}
+
+/*
+ * O balao.
+ *
+ * Vidro claro, como o cartao de entrada (NR-129) — aqui o fundo e claro,
+ * entao o vidro e branco e nao escuro.
+ */
+.balao {
+  position: absolute;
+  /* Acima da cabeca, nunca por cima dela: sobre o rosto, o balao tapa
+     justamente quem esta falando. */
+  bottom: calc(100% - 4px);
+  left: 50%;
+  width: 208px;
+  margin-left: -104px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-align: center;
+  /* A escala da animacao de entrada parte do pe do balao, do lado do Buddy. */
+  transform-origin: 50% 100%;
+}
+
+/* A cauda: um quadrado girado, com as mesmas borda e cor do balao. As duas
+   bordas que sobrariam por dentro ficam escondidas atras do corpo dele. */
+.balao::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.85);
+  border-bottom-right-radius: 3px;
+  background: rgba(255, 255, 255, 0.82);
+  transform: rotate(45deg);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .balao,
+  .balao::after {
+    background: rgba(255, 255, 255, 0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sombra {
+    animation: none;
+  }
+}
+
+@media (min-width: 940px) {
+  /*
+   * Fora do fluxo: a coluna de texto continua centrada na secao, como estava,
+   * e o Buddy ocupa a sobra da direita sem empurrar nada.
+   */
+  .ancora {
+    position: absolute;
+    right: max(24px, 5vw);
+    /* Nao encostado na borda: a secao corta o que passa dela, e a sombra
+       (que fica abaixo dos pes) sumiria pela metade. */
+    bottom: 12px;
+    margin-top: 0;
+  }
+
+  .palco {
+    width: 260px;
+  }
+
+  .buddy {
+    height: 290px;
+  }
+
+  .sombra {
+    width: 170px;
+    height: 24px;
+    margin-left: -85px;
+  }
+
+  /*
+   * Acima dele, e nao ao lado.
+   *
+   * Ao lado, o balao invadia o titulo e a linha de apoio — a coluna de texto
+   * e centrada e larga, e a sobra da direita e só do Buddy. Em cima, ele fica
+   * na faixa vazia acima da cabeca e nao encosta em texto nenhum.
+   */
+  .balao {
+    bottom: calc(100% - 4px);
+    left: 50%;
+    width: 236px;
+    margin-left: -118px;
+    font-size: 14px;
+    transform-origin: 50% 100%;
+  }
+}
+
+/* Abaixo de 420px o Buddy ainda cabe, mas menor: o balao tem de continuar
+   legivel, e ele e quem fala. */
+@media (max-width: 420px) {
+  .palco {
+    width: 140px;
+  }
+
+  .buddy {
+    height: 155px;
+  }
+}
