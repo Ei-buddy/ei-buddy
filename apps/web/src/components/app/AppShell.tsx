@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type ComponentType,
@@ -12,6 +13,7 @@ import {
 import { BRAND } from '@/content/site'
 import { MODULOS_BLOQUEADOS } from '@/lib/access'
 import { carregarAvisos, type Aviso } from '@/lib/avisos-api'
+import MenuDoUsuario from './MenuDoUsuario'
 import { carregarPerfil, iniciaisDe, type Perfil } from '@/lib/perfil-api'
 import { sairDoModoAdmin } from '@/lib/admin-api'
 import { sair as encerrarSessao } from '@/lib/session-client'
@@ -144,6 +146,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [avisos, setAvisos] = useState<Aviso[]>([])
   const [avisosAbertos, setAvisosAbertos] = useState(false)
+  /* O sino balanca quando CHEGA aviso — nao quando some. Ver o efeito abaixo. */
+  const sino = useRef<HTMLSpanElement>(null)
+  const quantosAvisosAntes = useRef(0)
   const { bloqueado, pedirRegularizacao } = useSubscription()
 
   /* SUBSTITUIR POR: GET /suporte/chamados (ou contador dedicado) — hoje
@@ -211,6 +216,38 @@ export default function AppShell({ children }: { children: ReactNode }) {
       setAvisos(a)
     })()
   }, [])
+
+  /*
+   * O balanco do sino — NR-136.
+   *
+   * So para cima: de 2 para 3 avisos ele chama atencao, de 3 para 2 nao ha
+   * novidade nenhuma para anunciar. Animado pela api do navegador, e nao por
+   * estado, porque isto nao muda nada do que a tela mostra — e um gesto.
+   *
+   * Hoje os avisos chegam uma vez, na montagem: o balanco acontece quando eles
+   * chegam. No dia em que houver busca periodica ou tempo real, ele passa a
+   * acontecer a cada aviso novo, sem precisar mudar nada aqui.
+   */
+  useEffect(() => {
+    const agora = avisos.length
+    const subiu = agora > quantosAvisosAntes.current
+    quantosAvisosAntes.current = agora
+
+    if (!subiu || !sino.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    sino.current.animate(
+      [
+        { transform: 'rotate(0deg)' },
+        { transform: 'rotate(-15deg)' },
+        { transform: 'rotate(15deg)' },
+        { transform: 'rotate(-9deg)' },
+        { transform: 'rotate(6deg)' },
+        { transform: 'rotate(0deg)' },
+      ],
+      { duration: 520, easing: 'ease-in-out' },
+    )
+  }, [avisos.length])
 
   useEffect(() => {
     document.body.style.overflow = navOpen ? 'hidden' : ''
@@ -564,8 +601,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 aria-expanded={avisosAbertos}
                 onClick={() => setAvisosAbertos((v) => !v)}
               >
-                <IconBell size={19} />
-                {avisos.length > 0 ? <span className={styles.badgeDot} /> : null}
+                <span className={styles.sinoIcone} ref={sino}>
+                  <IconBell size={19} />
+                </span>
+                {/* O numero, e nao so um ponto: "tem coisa" e menos util que
+                    "tem tres coisas". A `key` faz o contador nascer de novo a
+                    cada mudanca, e com ele a animacao de entrada. */}
+                {avisos.length > 0 ? (
+                  <span key={avisos.length} className={styles.contadorDeAvisos}>
+                    {avisos.length}
+                  </span>
+                ) : null}
               </button>
 
               {avisosAbertos ? (
@@ -604,25 +650,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
               faz o cabecalho pular, e um nome provisorio seria a mesma mentira
               de antes, so que por menos tempo.
             */}
-            <div className={styles.user}>
-              {perfil === null ? (
-                <>
-                  <span className={`${styles.avatar} ${styles.avatarVazio}`} aria-hidden="true" />
-                  <span className={styles.userText} aria-hidden="true">
-                    <span className={styles.esqueletoLinha} />
-                    <span className={`${styles.esqueletoLinha} ${styles.esqueletoCurta}`} />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className={styles.avatar}>{iniciaisDe(perfil.userName)}</span>
-                  <span className={styles.userText}>
-                    <strong>{perfil.userName}</strong>
-                    <span>{perfil.companyName ?? 'Nenhuma loja selecionada'}</span>
-                  </span>
-                </>
-              )}
-            </div>
+            {perfil === null ? (
+              <div className={styles.user}>
+                <span className={`${styles.avatar} ${styles.avatarVazio}`} aria-hidden="true" />
+                <span className={styles.userText} aria-hidden="true">
+                  <span className={styles.esqueletoLinha} />
+                  <span className={`${styles.esqueletoLinha} ${styles.esqueletoCurta}`} />
+                </span>
+              </div>
+            ) : (
+              <MenuDoUsuario
+                nome={perfil.userName}
+                empresa={perfil.companyName ?? 'Nenhuma loja selecionada'}
+                iniciais={iniciaisDe(perfil.userName)}
+                aoSair={sair}
+              />
+            )}
 
             <button type="button" className={styles.iconButton} onClick={sair} aria-label="Sair">
               <IconLogout size={19} />
