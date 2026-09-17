@@ -26,11 +26,119 @@
   align-content: start;
   gap: 16px;
   padding: 20px 14px;
-  border-right: 1px solid var(--app-border);
-  background: var(--app-bg);
+  border-right: 1px solid var(--vidro-borda-painel);
+  background: var(--vidro-painel);
+  /*
+   * O prefixo VEM ANTES do padrao de proposito.
+   *
+   * O compilador de CSS descarta a declaracao sem prefixo quando a prefixada
+   * vem depois, e a barra ficava sem desfoque nenhum (foi o que aconteceu no
+   * cartao de login, NR-129).
+   */
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(130%);
+  /* Profundidade contra o conteudo a direita: a barra "flutua" sobre ele. */
+  box-shadow: var(--vidro-sombra-painel);
   transform: translateX(-100%);
   transition: transform 260ms var(--ease);
   overflow-y: auto;
+}
+
+/*
+ * O material da barra — NR-131.
+ *
+ * Duas camadas de vidro com intensidades diferentes: o painel e o mais sutil,
+ * cada botao e o mais definido, e e essa diferenca que faz os botoes
+ * descolarem do fundo em vez de sumirem nele.
+ *
+ * O tema ESCURO e o padrao do painel (o claro e opcional, NR-099), entao ele
+ * e quem fica aqui na definicao base — a referencia do pedido, alias, e
+ * escura. O bloco de tema claro logo abaixo troca so estes valores: e vidro
+ * claro sobre fundo claro, mesmo material, base de luz invertida.
+ */
+.sidebar {
+  --vidro-painel: linear-gradient(160deg, rgba(30, 136, 229, 0.12) 0%, rgba(14, 19, 48, 0.72) 60%);
+  --vidro-painel-solido: linear-gradient(160deg, #16204a 0%, var(--app-bg) 60%);
+  --vidro-borda-painel: rgba(255, 255, 255, 0.1);
+  --vidro-sombra-painel: 8px 0 26px -14px rgba(0, 0, 0, 0.7);
+
+  /* O brilho especular do topo: luz batendo na superficie do vidro. */
+  --vidro-brilho: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
+  --vidro-brilho-forte: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  --vidro-botao: rgba(255, 255, 255, 0.06);
+  --vidro-botao-hover: rgba(255, 255, 255, 0.1);
+  --vidro-botao-solido: #1b2450;
+  --vidro-borda: rgba(255, 255, 255, 0.08);
+  --vidro-borda-topo: rgba(255, 255, 255, 0.18);
+  --vidro-sombra: 0 4px 14px -6px rgba(0, 0, 0, 0.55);
+  --vidro-sombra-interna: inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+
+  /* O ativo e o mesmo vidro, tingido do azul da marca. */
+  --vidro-ativo: rgba(30, 136, 229, 0.26);
+  --vidro-ativo-solido: #1c3b6b;
+  --vidro-ativo-borda: rgba(100, 181, 246, 0.55);
+  /* Azul claro, e nao o #1e88e5 do tingimento: o azul cheio sobre o vidro
+     escuro fica em 3,3:1 e reprova no AA. Este passa folgado. */
+  --vidro-ativo-texto: #90caf9;
+}
+
+:global(:root[data-theme='light']) .sidebar {
+  --vidro-painel: linear-gradient(
+    160deg,
+    rgba(232, 244, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.55) 60%
+  );
+  --vidro-painel-solido: linear-gradient(160deg, #e8f4ff 0%, #ffffff 60%);
+  --vidro-borda-painel: rgba(255, 255, 255, 0.5);
+  --vidro-sombra-painel: 8px 0 26px -14px rgba(15, 42, 58, 0.22);
+
+  --vidro-brilho: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 60%);
+  --vidro-brilho-forte: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.78) 0%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  --vidro-botao: rgba(255, 255, 255, 0.55);
+  --vidro-botao-hover: rgba(255, 255, 255, 0.7);
+  --vidro-botao-solido: #ffffff;
+  --vidro-borda: rgba(255, 255, 255, 0.45);
+  --vidro-borda-topo: rgba(255, 255, 255, 0.7);
+  --vidro-sombra: 0 4px 14px -6px rgba(15, 42, 58, 0.15);
+  --vidro-sombra-interna: inset 0 -1px 2px rgba(15, 42, 58, 0.06);
+
+  --vidro-ativo: rgba(30, 136, 229, 0.16);
+  --vidro-ativo-solido: #dbeafe;
+  --vidro-ativo-borda: rgba(30, 136, 229, 0.45);
+  /* O #1e88e5 cheio da paleta da 3,7:1 sobre este vidro e reprova no AA; o
+     mesmo azul um tom abaixo passa em 5,3:1 e o olho nao distingue a
+     diferenca de matiz. */
+  --vidro-ativo-texto: #1565c0;
+}
+
+/*
+ * Sem `backdrop-filter`, vidro nenhum — cor solida equivalente.
+ *
+ * O padrao do navegador para uma propriedade que ele nao conhece e ignorar a
+ * declaracao: sem este bloco, a barra ficaria com o fundo semitransparente e
+ * NADA borrado atras, e o texto acabaria por cima do conteudo da pagina.
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sidebar {
+    background: var(--vidro-painel-solido);
+  }
+
+  .navItem {
+    background-image: var(--vidro-brilho);
+    background-color: var(--vidro-botao-solido);
+  }
+
+  .navActive {
+    background-color: var(--vidro-ativo-solido);
+  }
 }
 
 .sidebarOpen {
@@ -52,15 +160,17 @@
   color: var(--app-text);
 }
 
+/* Folga maior que os 2px de antes: cada item agora e uma peca com borda e
+   sombra, e coladas elas viravam um bloco unico. */
 .nav {
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: 5px;
 }
 
 .navGroup {
   display: grid;
-  gap: 2px;
+  gap: 5px;
 }
 
 .navGroupTitle {
@@ -74,28 +184,53 @@
   opacity: 0.75;
 }
 
+/*
+ * Cada item e uma peca de vidro — NR-131.
+ *
+ * Retangular de cantos macios (11px), e nao capsula: o pedido manteve o
+ * formato que a barra ja tinha. O `background` traz duas camadas na mesma
+ * declaracao — o brilho especular por cima, a cor do vidro por baixo — e a
+ * borda de cima, mais clara que as outras tres, e o que le como quina
+ * iluminada.
+ */
 .navItem {
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--vidro-borda);
+  border-top-color: var(--vidro-borda-topo);
+  border-radius: 11px;
+  background-image: var(--vidro-brilho);
+  background-color: var(--vidro-botao);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--vidro-sombra), var(--vidro-sombra-interna);
   font-size: 14.5px;
   color: var(--app-muted);
   transition:
     background-color var(--transition),
+    border-color var(--transition),
     color var(--transition);
 }
 
+/* Acende, e nao muda de cor: so mais vidro e mais brilho. */
 .navItem:hover {
-  background: var(--app-field);
+  background-image: var(--vidro-brilho-forte);
+  background-color: var(--vidro-botao-hover);
   color: var(--app-text);
 }
 
 .navActive {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+  background-color: var(--vidro-ativo);
+  border-top-color: var(--vidro-ativo-borda);
+  color: var(--vidro-ativo-texto);
   font-weight: 600;
+}
+
+.navActive:hover {
+  background-color: var(--vidro-ativo);
+  color: var(--vidro-ativo-texto);
 }
 
 /* Modulo restrito: continua legivel, mas sinalizado */
@@ -109,7 +244,7 @@
 
 .navLocked:hover {
   opacity: 1;
-  background: var(--warning-bg);
+  background-color: var(--warning-bg);
   color: var(--warning-text);
 }
 
@@ -450,12 +585,15 @@
 }
 
 .subItem:hover {
-  background: var(--app-field);
+  background-color: var(--vidro-botao);
   color: var(--app-text);
 }
 
+/* Sem peca de vidro propria: os subitens sao um nivel abaixo, e dar a eles a
+   mesma superficie dos itens principais achataria a hierarquia. Ativos,
+   pegam o mesmo azul do item ativo. */
 .subActive {
-  color: var(--app-accent);
+  color: var(--vidro-ativo-texto);
   font-weight: 600;
 }
 
