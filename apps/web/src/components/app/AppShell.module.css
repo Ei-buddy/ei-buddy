@@ -381,10 +381,17 @@
 
   .sidebar {
     position: sticky;
-    top: 0;
     height: 100vh;
     transform: none;
-    inset: auto;
+    /*
+     * `inset` de uma vez so, e nao `top: 0` seguido de `inset: auto`.
+     *
+     * Era assim que estava, e nessa ordem o atalho apagava o `top` que a
+     * linha anterior tinha acabado de definir — `sticky` sem `top` nao gruda
+     * em nada, e a barra subia junto com a pagina. O `auto` nos outros tres
+     * lados e o que desfaz o `inset: 0 auto 0 0` do modo celular.
+     */
+    inset: 0 auto auto auto;
   }
 
   .menuButton,
