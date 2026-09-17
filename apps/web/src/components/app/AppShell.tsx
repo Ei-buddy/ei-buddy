@@ -346,7 +346,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             /* --- Item com submenu (Financeiro) --- */
             if (item.children) {
               return (
-                <div key={item.href} className={styles.navGroup}>
+                /* Aberto, o grupo vira uma peca so — o botao e a lista dentro
+                   da mesma moldura. Fechado, e um item como os outros. */
+                <div
+                  key={item.href}
+                  className={`${styles.navGroup} ${financeiroAberto ? styles.navGroupAberto : ''}`}
+                >
                   <button
                     type="button"
                     className={`${styles.navItem} ${styles.navToggle} ${
