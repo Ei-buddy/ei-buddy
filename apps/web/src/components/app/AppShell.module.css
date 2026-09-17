@@ -497,7 +497,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--app-border);
+  /* Sem linha embaixo — NR-136: o desfoque do fundo ja separa a barra do que
+     rola por baixo dela, e a risca dividia a tela em dois. */
   /* `color-mix`, e nao um hex fixo: precisa acompanhar o tema (era so escuro
      — NR-102) e continuar semitransparente, para o `backdrop-filter` abaixo
      ter o que borrar quando o conteudo rola por baixo. */
