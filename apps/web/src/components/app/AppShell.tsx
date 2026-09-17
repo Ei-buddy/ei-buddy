@@ -2,14 +2,20 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type ReactNode,
+} from 'react'
 import { BRAND } from '@/content/site'
 import { MODULOS_BLOQUEADOS } from '@/lib/access'
 import { carregarAvisos, type Aviso } from '@/lib/avisos-api'
 import { carregarPerfil, iniciaisDe, type Perfil } from '@/lib/perfil-api'
 import { sairDoModoAdmin } from '@/lib/admin-api'
 import { sair as encerrarSessao } from '@/lib/session-client'
-import BuscaGlobal from './BuscaGlobal'
+import BuscaSpotlight, { type TelaBuscavel } from './BuscaSpotlight'
 import PaymentOverdueBanner from '../billing/PaymentOverdueBanner'
 import PaymentRequiredModal from '../billing/PaymentRequiredModal'
 import { useSubscription } from '../billing/SubscriptionProvider'
@@ -18,6 +24,12 @@ import SomToggle from './SomToggle'
 import Tutorial from '../tutorial/Tutorial'
 import { iniciarTutorial } from '@/lib/tutorial'
 import {
+  alternarSidebar,
+  assinarSidebar,
+  lerSidebarRecolhida,
+  lerSidebarRecolhidaNoServidor,
+} from '@/lib/sidebar-colapsada'
+import {
   IconBag,
   IconBank,
   IconBell,
@@ -25,6 +37,7 @@ import {
   IconCalendar,
   IconChart,
   IconChevronDown,
+  IconChevronLeft,
   IconClose,
   IconHeart,
   IconList,
@@ -120,6 +133,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [navOpen, setNavOpen] = useState(false)
+  /* Recolhida so vale no desktop; no celular a barra ja e um painel que
+     sobrepoe e some ao navegar. Ver `lib/sidebar-colapsada.ts`. */
+  const recolhida = useSyncExternalStore(
+    assinarSidebar,
+    lerSidebarRecolhida,
+    lerSidebarRecolhidaNoServidor,
+  )
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [avisos, setAvisos] = useState<Aviso[]>([])
   const [avisosAbertos, setAvisosAbertos] = useState(false)
@@ -153,6 +173,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setAvisosAbertos(false)
     if (pathname.startsWith('/app/financeiro')) setFinanceiroAberto(true)
   }
+
+  /*
+   * Esc fecha o painel de navegacao no celular — NR-126.
+   *
+   * Ele cobre a tela inteira; sem isto a unica saida e acertar a faixa
+   * estreita de fundo ao lado. Toda camada que sobrepoe o conteudo deve
+   * fechar com Esc, e esta era a unica do painel que nao fechava.
+   */
+  useEffect(() => {
+    if (!navOpen) return
+
+    function aoTeclar(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNavOpen(false)
+    }
+
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+  }, [navOpen])
 
   /*
    * O perfil e os avisos, uma vez na montagem.
@@ -224,8 +262,39 @@ export default function AppShell({ children }: { children: ReactNode }) {
     if (r.ok) router.push('/app/plataforma/cargos')
   }
 
+  /*
+   * As telas que a busca oferece — NR-126.
+   *
+   * Sai do MESMO menu que a barra monta, ja filtrado por papel: `itensDoMenu`
+   * so traz Auditoria para o dono, e a secao da plataforma so existe para
+   * Super Admin. Uma lista propria aqui divergiria no dia em que um item
+   * mudasse de lugar — e, pior, poderia revelar uma tela que a pessoa nao
+   * abre, contando o que existe do outro lado da porta.
+   */
+  const telasParaBusca: TelaBuscavel[] = [
+    ...itensDoMenu.flatMap<TelaBuscavel>((item) =>
+      item.children === undefined
+        ? [{ href: item.href, titulo: item.label }]
+        : [
+            { href: item.href, titulo: item.label },
+            ...item.children.map((sub) => ({
+              href: sub.href,
+              titulo: sub.label,
+              secao: item.label,
+            })),
+          ],
+    ),
+    ...(perfil?.isPlatformAdmin === true
+      ? itensDaPlataforma.map<TelaBuscavel>((item) => ({
+          href: item.href,
+          titulo: item.label,
+          secao: 'Plataforma',
+        }))
+      : []),
+  ]
+
   return (
-    <div className={`appTheme ${styles.shell}`}>
+    <div className={`appTheme ${styles.shell} ${recolhida ? styles.shellRecolhido : ''}`}>
       {navOpen ? (
         <button
           type="button"
@@ -236,7 +305,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
       ) : null}
 
       <aside
-        className={`${styles.sidebar} ${navOpen ? styles.sidebarOpen : ''}`}
+        className={`${styles.sidebar} ${navOpen ? styles.sidebarOpen : ''} ${
+          recolhida ? styles.sidebarRecolhida : ''
+        }`}
         id="navegacao-painel"
       >
         {/*
@@ -244,9 +315,29 @@ export default function AppShell({ children }: { children: ReactNode }) {
           saida do app que deveria existir e o botao de Sair. Clicar aqui so
           atualiza a tela atual, como um botao de refresh.
         */}
-        <button type="button" className={styles.brand} onClick={() => router.refresh()}>
-          <span className={styles.brandName}>{BRAND}</span>
-        </button>
+        <div className={styles.topoDaBarra}>
+          <button type="button" className={styles.brand} onClick={() => router.refresh()}>
+            <span className={styles.brandName}>{BRAND}</span>
+          </button>
+
+          {/*
+            Recolher e so do desktop — o CSS o esconde no celular, onde a barra
+            ja e um painel que sobrepoe e some ao navegar. `aria-expanded` diz
+            o estado, e nao o rotulo: quem usa leitor de tela ouve "barra
+            lateral, expandida" em vez de adivinhar o que a seta faz.
+          */}
+          <button
+            type="button"
+            className={styles.recolher}
+            onClick={alternarSidebar}
+            aria-expanded={!recolhida}
+            aria-controls="navegacao-painel"
+            aria-label={recolhida ? 'Expandir a barra lateral' : 'Recolher a barra lateral'}
+            title={recolhida ? 'Expandir' : 'Recolher'}
+          >
+            <IconChevronLeft size={18} />
+          </button>
+        </div>
 
         <nav className={styles.nav} aria-label="Módulos do sistema">
           {itensDoMenu.map((item) => {
@@ -266,7 +357,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     data-tutorial={item.href}
                   >
                     <Icon size={18} />
-                    {item.label}
+                    <span className={styles.navLabel}>{item.label}</span>
                     <span
                       className={`${styles.navChevron} ${
                         financeiroAberto ? styles.navChevronOpen : ''
@@ -319,7 +410,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   onClick={pedirRegularizacao}
                 >
                   <Icon size={18} />
-                  {item.label}
+                  <span className={styles.navLabel}>{item.label}</span>
                   <span className={styles.navLockIcon}>
                     <IconLockSmall />
                   </span>
@@ -334,9 +425,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 className={`${styles.navItem} ${isActive(item.href) ? styles.navActive : ''}`}
                 aria-current={isActive(item.href) ? 'page' : undefined}
                 data-tutorial={item.href}
+                /* Recolhida, so o icone aparece: sem o `title` o hover nao
+                   diria o nome de nada. O rotulo continua no DOM, escondido
+                   por CSS, entao o leitor de tela segue lendo normalmente. */
+                title={item.label}
               >
                 <Icon size={18} />
-                {item.label}
+                <span className={styles.navLabel}>{item.label}</span>
                 {/* Respostas de suporte que a pessoa ainda nao viu */}
                 {item.href === '/app/suporte' && naoLidas > 0 ? (
                   <span className={styles.navBadge} aria-label={`${naoLidas} resposta(s) nova(s)`}>
@@ -363,7 +458,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   aria-current={isActive(item.href) ? 'page' : undefined}
                 >
                   <Icon size={18} />
-                  {item.label}
+                  <span className={styles.navLabel}>{item.label}</span>
                 </Link>
               )
             })}
@@ -418,9 +513,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             {navOpen ? <IconClose size={20} /> : <IconMenu size={20} />}
           </button>
 
-          {/* O campo era um <input> sem estado e sem handler: digitar nele nao
-              fazia nada. Ver BuscaGlobal. */}
-          <BuscaGlobal />
+          {/* O campo virou gatilho: a busca agora abre no centro da tela, e
+              acha TELA alem de cliente, produto e venda. Ver BuscaSpotlight. */}
+          <BuscaSpotlight telas={telasParaBusca} />
 
           <div className={styles.topActions}>
             <div className={styles.topActionsGroup} data-tutorial="tema-som">

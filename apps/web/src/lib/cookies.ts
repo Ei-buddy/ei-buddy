@@ -107,6 +107,15 @@ export const ARMAZENAMENTO_LOCAL: readonly ArmazenamentoLocal[] = [
     duracao: 'Ate voce limpar os dados do navegador',
   },
   {
+    chave: 'nr:sidebar-recolhida',
+    /* Mesma natureza do tema: nasce de um clique seu (a seta no topo da barra
+       lateral) e existe para a barra nao voltar ao tamanho padrao a cada
+       visita depois de voce escolher. */
+    categoria: 'preferencia',
+    finalidade: 'Lembrar se voce recolheu a barra lateral do painel, deixando so os icones.',
+    duracao: 'Ate voce limpar os dados do navegador',
+  },
+  {
     chave: 'nr:tutorial-visto',
     /* Nasce sozinha, sem clique seu — mas so registra que voce ja PASSOU pelo
        tutorial guiado uma vez, sem guardar nada sobre o que voce fez nele.
