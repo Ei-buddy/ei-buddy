@@ -1,0 +1,70 @@
+/*
+ * A entrada de cada tela do painel — NR-133.
+ *
+ * Sobe 6px e aparece. A direcao e a mesma da saida (que desce), entao a tela
+ * que sai e a que entra se movem no mesmo sentido — o olho le continuidade, e
+ * nao duas coisas empurrando uma a outra.
+ */
+
+/*
+ * `backwards` e nao `both`: o estado final nao pode ficar preso, senao a
+ * saida desta mesma tela (a regra abaixo) nao consegue esmaece-la — animacao
+ * vence declaracao normal.
+ */
+.pagina {
+  animation: entradaDaTela 150ms var(--ease) backwards;
+}
+
+/*
+ * A saida da tela atual.
+ *
+ * A marca vem do clique na barra lateral (`lib/saida-de-pagina.ts`) e some
+ * quando a proxima tela monta. Curta e para cima: 120ms, no mesmo sentido da
+ * entrada da proxima — o olho le continuidade, e nao duas coisas empurrando
+ * uma a outra.
+ *
+ * `transition`, e nao `animation`: um segundo clique no meio do caminho
+ * substitui o movimento em vez de enfileirar outro.
+ */
+:global(body[data-saindo]) .pagina {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 120ms ease-in,
+    transform 120ms ease-in;
+}
+
+@keyframes entradaDaTela {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Menos movimento: o deslocamento sai, o esmaecer fica — sem ele a troca de
+   tela vira um corte seco, que e mais brusco que o movimento que se pediu
+   para tirar. */
+@media (prefers-reduced-motion: reduce) {
+  .pagina {
+    animation-name: entradaSemMovimento;
+  }
+
+  :global(body[data-saindo]) .pagina {
+    transform: none;
+  }
+
+  @keyframes entradaSemMovimento {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+}

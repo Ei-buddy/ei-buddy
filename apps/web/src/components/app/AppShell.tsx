@@ -29,6 +29,7 @@ import {
   lerSidebarRecolhida,
   lerSidebarRecolhidaNoServidor,
 } from '@/lib/sidebar-colapsada'
+import { marcarSaida } from '@/lib/saida-de-pagina'
 import {
   IconBag,
   IconBank,
@@ -394,6 +395,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                             className={`${styles.subItem} ${
                               pathname === sub.href ? styles.subActive : ''
                             }`}
+                            onClick={() => marcarSaida(sub.href, pathname)}
                           >
                             {sub.label}
                           </Link>
@@ -429,6 +431,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`${styles.navItem} ${isActive(item.href) ? styles.navActive : ''}`}
                 aria-current={isActive(item.href) ? 'page' : undefined}
+                /* Avisa que a tela atual esta saindo — NR-133. O realce do
+                   item nao espera nada disso: ele e do `isActive`, que muda no
+                   mesmo quadro do clique. */
+                onClick={() => marcarSaida(item.href, pathname)}
                 data-tutorial={item.href}
                 /* Recolhida, so o icone aparece: sem o `title` o hover nao
                    diria o nome de nada. O rotulo continua no DOM, escondido
@@ -461,6 +467,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   className={`${styles.navItem} ${isActive(item.href) ? styles.navActive : ''}`}
                   aria-current={isActive(item.href) ? 'page' : undefined}
+                  onClick={() => marcarSaida(item.href, pathname)}
                 >
                   <Icon size={18} />
                   <span className={styles.navLabel}>{item.label}</span>
