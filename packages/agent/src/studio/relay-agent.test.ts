@@ -8,7 +8,11 @@ import { chaveDaConversa, formatarCentavos } from '../format.js'
 import { processMessage } from '../process-message.js'
 import { FixturePeerDirectory } from './fixture-peer-directory.js'
 import type { StudioPreset } from './presets.js'
-import { createStudioHarnessAgent, mascararPeerDoStudio, type StudioTurnLog } from './relay-agent.js'
+import {
+  createStudioHarnessAgent,
+  mascararPeerDoStudio,
+  type StudioTurnLog,
+} from './relay-agent.js'
 
 const agora = new Date('2026-09-11T15:00:00.000Z')
 const UUID_A = '00000000-0000-4000-8000-000000000001'

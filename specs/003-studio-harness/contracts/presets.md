@@ -27,13 +27,13 @@
 }
 ```
 
-| Campo       | Regras |
-| ----------- | ------ |
-| `id`        | slug `[a-z0-9-]+`, único |
+| Campo       | Regras                                                                      |
+| ----------- | --------------------------------------------------------------------------- |
+| `id`        | slug `[a-z0-9-]+`, único                                                    |
 | `peer`      | só dígitos após normalizar; E.164 BR de teste (`55…`); **único** no arquivo |
-| `companyId` | UUID da fixture criada pelo desenvolvedor |
-| `userId`    | UUID do owner da mesma fixture |
-| `role`      | literal `owner` |
+| `companyId` | UUID da fixture criada pelo desenvolvedor                                   |
+| `userId`    | UUID do owner da mesma fixture                                              |
+| `role`      | literal `owner`                                                             |
 
 `.strict()` no objeto de cada preset. Chaves extra → load recusa.
 

@@ -171,7 +171,7 @@ Fluxo mínimo:
    dropdown (ou colar `{ "preset": "claudia-loja-1" }`) e **Save**. Sem isso
    a tool responde `Numero nao vinculado`. O item de menu `/request-context`
    é da plataforma Mastra, não deste Fastify local. Depois: `quanto vendi
-   hoje?` — centavos/`kind` iguais ao HTTP; `durationMs` no output da tool.
+hoje?` — centavos/`kind` iguais ao HTTP; `durationMs` no output da tool.
 
 ### Smoke SC-003 — tetos RNF-006 (manual, fora da CI)
 
@@ -258,11 +258,11 @@ Studio (NR-121) nem webhook Meta (NR-046) nesta fumaça.
 Cópia para `.env`: [`.env.example`](../../.env.example) na raiz. Matriz
 completa: [`ambientes.md`](../../docs/engenharia/ambientes.md).
 
-| Variável                     | Local                | Função                                                                                     |
-| ---------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `AGENT_PROVIDER`             | `fake` \| `mastra`                       | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.        |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                     | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                   |
-| `AGENT_HARNESS`              | ausente \| `1`                           | Porteiro (FR-001b): `1` libera HTTP **e** Studio fora do `development`. Default off em prod. |
-| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json`     | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                            |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                         | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).   |
-| `OPENAI_API_KEY`             | vazia                                    | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                |
+| Variável                     | Local                                | Função                                                                                       |
+| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `AGENT_PROVIDER`             | `fake` \| `mastra`                   | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.          |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                     |
+| `AGENT_HARNESS`              | ausente \| `1`                       | Porteiro (FR-001b): `1` libera HTTP **e** Studio fora do `development`. Default off em prod. |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                              |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).     |
+| `OPENAI_API_KEY`             | vazia                                | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                  |

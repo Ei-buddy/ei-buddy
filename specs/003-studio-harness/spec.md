@@ -12,13 +12,13 @@
 
 **Fonte de verdade**: esta spec amarra o recorte da NR-121 já documentado em `docs/` para o fluxo Spec Kit (`/speckit-plan`, `/speckit-tasks`, `/speckit-implement`). Não substitui os catálogos permanentes. Em conflito de detalhe, prevalecem a [constitution](../../.specify/memory/constitution.md), o [escopo do MVP](../../docs/produto/escopo-mvp.md), as ADRs do assistente e os IDs `US-xxx` / `RF-xxx` / `RNF-xxx`.
 
-| Artefato permanente                                                                                  | Papel nesta spec                                                                              |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md) (rev. Studio, 2026-09-16)            | Studio entra só como harness de engenharia; não é canal de produção do lojista                |
-| [RNF-006](../../docs/produto/requisitos-nao-funcionais.md)                                           | Consulta ≤ 5 s; ação com confirmação ≤ 8 s — medido no harness até existir o webhook de prod  |
-| [NR-060 / spec 002](../002-agent-mastra-runtime/spec.md)                                             | Runtime mínimo e canal HTTP de teste já entregues; Studio é o substituto do Zap em engenharia |
-| [contrato Mastra](../../docs/arquitetura/integracoes/mastra.md)                                      | Harness Studio MUST chamar o mesmo laço; caminho paralelo (confirmação/`core` à parte) é fora |
-| Constitution — princípio I                                                                           | App e canal conversacional acionam os **mesmos** casos de uso                                 |
+| Artefato permanente                                                                        | Papel nesta spec                                                                              |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| [ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md) (rev. Studio, 2026-09-16) | Studio entra só como harness de engenharia; não é canal de produção do lojista                |
+| [RNF-006](../../docs/produto/requisitos-nao-funcionais.md)                                 | Consulta ≤ 5 s; ação com confirmação ≤ 8 s — medido no harness até existir o webhook de prod  |
+| [NR-060 / spec 002](../002-agent-mastra-runtime/spec.md)                                   | Runtime mínimo e canal HTTP de teste já entregues; Studio é o substituto do Zap em engenharia |
+| [contrato Mastra](../../docs/arquitetura/integracoes/mastra.md)                            | Harness Studio MUST chamar o mesmo laço; caminho paralelo (confirmação/`core` à parte) é fora |
+| Constitution — princípio I                                                                 | App e canal conversacional acionam os **mesmos** casos de uso                                 |
 
 ## Escopo desta fatia
 
@@ -31,16 +31,16 @@
 
 **Fica para tarefas seguintes (não é critério de pronto desta spec):**
 
-| Fora agora                                      | Onde                                           |
-| ----------------------------------------------- | ---------------------------------------------- |
-| Confirmação persistente em banco                | NR-061                                         |
-| Memória / contexto multi-turno com RLS          | NR-062                                         |
-| Consultas estoque / a pagar / fiado dedicadas   | NR-115                                         |
-| Foto de código, cadastros e baixas extras       | NR-116–119                                     |
-| RAG auxiliar                                    | NR-120                                         |
-| Identidade WhatsApp real (celular do owner)     | NR-113                                         |
-| Adapter Meta Cloud + webhook de produção        | NR-046                                         |
-| Canal do lojista no produto (app ou WhatsApp)   | fora desta fatia por decisão (ADR-0010 rev.)   |
+| Fora agora                                    | Onde                                         |
+| --------------------------------------------- | -------------------------------------------- |
+| Confirmação persistente em banco              | NR-061                                       |
+| Memória / contexto multi-turno com RLS        | NR-062                                       |
+| Consultas estoque / a pagar / fiado dedicadas | NR-115                                       |
+| Foto de código, cadastros e baixas extras     | NR-116–119                                   |
+| RAG auxiliar                                  | NR-120                                       |
+| Identidade WhatsApp real (celular do owner)   | NR-113                                       |
+| Adapter Meta Cloud + webhook de produção      | NR-046                                       |
+| Canal do lojista no produto (app ou WhatsApp) | fora desta fatia por decisão (ADR-0010 rev.) |
 
 O canal HTTP de teste da NR-060 (`POST` autenticado com sessão de fixture) **permanece**. O Studio não o substitui: é o segundo harness, o que simula o turno de mensagem (número forjado) e a inspeção visual do laço.
 

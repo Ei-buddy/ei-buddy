@@ -31,30 +31,30 @@ A CI **não** sobe a SPA. Com `AGENT_PROVIDER=fake` e dois presets
 (`claudia-loja-1` / `claudia-loja-2` em `presets.example.json`), o smoke
 manual que não exige o painel está coberto assim:
 
-| # | Smoke | Teste |
-| - | ----- | ----- |
-| 1 | consulta preset 1 = HTTP (centavos/`kind`) | `packages/agent/src/studio/relay-agent.test.ts` |
-| 2 | mesma frase no preset 2 → outra empresa | `relay-agent.test.ts` (isolamento) |
-| 3 | `companyId` do cliente ignorado | `request-context.test.ts` + isolamento no relé |
-| 4 | peer / preset desconhecido | `relay-agent.test.ts` (recusa genérica) |
-| 5 | `create_customer` → `sim` no fio `wa:` | `relay-agent.test.ts` |
-| 6 | `talvez` / sem `sim` | `relay-agent.test.ts` (não grava) |
-| 7 | produção / harness off | `apps/api/src/studio.test.ts` (`/api/agents` 404) |
+| #   | Smoke                                      | Teste                                             |
+| --- | ------------------------------------------ | ------------------------------------------------- |
+| 1   | consulta preset 1 = HTTP (centavos/`kind`) | `packages/agent/src/studio/relay-agent.test.ts`   |
+| 2   | mesma frase no preset 2 → outra empresa    | `relay-agent.test.ts` (isolamento)                |
+| 3   | `companyId` do cliente ignorado            | `request-context.test.ts` + isolamento no relé    |
+| 4   | peer / preset desconhecido                 | `relay-agent.test.ts` (recusa genérica)           |
+| 5   | `create_customer` → `sim` no fio `wa:`     | `relay-agent.test.ts`                             |
+| 6   | `talvez` / sem `sim`                       | `relay-agent.test.ts` (não grava)                 |
+| 7   | produção / harness off                     | `apps/api/src/studio.test.ts` (`/api/agents` 404) |
 
 `durationMs` ≥ 0: US3 em `relay-agent.test.ts`. O painel visual (`pnpm studio`)
 continua smoke humano — não rode na Actions.
 
 ## Smoke manual (DoD)
 
-| # | Ação | Esperado |
-| - | ---- | -------- |
-| 1 | Chat: `quanto vendi hoje?` no preset 1 | `answer` + centavos = HTTP `/agent/messages` da mesma empresa; `durationMs` visível no output da tool |
-| 2 | Mesma frase no preset 2 | Totais da **outra** empresa; não os do preset 1 |
-| 3 | Context `{ "companyId": "<uuid da loja 2>" }` com preset 1 | Continua a loja 1 (campo ignorado) |
-| 4 | Peer / preset desconhecido | Recusa genérica; zero venda/cadastro |
-| 5 | `cadastra o João, 11 98888-7777` → `sim` | Confirmação no mesmo fio; cliente criado via `core` |
-| 6 | Sem `sim` / TTL | Nada gravado |
-| 7 | Produção / harness off | Studio/`/api/agents` ausente; HTTP 503 como NR-060 |
+| #   | Ação                                                       | Esperado                                                                                              |
+| --- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Chat: `quanto vendi hoje?` no preset 1                     | `answer` + centavos = HTTP `/agent/messages` da mesma empresa; `durationMs` visível no output da tool |
+| 2   | Mesma frase no preset 2                                    | Totais da **outra** empresa; não os do preset 1                                                       |
+| 3   | Context `{ "companyId": "<uuid da loja 2>" }` com preset 1 | Continua a loja 1 (campo ignorado)                                                                    |
+| 4   | Peer / preset desconhecido                                 | Recusa genérica; zero venda/cadastro                                                                  |
+| 5   | `cadastra o João, 11 98888-7777` → `sim`                   | Confirmação no mesmo fio; cliente criado via `core`                                                   |
+| 6   | Sem `sim` / TTL                                            | Nada gravado                                                                                          |
+| 7   | Produção / harness off                                     | Studio/`/api/agents` ausente; HTTP 503 como NR-060                                                    |
 
 Contratos: [studio-harness.md](./contracts/studio-harness.md), [presets.md](./contracts/presets.md). Modelo: [data-model.md](./data-model.md). HTTP antigo: [002 agent-messages](../002-agent-mastra-runtime/contracts/agent-messages.md).
 

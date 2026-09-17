@@ -118,8 +118,7 @@ async function registrarTurno(
 ): Promise<void> {
   if (opcoes.onTurn === undefined) return
 
-  const ligado =
-    dados.peer === undefined ? null : await opcoes.directory.resolve(dados.peer)
+  const ligado = dados.peer === undefined ? null : await opcoes.directory.resolve(dados.peer)
   opcoes.onTurn({
     durationMs: dados.durationMs,
     kind: dados.kind,

@@ -116,11 +116,11 @@ Local: Studio sem auth Mastra (default do framework). Aceitável — localhost, 
 
 **Decision**:
 
-| Peça | Onde |
-| ---- | ---- |
-| `@mastra/fastify` | `apps/api` (adapter) |
-| `mastra` (CLI, Studio SPA) | devDependency de `apps/api` ou do root — script `pnpm studio` |
-| Relé, presets, `FixturePeerDirectory`, timer | `packages/agent` (testável sem Fastify) |
+| Peça                                         | Onde                                                          |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `@mastra/fastify`                            | `apps/api` (adapter)                                          |
+| `mastra` (CLI, Studio SPA)                   | devDependency de `apps/api` ou do root — script `pnpm studio` |
+| Relé, presets, `FixturePeerDirectory`, timer | `packages/agent` (testável sem Fastify)                       |
 
 Não adicionar `@mastra/memory`, `@mastra/rag`, `@mastra/observability`, `@mastra/pg` nesta fatia.
 

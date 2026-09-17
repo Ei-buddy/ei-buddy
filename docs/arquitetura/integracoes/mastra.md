@@ -166,14 +166,14 @@ processor Mastra.
 
 ## Modelo
 
-| Variável                     | Valor inicial                       | Notas                                                     |
-| ---------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| `AGENT_PROVIDER`             | `fake` no local, `mastra` com chave | Sem chave, o sistema sobe no falso; prod não serve `fake`              |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                | Formato Mastra `provedor/modelo`                                       |
-| `AGENT_HARNESS`              | ausente                             | `1` libera HTTP + Studio fora do `development` (staging). Mesmo porteiro |
-| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json`| Path do JSON de presets (NR-121). Ausente/vazio = esse default         |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                    | Teto de IA por empresa/mês (RNF-073)                                   |
-| `OPENAI_API_KEY`             | vazia no local                      | Obrigatória só com `AGENT_PROVIDER=mastra`                             |
+| Variável                     | Valor inicial                        | Notas                                                                    |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| `AGENT_PROVIDER`             | `fake` no local, `mastra` com chave  | Sem chave, o sistema sobe no falso; prod não serve `fake`                |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`                                         |
+| `AGENT_HARNESS`              | ausente                              | `1` libera HTTP + Studio fora do `development` (staging). Mesmo porteiro |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default           |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês (RNF-073)                                     |
+| `OPENAI_API_KEY`             | vazia no local                       | Obrigatória só com `AGENT_PROVIDER=mastra`                               |
 
 Trocar o modelo (tamanho ou provedor que o Mastra roteie) é configuração. Trocar
 o framework reabre a [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md).

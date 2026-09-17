@@ -34,16 +34,16 @@ Fechar a NR-121: Mastra Studio como harness de engenharia no Fastify da API, com
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Princípio                   | Status | Como esta fatia cumpre |
-| --------------------------- | ------ | ---------------------- |
-| I. Um núcleo, dois canais   | PASS   | Studio só relé → `processMessage` → `core`; HTTP de teste intacto; futuro webhook na mesma função |
+| Princípio                   | Status | Como esta fatia cumpre                                                                                          |
+| --------------------------- | ------ | --------------------------------------------------------------------------------------------------------------- |
+| I. Um núcleo, dois canais   | PASS   | Studio só relé → `processMessage` → `core`; HTTP de teste intacto; futuro webhook na mesma função               |
 | II. Hexágono                | PASS   | Relé/diretório em `agent` (sem `db`/`domain`); `@mastra/fastify` só em `apps/api`; schemas de mensagem reusados |
-| III. Integridade financeira | PASS   | Nenhuma tool de negócio no servidor Mastra; mutação ainda passa pela confirmação do laço |
-| IV. RLS / tenant            | PASS   | `ExecutionContext` do `FixturePeerDirectory`; `companyId` no request context ignorado; teste de dois presets |
-| V. Teste que prova          | PASS   | FakeLlm no laço; CI sem OpenAI; recusa de peer/prod prova zero efeito; centavos = HTTP |
-| Produto — confirmação       | PASS   | Inalterada (`InMemoryConfirmations`, chave `wa:…`) |
-| Segurança — harness         | PASS   | Mesmo porteiro NR-060; adapter nem monta em prod; Studio não é URL de produto |
-| IA — teto                   | PASS   | Relé não cria contador paralelo; `processMessage` já registra |
+| III. Integridade financeira | PASS   | Nenhuma tool de negócio no servidor Mastra; mutação ainda passa pela confirmação do laço                        |
+| IV. RLS / tenant            | PASS   | `ExecutionContext` do `FixturePeerDirectory`; `companyId` no request context ignorado; teste de dois presets    |
+| V. Teste que prova          | PASS   | FakeLlm no laço; CI sem OpenAI; recusa de peer/prod prova zero efeito; centavos = HTTP                          |
+| Produto — confirmação       | PASS   | Inalterada (`InMemoryConfirmations`, chave `wa:…`)                                                              |
+| Segurança — harness         | PASS   | Mesmo porteiro NR-060; adapter nem monta em prod; Studio não é URL de produto                                   |
+| IA — teto                   | PASS   | Relé não cria contador paralelo; `processMessage` já registra                                                   |
 
 **Pós Phase 1:** sem violações. O adapter Fastify **não** reabre a ADR-0010: é servidor de desenvolvimento atrás do porteiro, não canal do lojista. Complexidade Tracking vazio.
 
