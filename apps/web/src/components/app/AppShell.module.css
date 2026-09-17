@@ -1146,3 +1146,55 @@
     animation: none;
   }
 }
+
+/*
+ * O botao de tema, girando — NR-134.
+ *
+ * Os dois icones ocupam o mesmo lugar e trocam de vez no meio da meia volta:
+ * o que sai gira para um lado e apaga, o que entra chega girando do outro. O
+ * giro leva 400ms, um pouco menos que a luz varrendo a tela, para o icone
+ * terminar o gesto antes de a mudanca se completar.
+ */
+.botaoDeTema {
+  overflow: hidden;
+}
+
+.icones {
+  position: relative;
+  display: inline-flex;
+  width: 19px;
+  height: 19px;
+}
+
+.iconeSol,
+.iconeLua {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  transition:
+    transform 400ms var(--ease),
+    opacity 200ms linear;
+}
+
+.icones[data-tema='claro'] .iconeSol,
+.icones[data-tema='escuro'] .iconeLua {
+  transform: rotate(0deg);
+  opacity: 1;
+}
+
+.icones[data-tema='claro'] .iconeLua {
+  transform: rotate(180deg);
+  opacity: 0;
+}
+
+.icones[data-tema='escuro'] .iconeSol {
+  transform: rotate(-180deg);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconeSol,
+  .iconeLua {
+    transition: none;
+  }
+}

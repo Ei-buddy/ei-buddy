@@ -406,3 +406,27 @@ svg {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/*
+ * A troca de tema varrendo a tela — NR-134.
+ *
+ * A View Transitions API esmaece as duas fotos uma na outra por padrao. Aqui
+ * quem anima e o `clip-path` da foto nova (ver `lib/troca-de-tema.ts`), entao
+ * o esmaecer sai: com ele, o circulo abriria sobre uma tela ja meio trocada, e
+ * a borda dele — que e o efeito inteiro — sumiria.
+ *
+ * A foto antiga fica parada por baixo; a nova abre por cima.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+}
