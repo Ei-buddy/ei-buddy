@@ -121,3 +121,25 @@
     padding: 28px 40px;
   }
 }
+
+/*
+ * O fundo desfoca enquanto o cartao converge — NR-132.
+ *
+ * `filter` na moldura inteira: o desfoque tem de pegar os halos e as linhas
+ * do fundo, que sao irmaos do cartao, e nao so o que esta atras dele.
+ */
+:global(body[data-entrando]) .shell {
+  filter: blur(7px);
+  opacity: 0.75;
+  transition:
+    filter 340ms ease-out,
+    opacity 340ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(body[data-entrando]) .shell {
+    filter: none;
+    opacity: 1;
+    transition: none;
+  }
+}

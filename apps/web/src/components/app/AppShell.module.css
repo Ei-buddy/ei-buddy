@@ -1064,3 +1064,76 @@
     transform: rotate(180deg);
   }
 }
+
+/*
+ * A chegada ao painel — NR-132.
+ *
+ * O outro lado da travessia do login: o conteudo entra com um resto de
+ * desfoque e um sopro de escala, como se a gente estivesse CHEGANDO nele, e a
+ * barra e o topo vem escalonados atras.
+ *
+ * E animacao de montagem, e nao um estado: roda quando o painel monta, seja
+ * vindo do login ou de um link direto. Sem bandeira guardada no aparelho, sem
+ * nada para limpar depois.
+ *
+ * O escalonamento e curto de proposito (60ms entre as pecas): o suficiente
+ * para a tela ter vida, longe de uma cascata que se faz notar toda vez que a
+ * pessoa entra — e ela entra todo dia.
+ */
+.sidebar {
+  animation: chegadaDaBarra 420ms var(--ease) both;
+}
+
+.topbar {
+  animation: chegadaDoTopo 380ms var(--ease) 60ms both;
+}
+
+.content {
+  animation: chegadaDoConteudo 420ms var(--ease) 120ms both;
+}
+
+/* So opacidade na barra: ela ja usa `transform` para deslizar no celular, e
+   duas animacoes disputando a mesma propriedade brigam. */
+@keyframes chegadaDaBarra {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes chegadaDoTopo {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes chegadaDoConteudo {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .topbar,
+  .content {
+    animation: none;
+  }
+}
