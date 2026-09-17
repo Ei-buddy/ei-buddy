@@ -14,6 +14,13 @@
   padding-top: 56px;
 }
 
+/* Conteudo acima do fundo interativo (o canvas e `z-index: 0`). */
+.grid,
+.marquee {
+  position: relative;
+  z-index: 1;
+}
+
 .grid {
   display: grid;
   gap: 44px;

@@ -1,5 +1,7 @@
 /* Variante escura do painel — testada aqui como preview dentro da landing */
 .section {
+  position: relative;
+  overflow: hidden;
   padding-block: 80px;
   background:
     radial-gradient(60% 50% at 50% 0%, rgba(109, 51, 221, 0.22) 0%, rgba(109, 51, 221, 0) 70%),
@@ -11,6 +13,12 @@
   .section {
     padding-block: 112px;
   }
+}
+
+/* Conteudo acima do fundo interativo (o canvas e `z-index: 0`). */
+.conteudo {
+  position: relative;
+  z-index: 1;
 }
 
 .head {

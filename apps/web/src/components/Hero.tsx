@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { highlights, perguntasDoHero, PRE_LANCAMENTO } from '@/content/site'
 import { IconArrowRight, IconBolt, IconTrendUp } from './Icons'
 import TituloQueGira from './TituloQueGira'
+import KineticGridBackground from './fundos/KineticGridBackground'
 import styles from './Hero.module.css'
 
 /** Alturas do grafico do mockup, em % — apenas ilustrativas. */
@@ -22,6 +23,9 @@ export default function Hero() {
       className={`${styles.hero} ${PRE_LANCAMENTO ? styles.naoEhOPrimeiro : ''}`}
       id={PRE_LANCAMENTO ? undefined : 'top'}
     >
+      {/* Fundo interativo, atras de tudo — NR-130. */}
+      <KineticGridBackground tema="claro" />
+
       <div className={`container ${styles.grid}`}>
         <div className={styles.copy}>
           <span className={styles.badge}>

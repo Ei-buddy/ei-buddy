@@ -1,0 +1,16 @@
+/*
+ * A camada de fundo dos quatro fundos interativos — NR-130.
+ *
+ * Preenche a secao que a contem (que precisa de `position: relative`) e fica
+ * atras do conteudo. `pointer-events: none`: o ponteiro e escutado na secao,
+ * e o canvas nunca intercepta clique de botao ou link por cima dele.
+ */
+
+.tela {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

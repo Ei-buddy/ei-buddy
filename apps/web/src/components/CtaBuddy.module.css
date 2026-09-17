@@ -15,6 +15,16 @@
   overflow: hidden;
 }
 
+/* Conteudo acima do fundo interativo (o canvas e `z-index: 0`). */
+.copy,
+.mascote {
+  z-index: 1;
+}
+
+.copy {
+  position: relative;
+}
+
 /* --- Texto --- */
 
 .badge {

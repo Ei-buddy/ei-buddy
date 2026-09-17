@@ -5,6 +5,7 @@ import FAQ from '@/components/FAQ'
 import FeatureSection from '@/components/FeatureSection'
 import { AssistantVisual, CrmVisual, FinanceVisual, SalesVisual } from '@/components/FeatureVisuals'
 import Footer from '@/components/Footer'
+import GridPulseBackground from '@/components/fundos/GridPulseBackground'
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
 import Modules from '@/components/Modules'
@@ -62,6 +63,7 @@ export default function Home() {
           visual={<SalesVisual />}
           reverse
           muted
+          fundo={<GridPulseBackground tema="claro" opacidadeGrade={0.05} opacidadeTrilha={0.4} />}
         />
 
         <FeatureSection

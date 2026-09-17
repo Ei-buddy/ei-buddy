@@ -2,6 +2,17 @@
   background: var(--bg-muted);
 }
 
+/* A secao contem o fundo, e o conteudo fica acima dele. */
+.comFundo {
+  position: relative;
+  overflow: hidden;
+}
+
+.comFundo .grid {
+  position: relative;
+  z-index: 1;
+}
+
 .grid {
   display: grid;
   gap: 40px;
