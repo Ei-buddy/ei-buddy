@@ -1,6 +1,14 @@
 .shell {
   display: grid;
   min-height: 100vh;
+  /*
+   * Distancia da barra flutuante ate a borda da janela (so no desktop).
+   *
+   * Mora aqui, no shell, e nao na barra: quem calcula a largura da coluna
+   * reservada e o shell, e variavel so desce na arvore. Declarada na barra, o
+   * `calc()` da coluna virava invalido e o molde de colunas caia fora.
+   */
+  --barra-respiro: 24px;
 }
 
 /* --- Sobreposicao mobile --- */
@@ -26,6 +34,8 @@
   align-content: start;
   gap: 16px;
   padding: 20px 14px;
+  /* So no modo celular, onde a barra encosta na borda da janela; no desktop
+     ela vira moldura inteira, logo abaixo. */
   border-right: 1px solid var(--menu-borda-painel);
   /* Painel solido, na cor que a barra ja tinha: o vidro e dos BOTOES. */
   background: var(--app-bg);
@@ -58,6 +68,7 @@
  */
 .sidebar {
   --menu-borda-painel: rgba(255, 255, 255, 0.06);
+  --menu-sombra-flutuante: 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 20px rgba(0, 0, 0, 0.3);
   /* Vidro de verdade: quase todo o tom vem do painel por tras. */
   --menu-item: rgba(255, 255, 255, 0.06);
   --menu-item-hover: rgba(255, 255, 255, 0.1);
@@ -103,6 +114,9 @@
 
 :global(:root[data-theme='light']) .sidebar {
   --menu-borda-painel: var(--app-border);
+  /* Sobre fundo claro a sombra do escuro vira um borrao cinza; mesma forma,
+     bem mais fraca. */
+  --menu-sombra-flutuante: 0 30px 60px rgba(15, 42, 58, 0.16), 0 8px 20px rgba(15, 42, 58, 0.1);
   /*
    * No claro o vidro nao pode ser quase transparente: o painel atras e claro,
    * e `rgba(255,255,255,0.06)` sobre claro nao desenha botao nenhum. A peca
@@ -681,23 +695,49 @@
 }
 
 @media (min-width: 1100px) {
+  /*
+   * A coluna reservada para a barra — NR-131.
+   *
+   * A barra flutua (`position: fixed`), entao sai do fluxo e nao ocupa mais a
+   * coluna: quem impede o conteudo de passar por baixo dela e esta largura,
+   * que soma a barra, o respiro da borda e a folga ate o conteudo.
+   */
   .shell {
-    grid-template-columns: 264px 1fr;
+    grid-template-columns: calc(264px + var(--barra-respiro) + 20px) 1fr;
   }
 
+  /*
+   * Painel flutuante, centrado na vertical.
+   *
+   * Altura pelo conteudo, com teto na altura da janela menos os respiros — se
+   * a lista crescer (uma conta com a secao de Plataforma, por exemplo), ela
+   * rola por dentro em vez de vazar pela tela.
+   */
   .sidebar {
-    position: sticky;
-    height: 100vh;
-    transform: none;
-    /*
-     * `inset` de uma vez so, e nao `top: 0` seguido de `inset: auto`.
-     *
-     * Era assim que estava, e nessa ordem o atalho apagava o `top` que a
-     * linha anterior tinha acabado de definir — `sticky` sem `top` nao gruda
-     * em nada, e a barra subia junto com a pagina. O `auto` nos outros tres
-     * lados e o que desfaz o `inset: 0 auto 0 0` do modo celular.
-     */
-    inset: 0 auto auto auto;
+    position: fixed;
+    top: 50%;
+    left: var(--barra-respiro);
+    right: auto;
+    bottom: auto;
+    height: auto;
+    max-height: calc(100vh - var(--barra-respiro) * 2);
+    transform: translateY(-50%);
+    border: 1px solid var(--menu-borda-painel);
+    border-radius: 22px;
+    /* Sombra funda: e ela que diz que o painel esta SOBRE a pagina. */
+    box-shadow: var(--menu-sombra-flutuante);
+  }
+
+  /*
+   * A area principal vai para a SEGUNDA coluna, dita e nao deduzida.
+   *
+   * Flutuando, a barra tem `position: fixed` e sai do fluxo — deixa de ocupar
+   * a celula dela. Sem esta linha, a area principal escorrega para a primeira
+   * coluna (a que existe justamente para reserva-la) e o conteudo fica por
+   * baixo do painel.
+   */
+  .main {
+    grid-column: 2;
   }
 
   .menuButton,
@@ -950,7 +990,7 @@
 
   /* A largura da coluna e o que de fato recolhe: a barra acompanha. */
   .shellRecolhido {
-    grid-template-columns: 76px 1fr;
+    grid-template-columns: calc(76px + var(--barra-respiro) + 20px) 1fr;
   }
 
   .sidebarRecolhida {
