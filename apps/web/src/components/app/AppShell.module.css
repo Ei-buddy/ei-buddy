@@ -1198,3 +1198,245 @@
     transition: none;
   }
 }
+
+/* ============ Barra do topo mais viva — NR-136 ============ */
+
+/*
+ * O sino e o contador.
+ *
+ * O balanco e disparado pelo componente quando o numero SOBE (ver o efeito no
+ * AppShell); aqui fica so o que e aparencia.
+ */
+.sinoIcone {
+  display: inline-flex;
+}
+
+.contadorDeAvisos {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--app-bg);
+  border-radius: var(--radius-full);
+  background: var(--app-danger);
+  color: var(--app-bg);
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  /* O "pop": passa um pouco do tamanho final e volta. */
+  animation: surgirContador 320ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@keyframes surgirContador {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+/* --- O bloco do usuario --- */
+
+.user {
+  position: relative;
+}
+
+.userBotao {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--radius-full);
+  text-align: left;
+  transition: background-color var(--transition);
+}
+
+.userBotao:hover {
+  background: var(--app-field);
+}
+
+.avatarWrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/*
+ * O ponto de conexao.
+ *
+ * Verde e pulsando quando online, cinza e parado quando a conexao cai — ver
+ * `lib/conexao.ts`. A borda da cor do fundo e o que o separa do avatar.
+ */
+.pontoDeStatus {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--app-bg);
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulsarConexao 2s ease-in-out infinite;
+}
+
+.pontoOffline {
+  background: var(--app-muted);
+  animation: none;
+}
+
+@keyframes pulsarConexao {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  }
+
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+  }
+}
+
+/* --- O periodo do dia, ao lado do nome --- */
+
+.periodo {
+  position: relative;
+  display: none;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--app-muted);
+}
+
+.periodoIcone {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  opacity: 0;
+  /* Cruzado: um some enquanto o outro aparece, quando a hora vira. */
+  transition: opacity 600ms var(--ease);
+}
+
+.periodo[data-periodo='manha'] .periodoIcone[data-quando='manha'],
+.periodo[data-periodo='tarde'] .periodoIcone[data-quando='tarde'],
+.periodo[data-periodo='noite'] .periodoIcone[data-quando='noite'] {
+  opacity: 1;
+}
+
+/* --- O menu da conta --- */
+
+.userMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  min-width: 232px;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 22%);
+  /* Nasce do canto onde esta o botao, e nao do proprio centro. */
+  transform-origin: top right;
+  animation: abrirMenuDaConta 160ms var(--ease);
+}
+
+@keyframes abrirMenuDaConta {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.userMenuTopo {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--app-border);
+  margin-bottom: 6px;
+}
+
+.userMenuTopo strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.userMenuTopo span {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+.userMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: calc(var(--radius) - 4px);
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--app-text);
+  transition: background-color var(--transition);
+}
+
+.userMenuItem:hover {
+  background: var(--app-field);
+}
+
+.userMenuSair {
+  color: var(--app-danger);
+}
+
+/* Fora da tela, mas lido por quem usa leitor de tela. */
+.apenasLeitorDeTela {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* O que fica piscando o tempo todo para quando se pede menos movimento; o que
+   e gesto pontual (o balanco do sino, o "pop" do contador) ja e desligado no
+   proprio componente. */
+@media (prefers-reduced-motion: reduce) {
+  .pontoDeStatus,
+  .contadorDeAvisos {
+    animation: none;
+  }
+
+  .periodoIcone,
+  .userMenu {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (min-width: 720px) {
+  .userBotao {
+    display: inline-flex;
+  }
+
+  .periodo {
+    display: inline-block;
+  }
+}

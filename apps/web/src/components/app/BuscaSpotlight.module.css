@@ -32,6 +32,48 @@
   color: var(--app-text);
 }
 
+/*
+ * O campo cresce quando recebe foco — NR-136.
+ *
+ * `max-width`, e nao `width`: ele ja e `flex: 1`, entao o que o segura e o
+ * teto. Aumentar o teto o deixa ocupar a folga que houver, e os icones ao lado
+ * cedem espaco em vez de sair da tela — o que aconteceria com uma largura fixa
+ * maior numa janela estreita.
+ *
+ * `focus-visible` e nao `focus`: no clique do mouse a busca ja abre no centro
+ * da tela, e crescer por baixo do painel seria movimento que ninguem ve. Quem
+ * chega pelo teclado, sim, precisa saber onde esta.
+ */
+.gatilho {
+  transition:
+    max-width 280ms ease-out,
+    border-color var(--transition),
+    box-shadow var(--transition),
+    color var(--transition);
+}
+
+.gatilho:focus-visible {
+  max-width: 560px;
+  border-color: var(--app-accent);
+  color: var(--app-text);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  outline: none;
+}
+
+/* Em tela estreita nao ha folga para crescer: o campo ja ocupa o que tem, e o
+   realce sozinho ja diz que ele esta ativo. */
+@media (max-width: 719px) {
+  .gatilho:focus-visible {
+    max-width: 420px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gatilho {
+    transition: none;
+  }
+}
+
 .gatilhoTexto {
   flex: 1;
   min-width: 0;
