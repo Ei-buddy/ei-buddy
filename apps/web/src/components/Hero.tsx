@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { highlights, PRE_LANCAMENTO } from '@/content/site'
 import { IconArrowRight, IconBolt, IconTrendUp } from './Icons'
+import LiquidMetalPanel from './LiquidMetalPanel'
 import styles from './Hero.module.css'
 
 /** Alturas do grafico do mockup, em % — apenas ilustrativas. */
@@ -54,9 +55,11 @@ export default function Hero() {
           )}
         </div>
 
-        {/* Mockup ilustrativo do produto */}
+        {/* Mockup ilustrativo do produto, sobre o painel de liquid metal */}
         <div className={styles.mockupWrap}>
-          <div className={styles.glow} aria-hidden="true" />
+          {/* Substitui o brilho estatico que havia aqui: mesma funcao —
+              dar profundidade ao mockup — com o efeito animado da marca. */}
+          <LiquidMetalPanel />
 
           <div className={styles.mockup} role="img" aria-label="Prévia do painel do produto">
             <div className={styles.mockupBar}>

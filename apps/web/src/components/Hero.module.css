@@ -69,16 +69,6 @@
   position: relative;
 }
 
-.glow {
-  position: absolute;
-  inset: 8% -6% -10% -6%;
-  background: var(--brand-gradient);
-  filter: blur(60px);
-  opacity: 0.16;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
 .mockup {
   position: relative;
   border: 1px solid var(--border);

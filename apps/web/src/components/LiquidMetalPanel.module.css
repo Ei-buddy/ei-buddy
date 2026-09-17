@@ -1,0 +1,93 @@
+/*
+ * O bloco do liquid metal — NR-123.
+ *
+ * `overflow: hidden` + raio grande e o que mantem o efeito CONTIDO: ele
+ * decora um retangulo atras do mockup, e nao o fundo da pagina. A pagina
+ * segue clara.
+ */
+
+.painel {
+  position: absolute;
+  /*
+   * Estoura o mockup para CIMA, para a DIREITA e para BAIXO — quase nada para
+   * a esquerda. Daquele lado fica a coluna de texto, e um bloco de metal
+   * passando por baixo do titulo e o tipo de decoracao que rouba a leitura.
+   * Para a direita ele sangra para fora da tela de proposito: o `overflow:
+   * hidden` do hero corta, e o corte e o que faz o efeito parecer maior que a
+   * janela.
+   */
+  inset: -9% -12% -13% -2%;
+  border-radius: 40px;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  /* Levanta o bloco da pagina branca: sem sombra ele parece colado, e o
+     mockup perde a leitura de cartao flutuando sobre alguma coisa. */
+  box-shadow: 0 34px 80px -40px rgba(19, 23, 52, 0.55);
+}
+
+/*
+ * A camada que aparece SEMPRE.
+ *
+ * E o que se ve enquanto o shader carrega e o que fica em quem nao tem WebGL
+ * (ou desligou a aceleracao). As mesmas tres cores do shader, sem movimento:
+ * o hero nunca abre com um retangulo vazio.
+ */
+.base {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(58% 62% at 22% 18%, rgba(30, 136, 229, 0.92) 0%, rgba(30, 136, 229, 0) 72%),
+    radial-gradient(52% 58% at 82% 30%, rgba(38, 166, 154, 0.85) 0%, rgba(38, 166, 154, 0) 70%),
+    radial-gradient(46% 52% at 62% 88%, rgba(244, 196, 48, 0.42) 0%, rgba(244, 196, 48, 0) 68%),
+    linear-gradient(140deg, #1e88e5 0%, #26a69a 58%, #1e2a78 100%);
+}
+
+.shader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * Veu claro por cima de tudo.
+ *
+ * Duas funcoes: amarra o bloco a pagina branca (sem ele, o metal vira uma
+ * mancha saturada ao lado do texto) e garante que a sombra do mockup ainda
+ * se destaque contra o fundo. O amarelo da marca entra aqui, de raspao, como
+ * o brilho quente no canto — e a unica aparicao dele no hero.
+ */
+.veu {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(38% 40% at 78% 86%, rgba(244, 196, 48, 0.34) 0%, rgba(244, 196, 48, 0) 72%),
+    radial-gradient(
+      120% 110% at 50% 45%,
+      rgba(255, 255, 255, 0) 62%,
+      rgba(255, 255, 255, 0.55) 100%
+    );
+}
+
+/*
+ * Celular: o bloco encolhe para caber atras do mockup sem empurrar a coluna
+ * de texto, e o veu fica mais forte — em tela pequena o mockup ocupa quase
+ * toda a largura, e o metal precisa recuar para nao competir com ele.
+ */
+@media (max-width: 720px) {
+  .painel {
+    inset: -6% -6% -9% -6%;
+    border-radius: 28px;
+  }
+
+  .veu {
+    background:
+      radial-gradient(38% 40% at 78% 86%, rgba(244, 196, 48, 0.28) 0%, rgba(244, 196, 48, 0) 72%),
+      radial-gradient(
+        120% 110% at 50% 45%,
+        rgba(255, 255, 255, 0) 54%,
+        rgba(255, 255, 255, 0.62) 100%
+      );
+  }
+}

@@ -17,6 +17,12 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  /* Sombra baixa ja em repouso: sem ela o cartao so tinha a borda de 1px para
+     se separar do fundo branco, e a grade lia como tabela, nao como cartao.
+     A elevacao forte continua reservada ao hover. */
+  box-shadow:
+    0 1px 2px rgba(19, 23, 52, 0.04),
+    0 8px 24px -18px rgba(19, 23, 52, 0.28);
   overflow: hidden;
   transition:
     transform var(--transition),
@@ -54,7 +60,9 @@
   height: 46px;
   margin-bottom: 6px;
   border-radius: var(--radius);
-  background: var(--brand-primary-soft);
+  /* Degrade em vez de chapado: o icone era um quadrado cinza-azulado, o
+     elemento mais apagado de um cartao que abre a secao. */
+  background: linear-gradient(145deg, var(--brand-primary-soft) 0%, var(--brand-accent-soft) 100%);
   color: var(--brand-primary);
   transition:
     background-color var(--transition),
@@ -62,7 +70,11 @@
 }
 
 .card:hover .cardIcon {
-  background: var(--brand-accent-soft);
+  background: linear-gradient(
+    145deg,
+    var(--brand-accent-soft) 0%,
+    var(--brand-highlight-soft) 100%
+  );
   color: var(--brand-accent-dark);
 }
 

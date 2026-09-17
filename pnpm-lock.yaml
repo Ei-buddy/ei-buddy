@@ -231,6 +231,12 @@ importers:
       '@na-regua/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@paper-design/shaders-react':
+        specifier: ^0.0.80
+        version: 0.0.80(@types/react@19.2.18)(react@19.2.8)
+      framer-motion:
+        specifier: ^13.4.0
+        version: 13.4.0(react-dom@19.3.0(react@19.2.8))(react@19.2.8)
       next:
         specifier: 16.3.4
         version: 16.3.4(@babel/core@7.29.7)(@types/node@26.5.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.2.8))(react@19.2.8)
@@ -1996,6 +2002,18 @@ packages:
   '@opentelemetry/semantic-conventions@1.43.0':
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
+
+  '@paper-design/shaders-react@0.0.80':
+    resolution: {integrity: sha512-Y1oxUeh5D2AECo05O+4UYRbaMfQzKKYH3Q5jcvirOcoX0hTPYbezCLn5g94nvcuzxy5LN/uqwsL3jDUp8r3E+A==}
+    peerDependencies:
+      '@types/react': ^18 || ^19
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@paper-design/shaders@0.0.80':
+    resolution: {integrity: sha512-pcabvt5xDlFoEhpjUj4b1tGJMfqb0i5mXifWMNQf6z7FoOJYxYDo7F8R6k0JAh5D/7ouxjX5+N0cIq5WURyQ1Q==}
 
   '@pdf-lib/standard-fonts@1.0.0':
     resolution: {integrity: sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA==}
@@ -4170,6 +4188,17 @@ packages:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
     engines: {node: '>= 0.4'}
 
+  framer-motion@13.4.0:
+    resolution: {integrity: sha512-HCpqKM9BTu6UYKtj0u6J1QNxojnnirNcghcSDZ+SkpiL3myxvtsgXPS3ZGEELC2eSma7YiA937rAEXtRyydSXQ==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
     engines: {node: '>= 0.6'}
@@ -5168,6 +5197,12 @@ packages:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
     hasBin: true
+
+  motion-dom@13.3.0:
+    resolution: {integrity: sha512-AmAnB6pHdZ1vHGzWzuzteG6Q3j1lHKeX/lbST6jGlgm0cjvLUgaCk1xhOuPMOy5SgovN6wnnUdwFrkcsus7Ftg==}
+
+  motion-utils@13.3.0:
+    resolution: {integrity: sha512-sgSschQp7EseHInIlR7hBbMuvet3RA0bs28KPZAXJcGKGdxHGvh1ogpYDilY3bOMtl73EqPNmp75sAKHYPU5sg==}
 
   ms@2.0.0:
     resolution: {integrity: sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==}
@@ -8394,6 +8429,15 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
+  '@paper-design/shaders-react@0.0.80(@types/react@19.2.18)(react@19.2.8)':
+    dependencies:
+      '@paper-design/shaders': 0.0.80
+      react: 19.2.8
+    optionalDependencies:
+      '@types/react': 19.2.18
+
+  '@paper-design/shaders@0.0.80': {}
+
   '@pdf-lib/standard-fonts@1.0.0':
     dependencies:
       pako: 1.0.11
@@ -10222,7 +10266,7 @@ snapshots:
       '@next/eslint-plugin-next': 16.3.4(eslint@9.39.5(jiti@2.6.1))
       eslint: 9.39.5(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.6.1))
       eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.5(jiti@2.6.1))
@@ -10249,7 +10293,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1)):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.6.1)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3
@@ -10264,14 +10308,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1)):
+  eslint-module-utils@2.14.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.6.1)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3)
       eslint: 9.39.5(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -10286,7 +10330,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.5(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1)))(eslint@9.39.5(jiti@2.6.1))
+      eslint-module-utils: 2.14.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5(jiti@2.6.1))(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.6.1))
       hasown: 2.0.4
       is-core-module: 2.16.2
       is-glob: 4.0.3
@@ -10804,6 +10848,15 @@ snapshots:
   for-each@0.3.5:
     dependencies:
       is-callable: 1.2.7
+
+  framer-motion@13.4.0(react-dom@19.3.0(react@19.2.8))(react@19.2.8):
+    dependencies:
+      motion-dom: 13.3.0
+      motion-utils: 13.3.0
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 19.2.8
+      react-dom: 19.3.0(react@19.2.8)
 
   fresh@0.5.2: {}
 
@@ -12145,6 +12198,12 @@ snapshots:
   minipass@7.1.3: {}
 
   mkdirp@1.0.4: {}
+
+  motion-dom@13.3.0:
+    dependencies:
+      motion-utils: 13.3.0
+
+  motion-utils@13.3.0: {}
 
   ms@2.0.0: {}
 
