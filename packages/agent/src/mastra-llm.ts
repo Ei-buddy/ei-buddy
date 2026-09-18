@@ -74,17 +74,20 @@ export function createMastraLlm(opcoes: MastraLlmOptions): LlmPort {
 /** Default `window = 12` (RNF-075 / ADR-0016). Nao concatena alem do array recebido. */
 const JANELA_HISTORY = 12
 
+/**
+ * Prefixo compacto no texto — o `Agent.generate` do Mastra tipa lista de
+ * mensagens como `MastraDBMessage` (id/createdAt), e nao como `{ role,
+ * content }` simples. Prefixo ≤ 12 turnos cumpre o contrato llm-history
+ * sem Memory e sem brigar com a API do framework.
+ */
 function entradaDoGenerate(
   text: string,
   history: readonly { readonly role: string; readonly body: string }[] | undefined,
-): string | { role: 'user' | 'assistant' | 'system'; content: string }[] {
-  /* So o array recebido — teto 12; sem Memory, sem prefixo extra. */
+): string {
   const recorte = (history ?? []).slice(-JANELA_HISTORY)
   if (recorte.length === 0) return text
-  return [
-    ...recorte.map((t) => ({ role: papelDaMensagem(t.role), content: t.body })),
-    { role: 'user', content: text },
-  ]
+  const prefixo = recorte.map((t) => `${papelDaMensagem(t.role)}: ${t.body}`).join('\n')
+  return `${prefixo}\nuser: ${text}`
 }
 
 function papelDaMensagem(role: string): 'user' | 'assistant' | 'system' {

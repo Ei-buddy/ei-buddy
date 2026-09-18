@@ -17,7 +17,11 @@ const mastra = vi.hoisted(() => {
     execute: (input: unknown) => Promise<unknown>
   }> = []
   const state: { instructions: string | undefined } = { instructions: undefined }
-  const generate = vi.fn(async () => ({ text: '' }))
+  /* Assinatura tipada: senao `mock.calls[0]` vira tupla vazia e o tsc
+     recusa indexar [0]/[1] (erro na CI do typecheck). */
+  const generate = vi.fn(async (_messages: unknown, _options?: { maxSteps?: number }) => ({
+    text: '',
+  }))
   return {
     tools,
     state,
@@ -166,14 +170,17 @@ describe('createMastraLlm — execute identidade (US1)', () => {
     expect(chamada).toBeDefined()
     if (chamada === undefined) return
     const [entrada] = chamada
-    expect(Array.isArray(entrada)).toBe(true)
-    if (!Array.isArray(entrada)) return
-    expect(entrada.length).toBeLessThanOrEqual(13)
-    expect(entrada[entrada.length - 1]).toEqual({ role: 'user', content: 'agora' })
-    const corpos = entrada.slice(0, -1).map((m: { content: string }) => m.content)
-    expect(corpos).not.toContain('h-1')
-    expect(corpos.length).toBe(12)
-    expect(corpos).toEqual([
+    expect(typeof entrada).toBe('string')
+    if (typeof entrada !== 'string') return
+    /* Prefixo compacto: 12 turnos do recorte + turno atual; h-1 cai fora.
+       Nao usar toContain('h-1'): h-10..h-13 tambem casam. */
+    expect(entrada).not.toMatch(/: h-1(\n|$)/)
+    for (let i = 2; i <= 13; i++) {
+      expect(entrada).toMatch(new RegExp(`: h-${i}(\\n|$)`))
+    }
+    expect(entrada).toMatch(/user: agora$/)
+    const corposNoPrefixo = [...entrada.matchAll(/: (h-\d+)(?:\n|$)/g)].map((m) => m[1])
+    expect(corposNoPrefixo).toEqual([
       'h-2',
       'h-3',
       'h-4',
