@@ -141,7 +141,7 @@ export function createConfirmationStore(sql: Sql): ConfirmationStore {
             ${pending.companyId},
             ${conversationId},
             ${pending.toolId},
-            ${sql.json(payload)},
+            ${sql.json(payload as Parameters<Sql['json']>[0])},
             ${pending.expiresAt}
           )
         `
