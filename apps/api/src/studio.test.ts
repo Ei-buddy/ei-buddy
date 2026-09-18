@@ -57,6 +57,7 @@ const useCases: AgentUseCases = {
   sendCustomerCharge: async () => {
     throw new Error('nao deveria cobrar neste teste')
   },
+  findProductByBarcode: async () => undefined,
 }
 
 const directory = new FixturePeerDirectory([

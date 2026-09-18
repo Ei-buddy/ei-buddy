@@ -10,7 +10,7 @@ import { validate } from '../plugins/validate.js'
  *
  * Harness de engenharia: a mesma `processMessage` do webhook futuro. O
  * contexto vem da sessao autenticada da fixture (`channel: 'app'`), nunca de
- * `companyId` no body (schema strict so aceita `text`). Nao e canal de
+ * `companyId` no body (schema strict so aceita `text` e `image`). Nao e canal de
  * produto do lojista nesta fatia — producao fica 503 ate NR-113 / NR-121,
  * salvo `AGENT_HARNESS=1` em staging.
  */
@@ -58,11 +58,19 @@ export function registerAgentRoutes(
       const input = validate(agentMessageInputSchema, request.body)
 
       const mensagem: IncomingMessage = {
-        text: input.text,
+        text: input.text ?? '',
         requestId: ctx.requestId,
         now: ctx.now,
         channel: 'app',
         ctx,
+        ...(input.image === undefined
+          ? {}
+          : {
+              image: {
+                mimeType: input.image.mimeType,
+                bytes: Uint8Array.from(Buffer.from(input.image.dataBase64, 'base64')),
+              },
+            }),
       }
 
       const resposta: AgentReply = await processMessage(deps.runtime, mensagem)

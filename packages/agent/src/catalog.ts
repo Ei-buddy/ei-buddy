@@ -96,6 +96,10 @@ export type AgentUseCases = {
     ctx: ExecutionContext,
     input: SendChargeInput,
   ) => Promise<SendCustomerChargeResult>
+  readonly findProductByBarcode: (
+    ctx: ExecutionContext,
+    barcode: string,
+  ) => Promise<ProductOutput | undefined>
 }
 
 export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {

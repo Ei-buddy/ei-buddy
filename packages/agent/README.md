@@ -238,6 +238,47 @@ Consultas somente-leitura NR-115 (`check_stock`, `list_payables`,
 Gates completos:
 [`specs/006-consultar-estoque-pagar-fiado/quickstart.md`](../../specs/006-consultar-estoque-pagar-fiado/quickstart.md).
 
+## Foto do código de barras (NR-116)
+
+`POST /agent/messages` aceita **texto e/ou imagem** (`agentMessageInputSchema`:
+pelo menos um dos dois). A API converte `image.dataBase64` em bytes e chama o
+mesmo `processMessage` — `companyId` nunca vem no body.
+
+Com `image` presente, o laço **decodifica antes do LLM** (`BarcodeDecoder` +
+`findProductByBarcode`); **não** usa visão do modelo. Sem imagem, o fluxo
+permanece `LlmPort.decide()` → tool.
+
+```
+mensagem (+ image?) → processMessage
+        → [se image] decode → lookup (sem LLM)
+        → senão LlmPort.decide() → tool
+        → confirmação quando mutatesValue
+        → AgentTool.execute → core
+```
+
+Na CI e com `AGENT_PROVIDER=fake`, só entra `FakeBarcodeDecoder` (mapa de
+fixture → 0, 1 ou N códigos). **Não** há ZXing real no pipeline de teste.
+
+| Situação                                                    | Rota                                                                    | Confirma? |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------- | :-------: |
+| Foto legível + produto, sem pagamento                       | `clarify` (pergunta forma de pagamento); rascunho de venda por um turno |    ❌     |
+| Pagamento inequívoco na mesma mensagem ou no turno seguinte | `create_sale` (qty 1, `unitPriceCents` = `salePriceCents` do produto)   |    ✅     |
+| Próxima mensagem **não** é pagamento                        | descarta o item; segue o laço normal                                    |    ❌     |
+| Ilegível / MIME inválido / 0 códigos                        | `answer` recusa; pede venda ou cadastro **por texto**                   |    ❌     |
+| 2+ códigos na foto                                          | `answer` “um produto por vez”                                           |    ❌     |
+| Código sem produto, sem pedido de cadastro                  | `answer` recusa; sem item avulso                                        |    ❌     |
+| Foto + cadastro explícito (`cadastr…`)                      | `answer` com o código lido; **não** é venda (NR-117)                    |    ❌     |
+
+A imagem **nunca** é persistida: histórico e memória gravam o placeholder
+`[foto do codigo]` (com o código quando lido). Bytes e `dataBase64` não entram
+em `messages.body` nem em logs estruturados.
+
+Preço e total da venda por foto continuam vindos do catálogo/`core` — o agente
+**nunca calcula** margem, parcela ou desconto.
+
+Gates:
+[`specs/007-foto-codigo-barras/quickstart.md`](../../specs/007-foto-codigo-barras/quickstart.md).
+
 O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
 linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
 

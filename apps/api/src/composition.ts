@@ -16,6 +16,7 @@ import {
   checkStock,
   checkStockByQuery,
   createDefaultSaleSettings,
+  findProductByBarcode,
   listPayables,
   listReceivables,
   listSales,
@@ -900,6 +901,7 @@ export function buildAgentUseCases(): AgentUseCases {
         ctx,
         input,
       ),
+    findProductByBarcode: (ctx, barcode) => findProductByBarcode(cadastro, ctx, barcode),
   }
 }
 
