@@ -174,7 +174,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ✅   |
 | NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ✅   |
 | NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ✅   |
-| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ⬜   |
+| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ✅   |
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ⬜   |
 | NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ⬜   |
 | NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
@@ -209,6 +209,13 @@ tabela `confirmations` (RLS + `withTenant`), ligada a um stub de
 Studio `wa:` **não** cruzam chave. Sem HITL Mastra, sem gravar `messages`
 (NR-062). Status ✅ nesta branch (`feat/NR-061-confirmacao-acao-sensivel`)
 — sem URL de PR ainda.
+
+**NR-115 (entregue neste PR):** consultas conversacionais somente-leitura —
+`check_stock`, `list_payables`, `check_customer_wallet` — com schemas de
+`contracts`, casos de uso em `core`, migration `0022_produto_estoque_localizacao`
+(`tracks_stock`, `location`) e harness FakeLlm/HTTP. Leituras sem confirmação
+nem escrita; homônimos expõem alternativas sem saldo. Status ✅ nesta branch
+(`feat/NR-115-consultar-estoque-pagar-fiado`) — sem URL de PR ainda.
 
 ## Sprint 5 — Bancos e relatórios
 

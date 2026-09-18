@@ -1,9 +1,27 @@
-import type { CheckStockInput, StockViewOutput } from '@na-regua/contracts'
+import type {
+  CheckStockByQueryInput,
+  CheckStockInput,
+  ProductOutput,
+  StockViewOutput,
+} from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import type { InventoryQueries } from '../ports/inventory-writers.js'
+import { searchProducts, type SearchProductsDeps } from '../registration/register-product.js'
 
 export type CheckStockDeps = InventoryQueries
+
+/** Resultado da busca textual antes da consulta final — NR-115. */
+export type CheckStockByQueryResult =
+  | { readonly status: 'found'; readonly view: StockViewOutput }
+  | { readonly status: 'not_found' }
+  | { readonly status: 'ambiguous'; readonly alternatives: readonly ProductOutput[] }
+
+export type CheckStockByQueryDeps = SearchProductsDeps & {
+  readonly inventory: InventoryQueries
+}
+
+const LIMITE_BUSCA_ESTOQUE = 5
 
 /**
  * Saldo, preco e localizacao de um produto — RF-022.
@@ -50,4 +68,32 @@ export async function checkStock(
 export function estaAbaixoDoMinimo(saldo: number | null, minimo: number | null): boolean {
   if (saldo === null || minimo === null) return false
   return saldo < minimo
+}
+
+/**
+ * Consulta de estoque por texto — NR-115, RF-133.
+ *
+ * Busca primeiro; so chama `checkStock` quando ha candidato unico. Zero ou varios
+ * candidatos terminam em ausencia ou desambiguacao, sem escolher produto.
+ */
+export async function checkStockByQuery(
+  deps: CheckStockByQueryDeps,
+  ctx: ExecutionContext,
+  input: CheckStockByQueryInput,
+): Promise<CheckStockByQueryResult> {
+  const candidatos = await searchProducts(deps, ctx, {
+    termo: input.query,
+    limite: LIMITE_BUSCA_ESTOQUE,
+  })
+
+  if (candidatos.length === 0) {
+    return { status: 'not_found' }
+  }
+
+  if (candidatos.length > 1) {
+    return { status: 'ambiguous', alternatives: candidatos }
+  }
+
+  const view = await checkStock(deps.inventory, ctx, { productId: candidatos[0]!.id })
+  return { status: 'found', view }
 }

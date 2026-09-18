@@ -5,6 +5,7 @@ import {
   createFixedCostPayableGenerator,
   createFixedCostRepository,
 } from './fixed-cost-repository.js'
+import { createPayableQueries } from './payable-repository.js'
 import { migrate } from './migrate.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
 import { withTenant } from './tenant.js'
@@ -174,6 +175,54 @@ describe.skipIf(!DATABASE_URL)('custos fixos — NR-110', () => {
 
     expect(await repo.findById(empresaA, daOutra.id)).toBeUndefined()
     expect((await repo.list(empresaA)).map((c) => c.id)).not.toContain(daOutra.id)
+  })
+
+  describe('listagem de contas a pagar — NR-115 / T022', () => {
+    let payables: ReturnType<typeof createPayableQueries>
+
+    beforeAll(() => {
+      payables = createPayableQueries(sql)
+    })
+
+    async function inserirTitulo(
+      empresa: string,
+      fornecedor: string,
+      valorCents: number,
+      vencimento: string,
+    ): Promise<string> {
+      const id = randomUUID()
+      await withTenant(
+        sql,
+        empresa,
+        (tx) => tx`
+          INSERT INTO payables
+            (id, company_id, supplier, description, amount_cents, due_date, status)
+          VALUES (${id}, ${empresa}, ${fornecedor}, ${fornecedor}, ${valorCents}, ${vencimento}, 'open')
+        `,
+      )
+      return id
+    }
+
+    it('lista abertos so do tenant atual', async () => {
+      await inserirTitulo(empresaA, 'Fornecedor A', 12_000, '2026-09-12')
+      await inserirTitulo(empresaB, 'Fornecedor B', 99_000, '2026-09-12')
+
+      const daA = await payables.list(empresaA, { status: ['open'] })
+      const daB = await payables.list(empresaB, { status: ['open'] })
+
+      expect(daA.map((p) => p.supplier)).toContain('Fornecedor A')
+      expect(daA.map((p) => p.supplier)).not.toContain('Fornecedor B')
+      expect(daB.map((p) => p.supplier)).toContain('Fornecedor B')
+      expect(daB.map((p) => p.supplier)).not.toContain('Fornecedor A')
+    })
+
+    it('titulo conhecido apenas da outra loja responde como ausente', async () => {
+      const idB = await inserirTitulo(empresaB, 'Titulo so da B', 5_000, '2026-09-15')
+
+      const daA = await payables.list(empresaA, { status: ['open'] })
+
+      expect(daA.map((p) => p.id)).not.toContain(idB)
+    })
   })
 
   describe('gerar as contas do mes', () => {

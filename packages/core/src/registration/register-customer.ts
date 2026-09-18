@@ -1,4 +1,5 @@
 import {
+  type CheckCustomerWalletInput,
   type CreateCustomerInput,
   type CustomerListInput,
   type CustomerListOutput,
@@ -195,4 +196,76 @@ export async function listCustomers(
   })
 
   return { customers: [...clientes], total, page: input.page, pageSize: input.pageSize }
+}
+
+export type SearchCustomersDeps = {
+  readonly customers: CustomerRepository
+}
+
+const LIMITE_BUSCA_CLIENTE = 5
+
+/** Resultado da busca textual antes da leitura de saldo — NR-115. */
+export type CheckCustomerWalletByQueryResult =
+  | {
+      readonly status: 'found'
+      readonly customerName: string
+      readonly walletBalanceCents: number
+    }
+  | { readonly status: 'not_found' }
+  | { readonly status: 'ambiguous'; readonly alternatives: readonly CustomerOutput[] }
+
+export type CheckCustomerWalletByQueryDeps = SearchCustomersDeps
+
+/**
+ * Busca textual de clientes para o balcao — NR-115.
+ *
+ * Leitura, sem `assertCanWrite`. O limite evita varrer o cadastro inteiro e
+ * forca desambiguacao quando ha varios parecidos.
+ */
+export async function searchCustomers(
+  deps: SearchCustomersDeps,
+  ctx: ExecutionContext,
+  input: { readonly termo?: string; readonly limite?: number },
+): Promise<readonly CustomerOutput[]> {
+  const limite = Math.min(input.limite ?? LIMITE_BUSCA_CLIENTE, LIMITE_BUSCA_CLIENTE)
+
+  return deps.customers.search(ctx.companyId, {
+    ...(input.termo === undefined || input.termo.trim() === ''
+      ? {}
+      : { termo: input.termo.trim() }),
+    limite: Math.max(1, limite),
+  })
+}
+
+/**
+ * Consulta de fiado por texto — NR-115, RF-135.
+ *
+ * Busca primeiro; so informa `walletBalanceCents` quando ha candidato unico.
+ * Zero ou varios candidatos terminam em ausencia ou desambiguacao, sem escolher
+ * cliente nem inventar saldo.
+ */
+export async function checkCustomerWalletByQuery(
+  deps: CheckCustomerWalletByQueryDeps,
+  ctx: ExecutionContext,
+  input: CheckCustomerWalletInput,
+): Promise<CheckCustomerWalletByQueryResult> {
+  const candidatos = await searchCustomers(deps, ctx, {
+    termo: input.query,
+    limite: LIMITE_BUSCA_CLIENTE,
+  })
+
+  if (candidatos.length === 0) {
+    return { status: 'not_found' }
+  }
+
+  if (candidatos.length > 1) {
+    return { status: 'ambiguous', alternatives: candidatos }
+  }
+
+  const cliente = candidatos[0]!
+  return {
+    status: 'found',
+    customerName: cliente.name,
+    walletBalanceCents: cliente.walletBalanceCents,
+  }
 }

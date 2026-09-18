@@ -37,8 +37,12 @@ export type { Alteracao } from './audit/changed-fields.js'
 export type { AuditTrail, NewAuditEntry, TransactionalAuditTrail } from './ports/audit-trail.js'
 export { adjustStock } from './inventory/adjust-stock.js'
 export type { AdjustStockDeps } from './inventory/adjust-stock.js'
-export { checkStock, estaAbaixoDoMinimo } from './inventory/check-stock.js'
-export type { CheckStockDeps } from './inventory/check-stock.js'
+export { checkStock, checkStockByQuery, estaAbaixoDoMinimo } from './inventory/check-stock.js'
+export type {
+  CheckStockByQueryDeps,
+  CheckStockByQueryResult,
+  CheckStockDeps,
+} from './inventory/check-stock.js'
 export type {
   InventoryProductSnapshot,
   InventoryQueries,
@@ -196,13 +200,18 @@ export { getCompany, updateCompany } from './registration/manage-company.js'
 export type { ManageCompanyDeps } from './registration/manage-company.js'
 export {
   assertIdentifiable,
+  checkCustomerWalletByQuery,
   importCustomers,
   registerCustomer,
+  searchCustomers,
 } from './registration/register-customer.js'
 export type {
+  CheckCustomerWalletByQueryDeps,
+  CheckCustomerWalletByQueryResult,
   RegisterCustomerDeps,
   RegisterCustomerOptions,
   RegisterCustomerResult,
+  SearchCustomersDeps,
 } from './registration/register-customer.js'
 export {
   catalogSummary,

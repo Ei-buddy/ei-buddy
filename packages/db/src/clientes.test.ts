@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import postgres, { type Sql } from 'postgres'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { migrate } from './migrate.js'
 import { createCustomerRepository } from './registration-repositories.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
@@ -218,5 +218,115 @@ describe.skipIf(!DATABASE_URL)('lista de clientes — NR-072', () => {
     const r = await repo.list(empresaA, pedido)
 
     expect(r.clientes.map((c) => c.name)).not.toContain('Cliente da loja B')
+  })
+})
+
+describe.skipIf(!DATABASE_URL)('busca de cliente para fiado — NR-115 US3', () => {
+  let admin: Sql
+  let sql: Sql
+  let aplicacao: ConexaoDeAplicacao
+  let empresaA: string
+  let empresaB: string
+  let repo: ReturnType<typeof createCustomerRepository>
+
+  async function criarEmpresa(cnpj: string, nome: string): Promise<string> {
+    const id = randomUUID()
+    await withTenant(
+      sql,
+      id,
+      (tx) => tx`
+        INSERT INTO companies (id, legal_name, cnpj, email, phone)
+        VALUES (${id}, ${nome}, ${cnpj}, ${`fiado@${cnpj}.local`}, '41999990000')
+      `,
+    )
+    return id
+  }
+
+  async function criarCliente(
+    empresa: string,
+    nome: string,
+    extras: { saldoCents?: number; phone?: string } = {},
+  ): Promise<string> {
+    const id = randomUUID()
+    await withTenant(
+      sql,
+      empresa,
+      (tx) => tx`
+        INSERT INTO customers (id, company_id, name, phone, wallet_balance_cents)
+        VALUES (${id}, ${empresa}, ${nome}, ${extras.phone ?? null}, ${extras.saldoCents ?? 0})
+      `,
+    )
+    return id
+  }
+
+  beforeAll(async () => {
+    const r = await migrate(MIGRATION_URL!)
+    expect([...r.aplicadas, ...r.jaEstavam]).toContain('0002_dominio_0909')
+
+    admin = postgres(DATABASE_URL!, { max: 4, onnotice: () => {} })
+    aplicacao = await conectarComoAplicacao(admin, DATABASE_URL!)
+    sql = aplicacao.sql
+
+    empresaA = await criarEmpresa(cnpjDeTeste('7'), 'Loja Fiado A')
+    empresaB = await criarEmpresa(cnpjDeTeste('9'), 'Loja Fiado B')
+
+    repo = createCustomerRepository(sql)
+  }, 60_000)
+
+  afterAll(async () => {
+    if (!sql) {
+      await admin?.end({ timeout: 5 })
+      return
+    }
+    for (const empresa of [empresaA, empresaB].filter(Boolean)) {
+      await withTenant(sql, empresa, async (tx) => {
+        await tx`DELETE FROM customers`
+        await tx`DELETE FROM companies`
+      })
+    }
+    await aplicacao.encerrar()
+    await admin.end({ timeout: 5 })
+  })
+
+  beforeEach(async () => {
+    for (const empresa of [empresaA, empresaB]) {
+      await withTenant(sql, empresa, (tx) => tx`DELETE FROM customers`)
+    }
+  })
+
+  it('acha um cliente pelo nome', async () => {
+    await criarCliente(empresaA, 'Maria Devedora', { saldoCents: 4_500, phone: '41999991111' })
+
+    const achados = await repo.search(empresaA, { termo: 'Maria', limite: 5 })
+
+    expect(achados).toHaveLength(1)
+    expect(achados[0]?.name).toBe('Maria Devedora')
+    expect(achados[0]?.walletBalanceCents).toBe(4_500)
+  })
+
+  it('devolve saldo zero sem confundir com ausencia', async () => {
+    await criarCliente(empresaA, 'Joao Quitado')
+
+    const achados = await repo.search(empresaA, { termo: 'Joao', limite: 5 })
+
+    expect(achados).toHaveLength(1)
+    expect(achados[0]?.walletBalanceCents).toBe(0)
+  })
+
+  it('limita candidatos para desambiguacao', async () => {
+    await criarCliente(empresaA, 'Maria Silva', { phone: '41999992222' })
+    await criarCliente(empresaA, 'Maria Souza', { phone: '41999993333' })
+
+    const achados = await repo.search(empresaA, { termo: 'Maria', limite: 5 })
+
+    expect(achados.map((c) => c.name).sort()).toEqual(['Maria Silva', 'Maria Souza'])
+  })
+
+  it('nao enxerga cliente de outra loja', async () => {
+    await criarCliente(empresaB, 'Maria da loja B', { saldoCents: 9_000 })
+
+    const achados = await repo.search(empresaA, { termo: 'da loja B', limite: 5 })
+
+    expect(achados).toEqual([])
   })
 })

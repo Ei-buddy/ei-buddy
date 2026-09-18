@@ -32,6 +32,8 @@ const { db, storePostgres } = vi.hoisted(() => {
       createProductRepository: vi.fn(vazio),
       createChartOfAccountsRepository: vi.fn(vazio),
       createInventoryUnitOfWork: vi.fn(vazio),
+      createInventoryQueries: vi.fn(() => ({ products: {} })),
+      createInventoryHistory: vi.fn(vazio),
       createAuditTrail: vi.fn(vazio),
       createPayableUnitOfWork: vi.fn(vazio),
       createPayableQueries: vi.fn(vazio),
@@ -44,7 +46,9 @@ const { db, storePostgres } = vi.hoisted(() => {
 })
 
 const coreConsultas = vi.hoisted(() => ({
+  checkStock: vi.fn(),
   listSales: vi.fn(),
+  listPayables: vi.fn(),
   listReceivables: vi.fn(),
   registerSale: vi.fn(),
   searchProducts: vi.fn(),
@@ -58,7 +62,9 @@ vi.mock('@na-regua/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@na-regua/core')>()
   return {
     ...actual,
+    checkStock: coreConsultas.checkStock,
     listSales: coreConsultas.listSales,
+    listPayables: coreConsultas.listPayables,
     listReceivables: coreConsultas.listReceivables,
     registerSale: coreConsultas.registerSale,
     searchProducts: coreConsultas.searchProducts,
@@ -380,6 +386,38 @@ describe('buildAgentDeps — US2 list_sales / list_receivables', () => {
     await receber!.execute({}, ctx)
     expect(coreConsultas.listReceivables).toHaveBeenCalledOnce()
     expect(coreConsultas.listReceivables.mock.calls[0]?.[1]).toEqual(ctx)
+  })
+})
+
+describe('buildAgentUseCases — NR-115 T005', () => {
+  const ctx = {
+    companyId: 'emp-1',
+    userId: 'user-1',
+    role: 'owner' as const,
+    channel: 'app' as const,
+    requestId: 'req-consulta-1',
+    now: new Date('2026-09-11T15:00:00.000Z'),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('injeta somente dependencias core de leitura, com o contexto autenticado', async () => {
+    coreConsultas.checkStock.mockResolvedValue({ productId: 'p-1' })
+    coreConsultas.listPayables.mockResolvedValue({ grupos: [], totalCents: 0, temVencidas: false })
+    const { buildAgentUseCases } = await carregar()
+    const useCases = buildAgentUseCases()
+
+    await useCases.checkStock(ctx, { productId: 'p-1' })
+    await useCases.listPayables(ctx)
+
+    expect(coreConsultas.checkStock).toHaveBeenCalledWith(
+      expect.objectContaining({ products: expect.anything() }),
+      ctx,
+      { productId: 'p-1' },
+    )
+    expect(coreConsultas.listPayables).toHaveBeenCalledWith(expect.anything(), ctx)
   })
 })
 

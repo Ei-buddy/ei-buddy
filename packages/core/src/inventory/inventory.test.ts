@@ -3,9 +3,11 @@ import { isAppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import type { InventoryProductSnapshot } from '../ports/inventory-writers.js'
 import { adjustStock } from './adjust-stock.js'
-import { checkStock, estaAbaixoDoMinimo } from './check-stock.js'
+import { checkStock, checkStockByQuery, estaAbaixoDoMinimo } from './check-stock.js'
 import { InMemoryAuditTrail } from '../audit/fakes.js'
 import { InMemoryInventory } from './fakes.js'
+import type { ProductOutput } from '@na-regua/contracts'
+import type { ProductRepository } from '../ports/registration-repositories.js'
 
 const AGORA = new Date('2026-09-02T12:00:00.000Z')
 
@@ -62,6 +64,113 @@ function deps(inv: InMemoryInventory) {
 // ---------------------------------------------------------------------------
 // Consulta — RF-022
 // ---------------------------------------------------------------------------
+
+function produtoBusca(over: Partial<ProductOutput> = {}): ProductOutput {
+  return {
+    id: 'prod-arroz',
+    description: 'Arroz 5kg',
+    barcode: null,
+    internalCode: 'PROD-0001',
+    unitOfMeasure: 'un',
+    salePriceCents: 2890,
+    costPriceCents: 1200,
+    taxRate: 0,
+    ncm: null,
+    cfop: null,
+    taxSituationCode: null,
+    stock: 20,
+    minStock: 5,
+    category: null,
+    supplier: null,
+    ...over,
+  }
+}
+
+function repositorioBusca(
+  resultados: readonly ProductOutput[],
+  ...produtos: InventoryProductSnapshot[]
+) {
+  const inv = estoqueCom(...produtos)
+  return {
+    products: {
+      search: async () => resultados,
+      findById: async () => undefined,
+      findByBarcode: async () => undefined,
+      create: async () => {
+        throw new Error('nao deveria criar')
+      },
+      countAll: async () => 0,
+      listCatalog: async () => ({ produtos: [], total: 0 }),
+      catalogSummary: async () => ({
+        total: 0,
+        belowMinimum: 0,
+        outOfStock: 0,
+        stockValueCents: 0,
+      }),
+      listSuggestions: async () => ({ categories: [], suppliers: [] }),
+    } satisfies ProductRepository,
+    inventory: inv,
+  }
+}
+
+describe('consultar estoque por texto — NR-115', () => {
+  it('candidato unico devolve a visao de checkStock com localizacao', async () => {
+    const deps = repositorioBusca([produtoBusca()], ARROZ)
+
+    const r = await checkStockByQuery(deps, contexto(), { query: 'arroz' })
+
+    expect(r.status).toBe('found')
+    if (r.status !== 'found') return
+    expect(r.view.stockQuantity).toBe(20)
+    expect(r.view.location).toBe('Corredor 3, prateleira B')
+    expect(r.view.salePriceCents).toBe(2890)
+  })
+
+  it('produto sem controle devolve nulo, nao zero', async () => {
+    const deps = repositorioBusca(
+      [produtoBusca({ id: 'prod-granel', description: 'Feijao a granel' })],
+      GRANEL,
+    )
+
+    const r = await checkStockByQuery(deps, contexto(), { query: 'feijao' })
+
+    expect(r.status).toBe('found')
+    if (r.status !== 'found') return
+    expect(r.view.stockQuantity).toBeNull()
+    expect(r.view.stockQuantity).not.toBe(0)
+  })
+
+  it('saldo zero continua sendo zero', async () => {
+    const deps = repositorioBusca([produtoBusca({ stock: 0 })], { ...ARROZ, stockQuantity: 0 })
+
+    const r = await checkStockByQuery(deps, contexto(), { query: 'arroz' })
+
+    expect(r.status).toBe('found')
+    if (r.status !== 'found') return
+    expect(r.view.stockQuantity).toBe(0)
+  })
+
+  it('busca sem resultado informa ausencia', async () => {
+    const deps = repositorioBusca([])
+
+    const r = await checkStockByQuery(deps, contexto(), { query: 'xyz' })
+
+    expect(r).toEqual({ status: 'not_found' })
+  })
+
+  it('varios candidatos listam alternativas sem consultar saldo', async () => {
+    const deps = repositorioBusca([
+      produtoBusca({ id: 'p-azul', description: 'Camiseta M azul' }),
+      produtoBusca({ id: 'p-branca', description: 'Camiseta M branca' }),
+    ])
+
+    const r = await checkStockByQuery(deps, contexto(), { query: 'camiseta' })
+
+    expect(r.status).toBe('ambiguous')
+    if (r.status !== 'ambiguous') return
+    expect(r.alternatives).toHaveLength(2)
+  })
+})
 
 describe('consultar estoque — RF-022', () => {
   it('devolve saldo, preco e localizacao', async () => {

@@ -26,6 +26,18 @@ const useCases: AgentUseCases = {
     },
   }),
   listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
+  checkStock: async () => {
+    throw new Error('nao deveria consultar estoque neste teste')
+  },
+  checkStockByQuery: async () => {
+    throw new Error('nao deveria consultar estoque neste teste')
+  },
+  checkCustomerWalletByQuery: async () => {
+    throw new Error('nao deveria consultar fiado neste teste')
+  },
+  listPayables: async () => {
+    throw new Error('nao deveria consultar contas a pagar neste teste')
+  },
   registerCustomer: async () => {
     throw new Error('nao deveria cadastrar neste teste')
   },

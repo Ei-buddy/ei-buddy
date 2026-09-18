@@ -57,6 +57,20 @@ export const checkStockInputSchema = z.object({ productId: idSchema }).strict()
 
 export type CheckStockInput = z.infer<typeof checkStockInputSchema>
 
+/** Busca textual de produto para a consulta conversacional de estoque — NR-115. */
+export const checkStockByQueryInputSchema = z
+  .object({
+    query: z.string().trim().min(1, 'Informe o produto que deseja consultar.'),
+  })
+  .strict()
+
+export type CheckStockByQueryInput = z.infer<typeof checkStockByQueryInputSchema>
+
+/** Consulta conversacional de contas a pagar — sem argumento controlado pelo usuário. */
+export const listPayablesInputSchema = z.object({}).strict()
+
+export type ListPayablesInput = z.infer<typeof listPayablesInputSchema>
+
 export const inventoryMovementOutputSchema = z.object({
   id: idSchema,
   productId: idSchema,

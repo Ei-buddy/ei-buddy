@@ -13,6 +13,18 @@ const useCases: AgentUseCases = {
   listReceivables: async () => {
     throw new Error('nao executa neste teste')
   },
+  checkStock: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  checkStockByQuery: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  checkCustomerWalletByQuery: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  listPayables: async () => {
+    throw new Error('nao executa neste teste')
+  },
   registerCustomer: async () => {
     throw new Error('nao executa neste teste')
   },

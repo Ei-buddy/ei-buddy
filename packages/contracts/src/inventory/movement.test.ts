@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { adjustStockInputSchema, movementKindSchema, stockViewOutputSchema } from './movement.js'
+import {
+  adjustStockInputSchema,
+  checkStockByQueryInputSchema,
+  listPayablesInputSchema,
+  movementKindSchema,
+  stockViewOutputSchema,
+} from './movement.js'
 
 const valido = { productId: 'prod-1', countedQuantity: 18, reason: 'Contagem de inventario' }
 
@@ -77,5 +83,22 @@ describe('visao de estoque — RF-022', () => {
 
   it('aceita saldo negativo — venda sem estoque deixa o saldo devendo (RF-028)', () => {
     expect(stockViewOutputSchema.parse({ ...base, stockQuantity: -5 }).stockQuantity).toBe(-5)
+  })
+})
+
+describe('inputs de consulta conversacional — NR-115', () => {
+  it('aceita uma busca de produto preenchida e recusa texto vazio ou campos extras', () => {
+    expect(checkStockByQueryInputSchema.parse({ query: ' arroz 5kg ' })).toEqual({
+      query: 'arroz 5kg',
+    })
+    expect(checkStockByQueryInputSchema.safeParse({ query: '   ' }).success).toBe(false)
+    expect(
+      checkStockByQueryInputSchema.safeParse({ query: 'arroz', companyId: 'outra' }).success,
+    ).toBe(false)
+  })
+
+  it('aceita somente objeto vazio para consultar contas a pagar', () => {
+    expect(listPayablesInputSchema.parse({})).toEqual({})
+    expect(listPayablesInputSchema.safeParse({ companyId: 'empresa-1' }).success).toBe(false)
   })
 })

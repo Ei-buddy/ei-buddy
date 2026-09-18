@@ -32,6 +32,18 @@ const useCases: AgentUseCases = {
     totalCents: 0,
     temVencidas: false,
   }),
+  checkStock: async () => {
+    throw new Error('nao deveria consultar estoque neste teste')
+  },
+  checkStockByQuery: async () => {
+    throw new Error('nao deveria consultar estoque neste teste')
+  },
+  checkCustomerWalletByQuery: async () => {
+    throw new Error('nao deveria consultar fiado neste teste')
+  },
+  listPayables: async () => {
+    throw new Error('nao deveria consultar contas a pagar neste teste')
+  },
   registerCustomer: async () => {
     throw new Error('nao deveria cadastrar neste teste')
   },
@@ -97,8 +109,53 @@ describe('POST /agent/messages', () => {
     await app.close()
   })
 
-  it('consulta fora do catalogo (estoque) tambem so lista capacidades', async () => {
-    const app = buildApp()
+  it('consulta de contas a pagar responde pelo harness — US2 / NR-115', async () => {
+    const listPayables = async () => ({
+      grupos: [
+        { faixa: 'overdue' as const, totalCents: 5_000, payables: [] },
+        { faixa: 'today' as const, totalCents: 2_000, payables: [] },
+        { faixa: 'week' as const, totalCents: 0, payables: [] },
+        { faixa: 'month' as const, totalCents: 0, payables: [] },
+        { faixa: 'later' as const, totalCents: 0, payables: [] },
+      ],
+      totalCents: 7_000,
+      temVencidas: true,
+    })
+    const runtime = createAgentRuntime({
+      useCases: { ...useCases, listPayables },
+    })
+    const app = buildApp(PRINCIPAL, runtime)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'o que vence essa semana?' },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('answer')
+    expect(corpo.text).toMatch(/vencid/i)
+    await app.close()
+  })
+
+  it('consulta de estoque responde pelo harness — US-065 / NR-115', async () => {
+    const llm = new FakeLlm()
+    const checkStockByQuery = async () => ({
+      status: 'found' as const,
+      view: {
+        productId: 'p-azul',
+        description: 'Camiseta M azul',
+        salePriceCents: 4_990,
+        stockQuantity: 10,
+        location: 'Prateleira A',
+        minStock: 0,
+        belowMinimum: false,
+      },
+    })
+    const runtime = createAgentRuntime({
+      useCases: { ...useCases, checkStockByQuery },
+      llm,
+    })
+    const app = buildApp(PRINCIPAL, runtime)
     const res = await app.inject({
       method: 'POST',
       url: '/agent/messages',
@@ -106,9 +163,32 @@ describe('POST /agent/messages', () => {
     })
     expect(res.statusCode).toBe(200)
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('unknown')
-    expect(corpo.text).toContain('list_sales')
-    expect(corpo.text).not.toMatch(/US-065|estoque|em breve/i)
+    expect(corpo.kind).toBe('answer')
+    expect(corpo.text).toContain('Camiseta M azul')
+    expect(corpo.text).toContain('10 un')
+    await app.close()
+  })
+
+  it('consulta de fiado responde pelo harness — US3 / NR-115', async () => {
+    const checkCustomerWalletByQuery = async () => ({
+      status: 'found' as const,
+      customerName: 'Joao Devedor',
+      walletBalanceCents: 2_500,
+    })
+    const runtime = createAgentRuntime({
+      useCases: { ...useCases, checkCustomerWalletByQuery },
+    })
+    const app = buildApp(PRINCIPAL, runtime)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'quanto o joao deve?' },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('answer')
+    expect(corpo.text).toContain('Joao Devedor')
+    expect(corpo.text).toMatch(/R\$\s*25/)
     await app.close()
   })
 

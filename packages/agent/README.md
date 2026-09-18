@@ -229,9 +229,14 @@ para o restante — [RF-109](../../docs/produto/requisitos-funcionais.md) —
 fica dívida explícita desta fatia e **não** entra no aceite da NR-060.
 
 ```bash
-pnpm --filter @na-regua/agent test
+pnpm --filter @na-regua/agent test -- src/catalog.test.ts src/process-message.test.ts
 pnpm --filter @na-regua/api exec vitest run src/routes/agent.test.ts src/composition.test.ts
 ```
+
+Consultas somente-leitura NR-115 (`check_stock`, `list_payables`,
+`check_customer_wallet`): `mutatesValue: false`, sem confirmação, sem escrita.
+Gates completos:
+[`specs/006-consultar-estoque-pagar-fiado/quickstart.md`](../../specs/006-consultar-estoque-pagar-fiado/quickstart.md).
 
 O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
 linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
@@ -240,7 +245,9 @@ linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
 | --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | 1   | `quanto vendi hoje?`               | `process-message.test.ts` (totais = `listSales`); `apps/api/src/routes/agent.test.ts` (POST autenticado) |
 | 2   | `quem está me devendo?`            | `process-message.test.ts` (totais = `listReceivables`)                                                   |
-| 3   | `quanto tem de camiseta?`          | `process-message.test.ts` + rota: `unknown` / capacidades, sem NR-115                                    |
+| 3   | `quanto tem de camiseta?`          | `process-message.test.ts` + `catalog.test.ts` + `apps/api/src/routes/agent.test.ts` (NR-115)             |
+| 3b  | `o que vence essa semana?`         | `process-message.test.ts` + `catalog.test.ts` + rota (NR-115 `list_payables`)                            |
+| 3c  | `quanto o joão deve?`              | `process-message.test.ts` + `catalog.test.ts` + rota (NR-115 `check_customer_wallet`)                    |
 | 4   | cadastrar cliente                  | `process-message.test.ts` (`create_customer` → confirmação → sim; duplicata; “talvez”)                   |
 | 5   | venda scriptada                    | `process-message.test.ts` (`create_sale` → sim; líquido = core)                                          |
 | 6   | produto ambíguo                    | `process-message.test.ts` (`search_products` → `clarify`)                                                |
