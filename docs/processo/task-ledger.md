@@ -51,10 +51,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     100 |  250 |
-| ✅ Concluídas                 |      85 |  209 |
+| ✅ Concluídas                 |      86 |  211 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      14 |   37 |
+| ⬜ A fazer, pode começar hoje |      13 |   35 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -64,9 +64,9 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > A **NR-121** entra como ✅ nesta mesma linha de entrega (branch
 > `feat/NR-121-harness-studio`); a `main` só passa a contar o squash depois
 > do merge — sem URL de PR ainda.
-> A **NR-062** entra como ✅ **neste PR** (branch
-> `feat/NR-062-contexto-conversa-isolado`); a `main` só passa a contar o
-> squash depois do merge.
+> A **NR-062** já está ✅ na `main` (#228). A **NR-061** entra como ✅ **neste
+> PR** (branch `feat/NR-061-confirmacao-acao-sensivel`); a `main` só passa a
+> contar o squash depois do merge — sem URL de PR ainda.
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi
@@ -89,9 +89,9 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **41 dias que faltam, 37 podem começar hoje** — inclusive NR-015 (deploy na
-VM), a cascata E11 no Studio (NR-061 → 115–119 → NR-120) agora que a
-NR-062 está ✅, depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
+Dos **39 dias que faltam, 35 podem começar hoje** — inclusive NR-015 (deploy na
+VM), a cascata E11 no Studio (115–119 → NR-120) agora que a NR-121, a NR-061
+e a NR-062 estão ✅, depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
 DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava tarefa no
 quadro (NR-048). Studio é substituto do WhatsApp em engenharia
 ([ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md) revisão 2026-09-16);
@@ -172,7 +172,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                                                 | —    | RF-015                                                        |   ✅   |
 | NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-005                                                 | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ✅   |
 | NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ✅   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ⬜   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ✅   |
 | NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ✅   |
 | NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ⬜   |
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ⬜   |
@@ -200,8 +200,15 @@ linha nova no ledger para isso. Ver `packages/agent/README.md`.
 'whatsapp'`, peer forjado). Sem `/api/agents` de negócio; `POST
 /agent/messages` inalterado. Observabilidade: `durationMs` no envelope da
 tool + log `agent.studio.turn`. Status ✅ nesta branch
-(`feat/NR-121-harness-studio`) — sem URL de PR ainda. Confirmação continua
-in-memory (NR-061); Memory/RAG/Meta ficam fora.
+(`feat/NR-121-harness-studio`) — sem URL de PR ainda. Confirmação persistente
+fecha na NR-061; Memory/RAG/Meta ficam fora.
+
+**NR-061 (entregue neste PR):** confirmação de ação sensível persiste na
+tabela `confirmations` (RLS + `withTenant`), ligada a um stub de
+`conversations`. `InMemoryConfirmations` fica só no teste. HTTP `app:` e
+Studio `wa:` **não** cruzam chave. Sem HITL Mastra, sem gravar `messages`
+(NR-062). Status ✅ nesta branch (`feat/NR-061-confirmacao-acao-sensivel`)
+— sem URL de PR ainda.
 
 ## Sprint 5 — Bancos e relatórios
 
@@ -347,7 +354,7 @@ esses repositórios, e uma rota ligada a um _fake_ não é uma rota.
 > Open Finance (DEC-005 / NR-048). Ver
 > [destravar-os-bloqueios.md](destravar-os-bloqueios.md).
 
-**Dos 44 dias-desenvolvedor que restam, 40 estão liberados.**
+**Dos 42 dias-desenvolvedor que restam, 38 estão liberados.**
 O único bloqueio de decisão no ledger é Open Finance (DEC-005, 4 dias).
 
 Cada tarefa é contada **uma vez**, na decisão que aparece na sua própria coluna

@@ -1,11 +1,18 @@
 import type { AiUsageCounter } from './ai-usage.js'
 import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
-import type { Channel, ConversationRole, ConversationStore, ExecutionContext } from '@na-regua/core'
+import type {
+  Channel,
+  ConfirmationStore,
+  ConversationRole,
+  ConversationStore,
+  ExecutionContext,
+} from '@na-regua/core'
 import type { z } from 'zod'
 
 export type { ConversationRole, ConversationStore }
 
 export type { AgentReply, AgentReplyKind }
+export type { ConfirmationDecision, ConfirmationStore, PendingConfirmation } from '@na-regua/core'
 
 /** Descritor da tool para o LLM — sem o execute, que o modelo nao ve. */
 export type ToolDescriptor = {
@@ -39,21 +46,6 @@ export type LlmPort = {
     /** 0..12; omitido = []. Idle ou store ausente = []. */
     readonly history?: readonly HistoryTurn[]
   }): Promise<LlmDecision>
-}
-
-export type PendingConfirmation = {
-  readonly id: string
-  readonly conversationKey: string
-  readonly toolId: string
-  readonly args: unknown
-  readonly summary: string
-  readonly expiresAt: Date
-}
-
-export type ConfirmationStore = {
-  put(pending: PendingConfirmation): Promise<void>
-  getOpen(conversationKey: string, now: Date): Promise<PendingConfirmation | undefined>
-  resolve(id: string, decision: 'accepted' | 'rejected' | 'expired'): Promise<void>
 }
 
 export type LinkedPeer = {

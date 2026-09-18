@@ -46,7 +46,7 @@ async function responder(
   ctx: ExecutionContext,
   conversationKey: string,
 ): Promise<RespostaDoLaco> {
-  const pendente = await runtime.confirmations.getOpen(conversationKey, ctx.now)
+  const pendente = await runtime.confirmations.getOpen(ctx.companyId, conversationKey, ctx.now)
   if (pendente !== undefined) {
     return tratarConfirmacao(runtime, ctx, pendente, input, conversationKey)
   }
@@ -91,6 +91,7 @@ async function responder(
       return { reply: avisoDeTeto() }
     }
     const pending = novaConfirmacao({
+      companyId: ctx.companyId,
       conversationKey,
       toolId: tool.id,
       args,
@@ -122,7 +123,7 @@ async function tratarConfirmacao(
   const compacto = input.text.trim()
 
   if (expirada) {
-    await runtime.confirmations.resolve(pendente.id, 'expired')
+    await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'expired')
     if (SIM.test(compacto) || NAO.test(compacto) || !pareceIntencaoNova(compacto)) {
       return {
         reply: {
@@ -140,7 +141,7 @@ async function tratarConfirmacao(
     if (estourouTeto(runtime, ctx)) {
       return { reply: avisoDeTeto() }
     }
-    await runtime.confirmations.resolve(pendente.id, 'accepted')
+    await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'accepted')
     const tool = runtime.tools.find((t) => t.id === pendente.toolId)
     if (tool === undefined) {
       return { reply: { kind: 'answer', text: 'Nao consegui repetir a acao. Tente de novo.' } }
@@ -148,7 +149,7 @@ async function tratarConfirmacao(
     return comToolCalls(await executar(tool, pendente.args, ctx), idsDaFerramenta(pendente.args))
   }
 
-  await runtime.confirmations.resolve(pendente.id, 'rejected')
+  await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'rejected')
   if (NAO.test(compacto)) {
     return { reply: { kind: 'answer', text: 'Cancelado. Nada foi registrado.' } }
   }

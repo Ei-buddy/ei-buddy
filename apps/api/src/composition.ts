@@ -68,6 +68,7 @@ import {
   createSupportRepository,
   createTeamRepository,
   createCompanyRepository,
+  createConfirmationStore,
   createConversationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
@@ -810,7 +811,9 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
  * Canal de engenharia: `POST /agent/messages` com sessao autenticada da
  * fixture (owner de teste criado pelo desenvolvedor). `companyId` vem do
  * contexto da sessao, nunca do body. Producao sem `AGENT_HARNESS=1` nao
- * monta runtime. Confirmacoes ficam em memoria ate a NR-061.
+ * monta runtime. Confirmacoes vao para `createConfirmationStore` (Postgres);
+ * historico para `createConversationStore` (NR-062). `InMemoryConfirmations`
+ * e `InMemoryConversationStore` ficam so no teste unitario do agente.
  */
 /** Runtime HTTP + diretorio de fixture do Studio, se o arquivo carregou. */
 export type AgentComposition = {
@@ -893,12 +896,14 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
   const tools = createToolCatalog(useCases)
   const llm = await criarLlmDoAgente(tools)
   const studioDirectory = tentarDiretorioStudio()
+  const sql = getClient(env.DATABASE_URL)
 
   return {
     runtime: createAgentRuntime({
       useCases,
       llm,
       timeZone: env.TZ,
+      confirmations: createConfirmationStore(sql),
       aiUsage: new InMemoryAiUsageCounter({
         ...(env.AGENT_MONTHLY_BUDGET_CENTS === undefined
           ? {}
@@ -907,7 +912,7 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
       }),
       ...(studioDirectory === undefined ? {} : { peers: studioDirectory }),
       /* HTTP app e Studio wa seguem identidades distintas (`app:` vs `wa:`). */
-      conversations: createConversationStore(getClient(env.DATABASE_URL)),
+      conversations: createConversationStore(sql),
     }),
     ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }
