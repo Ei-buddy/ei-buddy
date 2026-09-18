@@ -4,6 +4,14 @@
 #   docker compose -f infra/docker-compose.prod.yml build
 #   docker compose -f infra/docker-compose.prod.yml up -d
 #
+# Na pratica quem chama isto e `infra/deploy.sh` (NR-015), pelo workflow
+# `deploy.yml`. Rodar a mao continua valendo — e o mesmo compose.
+#
+# `DEPLOY_TAG` marca as imagens com o COMMIT que as gerou, e e o que torna a
+# reversao barata: voltar e `DEPLOY_TAG=<commit anterior> up -d`, sem buildar
+# de novo, porque a imagem antiga continua na maquina (RNF-064, teto de 10
+# min). Sem a variavel, cai em `latest` e o comportamento e o de antes.
+#
 # Espera um arquivo `.env.production` na raiz do repo (mesmo nivel de
 # `.env.example`) com todas as variaveis de docs/engenharia/ambientes.md,
 # AUTH_PROVIDER=better-auth incluido (`fake` e recusado em producao).
@@ -54,6 +62,7 @@ services:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
+    image: eibuddy-api:${DEPLOY_TAG:-latest}
     container_name: naregua-api
     restart: unless-stopped
     env_file: ../.env.production
@@ -73,6 +82,7 @@ services:
     build:
       context: ..
       dockerfile: apps/worker/Dockerfile
+    image: eibuddy-worker:${DEPLOY_TAG:-latest}
     container_name: naregua-worker
     restart: unless-stopped
     env_file: ../.env.production
@@ -86,6 +96,7 @@ services:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+    image: eibuddy-web:${DEPLOY_TAG:-latest}
     container_name: naregua-web
     restart: unless-stopped
     env_file: ../.env.production

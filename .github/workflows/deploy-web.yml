@@ -1,9 +1,8 @@
 name: Deploy — web
 
-# ESQUELETO. Nao faz deploy de nada ainda.
-#
-# Alvo: VPS + Compose (ADR-0015 / DEC-009). Preencher os passos e a NR-015.
-# Web sobe no mesmo compose da api — nao ha registry separado neste recorte.
+# Atalho manual, igual ao de api e pelo mesmo motivo: a web nao tem deploy
+# proprio nem registry separado neste recorte — sobe no mesmo compose
+# (ADR-0015). A sequencia de verdade esta em `deploy.yml`.
 
 on:
   workflow_dispatch:
@@ -13,23 +12,10 @@ on:
         required: true
         type: choice
         options: [staging, production]
-  push:
-    tags: ['v*']
-
-concurrency:
-  group: deploy-web-${{ github.event.inputs.ambiente || 'production' }}
-  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy da web
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.ambiente || 'production' }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Bloqueado ate a NR-015
-        run: |
-          echo "::warning::Deploy nao configurado — NR-015 (VPS + Compose, ADR-0015)."
-          echo "Web sobe no mesmo compose da api."
-          exit 1
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ambiente: ${{ inputs.ambiente }}
+    secrets: inherit

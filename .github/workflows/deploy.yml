@@ -1,0 +1,126 @@
+name: Deploy — VPS
+
+# O deploy de verdade, num lugar so — NR-015, ADR-0015.
+#
+# `deploy-api.yml` e `deploy-web.yml` chamam este arquivo. Eles continuam
+# existindo porque sao as duas portas de entrada que a ci-cd.md documenta, mas
+# a VM sobe api, worker e web no MESMO compose (DEC-014, tag por app, segue
+# adiada): duas implementacoes separadas seriam duas copias da mesma sequencia
+# de SSH, e a segunda a divergir seria a que ninguem testou.
+#
+# Sem os segredos configurados o workflow nao roda — ele nao tem para onde ir.
+# Ver `infra/README.md` para a lista.
+
+# O gatilho de tag mora AQUI, e so aqui. Ele estava nos dois esqueletos, e
+# manter os dois faria um `v*` rodar o mesmo deploy duas vezes na mesma
+# maquina — em serie pelo `concurrency`, mas duas.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Ambiente de destino
+        required: true
+        type: choice
+        options: [staging, production]
+  workflow_call:
+    inputs:
+      ambiente:
+        description: Ambiente de destino
+        required: false
+        default: production
+        type: string
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      # Fingerprint do servidor. Opcional, e a diferenca importa: com ele, o
+      # runner so fala com a maquina certa; sem ele, cai em `ssh-keyscan`, que
+      # confia em quem responder primeiro.
+      VPS_KNOWN_HOSTS:
+        required: false
+
+concurrency:
+  # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
+  # compose, na mesma VM. Dois deploys simultaneos se atropelariam no `up -d`.
+  group: deploy-${{ inputs.ambiente || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy na VPS
+    runs-on: ubuntu-latest
+    # Segredo de producao vive em Environment com aprovacao obrigatoria, nao em
+    # Repository secret: assim um PR de fork nao o alcanca (ci-cd.md).
+    # `push` de tag nao tem `inputs`: cai em producao, que e o unico ambiente
+    # que uma tag `v*` deveria significar.
+    environment: ${{ inputs.ambiente || 'production' }}
+
+    env:
+      HOST: ${{ secrets.VPS_HOST }}
+      USUARIO: ${{ secrets.VPS_USER }}
+      PORTA: ${{ vars.VPS_SSH_PORT || '22' }}
+      CAMINHO: ${{ vars.VPS_DEPLOY_PATH || '/opt/na-regua' }}
+      COMMIT: ${{ github.sha }}
+
+    steps:
+      # Segredo entra por `env`, e nao interpolado no corpo do script: chave
+      # privada e multilinha, e `${{ }}` dentro do shell viraria varias linhas
+      # soltas no meio do comando.
+      - name: Chave de acesso
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          FINGERPRINT: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
+          if [ -n "$FINGERPRINT" ]; then
+            printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS nao configurado — confiando no host na primeira conexao."
+            ssh-keyscan -p "$PORTA" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Commit que esta no ar (alvo da reversao)
+        id: anterior
+        run: |
+          sha=$(ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' && git rev-parse HEAD")
+          echo "Hoje no ar: $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Subir ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' \
+             && git fetch --prune --tags origin \
+             && git checkout --detach '$COMMIT' \
+             && DEPLOY_TAG='$COMMIT' bash infra/deploy.sh"
+
+      # `/health` nao passou, ou o SSH caiu no meio: volta para a imagem
+      # anterior, que continua na maquina marcada com o commit dela. Sem
+      # rebuild — e o que faz o teto de 10 min da RNF-064 ser factivel na VPS.
+      #
+      # `MIGRAR=nao`: migration aqui e forward-only, entao voltar o codigo nao
+      # volta o schema. Ver o cabecalho de `infra/deploy.sh`.
+      - name: Reverter para ${{ steps.anterior.outputs.sha }}
+        if: failure() && steps.anterior.outputs.sha != ''
+        env:
+          ANTERIOR: ${{ steps.anterior.outputs.sha }}
+        run: |
+          echo "::error::Deploy de $COMMIT falhou. Voltando para $ANTERIOR."
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' \
+             && git checkout --detach '$ANTERIOR' \
+             && DEPLOY_TAG='$ANTERIOR' MIGRAR=nao bash infra/deploy.sh"
+
+      - name: Apagar a chave
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
