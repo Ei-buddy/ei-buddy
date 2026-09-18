@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { InMemoryConfirmations } from '@na-regua/agent'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -22,6 +23,7 @@ const db = vi.hoisted(() => ({
   createSaleUnitOfWork: vi.fn(vazio),
   createSaleHistoryRepository: vi.fn(vazio),
   createCompanyRepository: vi.fn(vazio),
+  createConfirmationStore: vi.fn(vazio),
   createCustomerRepository: vi.fn(vazio),
   createProductRepository: vi.fn(vazio),
   createChartOfAccountsRepository: vi.fn(vazio),
@@ -532,6 +534,26 @@ describe('buildAgentDeps — US6 period_summary / buildDre', () => {
     expect(out).toEqual(saidaDre)
     expect(tool!.formatReply(out)).toContain('Faturamento')
     expect(tool!.formatReply(out)).toContain('Resultado')
+  })
+})
+
+describe('buildAgentDeps — US2 ConfirmationStore Postgres', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('injeta o store Postgres, nao InMemoryConfirmations, quando o harness sobe', async () => {
+    const store = { put: vi.fn(), getOpen: vi.fn(), resolve: vi.fn() }
+    db.createConfirmationStore.mockReturnValue(store)
+
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+
+    expect(db.createConfirmationStore).toHaveBeenCalled()
+    expect(deps.runtime.confirmations).toBe(store)
+    expect(deps.runtime.confirmations).not.toBeInstanceOf(InMemoryConfirmations)
   })
 })
 

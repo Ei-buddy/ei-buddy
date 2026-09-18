@@ -135,7 +135,7 @@ Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 | Modelo `openai/gpt-4o-mini` via `AGENT_MODEL` (`provedor/modelo`)                                             | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                                                                           |
 | RAG sobre store **nosso** com `company_id` + RLS ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)) | Índice vetorial sem tenant; Memory/Storage padrão do Mastra em `public`                                                                                                 |
 | `AGENT_PROVIDER=fake` no local                                                                                | Chave da OpenAI obrigatória para `pnpm dev`                                                                                                                             |
-| Confirmação na tabela/store `confirmations` (hoje in-memory, NR-061)                                          | HITL do Mastra (`requireApproval` / `approveToolCall`) — não isola por empresa nem expira como RF-103 pede                                                              |
+| Confirmação na tabela `confirmations` (Postgres + stub em `conversations`; NR-061)                            | HITL do Mastra (`requireApproval` / `requireToolApproval` / `approveToolCall`) — não isola por empresa nem expira como RF-103 pede                                      |
 | —                                                                                                             | **Workflow** Mastra — canal e confirmação não são pipeline do framework ([ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md))                           |
 | —                                                                                                             | **Memory / Storage** do Mastra em `public` — fechado na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md): histórico de turnos é tabelas nossas |
 | —                                                                                                             | **Channels** / `@chat-adapter/whatsapp` / `MastraAuthBetterAuth`                                                                                                        |
@@ -193,7 +193,9 @@ Fechada na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas
 | Retenção (RNF-035) | corpos de mensagem **30 dias**, depois expurgo verificável            |
 | Aprendizado        | só contexto por empresa — **sem** treino de modelo                    |
 
-Confirmação sensível continua máquina nossa (NR-061). Contexto isolado é
+Confirmação sensível é máquina nossa na tabela `confirmations`, ligada ao
+stub de `conversations` (NR-061). `InMemoryConfirmations` fica só no teste.
+HITL (`requireToolApproval`) **não** entra. Contexto isolado / `messages` é
 NR-062. O precedente de schema isolado do Better Auth (`identidade`) **não**
 se aplica aqui: as tabelas do assistente já nascem no domínio com RLS.
 

@@ -110,6 +110,11 @@ export {
 } from './connections/fakes.js'
 export type { PaymentGateway } from './ports/payment-gateway.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
+export type {
+  ConfirmationDecision,
+  ConfirmationStore,
+  PendingConfirmation,
+} from './ports/confirmations.js'
 
 /* --- Venda — NR-022 --- */
 export { createPayable } from './payables/create-payable.js'

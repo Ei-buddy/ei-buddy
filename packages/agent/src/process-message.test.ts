@@ -11,10 +11,11 @@ import type {
 } from '@na-regua/contracts'
 import { AppError, type ExecutionContext } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
+import { InMemoryConfirmations } from './confirmations.js'
 import { createAgentRuntime } from './create-runtime.js'
 import { FakeLlm } from './fake-llm.js'
 import { formatarCentavos, LIMITE_TEXTO_MENSAGEM } from './format.js'
-import { eNao, eSim, processMessage } from './process-message.js'
+import { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-message.js'
 import { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
 import {
   TEXTO_RECUSA_BANCO,
@@ -276,6 +277,23 @@ describe('processMessage — consultas (RF-096, RF-097)', () => {
   })
 })
 
+describe('processMessage — consulta sem atrito (US4 / FR-002)', () => {
+  it.each([
+    ['quanto vendi hoje?', '3 vendas'],
+    ['quem esta me devendo?', 'Joao'],
+    ['resumo do mes', 'Faturamento'],
+  ])('"%s" responde sem put nem confirmation', async (text, trecho) => {
+    const runtime = createAgentRuntime({ useCases: casos() })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+    const r = await processMessage(runtime, msg({ text }))
+    expect(r.kind).toBe('answer')
+    expect(r.kind).not.toBe('confirmation')
+    expect(r.text).toContain(trecho)
+    expect(r.text).not.toMatch(/Confirma\?/)
+    expect(put).not.toHaveBeenCalled()
+  })
+})
+
 describe('processMessage — mesmo laco com LlmPort injetado (US1 / Mastra)', () => {
   it('tool do modelo segue para o caso de uso, como o FakeLlm', async () => {
     const llm: LlmPort = {
@@ -324,15 +342,60 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       llm,
     })
 
+    const put = vi.spyOn(runtime.confirmations, 'put')
+    const getOpen = vi.spyOn(runtime.confirmations, 'getOpen')
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+
     const pedido = await processMessage(runtime, msg({ text: 'venda pro joao' }))
     expect(pedido.kind).toBe('confirmation')
     expect(pedido.text).toMatch(/Confirma\?/)
     expect(chamadas).toBe(0)
+    expect(put).toHaveBeenCalledOnce()
+    expect(put.mock.calls[0]?.[0]?.companyId).toBe('emp-1')
+    expect(getOpen).toHaveBeenCalledWith('emp-1', expect.any(String), agora)
 
     const feito = await processMessage(runtime, msg({ text: 'sim' }))
     expect(feito.kind).toBe('answer')
     expect(feito.text).toContain('#1042')
     expect(chamadas).toBe(1)
+    expect(resolve).toHaveBeenCalledWith('emp-1', pedido.confirmationId, 'accepted')
+  })
+
+  it('put carrega companyId; getOpen de outra loja nao devolve a pendencia', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: { name: 'Joao', phone: '11988887777' },
+    })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerCustomer: async (c, i) => {
+          chamadas += 1
+          return casos().registerCustomer(c, i)
+        },
+      }),
+      llm,
+    })
+
+    const put = vi.spyOn(runtime.confirmations, 'put')
+    const pedido = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    expect(pedido.kind).toBe('confirmation')
+    expect(chamadas).toBe(0)
+
+    const proposta = put.mock.calls[0]?.[0]
+    expect(proposta?.companyId).toBe(ctx.companyId)
+    const chave = proposta?.conversationKey ?? ''
+    expect(chave.length).toBeGreaterThan(0)
+    expect(pedido.text).toBe(`${proposta?.summary}. Confirma?`)
+
+    const daLoja = await runtime.confirmations.getOpen(ctx.companyId, chave, agora)
+    expect(daLoja?.id).toBe(proposta?.id)
+    expect(daLoja?.companyId).toBe(ctx.companyId)
+
+    const outraLoja = await runtime.confirmations.getOpen('emp-outra', chave, agora)
+    expect(outraLoja).toBeUndefined()
   })
 
   it('recusa ambigua conta como nao — RF-104', async () => {
@@ -353,10 +416,17 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       llm,
     })
 
-    await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    const getOpen = vi.spyOn(runtime.confirmations, 'getOpen')
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+
+    const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
     const r = await processMessage(runtime, msg({ text: 'talvez depois' }))
+    expect(r.kind).toBe('answer')
     expect(r.text).toMatch(/cancelei/i)
     expect(chamadas).toBe(0)
+    expect(getOpen).toHaveBeenCalledWith('emp-1', 'app:emp-1:user-1', agora)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'rejected')
+    expect(await runtime.confirmations.getOpen('emp-1', 'app:emp-1:user-1', agora)).toBeUndefined()
   })
 
   it('expira e nao executa', async () => {
@@ -375,15 +445,54 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
         },
       }),
       llm,
-      confirmationTtlMs: 1_000,
     })
+    expect(runtime.confirmationTtlMs).toBe(CONFIRMATION_TTL_MS)
+    const getOpen = vi.spyOn(runtime.confirmations, 'getOpen')
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
 
-    await processMessage(runtime, msg({ text: 'cadastra o joao' }))
-    const depois = new Date(agora.getTime() + 5_000)
+    const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    const depois = new Date(agora.getTime() + CONFIRMATION_TTL_MS)
     const r = await processMessage(runtime, msg({ text: 'sim', now: depois }))
     expect(r.text).toMatch(/expirou/i)
     expect(chamadas).toBe(0)
+    expect(getOpen).toHaveBeenCalledWith('emp-1', 'app:emp-1:user-1', depois)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'expired')
+    expect(await runtime.confirmations.getOpen('emp-1', 'app:emp-1:user-1', depois)).toBeUndefined()
   })
+
+  it.each(['', '   ', '...', '🙂'])(
+    'mensagem vazia / ruido "%s" com aberta recusa como ambigua',
+    async (text) => {
+      let chamadas = 0
+      const llm = new FakeLlm()
+      llm.script('cadastra o joao', {
+        type: 'tool',
+        name: 'create_customer',
+        args: { name: 'Joao' },
+      })
+      const runtime = createAgentRuntime({
+        useCases: casos({
+          registerCustomer: async (c, i) => {
+            chamadas += 1
+            return casos().registerCustomer(c, i)
+          },
+        }),
+        llm,
+      })
+      const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+
+      const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+      const r = await processMessage(runtime, msg({ text }))
+      expect(r.kind).toBe('answer')
+      expect(r.text).toMatch(/cancelei/i)
+      expect(r.text).toMatch(/Nada foi registrado/)
+      expect(chamadas).toBe(0)
+      expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'rejected')
+      expect(
+        await runtime.confirmations.getOpen('emp-1', 'app:emp-1:user-1', agora),
+      ).toBeUndefined()
+    },
+  )
 })
 
 describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
@@ -408,9 +517,7 @@ describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
 
     const proposta = await processMessage(runtime, msg({ text: pedidoCadastro }))
     expect(proposta.kind).toBe('confirmation')
-    expect(proposta.text).toContain('Joao')
-    expect(proposta.text).toContain('11988887777')
-    expect(proposta.text).toMatch(/Confirma\?/)
+    expect(proposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
     expect(chamadas).toBe(0)
 
     const feito = await processMessage(runtime, msg({ text: 'sim' }))
@@ -858,25 +965,90 @@ describe('processMessage — desfechos restantes', () => {
       }),
       llm,
     })
-    await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
     const r = await processMessage(runtime, msg({ text: 'nao' }))
     expect(r.text).toMatch(/Cancelado/)
     expect(chamadas).toBe(0)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'rejected')
+    expect(resolve).toHaveBeenCalledOnce()
   })
 
   it('expirada com pedido novo reprocessa a mensagem', async () => {
+    let cadastros = 0
+    const listSales = vi.fn(async (c: ExecutionContext, i: SaleHistoryInput) =>
+      casos().listSales(c, i),
+    )
     const llm = new FakeLlm()
     llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
     const runtime = createAgentRuntime({
-      useCases: casos(),
+      useCases: casos({
+        listSales,
+        registerCustomer: async (c, i) => {
+          cadastros += 1
+          return casos().registerCustomer(c, i)
+        },
+      }),
       llm,
-      confirmationTtlMs: 1_000,
     })
-    await processMessage(runtime, msg({ text: 'cadastra o joao' }))
-    const depois = new Date(agora.getTime() + 5_000)
+    const put = vi.spyOn(runtime.confirmations, 'put')
+    const getOpen = vi.spyOn(runtime.confirmations, 'getOpen')
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+    const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    expect(put).toHaveBeenCalledOnce()
+    const depois = new Date(agora.getTime() + CONFIRMATION_TTL_MS)
     const r = await processMessage(runtime, msg({ text: 'quanto vendi hoje?', now: depois }))
     expect(r.kind).toBe('answer')
+    expect(r.kind).not.toBe('confirmation')
     expect(r.text).toContain('3 vendas')
+    expect(r.text).not.toMatch(/Confirma\?/)
+    expect(cadastros).toBe(0)
+    expect(listSales).toHaveBeenCalledOnce()
+    expect(put).toHaveBeenCalledOnce()
+    expect(getOpen).toHaveBeenCalledWith('emp-1', 'app:emp-1:user-1', depois)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'expired')
+  })
+
+  it('expirada com texto longo reprocessa e nao executa a acao velha', async () => {
+    let cadastros = 0
+    let vendas = 0
+    const llm = new FakeLlm()
+    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('vende duas camisetas azuis agora', {
+      type: 'tool',
+      name: 'create_sale',
+      args: {
+        items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
+        payments: [{ method: 'pix', amountCents: 9_980 }],
+      },
+    })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerCustomer: async (c, i) => {
+          cadastros += 1
+          return casos().registerCustomer(c, i)
+        },
+        registerSale: async (c, i) => {
+          vendas += 1
+          return casos().registerSale(c, i)
+        },
+      }),
+      llm,
+    })
+    const getOpen = vi.spyOn(runtime.confirmations, 'getOpen')
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+    const proposta = await processMessage(runtime, msg({ text: 'cadastra o joao' }))
+    const depois = new Date(agora.getTime() + CONFIRMATION_TTL_MS)
+    const r = await processMessage(
+      runtime,
+      msg({ text: 'vende duas camisetas azuis agora', now: depois }),
+    )
+    expect(r.kind).toBe('confirmation')
+    expect(cadastros).toBe(0)
+    expect(vendas).toBe(0)
+    expect(getOpen).toHaveBeenCalledWith('emp-1', 'app:emp-1:user-1', depois)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'expired')
+    expect(r.confirmationId).not.toBe(proposta.confirmationId)
   })
 
   it('recusa argumentos invalidos da tool de escrita', async () => {
@@ -1293,5 +1465,125 @@ describe('processMessage — teto de IA (RNF-073, FR-020)', () => {
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('3 vendas')
     expect(aiUsage.unitsOf('emp-1', agora)).toBe(1)
+  })
+})
+
+describe('processMessage — isolamento entre lojas (US5 / FR-009)', () => {
+  const argsVenda = {
+    customerId: 'cli-1',
+    items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
+    payments: [{ method: 'pix' as const, amountCents: 9_980 }],
+  }
+
+  function contexto(companyId: string, userId: string): ExecutionContext {
+    return { ...ctx, companyId, userId, requestId: `req-${companyId}` }
+  }
+
+  it('sim da loja B nao incrementa registerSale da loja A', async () => {
+    const store = new InMemoryConfirmations()
+    let vendasA = 0
+    let vendasB = 0
+
+    const llmA = new FakeLlm()
+    llmA.script('venda pro joao', { type: 'tool', name: 'create_sale', args: argsVenda })
+    const llmB = new FakeLlm()
+    llmB.script('venda pro joao', { type: 'tool', name: 'create_sale', args: argsVenda })
+
+    const runtimeA = createAgentRuntime({
+      useCases: casos({
+        registerSale: async (c, i) => {
+          vendasA += 1
+          return casos().registerSale(c, i)
+        },
+      }),
+      llm: llmA,
+      confirmations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos({
+        registerSale: async (c, i) => {
+          vendasB += 1
+          return casos().registerSale(c, i)
+        },
+      }),
+      llm: llmB,
+      confirmations: store,
+    })
+
+    const ctxA = contexto('emp-a', 'user-a')
+    const ctxB = contexto('emp-b', 'user-b')
+
+    const propostaA = await processMessage(runtimeA, msg({ text: 'venda pro joao', ctx: ctxA }))
+    expect(propostaA.kind).toBe('confirmation')
+    expect(propostaA.text).toMatch(/Confirma\?/)
+    expect(vendasA).toBe(0)
+
+    const simB = await processMessage(runtimeB, msg({ text: 'sim', ctx: ctxB }))
+    expect(vendasA).toBe(0)
+    expect(vendasB).toBe(0)
+    expect(simB.kind).not.toBe('confirmation')
+    expect(simB.text).not.toBe(propostaA.text)
+    expect(simB.text).not.toMatch(/Confirma\?/)
+
+    const chaveA = 'app:emp-a:user-a'
+    expect(await store.getOpen('emp-a', chaveA, agora)).toBeDefined()
+    expect(await store.getOpen('emp-b', chaveA, agora)).toBeUndefined()
+
+    const feitoA = await processMessage(runtimeA, msg({ text: 'sim', ctx: ctxA }))
+    expect(feitoA.kind).toBe('answer')
+    expect(feitoA.text).toContain('#1042')
+    expect(vendasA).toBe(1)
+    expect(vendasB).toBe(0)
+  })
+
+  it('cada loja confirma so a propria venda no store compartilhado', async () => {
+    const store = new InMemoryConfirmations()
+    let vendasA = 0
+    let vendasB = 0
+
+    const llmA = new FakeLlm()
+    llmA.script('venda pro joao', { type: 'tool', name: 'create_sale', args: argsVenda })
+    const llmB = new FakeLlm()
+    llmB.script('venda pro joao', { type: 'tool', name: 'create_sale', args: argsVenda })
+
+    const runtimeA = createAgentRuntime({
+      useCases: casos({
+        registerSale: async (c, i) => {
+          vendasA += 1
+          return casos().registerSale(c, i)
+        },
+      }),
+      llm: llmA,
+      confirmations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos({
+        registerSale: async (c, i) => {
+          vendasB += 1
+          return casos().registerSale(c, i)
+        },
+      }),
+      llm: llmB,
+      confirmations: store,
+    })
+
+    const ctxA = contexto('emp-a', 'user-a')
+    const ctxB = contexto('emp-b', 'user-b')
+
+    await processMessage(runtimeA, msg({ text: 'venda pro joao', ctx: ctxA }))
+    await processMessage(runtimeB, msg({ text: 'venda pro joao', ctx: ctxB }))
+    expect(vendasA).toBe(0)
+    expect(vendasB).toBe(0)
+
+    const feitoB = await processMessage(runtimeB, msg({ text: 'sim', ctx: ctxB }))
+    expect(feitoB.kind).toBe('answer')
+    expect(feitoB.text).toContain('#1042')
+    expect(vendasA).toBe(0)
+    expect(vendasB).toBe(1)
+
+    const feitoA = await processMessage(runtimeA, msg({ text: 'sim', ctx: ctxA }))
+    expect(feitoA.kind).toBe('answer')
+    expect(vendasA).toBe(1)
+    expect(vendasB).toBe(1)
   })
 })

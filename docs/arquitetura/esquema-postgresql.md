@@ -558,17 +558,20 @@ FK de `attachment_id` é adicionada depois de criar `attachments`.
 
 ### `conversations`
 
-| Coluna       | Tipo                   | Notas                        |
-| ------------ | ---------------------- | ---------------------------- |
-| `id`         | `uuid` PK              |                              |
-| `company_id` | `uuid NOT NULL`        | → `companies`                |
-| `channel`    | `text NOT NULL`        | `whatsapp` \| `web` \| `app` |
-| `peer`       | `text`                 |                              |
-| `deleted_at` | `timestamptz`          | nulo = vigente               |
-| `created_at` | `timestamptz NOT NULL` |                              |
-| `updated_at` | `timestamptz NOT NULL` |                              |
+| Coluna        | Tipo                   | Notas                                                                                          |
+| ------------- | ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `id`          | `uuid` PK              |                                                                                                |
+| `company_id`  | `uuid NOT NULL`        | → `companies`                                                                                  |
+| `channel`     | `text NOT NULL`        | `whatsapp` \| `web` \| `app`                                                                   |
+| `number_from` | `text`                 | interlocutor (0007). Na prosa do assistente isso é o `peer`; a coluna **não** se chama `peer`. |
+| `deleted_at`  | `timestamptz`          | nulo = vigente                                                                                 |
+| `created_at`  | `timestamptz NOT NULL` |                                                                                                |
+| `updated_at`  | `timestamptz NOT NULL` |                                                                                                |
 
 Índice: `(company_id, created_at DESC)`.
+Único parcial (0018): `(company_id, channel, number_from)` WHERE `deleted_at IS NULL`.
+`number_from` vazio recusa o stub da confirmação (fail-closed). HTTP `app` e
+Studio `whatsapp` são identidades distintas.
 
 ### `messages`
 
@@ -603,6 +606,8 @@ Ação sensível do agente, com expiração.
 | `decision`        | `text`                 | `accepted` \| `rejected` \| `expired` (ou `NULL`) |
 
 Índice: `(company_id, expires_at)`. Sem `created_at` (logo sem `deleted_at`).
+Único parcial (0018): `(company_id, conversation_id)` WHERE `resolved_at IS NULL`
+— uma aberta por conversa; a linha resolvida permanece (não há DELETE).
 
 ---
 

@@ -1,5 +1,5 @@
 import { agentReplySchema } from '@na-regua/contracts'
-import { createAgentRuntime, type AgentUseCases } from '@na-regua/agent'
+import { createAgentRuntime, FakeLlm, type AgentUseCases } from '@na-regua/agent'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
@@ -53,13 +53,16 @@ const useCases: AgentUseCases = {
   },
 }
 
-function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL): FastifyInstance {
+function buildApp(
+  principal: AuthenticatedPrincipal | null = PRINCIPAL,
+  runtime = createAgentRuntime({ useCases }),
+): FastifyInstance {
   const app = Fastify({ logger: false })
   registerErrorHandler(app)
   app.addHook('onRequest', async (request) => {
     if (principal !== null) request.principal = principal
   })
-  registerAgentRoutes(app, { runtime: createAgentRuntime({ useCases }) })
+  registerAgentRoutes(app, { runtime })
   return app
 }
 
@@ -158,6 +161,195 @@ describe('POST /agent/messages', () => {
     })
     expect(comCanal.statusCode).toBe(400)
     await app.close()
+  })
+})
+
+describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
+  const agora = new Date('2026-09-11T15:00:00.000Z')
+  const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
+  const argsCadastro = { name: 'Joao', phone: '11 98888-7777' }
+  const fraseVenda = 'venda pro Joao: 2 camisetas M a 49,90, pagou no Pix'
+  const argsVenda = {
+    items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
+    payments: [{ method: 'pix' as const, amountCents: 9_980 }],
+  }
+
+  function clienteSaida(name: string, phone: string | null) {
+    return {
+      id: 'cli-1',
+      name,
+      document: null,
+      phone,
+      email: null,
+      notes: null,
+      walletLimitCents: 0,
+      walletBalanceCents: 0,
+      address: {
+        zipCode: null,
+        street: null,
+        number: null,
+        complement: null,
+        district: null,
+        city: null,
+        state: null,
+      },
+      createdAt: agora.toISOString(),
+      anonymizedAt: null,
+    }
+  }
+
+  function vendaSaida() {
+    return {
+      sale: {
+        id: 's1',
+        number: 1042,
+        grossAmountCents: 9_980,
+        costAmountCents: 4_000,
+        taxAmountCents: 0,
+        cardFeeAmountCents: 0,
+        netAmountCents: 9_980,
+        changeCents: 0,
+        createdAt: agora.toISOString(),
+      },
+      replayed: false,
+      stockWarnings: [],
+    }
+  }
+
+  function buildAppConfirmacao(over: Partial<AgentUseCases>, llm: FakeLlm): FastifyInstance {
+    return buildApp(PRINCIPAL, createAgentRuntime({ useCases: { ...useCases, ...over }, llm }))
+  }
+
+  it('create_customer pede confirmacao e so grava no sim', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(pedidoCadastro, { type: 'tool', name: 'create_customer', args: argsCadastro })
+    const app = buildAppConfirmacao(
+      {
+        registerCustomer: async (_ctx, input) => {
+          chamadas += 1
+          return {
+            status: 'created',
+            customer: clienteSaida(input.name, input.phone ?? null),
+          }
+        },
+      },
+      llm,
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: pedidoCadastro },
+    })
+    expect(proposta.statusCode).toBe(200)
+    const corpoProposta = agentReplySchema.parse(JSON.parse(proposta.body))
+    expect(corpoProposta.kind).toBe('confirmation')
+    expect(corpoProposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
+    expect(chamadas).toBe(0)
+
+    const sim = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'sim' },
+    })
+    expect(sim.statusCode).toBe(200)
+    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
+    expect(corpoSim.kind).toBe('answer')
+    expect(corpoSim.text).toBe('Cliente Joao cadastrado.')
+    expect(chamadas).toBe(1)
+    await app.close()
+  })
+
+  it('create_sale pede confirmacao e sem sim nao grava', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
+    const app = buildAppConfirmacao(
+      {
+        registerSale: async () => {
+          chamadas += 1
+          return vendaSaida()
+        },
+      },
+      llm,
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: fraseVenda },
+    })
+    expect(proposta.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
+    expect(corpo.kind).toBe('confirmation')
+    expect(corpo.text).toMatch(/Confirma\?/)
+    expect(chamadas).toBe(0)
+    await app.close()
+  })
+
+  it('create_sale no sim grava uma vez; nao recusa sem gravar', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
+    const app = buildAppConfirmacao(
+      {
+        registerSale: async () => {
+          chamadas += 1
+          return vendaSaida()
+        },
+      },
+      llm,
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: fraseVenda },
+    })
+    expect(agentReplySchema.parse(JSON.parse(proposta.body)).kind).toBe('confirmation')
+    expect(chamadas).toBe(0)
+
+    const sim = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'sim' },
+    })
+    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
+    expect(sim.statusCode).toBe(200)
+    expect(corpoSim.kind).toBe('answer')
+    expect(corpoSim.text).toContain('#1042')
+    expect(chamadas).toBe(1)
+    await app.close()
+
+    let recusas = 0
+    const llmRecusa = new FakeLlm()
+    llmRecusa.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
+    const appRecusa = buildAppConfirmacao(
+      {
+        registerSale: async () => {
+          recusas += 1
+          return vendaSaida()
+        },
+      },
+      llmRecusa,
+    )
+    await appRecusa.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: fraseVenda },
+    })
+    const nao = await appRecusa.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'nao' },
+    })
+    const corpoNao = agentReplySchema.parse(JSON.parse(nao.body))
+    expect(nao.statusCode).toBe(200)
+    expect(corpoNao.kind).toBe('answer')
+    expect(corpoNao.text).toMatch(/Cancelado/)
+    expect(recusas).toBe(0)
+    await appRecusa.close()
   })
 })
 

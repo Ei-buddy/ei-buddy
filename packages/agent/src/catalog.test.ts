@@ -181,6 +181,25 @@ describe('list_sales / list_receivables — US2', () => {
   })
 })
 
+describe('mutatesValue — FR-002 / US4', () => {
+  it('leituras e recusas nao mutam; cadastro, venda e cobranca mutam', () => {
+    const flags = Object.fromEntries(createToolCatalog(casos).map((t) => [t.id, t.mutatesValue]))
+    expect(flags).toEqual({
+      list_sales: false,
+      list_receivables: false,
+      search_products: false,
+      period_summary: false,
+      revenue_by_month: false,
+      create_customer: true,
+      create_sale: true,
+      send_charge: true,
+      refuse_certificate: false,
+      refuse_banking: false,
+      refuse_invoice_command: false,
+    })
+  })
+})
+
 function cliente(over: Partial<CustomerOutput> = {}): CustomerOutput {
   return {
     id: 'cli-1',

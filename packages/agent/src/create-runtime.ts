@@ -3,13 +3,14 @@ import { createToolCatalog, type AgentUseCases } from './catalog.js'
 import { CONFIRMATION_TTL_MS } from './process-message.js'
 import { InMemoryConfirmations } from './confirmations.js'
 import { FakeLlm } from './fake-llm.js'
-import type { AgentRuntime, LlmPort, PeerDirectory } from './types.js'
+import type { AgentRuntime, ConfirmationStore, LlmPort, PeerDirectory } from './types.js'
 
 export type CreateRuntimeOptions = {
   readonly useCases: AgentUseCases
   readonly llm?: LlmPort
   readonly timeZone?: string
   readonly confirmationTtlMs?: number
+  readonly confirmations?: ConfirmationStore
   readonly peers?: PeerDirectory
   readonly aiUsage?: AiUsageCounter
 }
@@ -22,7 +23,7 @@ export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
   return {
     llm: opcoes.llm ?? new FakeLlm(),
     tools,
-    confirmations: new InMemoryConfirmations(),
+    confirmations: opcoes.confirmations ?? new InMemoryConfirmations(),
     timeZone: opcoes.timeZone ?? 'America/Sao_Paulo',
     confirmationTtlMs: opcoes.confirmationTtlMs ?? CONFIRMATION_TTL_MS,
     ...(opcoes.peers === undefined ? {} : { peers: opcoes.peers }),

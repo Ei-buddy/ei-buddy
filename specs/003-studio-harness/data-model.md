@@ -3,7 +3,7 @@
 **Date**: 2026-09-17  
 **Spec**: [spec.md](./spec.md)
 
-Nesta fatia **não há migração Postgres**. Presets são arquivo de engenharia. Confirmações e teto de IA continuam voláteis (NR-060). Entidades abaixo são o modelo do harness.
+Nesta fatia (NR-121) **não há migração Postgres**. Presets são arquivo de engenharia. Teto de IA continua volátil. Confirmação persistente fecha na NR-061 (tabela `confirmations` + stub em `conversations`); as chaves `app:` e `wa:` **não** se unificam. Entidades abaixo são o modelo do harness.
 
 ---
 
@@ -119,7 +119,7 @@ Caminho HTTP NR-060 permanece `channel: 'app'` + `ctx` de sessão.
 
 Nenhuma tabela nova. Consumo das tools continua o mesmo da NR-060 (Company/User de fixture, Sale, etc.).
 
-Confirmação: `InMemoryConfirmations` chaveada por `wa:${companyId}:${peer}` (`chaveDaConversa`). Dois presets = duas chaves. HTTP `app` e Studio `whatsapp` **não** compartilham a pendente — esperado (canais distintos).
+Confirmação (NR-061): persistida em `confirmations`, chaveada por `chaveDaConversa`. Studio usa `wa:${companyId}:${peer}`; HTTP de teste usa `app:${companyId}:${userId}`. Dois presets = duas chaves. HTTP `app` e Studio `whatsapp` **não** compartilham a pendente — esperado (canais distintos). **Não** cruzar `sim` de um harness com a proposta do outro. `InMemoryConfirmations` só no teste unitário do agent.
 
 ---
 

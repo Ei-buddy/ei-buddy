@@ -5,7 +5,7 @@ import { novaConfirmacao } from './confirmations.js'
 import { textoDasCapacidades } from './catalog.js'
 import { parseToolArgs } from './define-tool.js'
 import { chaveDaConversa, diaIso } from './format.js'
-import type { AgentRuntime, IncomingMessage, LinkedPeer } from './types.js'
+import type { AgentRuntime, IncomingMessage, LinkedPeer, PendingConfirmation } from './types.js'
 
 const SIM = /^(sim+|s|ok+|pode|confirmo|confirma|yes)[.!?]*$/i
 const NAO = /^(nao|n|cancela|cancelar|no)[.!?]*$/i
@@ -28,7 +28,7 @@ export async function processMessage(
     ...(input.peer === undefined ? {} : { peer: input.peer }),
   })
 
-  const pendente = await runtime.confirmations.getOpen(conversationKey, ctx.now)
+  const pendente = await runtime.confirmations.getOpen(ctx.companyId, conversationKey, ctx.now)
   if (pendente !== undefined) {
     return tratarConfirmacao(runtime, ctx, pendente, input)
   }
@@ -69,6 +69,7 @@ export async function processMessage(
       return avisoDeTeto()
     }
     const pending = novaConfirmacao({
+      companyId: ctx.companyId,
       conversationKey,
       toolId: tool.id,
       args,
@@ -89,14 +90,14 @@ export async function processMessage(
 async function tratarConfirmacao(
   runtime: AgentRuntime,
   ctx: ExecutionContext,
-  pendente: import('./types.js').PendingConfirmation,
+  pendente: PendingConfirmation,
   input: IncomingMessage,
 ): Promise<AgentReply> {
   const expirada = pendente.expiresAt.getTime() <= ctx.now.getTime()
   const compacto = input.text.trim()
 
   if (expirada) {
-    await runtime.confirmations.resolve(pendente.id, 'expired')
+    await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'expired')
     if (SIM.test(compacto) || NAO.test(compacto) || !pareceIntencaoNova(compacto)) {
       return {
         kind: 'answer',
@@ -110,7 +111,7 @@ async function tratarConfirmacao(
     if (estourouTeto(runtime, ctx)) {
       return avisoDeTeto()
     }
-    await runtime.confirmations.resolve(pendente.id, 'accepted')
+    await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'accepted')
     const tool = runtime.tools.find((t) => t.id === pendente.toolId)
     if (tool === undefined) {
       return { kind: 'answer', text: 'Nao consegui repetir a acao. Tente de novo.' }
@@ -118,7 +119,7 @@ async function tratarConfirmacao(
     return executar(tool, pendente.args, ctx)
   }
 
-  await runtime.confirmations.resolve(pendente.id, 'rejected')
+  await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'rejected')
   if (NAO.test(compacto)) {
     return { kind: 'answer', text: 'Cancelado. Nada foi registrado.' }
   }

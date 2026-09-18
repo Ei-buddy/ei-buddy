@@ -33,7 +33,7 @@
 
 | Fora agora                                    | Onde                                         |
 | --------------------------------------------- | -------------------------------------------- |
-| Confirmação persistente em banco              | NR-061                                       |
+| Confirmação persistente em banco              | NR-061 (chaves `app:` ≠ `wa:`)               |
 | Memória / contexto multi-turno com RLS        | NR-062                                       |
 | Consultas estoque / a pagar / fiado dedicadas | NR-115                                       |
 | Foto de código, cadastros e baixas extras     | NR-116–119                                   |
@@ -157,7 +157,7 @@ Depois de um turno no painel, o desenvolvedor vê quanto tempo a consulta (e, de
 - Presets de contexto de requisição e vistas de traço/duração são capacidades atuais do Studio do framework (documentação 2026-09); o plano usará essas peças **atrás** do laço único, não um agente paralelo.
 - Mapeamento número forjado → empresa é **fixture de engenharia**. O diretório de peers de produção (celular do owner) é NR-113.
 - RNF-006 nesta fatia mede o harness (envio no painel → resposta visível). A medição "webhook recebido → mensagem enviada" só fica literal quando NR-046 existir; o teto numérico já vale agora.
-- Confirmação continua volátil em processo até a NR-061; memória multi-turno até a NR-062. O painel não as antecipa.
+- Confirmação nesta fatia era volátil em processo. A NR-061 persiste na tabela `confirmations`; HTTP `app:` e Studio `wa:` **não** cruzam chave. Memória multi-turno continua NR-062. O painel não as antecipa.
 - Observabilidade desta fatia é duração (e passos) do turno no harness local. Plataforma hospedada do framework, métricas OLAP e auth EE do Studio **não** entram.
 - Massa do harness é sintética; dado de produção não é copiado (RNF-034).
 - Pacote `contracts` e composição na API já existentes são reusados; esta fatia não cria caso de uso de negócio novo.

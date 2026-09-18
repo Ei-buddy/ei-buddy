@@ -9,7 +9,7 @@ Runtime do assistente: tools, memória e confirmações.
 com `AGENT_PROVIDER=fake` · harness **Mastra Studio** (eng.) é `NR-121` ·
 webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
-persistente é `NR-061` (hoje in-memory) · memória da conversa
+persistente é `NR-061` (tabela `confirmations`) · memória da conversa
 [ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
 (`NR-062`: tabelas nossas, 12 msgs / 2 h idle / 30 dias) · RAG auxiliar
 [ADR-0017](../../docs/decisoes/adr/0017-rag-com-tools-e-rls.md) (`NR-120`)
@@ -99,8 +99,14 @@ lançamento financeiro errado. [RF-103](../../docs/produto/requisitos-funcionais
 É também controle de **segurança**, não só de usabilidade: quem obtiver acesso
 ao aparelho ainda precisa confirmar cada lançamento.
 
-A máquina de estados **vai** morar na tabela `confirmations` (NR-061). Até lá
-o runtime usa `InMemoryConfirmations`. O Mastra não substitui essa máquina.
+A máquina de estados mora na tabela `confirmations` (NR-061), ligada a um
+stub de `conversations` (identidade da loja + canal + interlocutor).
+`InMemoryConfirmations` é só teste unitário — a API injeta o store Postgres
+em `apps/api/src/composition.ts`. HITL do Mastra (`requireApproval` /
+`requireToolApproval` / `approveToolCall`) **não** substitui essa máquina.
+
+HTTP e Studio **não** compartilham pendência: chave `app:{companyId}:{userId}`
+≠ `wa:{companyId}:{peer}`.
 
 Histórico de conversa (NR-062) mora em `conversations` / `messages` com RLS —
 [ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md).
@@ -199,11 +205,13 @@ O generate do Studio **ainda** não chama o modelo: só o laço interno
 
 ### Fora desta fatia (NR-121)
 
-Confirmação continua **in-memory** (`InMemoryConfirmations`, chave
-`wa:${companyId}:${peer}`) até a [NR-061](../../docs/processo/task-ledger.md).
-Não ligar Memory / Storage Mastra, RAG (NR-120 / ADR-0017) nem webhook Meta
-(NR-046). O harness não antecipa persistência de confirmação, histórico
-multi-turno (NR-062) nem o celular real do owner (NR-113).
+Confirmação persistente é [NR-061](../../docs/processo/task-ledger.md): tabela
+`confirmations`, stub em `conversations`. A chave do Studio continua
+`wa:${companyId}:${peer}`; o HTTP de teste usa `app:${companyId}:${userId}`.
+**Não** cruzar `sim` de um harness com a proposta do outro. `InMemoryConfirmations`
+fica no teste do agent. Não ligar Memory / Storage Mastra, RAG
+(NR-120 / ADR-0017) nem webhook Meta (NR-046). Histórico multi-turno é NR-062;
+celular real do owner é NR-113.
 
 ### Dívida: relatório por arquivo/link (RF-109)
 

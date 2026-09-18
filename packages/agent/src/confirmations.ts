@@ -1,31 +1,48 @@
 import { randomUUID } from 'node:crypto'
-import type { ConfirmationStore, PendingConfirmation } from './types.js'
+import type { ConfirmationDecision, ConfirmationStore, PendingConfirmation } from './types.js'
 
 /**
- * Confirmacoes em memoria — o esqueleto da NR-061.
+ * Confirmacoes em memoria — fake de teste da NR-061.
  *
- * A tabela `confirmations` ja existe no Postgres; persistir la e a NR-061.
- * Aqui o laço de `processMessage` ja se comporta como a RF-103/104 pedem, para
- * o runtime ser testavel sem WhatsApp e sem migration nova.
+ * Persistencia em Postgres e US2 (`createConfirmationStore`). Aqui o laço de
+ * `processMessage` e testavel sem banco: mesma porta, mesma assinatura.
+ * `resolve` apaga; FR-011 (linha permanece) e o Postgres.
  */
 export class InMemoryConfirmations implements ConfirmationStore {
   private readonly itens = new Map<string, PendingConfirmation>()
 
   async put(pending: PendingConfirmation): Promise<void> {
     for (const [id, atual] of this.itens) {
-      if (atual.conversationKey === pending.conversationKey) this.itens.delete(id)
+      if (
+        atual.companyId === pending.companyId &&
+        atual.conversationKey === pending.conversationKey
+      ) {
+        this.itens.delete(id)
+      }
     }
     this.itens.set(pending.id, pending)
   }
 
-  async getOpen(conversationKey: string, _now: Date): Promise<PendingConfirmation | undefined> {
+  async getOpen(
+    companyId: PendingConfirmation['companyId'],
+    conversationKey: string,
+    _now: Date,
+  ): Promise<PendingConfirmation | undefined> {
     for (const pending of this.itens.values()) {
-      if (pending.conversationKey === conversationKey) return pending
+      if (pending.companyId === companyId && pending.conversationKey === conversationKey) {
+        return pending
+      }
     }
     return undefined
   }
 
-  async resolve(id: string, _decision: 'accepted' | 'rejected' | 'expired'): Promise<void> {
+  async resolve(
+    companyId: PendingConfirmation['companyId'],
+    id: string,
+    _decision: ConfirmationDecision,
+  ): Promise<void> {
+    const atual = this.itens.get(id)
+    if (atual === undefined || atual.companyId !== companyId) return
     this.itens.delete(id)
   }
 }

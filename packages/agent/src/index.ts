@@ -20,6 +20,7 @@ export { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-messa
 export type {
   AgentRuntime,
   AgentTool,
+  ConfirmationDecision,
   ConfirmationStore,
   IncomingMessage,
   LinkedPeer,

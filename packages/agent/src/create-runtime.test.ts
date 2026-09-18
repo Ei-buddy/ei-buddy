@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentUseCases } from './catalog.js'
+import { InMemoryConfirmations } from './confirmations.js'
 import { createAgentRuntime } from './create-runtime.js'
 import { FakeLlm } from './fake-llm.js'
 import type { LlmPort } from './types.js'
@@ -45,5 +46,16 @@ describe('createAgentRuntime — US1', () => {
     const runtime = createAgentRuntime({ useCases, llm })
     expect(runtime.llm).toBe(llm)
     expect(runtime.llm).not.toBeInstanceOf(FakeLlm)
+  })
+
+  it('injeta InMemoryConfirmations quando ninguem passa confirmations', () => {
+    const runtime = createAgentRuntime({ useCases })
+    expect(runtime.confirmations).toBeInstanceOf(InMemoryConfirmations)
+  })
+
+  it('respeita o ConfirmationStore injetado', () => {
+    const confirmations = new InMemoryConfirmations()
+    const runtime = createAgentRuntime({ useCases, confirmations })
+    expect(runtime.confirmations).toBe(confirmations)
   })
 })

@@ -68,6 +68,7 @@ import {
   createSupportRepository,
   createTeamRepository,
   createCompanyRepository,
+  createConfirmationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
   createLegalConsentRepository,
@@ -809,7 +810,8 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
  * Canal de engenharia: `POST /agent/messages` com sessao autenticada da
  * fixture (owner de teste criado pelo desenvolvedor). `companyId` vem do
  * contexto da sessao, nunca do body. Producao sem `AGENT_HARNESS=1` nao
- * monta runtime. Confirmacoes ficam em memoria ate a NR-061.
+ * monta runtime. Confirmacoes vao para `createConfirmationStore` (Postgres);
+ * `InMemoryConfirmations` fica so no teste unitario do agente.
  */
 /** Runtime HTTP + diretorio de fixture do Studio, se o arquivo carregou. */
 export type AgentComposition = {
@@ -892,12 +894,14 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
   const tools = createToolCatalog(useCases)
   const llm = await criarLlmDoAgente(tools)
   const studioDirectory = tentarDiretorioStudio()
+  const sql = getClient(env.DATABASE_URL)
 
   return {
     runtime: createAgentRuntime({
       useCases,
       llm,
       timeZone: env.TZ,
+      confirmations: createConfirmationStore(sql),
       aiUsage: new InMemoryAiUsageCounter({
         ...(env.AGENT_MONTHLY_BUDGET_CENTS === undefined
           ? {}
