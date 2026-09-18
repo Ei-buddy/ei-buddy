@@ -180,23 +180,25 @@ o framework reabre a [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 
 ## Memória
 
-Fechada na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
+[NR-062](../../processo/task-ledger.md) **feita**. Fechada na
+[ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
 ([DEC-011](../../decisoes/README.md#dec-011)):
 
-| Regra              | Valor                                                                 |
-| ------------------ | --------------------------------------------------------------------- |
-| Onde               | `conversations` / `messages` / `confirmations` com `company_id` + RLS |
-| Mastra Memory      | **desligado** (sem Storage padrão em `public`)                        |
-| Chave              | empresa + canal + peer (`wa:${companyId}:${peer}` no WhatsApp)        |
-| Prompt             | no máximo **12** mensagens da conversa ativa                          |
-| Idle (RF-106)      | **2 h** sem mensagem → não aplicar anáfora antiga a ação nova         |
-| Retenção (RNF-035) | corpos de mensagem **30 dias**, depois expurgo verificável            |
-| Aprendizado        | só contexto por empresa — **sem** treino de modelo                    |
+| Regra              | Valor                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| Onde               | `conversations` / `messages` / `confirmations` com `company_id` + RLS                    |
+| Mastra Memory      | **desligado** (sem `@mastra/memory`; sem Storage padrão em `public`)                     |
+| Identidade SQL     | coluna `number_from` — o “peer” da prosa é o interlocutor WhatsApp, não o nome da coluna |
+| Chave              | `wa:{companyId}:{peer}` (Studio) e `app:{companyId}:{userId}` (HTTP) — chaves distintas  |
+| Prompt             | no máximo **12** mensagens da conversa ativa                                             |
+| Idle (RF-106)      | **2 h** sem mensagem → não aplicar anáfora antiga a ação nova                            |
+| Retenção (RNF-035) | corpos de mensagem **30 dias**, depois expurgo verificável                               |
+| Aprendizado        | só contexto por empresa — **sem** treino de modelo                                       |
 
 Confirmação sensível é máquina nossa na tabela `confirmations`, ligada ao
 stub de `conversations` (NR-061). `InMemoryConfirmations` fica só no teste.
-HITL (`requireToolApproval`) **não** entra. Contexto isolado / `messages` é
-NR-062. O precedente de schema isolado do Better Auth (`identidade`) **não**
+HITL (`requireToolApproval`) **não** entra. Histórico em `messages` com RLS
+é NR-062. O precedente de schema isolado do Better Auth (`identidade`) **não**
 se aplica aqui: as tabelas do assistente já nascem no domínio com RLS.
 
 ## RAG

@@ -5,12 +5,19 @@ import { novaConfirmacao } from './confirmations.js'
 import { textoDasCapacidades } from './catalog.js'
 import { parseToolArgs } from './define-tool.js'
 import { chaveDaConversa, diaIso } from './format.js'
-import type { AgentRuntime, IncomingMessage, LinkedPeer, PendingConfirmation } from './types.js'
+import type { AgentRuntime, HistoryTurn, IncomingMessage, LinkedPeer } from './types.js'
 
 const SIM = /^(sim+|s|ok+|pode|confirmo|confirma|yes)[.!?]*$/i
 const NAO = /^(nao|n|cancela|cancelar|no)[.!?]*$/i
 
+const REPLY_VISIVEL = new Set<AgentReply['kind']>(['answer', 'clarify', 'unknown', 'confirmation'])
+
 export const CONFIRMATION_TTL_MS = 5 * 60_000
+
+type RespostaDoLaco = {
+  readonly reply: AgentReply
+  readonly toolCalls?: unknown
+}
 
 export async function processMessage(
   runtime: AgentRuntime,
@@ -28,45 +35,60 @@ export async function processMessage(
     ...(input.peer === undefined ? {} : { peer: input.peer }),
   })
 
+  const { reply, toolCalls } = await responder(runtime, input, ctx, conversationKey)
+  await gravarTurno(runtime, ctx, conversationKey, input.text, reply, toolCalls)
+  return reply
+}
+
+async function responder(
+  runtime: AgentRuntime,
+  input: IncomingMessage,
+  ctx: ExecutionContext,
+  conversationKey: string,
+): Promise<RespostaDoLaco> {
   const pendente = await runtime.confirmations.getOpen(ctx.companyId, conversationKey, ctx.now)
   if (pendente !== undefined) {
-    return tratarConfirmacao(runtime, ctx, pendente, input)
+    return tratarConfirmacao(runtime, ctx, pendente, input, conversationKey)
   }
 
   if (estourouTeto(runtime, ctx)) {
-    return avisoDeTeto()
+    return { reply: avisoDeTeto() }
   }
 
   const today = diaIso(ctx.now, runtime.timeZone)
+  const history = await carregarHistorico(runtime, ctx, conversationKey)
   const decisao = await runtime.llm.decide({
     text: input.text,
     tools: runtime.tools,
     today,
+    history,
   })
   runtime.aiUsage?.record(ctx.companyId, ctx.now)
 
   if (decisao.type === 'unknown') {
-    return { kind: 'unknown', text: textoDasCapacidades(runtime.tools) }
+    return { reply: { kind: 'unknown', text: textoDasCapacidades(runtime.tools) } }
   }
   if (decisao.type === 'text') {
-    return { kind: 'clarify', text: decisao.text }
+    return { reply: { kind: 'clarify', text: decisao.text } }
   }
 
   const tool = runtime.tools.find((t) => t.id === decisao.name)
   if (tool === undefined) {
-    return { kind: 'unknown', text: textoDasCapacidades(runtime.tools) }
+    return { reply: { kind: 'unknown', text: textoDasCapacidades(runtime.tools) } }
   }
 
   let args: unknown
   try {
     args = parseToolArgs(tool.inputSchema, decisao.args)
   } catch (erro) {
-    return responderErro(erro)
+    return { reply: responderErro(erro) }
   }
+
+  const toolCalls = idsDaFerramenta(args)
 
   if (tool.mutatesValue) {
     if (estourouTeto(runtime, ctx)) {
-      return avisoDeTeto()
+      return { reply: avisoDeTeto() }
     }
     const pending = novaConfirmacao({
       companyId: ctx.companyId,
@@ -77,22 +99,26 @@ export async function processMessage(
       expiresAt: new Date(ctx.now.getTime() + runtime.confirmationTtlMs),
     })
     await runtime.confirmations.put(pending)
-    return {
-      kind: 'confirmation',
-      text: `${pending.summary}. Confirma?`,
-      confirmationId: pending.id,
-    }
+    return comToolCalls(
+      {
+        kind: 'confirmation',
+        text: `${pending.summary}. Confirma?`,
+        confirmationId: pending.id,
+      },
+      toolCalls,
+    )
   }
 
-  return executar(tool, args, ctx)
+  return comToolCalls(await executar(tool, args, ctx), toolCalls)
 }
 
 async function tratarConfirmacao(
   runtime: AgentRuntime,
   ctx: ExecutionContext,
-  pendente: PendingConfirmation,
+  pendente: import('./types.js').PendingConfirmation,
   input: IncomingMessage,
-): Promise<AgentReply> {
+  conversationKey: string,
+): Promise<RespostaDoLaco> {
   const expirada = pendente.expiresAt.getTime() <= ctx.now.getTime()
   const compacto = input.text.trim()
 
@@ -100,33 +126,92 @@ async function tratarConfirmacao(
     await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'expired')
     if (SIM.test(compacto) || NAO.test(compacto) || !pareceIntencaoNova(compacto)) {
       return {
-        kind: 'answer',
-        text: 'A confirmacao expirou e nada foi feito. Envie o pedido de novo se ainda quiser.',
+        reply: {
+          kind: 'answer',
+          text: 'A confirmacao expirou e nada foi feito. Envie o pedido de novo se ainda quiser.',
+        },
       }
     }
-    return processMessage(runtime, input)
+    /* Intencao nova: segue o laco sem loadActive neste ramo; o responder
+       seguinte nao tem pendencia e so ai carrega history. */
+    return responder(runtime, input, ctx, conversationKey)
   }
 
   if (SIM.test(compacto)) {
     if (estourouTeto(runtime, ctx)) {
-      return avisoDeTeto()
+      return { reply: avisoDeTeto() }
     }
     await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'accepted')
     const tool = runtime.tools.find((t) => t.id === pendente.toolId)
     if (tool === undefined) {
-      return { kind: 'answer', text: 'Nao consegui repetir a acao. Tente de novo.' }
+      return { reply: { kind: 'answer', text: 'Nao consegui repetir a acao. Tente de novo.' } }
     }
-    return executar(tool, pendente.args, ctx)
+    return comToolCalls(await executar(tool, pendente.args, ctx), idsDaFerramenta(pendente.args))
   }
 
   await runtime.confirmations.resolve(ctx.companyId, pendente.id, 'rejected')
   if (NAO.test(compacto)) {
-    return { kind: 'answer', text: 'Cancelado. Nada foi registrado.' }
+    return { reply: { kind: 'answer', text: 'Cancelado. Nada foi registrado.' } }
   }
   return {
-    kind: 'answer',
-    text: 'Nao entendi como confirmacao, entao cancelei. Nada foi registrado. Se quiser, envie o pedido de novo.',
+    reply: {
+      kind: 'answer',
+      text: 'Nao entendi como confirmacao, entao cancelei. Nada foi registrado. Se quiser, envie o pedido de novo.',
+    },
   }
+}
+
+async function carregarHistorico(
+  runtime: AgentRuntime,
+  ctx: ExecutionContext,
+  conversationKey: string,
+): Promise<readonly HistoryTurn[]> {
+  if (runtime.conversations === undefined) return []
+  /* Sem options.window — default 12 no store. MUST NOT aumentar o recorte. */
+  const ativo = await runtime.conversations.loadActive(ctx.companyId, conversationKey, ctx.now)
+  /* Idle: nao passa o trecho ocioso ao decide. Nao grava deleted_at. */
+  if (ativo === undefined || ativo.idle) return []
+  return ativo.messages.map((m) => ({ role: m.role, body: m.body }))
+}
+
+async function gravarTurno(
+  runtime: AgentRuntime,
+  ctx: ExecutionContext,
+  conversationKey: string,
+  userBody: string,
+  reply: AgentReply,
+  toolCalls: unknown,
+): Promise<void> {
+  if (!REPLY_VISIVEL.has(reply.kind) || runtime.conversations === undefined) return
+  try {
+    await runtime.conversations.append(ctx.companyId, {
+      conversationKey,
+      userBody,
+      assistantBody: reply.text,
+      at: ctx.now,
+      ...(toolCalls === undefined ? {} : { toolCalls }),
+    })
+  } catch {
+    /* Falha de append nao desfaz o execute. Sem body — RNF-034. */
+    console.error(
+      `Falha ao gravar turno da conversa companyId=${ctx.companyId} requestId=${ctx.requestId}`,
+    )
+  }
+}
+
+function comToolCalls(reply: AgentReply, toolCalls: unknown): RespostaDoLaco {
+  return toolCalls === undefined ? { reply } : { reply, toolCalls }
+}
+
+/** Ids ja resolvidos neste turno — metadado, nao perfil permanente. */
+function idsDaFerramenta(args: unknown): unknown {
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) return undefined
+  const o = args as Record<string, unknown>
+  const ids: Record<string, unknown> = {}
+  for (const chave of ['customerId', 'saleId', 'productId'] as const) {
+    if (o[chave] !== undefined) ids[chave] = o[chave]
+  }
+  return Object.keys(ids).length === 0 ? undefined : ids
 }
 
 function pareceIntencaoNova(texto: string): boolean {

@@ -60,7 +60,7 @@ describe.skipIf(!DATABASE_URL)('store de confirmacao — NR-061 US2', () => {
 
   beforeAll(async () => {
     const r = await migrate(MIGRATION_URL!)
-    expect([...r.aplicadas, ...r.jaEstavam]).toContain('0018_confirmations_identity')
+    expect([...r.aplicadas, ...r.jaEstavam]).toContain('0021_confirmations_open_unique')
 
     admin = postgres(DATABASE_URL!, { max: 3, onnotice: () => {} })
     aplicacao = await conectarComoAplicacao(admin, DATABASE_URL!)

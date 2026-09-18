@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentUseCases } from './catalog.js'
 import { InMemoryConfirmations } from './confirmations.js'
+import { InMemoryConversationStore } from './conversations.js'
 import { createAgentRuntime } from './create-runtime.js'
 import { FakeLlm } from './fake-llm.js'
 import type { LlmPort } from './types.js'
@@ -37,6 +38,7 @@ describe('createAgentRuntime — US1', () => {
   it('injeta FakeLlm quando ninguem passa llm — modo local sem OpenAI', () => {
     const runtime = createAgentRuntime({ useCases })
     expect(runtime.llm).toBeInstanceOf(FakeLlm)
+    expect(runtime.conversations).toBeInstanceOf(InMemoryConversationStore)
   })
 
   it('respeita o LlmPort injetado — caminho Mastra no mesmo runtime', () => {
@@ -57,5 +59,20 @@ describe('createAgentRuntime — US1', () => {
     const confirmations = new InMemoryConfirmations()
     const runtime = createAgentRuntime({ useCases, confirmations })
     expect(runtime.confirmations).toBe(confirmations)
+  })
+
+  it('LlmPort.decide aceita history opcional sem mudar o laco', async () => {
+    const llm: LlmPort = {
+      decide: async ({ history }) => {
+        expect(history === undefined || history.length <= 12).toBe(true)
+        return { type: 'unknown' }
+      },
+    }
+    await llm.decide({
+      text: 'oi',
+      tools: [],
+      today: '2026-09-11',
+      history: [{ role: 'user', body: 'oi' }],
+    })
   })
 })

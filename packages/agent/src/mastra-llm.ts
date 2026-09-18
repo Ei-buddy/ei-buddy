@@ -54,8 +54,10 @@ export function createMastraLlm(opcoes: MastraLlmOptions): LlmPort {
   })
 
   return {
-    async decide({ text }): Promise<LlmDecision> {
-      const result = await agent.generate(text, { maxSteps: 1 })
+    async decide(input): Promise<LlmDecision> {
+      const result = await agent.generate(entradaDoGenerate(input.text, input.history), {
+        maxSteps: 1,
+      })
       const chamada = primeiraFerramenta(result)
       if (chamada !== undefined) {
         return { type: 'tool', name: chamada.name, args: chamada.args }
@@ -67,6 +69,30 @@ export function createMastraLlm(opcoes: MastraLlmOptions): LlmPort {
       return { type: 'unknown' }
     },
   }
+}
+
+/** Default `window = 12` (RNF-075 / ADR-0016). Nao concatena alem do array recebido. */
+const JANELA_HISTORY = 12
+
+/**
+ * Prefixo compacto no texto — o `Agent.generate` do Mastra tipa lista de
+ * mensagens como `MastraDBMessage` (id/createdAt), e nao como `{ role,
+ * content }` simples. Prefixo ≤ 12 turnos cumpre o contrato llm-history
+ * sem Memory e sem brigar com a API do framework.
+ */
+function entradaDoGenerate(
+  text: string,
+  history: readonly { readonly role: string; readonly body: string }[] | undefined,
+): string {
+  const recorte = (history ?? []).slice(-JANELA_HISTORY)
+  if (recorte.length === 0) return text
+  const prefixo = recorte.map((t) => `${papelDaMensagem(t.role)}: ${t.body}`).join('\n')
+  return `${prefixo}\nuser: ${text}`
+}
+
+function papelDaMensagem(role: string): 'user' | 'assistant' | 'system' {
+  if (role === 'assistant' || role === 'system') return role
+  return 'user'
 }
 
 function primeiraFerramenta(result: unknown): { name: string; args: unknown } | undefined {

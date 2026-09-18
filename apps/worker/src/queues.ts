@@ -13,6 +13,8 @@ export const QUEUES = {
   whatsappSend: 'whatsapp-send',
   /** Varredura diaria de recebiveis vencidos — docs/arquitetura/fluxos.md */
   chargeOverdue: 'charge-overdue',
+  /** Expurgo de corpos de conversa com mais de 30 dias — RNF-035, NR-062 US5. */
+  conversationPurge: 'conversation-purge',
   /** Importacao periodica de extrato bancario. */
   bankSync: 'bank-sync',
   /** Processamento de webhook recebido, apos resposta 200 imediata. */

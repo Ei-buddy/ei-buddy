@@ -2,8 +2,8 @@
 
 BullMQ — filas e jobs agendados.
 
-**Estado:** 🟡 conecta, registra as filas e loga falha de job; sem
-consumidores · `NR-041`
+**Estado:** 🟡 conecta, registra as filas e loga falha de job · `NR-041`;
+consumidor `conversation-purge` (NR-062)
 
 ## Responsabilidade
 
@@ -23,13 +23,14 @@ handler HTTP — desempacota o job, monta o contexto, chama o caso de uso.
 
 ## Filas
 
-| Fila              | O quê                                   | Requisito                                                  |
-| ----------------- | --------------------------------------- | ---------------------------------------------------------- |
-| `invoice-issue`   | emissão fiscal assíncrona               | [RNF-004](../../docs/produto/requisitos-nao-funcionais.md) |
-| `whatsapp-send`   | cobrança, comprovante, catálogo         | RF-048, RF-068                                             |
-| `charge-overdue`  | varredura diária de recebíveis vencidos | RF-071                                                     |
-| `bank-sync`       | importação periódica de extrato         | RF-074                                                     |
-| `webhook-process` | processa webhook após o 200 imediato    | RNF-028                                                    |
+| Fila                 | O quê                                                                                                                                                | Requisito                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `invoice-issue`      | emissão fiscal assíncrona                                                                                                                            | [RNF-004](../../docs/produto/requisitos-nao-funcionais.md) |
+| `whatsapp-send`      | cobrança, comprovante, catálogo                                                                                                                      | RF-048, RF-068                                             |
+| `charge-overdue`     | varredura diária de recebíveis vencidos                                                                                                              | RF-071                                                     |
+| `bank-sync`          | importação periódica de extrato                                                                                                                      | RF-074                                                     |
+| `webhook-process`    | processa webhook após o 200 imediato                                                                                                                 | RNF-028                                                    |
+| `conversation-purge` | expurgo de corpos de mensagem com mais de 30 dias (conversa órfã ganha `deleted_at`; não apaga venda). Consome `purgeConversationHistory` em `core`. | RNF-035 / NR-062                                           |
 
 > **Nome de fila nunca usa `:`.** O BullMQ o reserva como separador de chave no
 > Redis e recusa o nome em tempo de execução — `Queue name cannot contain :`.

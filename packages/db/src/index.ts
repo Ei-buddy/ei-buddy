@@ -54,6 +54,16 @@ export type { RlsStatus } from './rls-guard.js'
 /* --- Isolamento: a ponte entre o ExecutionContext e a politica de RLS --- */
 export { withPlatformScope, withTenant } from './tenant.js'
 export type { TenantId } from './tenant.js'
+/* Identidade da conversa vigente — upsert compartilhado (NR-062). */
+export { parseConversationKey, upsertConversationIdentity } from './conversation-identity.js'
+export type { ConversationIdentity } from './conversation-identity.js'
+/* Historico da conversa vigente — store Postgres (NR-062 US2) e expurgo (US5). */
+export {
+  createConversationPurgeRepository,
+  createConversationStore,
+} from './conversation-repository.js'
+/* Ids de empresa para varredura de plataforma — SECURITY DEFINER, so id. */
+export { listCompanyIds } from './list-company-ids.js'
 
 /* Segredo de lojista cifrado em coluna — RF-004, RNF-022, NR-042. */
 export { ChaveDeSegredoInvalida, cifrar, decifrar, lerChaveDeSegredo } from './secret-box.js'

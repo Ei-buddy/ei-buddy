@@ -15,26 +15,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const vazio = vi.hoisted(() => () => ({}))
 
-const db = vi.hoisted(() => ({
-  assertRlsEnforced: vi.fn(),
-  getClient: vi.fn(() => ({}) as never),
-  checkConnection: vi.fn(),
-  closeConnection: vi.fn(),
-  createSaleUnitOfWork: vi.fn(vazio),
-  createSaleHistoryRepository: vi.fn(vazio),
-  createCompanyRepository: vi.fn(vazio),
-  createConfirmationStore: vi.fn(vazio),
-  createCustomerRepository: vi.fn(vazio),
-  createProductRepository: vi.fn(vazio),
-  createChartOfAccountsRepository: vi.fn(vazio),
-  createInventoryUnitOfWork: vi.fn(vazio),
-  createAuditTrail: vi.fn(vazio),
-  createPayableUnitOfWork: vi.fn(vazio),
-  createPayableQueries: vi.fn(vazio),
-  createReceivableRepository: vi.fn(vazio),
-  createManualReceivableUnitOfWork: vi.fn(vazio),
-  createReportRepository: vi.fn(vazio),
-}))
+const { db, storePostgres } = vi.hoisted(() => {
+  const storePostgres = { loadActive: vi.fn(), append: vi.fn() }
+  return {
+    storePostgres,
+    db: {
+      assertRlsEnforced: vi.fn(),
+      getClient: vi.fn(() => ({}) as never),
+      checkConnection: vi.fn(),
+      closeConnection: vi.fn(),
+      createSaleUnitOfWork: vi.fn(vazio),
+      createSaleHistoryRepository: vi.fn(vazio),
+      createCompanyRepository: vi.fn(vazio),
+      createConfirmationStore: vi.fn(vazio),
+      createCustomerRepository: vi.fn(vazio),
+      createProductRepository: vi.fn(vazio),
+      createChartOfAccountsRepository: vi.fn(vazio),
+      createInventoryUnitOfWork: vi.fn(vazio),
+      createAuditTrail: vi.fn(vazio),
+      createPayableUnitOfWork: vi.fn(vazio),
+      createPayableQueries: vi.fn(vazio),
+      createReceivableRepository: vi.fn(vazio),
+      createManualReceivableUnitOfWork: vi.fn(vazio),
+      createReportRepository: vi.fn(vazio),
+      createConversationStore: vi.fn(() => storePostgres),
+    },
+  }
+})
 
 const coreConsultas = vi.hoisted(() => ({
   listSales: vi.fn(),
@@ -78,6 +85,7 @@ const AMBIENTE = {
   DATABASE_URL: 'postgresql://app:app@localhost:5432/naregua',
   REDIS_URL: 'redis://localhost:6379',
   JWT_SECRET: 'apenas-para-teste',
+  AGENT_PROVIDER: 'fake',
 }
 
 /*
@@ -612,5 +620,20 @@ describe('buildAgentDeps — FixturePeerDirectory (NR-121)', () => {
     if (deps === null) return
     expect(deps.studioDirectory).toBeUndefined()
     expect(deps.runtime.peers).toBeUndefined()
+  })
+})
+
+describe('buildAgentDeps — NR-062 ConversationStore', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('injeta o store Postgres no runtime, nao InMemory — T043', async () => {
+    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+    expect(db.createConversationStore).toHaveBeenCalled()
+    expect(deps.runtime.conversations).toBe(storePostgres)
   })
 })

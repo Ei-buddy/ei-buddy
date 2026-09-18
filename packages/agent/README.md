@@ -9,9 +9,11 @@ Runtime do assistente: tools, memória e confirmações.
 com `AGENT_PROVIDER=fake` · harness **Mastra Studio** (eng.) é `NR-121` ·
 webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
-persistente é `NR-061` (tabela `confirmations`) · memória da conversa
-[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
-(`NR-062`: tabelas nossas, 12 msgs / 2 h idle / 30 dias) · RAG auxiliar
+persistente é `NR-061` (tabela `confirmations`) · memória da conversa **entregue**
+(NR-062: tabelas `conversations` / `messages` com RLS; janela **12**; idle
+**2 h**; retenção **30 d** —
+[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md))
+· RAG auxiliar
 [ADR-0017](../../docs/decisoes/adr/0017-rag-com-tools-e-rls.md) (`NR-120`)
 
 ## Responsabilidade
@@ -108,9 +110,13 @@ em `apps/api/src/composition.ts`. HITL do Mastra (`requireApproval` /
 HTTP e Studio **não** compartilham pendência: chave `app:{companyId}:{userId}`
 ≠ `wa:{companyId}:{peer}`.
 
-Histórico de conversa (NR-062) mora em `conversations` / `messages` com RLS —
-[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md).
-Sem Memory do Mastra.
+Histórico de conversa (NR-062, **entregue**) mora em `conversations` /
+`messages` com RLS — janela **12**, idle **2 h**, retenção **30 d**
+([ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)).
+O harness/API injeta `createConversationStore` em
+`apps/api/src/composition.ts`. `InMemoryConversationStore` é o default dos
+testes (e quando a composition não injeta). Sem Memory do Mastra
+(`@mastra/memory`).
 
 ## Riscos específicos de ter um LLM no caminho
 
@@ -209,9 +215,9 @@ Confirmação persistente é [NR-061](../../docs/processo/task-ledger.md): tabel
 `confirmations`, stub em `conversations`. A chave do Studio continua
 `wa:${companyId}:${peer}`; o HTTP de teste usa `app:${companyId}:${userId}`.
 **Não** cruzar `sim` de um harness com a proposta do outro. `InMemoryConfirmations`
-fica no teste do agent. Não ligar Memory / Storage Mastra, RAG
-(NR-120 / ADR-0017) nem webhook Meta (NR-046). Histórico multi-turno é NR-062;
-celular real do owner é NR-113.
+fica no teste do agent. Histórico multi-turno é NR-062 (`conversations` /
+`messages`). Não ligar Memory / Storage Mastra, RAG (NR-120 / ADR-0017) nem
+webhook Meta (NR-046). Celular real do owner é NR-113.
 
 ### Dívida: relatório por arquivo/link (RF-109)
 

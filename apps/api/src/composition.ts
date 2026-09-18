@@ -69,6 +69,7 @@ import {
   createTeamRepository,
   createCompanyRepository,
   createConfirmationStore,
+  createConversationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
   createLegalConsentRepository,
@@ -811,7 +812,8 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
  * fixture (owner de teste criado pelo desenvolvedor). `companyId` vem do
  * contexto da sessao, nunca do body. Producao sem `AGENT_HARNESS=1` nao
  * monta runtime. Confirmacoes vao para `createConfirmationStore` (Postgres);
- * `InMemoryConfirmations` fica so no teste unitario do agente.
+ * historico para `createConversationStore` (NR-062). `InMemoryConfirmations`
+ * e `InMemoryConversationStore` ficam so no teste unitario do agente.
  */
 /** Runtime HTTP + diretorio de fixture do Studio, se o arquivo carregou. */
 export type AgentComposition = {
@@ -909,6 +911,8 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
         timeZone: env.TZ,
       }),
       ...(studioDirectory === undefined ? {} : { peers: studioDirectory }),
+      /* HTTP app e Studio wa seguem identidades distintas (`app:` vs `wa:`). */
+      conversations: createConversationStore(sql),
     }),
     ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }

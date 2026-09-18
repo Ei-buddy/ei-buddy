@@ -115,6 +115,21 @@ export type {
   ConfirmationStore,
   PendingConfirmation,
 } from './ports/confirmations.js'
+export type {
+  ActiveContext,
+  AppendTurn,
+  ConversationPurgeRepository,
+  ConversationRole,
+  ConversationStore,
+  StoredMessage,
+} from './ports/conversations.js'
+
+/* Historico de conversa — NR-062 US5. Relogio = ctx.now; retencao 30 d. */
+export { purgeConversationHistory, RETENCAO_MENSAGENS_MS } from './conversations/purge-history.js'
+export type {
+  PurgeConversationHistoryDeps,
+  PurgeConversationHistoryResult,
+} from './conversations/purge-history.js'
 
 /* --- Venda — NR-022 --- */
 export { createPayable } from './payables/create-payable.js'
