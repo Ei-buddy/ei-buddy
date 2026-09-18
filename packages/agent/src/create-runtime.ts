@@ -1,9 +1,10 @@
 import type { AiUsageCounter } from './ai-usage.js'
 import { createToolCatalog, type AgentUseCases } from './catalog.js'
+import { InMemoryConversationStore } from './conversations.js'
 import { CONFIRMATION_TTL_MS } from './process-message.js'
 import { InMemoryConfirmations } from './confirmations.js'
 import { FakeLlm } from './fake-llm.js'
-import type { AgentRuntime, LlmPort, PeerDirectory } from './types.js'
+import type { AgentRuntime, ConversationStore, LlmPort, PeerDirectory } from './types.js'
 
 export type CreateRuntimeOptions = {
   readonly useCases: AgentUseCases
@@ -12,6 +13,7 @@ export type CreateRuntimeOptions = {
   readonly confirmationTtlMs?: number
   readonly peers?: PeerDirectory
   readonly aiUsage?: AiUsageCounter
+  readonly conversations?: ConversationStore
 }
 
 /**
@@ -27,5 +29,6 @@ export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
     confirmationTtlMs: opcoes.confirmationTtlMs ?? CONFIRMATION_TTL_MS,
     ...(opcoes.peers === undefined ? {} : { peers: opcoes.peers }),
     ...(opcoes.aiUsage === undefined ? {} : { aiUsage: opcoes.aiUsage }),
+    conversations: opcoes.conversations ?? new InMemoryConversationStore(),
   }
 }

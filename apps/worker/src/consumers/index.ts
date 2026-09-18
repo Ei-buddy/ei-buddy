@@ -1,5 +1,6 @@
 import { QUEUES, type QueueName } from '../queues.js'
 import { consumirCobranca } from './charge-overdue.js'
+import { consumirExpurgo } from './conversation-purge.js'
 import { consumirEmissao } from './invoice-issue.js'
 import type { ConsumerDeps, ResultadoDoJob } from './types.js'
 import { consumirEnvio } from './whatsapp-send.js'
@@ -23,6 +24,7 @@ const CONSUMIDORES: Partial<Record<QueueName, Consumidor>> = {
   [QUEUES.whatsappSend]: consumirEnvio,
   /* A varredura ignora o payload: o gatilho e o agendamento, nao o conteudo. */
   [QUEUES.chargeOverdue]: (deps) => consumirCobranca(deps),
+  [QUEUES.conversationPurge]: (deps) => consumirExpurgo(deps),
 }
 
 export function consumidorDe(fila: QueueName): Consumidor | undefined {
@@ -34,5 +36,5 @@ export function filasSemConsumidor(): readonly QueueName[] {
   return Object.values(QUEUES).filter((f) => CONSUMIDORES[f] === undefined)
 }
 
-export { consumirCobranca, consumirEmissao, consumirEnvio }
+export { consumirCobranca, consumirEmissao, consumirEnvio, consumirExpurgo }
 export type { ConsumerDeps, ResultadoDoJob } from './types.js'

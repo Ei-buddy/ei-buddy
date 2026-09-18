@@ -1,9 +1,11 @@
 import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
 import {
+  createConversationPurgeRepository,
   createFiscalCredentials,
   createInvoiceStore,
   getClient,
   lerChaveDeSegredo,
+  listCompanyIds,
 } from '@na-regua/db'
 import { createFakeMessageSender } from '@na-regua/whatsapp'
 import type { Queue } from 'bullmq'
@@ -52,6 +54,35 @@ const leitorDeVencidosPendente: OverdueReader = {
 const env = loadWorkerEnv()
 
 /**
+ * Expurgo sem banco: devolve zero e avisa, em vez de fingir que rodou contra
+ * dado de producao. Mesmo molde do leitor de vencidos pendente.
+ */
+const expurgoSemBanco: Pick<ConsumerDeps, 'conversations' | 'listTenantIds'> = {
+  conversations: {
+    deleteMessagesOlderThan: async () => 0,
+    closeConversationsWithoutMessages: async () => 0,
+  },
+  listTenantIds: async () => {
+    log('warn', 'expurgo de conversa sem banco: nada foi apagado', {
+      motivo: 'DATABASE_URL ausente — repositorio de expurgo nao montado',
+    })
+    return []
+  },
+}
+
+function montarExpurgo(): Pick<ConsumerDeps, 'conversations' | 'listTenantIds'> {
+  if (env.DATABASE_URL === undefined) return expurgoSemBanco
+
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    conversations: createConversationPurgeRepository(sql),
+    /* companies e a raiz do tenant; sem deleted_at no catalogo. Nao usa
+       BYPASSRLS nem SELECT cru — list_company_ids (SECURITY DEFINER, so id). */
+    listTenantIds: () => listCompanyIds(sql),
+  }
+}
+
+/**
  * O emissor de nota — DEC-004, NR-042.
  *
  * `fake` nao emite nada. `focusnfe` fala com o provedor de verdade, e para
@@ -85,6 +116,7 @@ function montarEmissor(): ConsumerDeps['invoices'] {
 }
 
 export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
+  const expurgo = montarExpurgo()
   return {
     invoices: montarEmissor(),
     messages: createFakeMessageSender(),
@@ -101,5 +133,7 @@ export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
       },
     },
     now: () => new Date(),
+    conversations: expurgo.conversations,
+    listTenantIds: expurgo.listTenantIds,
   }
 }

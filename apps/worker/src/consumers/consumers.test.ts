@@ -21,6 +21,11 @@ function deps(over: Partial<ConsumerDeps> = {}) {
     overdue: { listOverdue: async () => [] },
     enqueue: { add: async (queue, payload) => void enfileirados.push({ queue, payload }) },
     now: () => AGORA,
+    conversations: {
+      deleteMessagesOlderThan: async () => 0,
+      closeConversationsWithoutMessages: async () => 0,
+    },
+    listTenantIds: async () => [],
     ...over,
   }
   return { d, enfileirados }
@@ -281,12 +286,14 @@ describe('varredura de cobranca', () => {
 })
 
 describe('registro de consumidores', () => {
-  it.each([QUEUES.invoiceIssue, QUEUES.whatsappSend, QUEUES.chargeOverdue])(
-    '%s tem consumidor',
-    (fila) => {
-      expect(consumidorDe(fila)).toBeDefined()
-    },
-  )
+  it.each([
+    QUEUES.invoiceIssue,
+    QUEUES.whatsappSend,
+    QUEUES.chargeOverdue,
+    QUEUES.conversationPurge,
+  ])('%s tem consumidor', (fila) => {
+    expect(consumidorDe(fila)).toBeDefined()
+  })
 
   /* O tipo diz que faltam, em vez de esconder num default que trata tudo igual
      — senao o dia em que alguem cria fila e esquece o consumidor e um dia em

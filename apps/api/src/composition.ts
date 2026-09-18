@@ -68,6 +68,7 @@ import {
   createSupportRepository,
   createTeamRepository,
   createCompanyRepository,
+  createConversationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
   createLegalConsentRepository,
@@ -905,6 +906,8 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
         timeZone: env.TZ,
       }),
       ...(studioDirectory === undefined ? {} : { peers: studioDirectory }),
+      /* HTTP app e Studio wa seguem identidades distintas (`app:` vs `wa:`). */
+      conversations: createConversationStore(getClient(env.DATABASE_URL)),
     }),
     ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }

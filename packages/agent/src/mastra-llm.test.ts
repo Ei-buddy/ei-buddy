@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createMastraLlm } from './mastra-llm.js'
@@ -14,14 +17,21 @@ const mastra = vi.hoisted(() => {
     execute: (input: unknown) => Promise<unknown>
   }> = []
   const state: { instructions: string | undefined } = { instructions: undefined }
+  /* Assinatura tipada: senao `mock.calls[0]` vira tupla vazia e o tsc
+     recusa indexar [0]/[1] (erro na CI do typecheck). */
+  const generate = vi.fn(async (_messages: unknown, _options?: { maxSteps?: number }) => ({
+    text: '',
+  }))
   return {
     tools,
     state,
+    generate,
     createTool: vi.fn((opts: { id: string; execute: (input: unknown) => Promise<unknown> }) => {
       tools.push(opts)
       return opts
     }),
     Agent: class {
+      generate = generate
       constructor(opts: { instructions?: string }) {
         state.instructions = opts.instructions
       }
@@ -51,6 +61,8 @@ describe('createMastraLlm — execute identidade (US1)', () => {
     mastra.tools.length = 0
     mastra.state.instructions = undefined
     mastra.createTool.mockClear()
+    mastra.generate.mockClear()
+    mastra.generate.mockResolvedValue({ text: '' })
     if (chaveAnterior === undefined) delete process.env.OPENAI_API_KEY
     else process.env.OPENAI_API_KEY = chaveAnterior
   })
@@ -84,5 +96,103 @@ describe('createMastraLlm — execute identidade (US1)', () => {
     expect(texto).toMatch(/OFX|Open Finance|concili/)
     expect(texto).toMatch(/nota|NFC-e/)
     expect(texto).toMatch(/nao use create_sale/i)
+  })
+
+  it('inclui history no generate, com maxSteps 1 — T017', async () => {
+    mastra.generate.mockResolvedValue({ text: 'Qual cliente?' })
+    const llm = createMastraLlm({
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'sk-nao-chamar',
+      tools: [ferramenta],
+    })
+
+    const r = await llm.decide({
+      text: 'manda a cobranca pra ele',
+      tools: [ferramenta],
+      today: '2026-09-11',
+      history: [
+        { role: 'user', body: 'cobra o joao' },
+        { role: 'assistant', body: 'Enviar cobranca para cliente cli-1. Confirma?' },
+      ],
+    })
+
+    expect(r).toEqual({ type: 'text', text: 'Qual cliente?' })
+    expect(mastra.generate).toHaveBeenCalledOnce()
+    const chamada = mastra.generate.mock.calls[0]
+    expect(chamada).toBeDefined()
+    if (chamada === undefined) return
+    const [entrada, opcoes] = chamada
+    expect(opcoes).toEqual({ maxSteps: 1 })
+    const blob = typeof entrada === 'string' ? entrada : JSON.stringify(entrada)
+    expect(blob).toContain('cobra o joao')
+    expect(blob).toContain('cli-1')
+    expect(blob).toContain('manda a cobranca pra ele')
+  })
+
+  it('sem history o generate recebe so o texto atual — T017', async () => {
+    const llm = createMastraLlm({
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'sk-nao-chamar',
+      tools: [ferramenta],
+    })
+    await llm.decide({
+      text: 'quanto vendi hoje?',
+      tools: [ferramenta],
+      today: '2026-09-11',
+    })
+    expect(mastra.generate).toHaveBeenCalledWith('quanto vendi hoje?', { maxSteps: 1 })
+  })
+
+  it('nao importa @mastra/memory — T017', () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'mastra-llm.ts'), 'utf8')
+    expect(src).not.toMatch(/@mastra\/memory/)
+  })
+
+  it('nao concatena alem do array recebido — T032', async () => {
+    const llm = createMastraLlm({
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'sk-nao-chamar',
+      tools: [ferramenta],
+    })
+    const history = Array.from({ length: 13 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      body: `h-${i + 1}`,
+    }))
+    await llm.decide({
+      text: 'agora',
+      tools: [ferramenta],
+      today: '2026-09-11',
+      history,
+    })
+
+    expect(mastra.generate).toHaveBeenCalledOnce()
+    const chamada = mastra.generate.mock.calls[0]
+    expect(chamada).toBeDefined()
+    if (chamada === undefined) return
+    const [entrada] = chamada
+    expect(typeof entrada).toBe('string')
+    if (typeof entrada !== 'string') return
+    /* Prefixo compacto: 12 turnos do recorte + turno atual; h-1 cai fora.
+       Nao usar toContain('h-1'): h-10..h-13 tambem casam. */
+    expect(entrada).not.toMatch(/: h-1(\n|$)/)
+    for (let i = 2; i <= 13; i++) {
+      expect(entrada).toMatch(new RegExp(`: h-${i}(\\n|$)`))
+    }
+    expect(entrada).toMatch(/user: agora$/)
+    const corposNoPrefixo = [...entrada.matchAll(/: (h-\d+)(?:\n|$)/g)].map((m) => m[1])
+    expect(corposNoPrefixo).toEqual([
+      'h-2',
+      'h-3',
+      'h-4',
+      'h-5',
+      'h-6',
+      'h-7',
+      'h-8',
+      'h-9',
+      'h-10',
+      'h-11',
+      'h-12',
+      'h-13',
+    ])
   })
 })

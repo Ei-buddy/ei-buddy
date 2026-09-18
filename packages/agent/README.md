@@ -9,9 +9,11 @@ Runtime do assistente: tools, memória e confirmações.
 com `AGENT_PROVIDER=fake` · harness **Mastra Studio** (eng.) é `NR-121` ·
 webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
-persistente é `NR-061` (hoje in-memory) · memória da conversa
-[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)
-(`NR-062`: tabelas nossas, 12 msgs / 2 h idle / 30 dias) · RAG auxiliar
+persistente é `NR-061` (hoje in-memory) · memória da conversa **entregue**
+(NR-062: tabelas `conversations` / `messages` com RLS; janela **12**; idle
+**2 h**; retenção **30 d** —
+[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md))
+· RAG auxiliar
 [ADR-0017](../../docs/decisoes/adr/0017-rag-com-tools-e-rls.md) (`NR-120`)
 
 ## Responsabilidade
@@ -102,9 +104,13 @@ ao aparelho ainda precisa confirmar cada lançamento.
 A máquina de estados **vai** morar na tabela `confirmations` (NR-061). Até lá
 o runtime usa `InMemoryConfirmations`. O Mastra não substitui essa máquina.
 
-Histórico de conversa (NR-062) mora em `conversations` / `messages` com RLS —
-[ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md).
-Sem Memory do Mastra.
+Histórico de conversa (NR-062, **entregue**) mora em `conversations` /
+`messages` com RLS — janela **12**, idle **2 h**, retenção **30 d**
+([ADR-0016](../../docs/decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)).
+O harness/API injeta `createConversationStore` em
+`apps/api/src/composition.ts`. `InMemoryConversationStore` é o default dos
+testes (e quando a composition não injeta). Sem Memory do Mastra
+(`@mastra/memory`).
 
 ## Riscos específicos de ter um LLM no caminho
 
@@ -201,9 +207,9 @@ O generate do Studio **ainda** não chama o modelo: só o laço interno
 
 Confirmação continua **in-memory** (`InMemoryConfirmations`, chave
 `wa:${companyId}:${peer}`) até a [NR-061](../../docs/processo/task-ledger.md).
-Não ligar Memory / Storage Mastra, RAG (NR-120 / ADR-0017) nem webhook Meta
-(NR-046). O harness não antecipa persistência de confirmação, histórico
-multi-turno (NR-062) nem o celular real do owner (NR-113).
+Não ligar Memory / Storage Mastra (`@mastra/memory`), RAG (NR-120 / ADR-0017)
+nem webhook Meta (NR-046). O harness não antecipa persistência de confirmação
+(NR-061) nem o celular real do owner (NR-113).
 
 ### Dívida: relatório por arquivo/link (RF-109)
 
