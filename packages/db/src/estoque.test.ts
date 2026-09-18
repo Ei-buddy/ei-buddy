@@ -7,6 +7,7 @@ import {
   createInventoryQueries,
   createInventoryUnitOfWork,
 } from './inventory-repository.js'
+import { createProductRepository } from './registration-repositories.js'
 import { migrate } from './migrate.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
 import { withTenant } from './tenant.js'
@@ -65,9 +66,17 @@ describe.skipIf(!DATABASE_URL)('estoque — NR-023', () => {
     return id
   }
 
-  async function criarProduto(empresa: string, saldo: number, minimo = 5): Promise<string> {
+  async function criarProduto(
+    empresa: string,
+    saldo: number,
+    minimo = 5,
+    opcoes: { tracksStock?: boolean; location?: string | null; description?: string } = {},
+  ): Promise<string> {
     const id = randomUUID()
     sequencia += 1
+    const tracksStock = opcoes.tracksStock ?? true
+    const location = opcoes.location ?? null
+    const description = opcoes.description ?? 'Cafe torrado'
 
     await withTenant(
       sql,
@@ -75,9 +84,9 @@ describe.skipIf(!DATABASE_URL)('estoque — NR-023', () => {
       (tx) => tx`
         INSERT INTO products
           (id, company_id, description, internal_code, unit_of_measure,
-           sale_price_cents, cost_price_cents, stock, min_stock)
-        VALUES (${id}, ${empresa}, 'Cafe torrado', ${`E-${sequencia}-${id.slice(0, 6)}`},
-                'un', 1990, 1200, ${saldo}, ${minimo})
+           sale_price_cents, cost_price_cents, stock, min_stock, tracks_stock, location)
+        VALUES (${id}, ${empresa}, ${description}, ${`E-${sequencia}-${id.slice(0, 6)}`},
+                'un', 1990, 1200, ${saldo}, ${minimo}, ${tracksStock}, ${location})
       `,
     )
     return id
@@ -88,6 +97,7 @@ describe.skipIf(!DATABASE_URL)('estoque — NR-023', () => {
   beforeAll(async () => {
     const r = await migrate(MIGRATION_URL!)
     expect([...r.aplicadas, ...r.jaEstavam]).toContain('0002_dominio_0909')
+    expect([...r.aplicadas, ...r.jaEstavam]).toContain('0022_produto_estoque_localizacao')
 
     admin = postgres(DATABASE_URL!, { max: 6, onnotice: () => {} })
     aplicacao = await conectarComoAplicacao(admin, DATABASE_URL!)
@@ -137,12 +147,55 @@ describe.skipIf(!DATABASE_URL)('estoque — NR-023', () => {
       expect(await queries.products.findById(empresaB, p)).toBeUndefined()
     })
 
-    it('`location` volta nulo porque a coluna nao existe, e nao um chute', async () => {
-      const p = await criarProduto(empresaA, 3)
+    it('devolve localizacao quando cadastrada', async () => {
+      const p = await criarProduto(empresaA, 3, 5, { location: 'Corredor 2, prateleira A' })
 
       const achado = await queries.products.findById(empresaA, p)
 
-      expect(achado?.location).toBeNull()
+      expect(achado?.location).toBe('Corredor 2, prateleira A')
+    })
+
+    it('saldo zero continua sendo zero quando controla estoque', async () => {
+      const p = await criarProduto(empresaA, 0)
+
+      const achado = await queries.products.findById(empresaA, p)
+
+      expect(achado?.stockQuantity).toBe(0)
+    })
+
+    it('sem controle de estoque devolve nulo, nao zero — RF-022', async () => {
+      const p = await criarProduto(empresaA, 0, 0, { tracksStock: false })
+
+      const achado = await queries.products.findById(empresaA, p)
+
+      expect(achado?.stockQuantity).toBeNull()
+      expect(achado?.stockQuantity).not.toBe(0)
+    })
+  })
+
+  describe('busca textual — NR-115 / T022', () => {
+    let produtos: ReturnType<typeof createProductRepository>
+
+    beforeAll(() => {
+      produtos = createProductRepository(sql)
+    })
+
+    it('busca por nome so devolve produtos do tenant', async () => {
+      await criarProduto(empresaA, 8, 5, { description: 'Camiseta exclusiva A' })
+      await criarProduto(empresaB, 4, 5, { description: 'Camiseta exclusiva B' })
+
+      const daA = await produtos.search(empresaA, { termo: 'Camiseta exclusiva', limite: 5 })
+      const daB = await produtos.search(empresaB, { termo: 'Camiseta exclusiva', limite: 5 })
+
+      expect(daA.map((p) => p.description)).toEqual(['Camiseta exclusiva A'])
+      expect(daB.map((p) => p.description)).toEqual(['Camiseta exclusiva B'])
+    })
+
+    it('produto conhecido apenas da outra loja responde como ausente', async () => {
+      const idB = await criarProduto(empresaB, 6, 5, { description: 'So da loja B' })
+
+      expect(await queries.products.findById(empresaA, idB)).toBeUndefined()
+      expect(await produtos.search(empresaA, { termo: 'So da loja B', limite: 5 })).toEqual([])
     })
   })
 

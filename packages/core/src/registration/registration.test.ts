@@ -15,7 +15,12 @@ import { InMemoryChartOfAccounts } from '../accounting/fakes.js'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { registerCompany } from './register-company.js'
 import { getCompany, updateCompany } from './manage-company.js'
-import { assertIdentifiable, getCustomer, registerCustomer } from './register-customer.js'
+import {
+  assertIdentifiable,
+  checkCustomerWalletByQuery,
+  getCustomer,
+  registerCustomer,
+} from './register-customer.js'
 import {
   catalogSummary,
   findProductByBarcode,
@@ -325,6 +330,93 @@ describe('getCustomer — RF-011', () => {
     )
 
     expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+})
+
+describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
+  it('devolve saldo devedor para candidato unico', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Maria Devedora',
+      phone: '41999991111',
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+    customers.definirSaldoCarteira(r.customer.id, 3_500)
+
+    const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), { query: 'Maria' })
+
+    expect(consulta).toEqual({
+      status: 'found',
+      customerName: 'Maria Devedora',
+      walletBalanceCents: 3_500,
+    })
+  })
+
+  it('declara saldo zerado explicitamente', async () => {
+    const customers = new InMemoryCustomerRepository()
+    await registerCustomer({ customers }, contexto(), {
+      name: 'Joao Quitado',
+      phone: '41999992222',
+    })
+
+    const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), {
+      query: 'Joao Quitado',
+    })
+
+    expect(consulta).toEqual({
+      status: 'found',
+      customerName: 'Joao Quitado',
+      walletBalanceCents: 0,
+    })
+  })
+
+  it('nao encontra cliente ausente', async () => {
+    const customers = new InMemoryCustomerRepository()
+
+    const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), {
+      query: 'Inexistente',
+    })
+
+    expect(consulta).toEqual({ status: 'not_found' })
+  })
+
+  it('nao escolhe entre homonimos', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const a = await registerCustomer({ customers }, contexto(), {
+      name: 'Maria Silva',
+      phone: '41999993333',
+    })
+    const b = await registerCustomer({ customers }, contexto(), {
+      name: 'Maria Souza',
+      phone: '41999994444',
+    })
+    if (a.status !== 'created' || b.status !== 'created') throw new Error('esperava created')
+    customers.definirSaldoCarteira(a.customer.id, 1_000)
+    customers.definirSaldoCarteira(b.customer.id, 2_000)
+
+    const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), { query: 'Maria' })
+
+    expect(consulta.status).toBe('ambiguous')
+    if (consulta.status !== 'ambiguous') return
+    expect(consulta.alternatives.map((c) => c.name).sort()).toEqual(['Maria Silva', 'Maria Souza'])
+  })
+
+  it('nao enxerga cliente de outra empresa', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto({ companyId: 'emp-2' }), {
+      name: 'Maria da outra loja',
+      phone: '41999995555',
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+    customers.definirSaldoCarteira(r.customer.id, 9_000)
+
+    const consulta = await checkCustomerWalletByQuery(
+      { customers },
+      contexto({ companyId: 'emp-1' }),
+      { query: 'Maria' },
+    )
+
+    expect(consulta).toEqual({ status: 'not_found' })
   })
 })
 

@@ -18,17 +18,10 @@ import { withTenant } from './tenant.js'
  * e nenhuma rota podia expo-lo — o ajuste de inventario existia no papel e nao
  * no produto.
  *
- * ## As duas colunas que a porta declara e o schema nao tem
+ * ## `tracks_stock` e `location` — migration 0022, NR-115
  *
- * A porta avisa: `stockQuantity` anulavel e `location` nao existem em
- * `products`. Aqui isso vira o que ja esta escrito la — `location` sempre
- * `null`, e `stockQuantity` sempre um numero, nunca `null`.
- *
- * NAO invento um valor para disfarcar a falta. Devolver `0` como se fosse "sem
- * controle de estoque" faria o caso de uso recusar ajuste em produto zerado, e
- * produto zerado e justamente o que mais precisa de ajuste. Enquanto nao houver
- * `tracks_stock`, toda loja controla o estoque de tudo — e essa e a verdade do
- * schema de hoje, nao um chute.
+ * `tracks_stock = false` faz `stockQuantity` voltar `null` (sem controle), nao
+ * zero. `location` e opcional: ausente continua `null`, nunca um chute.
  */
 
 const numero = (valor: unknown): number => Number(valor)
@@ -39,15 +32,16 @@ type LinhaProduto = {
   sale_price_cents: string | number
   stock: number
   min_stock: number
+  tracks_stock: boolean
+  location: string | null
 }
 
 const paraSnapshot = (l: LinhaProduto): InventoryProductSnapshot => ({
   id: l.id,
   description: l.description,
   salePriceCents: numero(l.sale_price_cents),
-  stockQuantity: l.stock,
-  /* Sem coluna no schema. `null` e a resposta honesta — ver o cabecalho. */
-  location: null,
+  stockQuantity: l.tracks_stock ? l.stock : null,
+  location: l.location,
   minStock: l.min_stock,
 })
 
@@ -89,7 +83,7 @@ function leitor(tx: Sql | TransactionSql) {
       productId: string,
     ): Promise<InventoryProductSnapshot | undefined> => {
       const [linha] = await tx<LinhaProduto[]>`
-        SELECT id, description, sale_price_cents, stock, min_stock
+        SELECT id, description, sale_price_cents, stock, min_stock, tracks_stock, location
         FROM products
         WHERE id = ${productId} AND deleted_at IS NULL
       `

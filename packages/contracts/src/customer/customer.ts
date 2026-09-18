@@ -44,6 +44,15 @@ export type CreateCustomerInput = z.infer<typeof createCustomerInputSchema>
 export const updateCustomerInputSchema = createCustomerInputSchema.partial().strict()
 export type UpdateCustomerInput = z.infer<typeof updateCustomerInputSchema>
 
+/** Busca textual de cliente para a consulta conversacional de fiado — NR-115. */
+export const checkCustomerWalletInputSchema = z
+  .object({
+    query: z.string().trim().min(1, 'Informe o cliente que deseja consultar.'),
+  })
+  .strict()
+
+export type CheckCustomerWalletInput = z.infer<typeof checkCustomerWalletInputSchema>
+
 export const customerOutputSchema = z.object({
   id: idSchema,
   name: z.string(),

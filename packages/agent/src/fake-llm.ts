@@ -61,11 +61,75 @@ function reconhecerConsulta(
   if (/quem (me )?(esta |ta )?dev|inadimplen|me devendo/.test(texto)) {
     return { type: 'tool', name: 'list_receivables', args: {} }
   }
+  const pagar = reconhecerPayables(texto)
+  if (pagar !== undefined) return pagar
   /* US-053 / US6: DRE do mes — faturamento, custo, despesas, resultado. */
   if (/resumo do mes|resultado do mes/.test(texto)) {
     const mes = mesDoDia(today)
     return { type: 'tool', name: 'period_summary', args: mes }
   }
+  const estoque = reconhecerEstoque(texto)
+  if (estoque !== undefined) return estoque
+  const fiado = reconhecerFiado(texto)
+  if (fiado !== undefined) return fiado
+  return undefined
+}
+
+/** US2 / NR-115: contas a pagar por vencimento — leitura sem argumentos. */
+function reconhecerPayables(texto: string): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const limpo = texto.replace(/\?+$/, '').trim()
+
+  if (
+    /o que vence|quais contas a pagar|contas? a pagar|quanto tenho a pagar|vencimentos?/.test(limpo)
+  ) {
+    return { type: 'tool', name: 'list_payables', args: {} }
+  }
+
+  return undefined
+}
+
+/** US-065 / NR-115: consulta de estoque por nome de produto. */
+function reconhecerEstoque(texto: string): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const limpo = texto.replace(/\?+$/, '').trim()
+
+  const quantoTem = limpo.match(/^quanto tem de (.+)$/)?.[1]?.trim()
+  if (quantoTem !== undefined && quantoTem !== '') {
+    return { type: 'tool', name: 'check_stock', args: { query: quantoTem } }
+  }
+
+  const qualEstoque = limpo.match(/^qual o estoque de (.+)$/)?.[1]?.trim()
+  if (qualEstoque !== undefined && qualEstoque !== '') {
+    return { type: 'tool', name: 'check_stock', args: { query: qualEstoque } }
+  }
+
+  const estoqueDe = limpo.match(/^estoque de (.+)$/)?.[1]?.trim()
+  if (estoqueDe !== undefined && estoqueDe !== '') {
+    return { type: 'tool', name: 'check_stock', args: { query: estoqueDe } }
+  }
+
+  return undefined
+}
+
+/** US-067 / NR-115: consulta de fiado por nome de cliente. */
+function reconhecerFiado(texto: string): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const limpo = texto.replace(/\?+$/, '').trim()
+
+  const padroes: Array<[RegExp, number]> = [
+    [/^qual o saldo (?:do|da) (.+)$/i, 1],
+    [/^quanto (?:o|a) (.+) deve$/i, 1],
+    [/^quanto deve (?:o|a) (.+)$/i, 1],
+    [/^fiado (?:do|da) (.+)$/i, 1],
+    [/^saldo (?:do|da) (.+)$/i, 1],
+    [/^quanto (?:o|a) (.+) (?:ta|esta) devendo$/i, 1],
+  ]
+
+  for (const [padrao, grupo] of padroes) {
+    const match = limpo.match(padrao)
+    const query = match?.[grupo]?.trim()
+    if (query === undefined || query === '' || query.toLowerCase() === 'carteira') continue
+    return { type: 'tool', name: 'check_customer_wallet', args: { query } }
+  }
+
   return undefined
 }
 

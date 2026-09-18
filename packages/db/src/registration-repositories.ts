@@ -440,6 +440,27 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
         return linhas.map(paraCliente)
       })
     },
+
+    search: async (companyId, criterio) => {
+      const linhas = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaCliente[]>`
+          SELECT * FROM customers
+          WHERE deleted_at IS NULL
+          ${
+            criterio.termo === undefined
+              ? tx``
+              : tx`AND (name ILIKE ${'%' + criterio.termo + '%'}
+                     OR document ILIKE ${'%' + criterio.termo + '%'}
+                     OR phone ILIKE ${'%' + criterio.termo + '%'})`
+          }
+          ORDER BY name, id
+          LIMIT ${criterio.limite}
+        `,
+      )
+      return linhas.map(paraCliente)
+    },
   }
 }
 

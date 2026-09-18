@@ -12,7 +12,11 @@ import { randomUUID } from 'node:crypto'
 import {
   buildDre,
   buildRevenueByMonth,
+  checkCustomerWalletByQuery,
+  checkStock,
+  checkStockByQuery,
   createDefaultSaleSettings,
+  listPayables,
   listReceivables,
   listSales,
   registerCustomer,
@@ -842,19 +846,24 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
 }
 
 /** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
-export async function buildAgentDeps(): Promise<AgentComposition | null> {
-  if (motivoDoAgenteIndisponivel() !== undefined) return null
-
+export function buildAgentUseCases(): AgentUseCases {
   const sales = buildSaleDeps()
   const cadastro = buildCadastroDeps()
   const contas = buildContasDeps()
+  const estoque = buildEstoqueDeps()
   const relatorios = buildRelatoriosDeps()
   const contabilidade = buildContabilidadeDeps()
   const messages = createFakeMessageSender()
 
-  const useCases: AgentUseCases = {
+  return {
     listSales: (ctx, input) => listSales(sales, ctx, input),
     listReceivables: (ctx) => listReceivables(contas, ctx),
+    checkStock: (ctx, input) => checkStock(estoque, ctx, input),
+    checkStockByQuery: (ctx, input) =>
+      checkStockByQuery({ products: cadastro.products, inventory: estoque }, ctx, input),
+    checkCustomerWalletByQuery: (ctx, input) =>
+      checkCustomerWalletByQuery({ customers: cadastro.customers }, ctx, input),
+    listPayables: (ctx) => listPayables(contas.queries, ctx),
     registerCustomer: (ctx, input) => registerCustomer(cadastro, ctx, input),
     registerSale: (ctx, input) =>
       registerSale(
@@ -892,7 +901,13 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
         input,
       ),
   }
+}
 
+/** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
+export async function buildAgentDeps(): Promise<AgentComposition | null> {
+  if (motivoDoAgenteIndisponivel() !== undefined) return null
+
+  const useCases = buildAgentUseCases()
   const tools = createToolCatalog(useCases)
   const llm = await criarLlmDoAgente(tools)
   const studioDirectory = tentarDiretorioStudio()

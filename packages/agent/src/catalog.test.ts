@@ -1,14 +1,17 @@
 import {
   catalogInputSchema,
+  checkCustomerWalletInputSchema,
+  checkStockByQueryInputSchema,
   createCustomerInputSchema,
   createSaleInputSchema,
   dreInputSchema,
+  listPayablesInputSchema,
   sendChargeInputSchema,
   type CustomerOutput,
   type DreOutput,
   type ProductOutput,
 } from '@na-regua/contracts'
-import type { ExecutionContext, RegisterSaleResult } from '@na-regua/core'
+import type { ExecutionContext, PayablesAgrupadas, RegisterSaleResult } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createToolCatalog,
@@ -35,6 +38,18 @@ const casos: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   listReceivables: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  checkStock: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  checkStockByQuery: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  checkCustomerWalletByQuery: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  listPayables: async () => {
     throw new Error('nao executa neste teste')
   },
   registerCustomer: async () => {
@@ -86,8 +101,89 @@ describe('textoDasCapacidades — RF-097', () => {
     }
 
     expect(texto).not.toMatch(/US-065|US-066|US-067/i)
-    expect(texto).not.toMatch(/estoque|contas a pagar|saldo de carteira/i)
     expect(texto).not.toMatch(/em breve|proxima fatia|roadmap|vai poder/i)
+    expect(texto).toContain('check_stock')
+  })
+})
+
+describe('seam de consultas somente-leitura — NR-115', () => {
+  it('mantem os schemas de consulta no contrato compartilhado', () => {
+    expect(checkStockByQueryInputSchema.safeParse({ query: 'arroz' }).success).toBe(true)
+    expect(listPayablesInputSchema.safeParse({}).success).toBe(true)
+    expect(checkCustomerWalletInputSchema.safeParse({ query: 'Maria' }).success).toBe(true)
+  })
+})
+
+describe('check_stock — US1 / NR-115', () => {
+  it('usa checkStockByQueryInputSchema e nao muta', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(false)
+    expect(tool!.inputSchema).toBe(checkStockByQueryInputSchema)
+  })
+
+  it('formata saldo, preco e localizacao do core', async () => {
+    const checkStockByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      view: {
+        productId: 'p-arroz',
+        description: 'Arroz 5kg',
+        salePriceCents: 2890,
+        stockQuantity: 12,
+        location: 'Corredor 3',
+        minStock: 5,
+        belowMinimum: false,
+      },
+    }))
+    const tool = createToolCatalog({ ...casos, checkStockByQuery }).find(
+      (t) => t.id === 'check_stock',
+    )!
+
+    const out = await tool.execute({ query: 'arroz' }, ctx)
+
+    expect(checkStockByQuery).toHaveBeenCalledWith(ctx, { query: 'arroz' })
+    const texto = tool.formatReply(out)
+    expect(texto).toContain('Arroz 5kg')
+    expect(texto).toContain('12 un')
+    expect(texto).toContain(formatarCentavos(2890))
+    expect(texto).toContain('Corredor 3')
+  })
+
+  it('sem controle de estoque nao usa zero', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')!
+    const texto = tool.formatReply({
+      status: 'found',
+      view: {
+        productId: 'p-granel',
+        description: 'Feijao a granel',
+        salePriceCents: 990,
+        stockQuantity: null,
+        location: null,
+        minStock: null,
+        belowMinimum: false,
+      },
+    })
+    expect(texto).toMatch(/sem controle de estoque/i)
+    expect(texto).not.toContain('0 un')
+  })
+
+  it('produto ausente informa sem inventar cadastro', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')!
+    expect(tool.formatReply({ status: 'not_found' })).toMatch(/nao encontrei/i)
+  })
+
+  it('produto ambiguo lista alternativas', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')!
+    const texto = tool.formatReply({
+      status: 'ambiguous',
+      alternatives: [
+        produto({ id: 'p-azul', description: 'Camiseta M azul' }),
+        produto({ id: 'p-branca', description: 'Camiseta M branca' }),
+      ],
+    })
+    expect(texto).toMatch(/mais de um/i)
+    expect(texto).toContain('p-azul')
+    expect(texto).toContain('p-branca')
   })
 })
 
@@ -173,11 +269,183 @@ describe('list_sales / list_receivables — US2', () => {
     expect(texto).toContain('2026-09-01')
   })
 
-  it('nao inventa tools de estoque, a pagar ou saldo — NR-115 fora desta fatia', () => {
+  it('registra check_customer_wallet — NR-115 US3', () => {
     const ids = createToolCatalog(casos).map((t) => t.id)
-    expect(ids).toContain('list_sales')
-    expect(ids).toContain('list_receivables')
-    expect(ids).not.toEqual(expect.arrayContaining(['list_stock', 'list_payables', 'list_wallet']))
+    expect(ids).toContain('check_customer_wallet')
+  })
+})
+
+describe('list_payables — US2 / NR-115', () => {
+  it('usa listPayablesInputSchema e nao muta', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'list_payables')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(false)
+    expect(tool!.inputSchema).toBe(listPayablesInputSchema)
+  })
+
+  it('chama listPayables com ctx e formata os quatro grupos obrigatorios', async () => {
+    const saida = payablesAgrupadas({
+      overdue: 5_000,
+      today: 2_000,
+      week: 3_000,
+      month: 1_000,
+      temVencidas: true,
+    })
+    const listPayables = vi.fn(async () => saida)
+    const tool = createToolCatalog({ ...casos, listPayables }).find(
+      (t) => t.id === 'list_payables',
+    )!
+
+    const out = await tool.execute({}, ctx)
+
+    expect(listPayables).toHaveBeenCalledOnce()
+    expect(listPayables).toHaveBeenCalledWith(ctx)
+    expect(out).toBe(saida)
+    const texto = tool.formatReply(out)
+    expect(texto).toMatch(/vencid/i)
+    expect(texto).toContain(formatarCentavos(5_000))
+    expect(texto).toContain(formatarCentavos(2_000))
+    expect(texto).toContain(formatarCentavos(3_000))
+    expect(texto).toContain(formatarCentavos(1_000))
+  })
+
+  it('destaca vencidas quando temVencidas e true', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'list_payables')!
+    const texto = tool.formatReply(payablesAgrupadas({ overdue: 1_000, temVencidas: true }))
+    expect(texto).toMatch(/atencao|vencid/i)
+  })
+
+  it('declara ausencia de vencimentos quando total e zero', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'list_payables')!
+    expect(tool.formatReply(payablesAgrupadas())).toMatch(/nao ha vencimentos/i)
+  })
+
+  it('mostra later separado como depois deste mes', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'list_payables')!
+    const texto = tool.formatReply(payablesAgrupadas({ month: 1_000, later: 4_000 }))
+    expect(texto).toMatch(/depois deste mes/i)
+    expect(texto).toContain(formatarCentavos(4_000))
+    expect(texto).not.toMatch(/mais adiante/i)
+  })
+
+  it('omite later quando o grupo esta vazio', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'list_payables')!
+    const texto = tool.formatReply(payablesAgrupadas({ month: 1_000, later: 0 }))
+    expect(texto).not.toMatch(/depois deste mes/i)
+  })
+})
+
+describe('check_customer_wallet — US3 / NR-115', () => {
+  it('usa checkCustomerWalletInputSchema e nao muta', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_customer_wallet')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(false)
+    expect(tool!.inputSchema).toBe(checkCustomerWalletInputSchema)
+  })
+
+  it('chama checkCustomerWalletByQuery e formata saldo devedor', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      customerName: 'Maria Devedora',
+      walletBalanceCents: 3_500,
+    }))
+    const tool = createToolCatalog({ ...casos, checkCustomerWalletByQuery }).find(
+      (t) => t.id === 'check_customer_wallet',
+    )!
+
+    const out = await tool.execute({ query: 'Maria' }, ctx)
+
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledWith(ctx, { query: 'Maria' })
+    expect(tool.formatReply(out)).toContain(formatarCentavos(3_500))
+    expect(tool.formatReply(out)).toContain('Maria Devedora')
+  })
+
+  it('declara saldo zerado explicitamente', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_customer_wallet')!
+    const texto = tool.formatReply({
+      status: 'found',
+      customerName: 'Joao Quitado',
+      walletBalanceCents: 0,
+    })
+    expect(texto).toMatch(/nao tem saldo devedor/i)
+    expect(texto).not.toMatch(/R\$\s*0/)
+  })
+
+  it('cliente ausente informa sem inventar saldo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_customer_wallet')!
+    expect(tool.formatReply({ status: 'not_found' })).toMatch(/nao encontrei/i)
+  })
+
+  it('nome ambiguo lista alternativas sem revelar saldo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'check_customer_wallet')!
+    const texto = tool.formatReply({
+      status: 'ambiguous',
+      alternatives: [
+        cliente({ id: 'cli-a', name: 'Maria Silva', phone: '41999991111' }),
+        cliente({ id: 'cli-b', name: 'Maria Souza', phone: '41999992222' }),
+      ],
+    })
+    expect(texto).toMatch(/mais de um/i)
+    expect(texto).toContain('cli-a')
+    expect(texto).toContain('cli-b')
+    expect(texto).not.toMatch(/R\$/)
+  })
+})
+
+describe('consultas NR-115 — cross-tool somente-leitura (T021)', () => {
+  const LEITURAS = ['check_stock', 'list_payables', 'check_customer_wallet'] as const
+
+  it('as tres tools de consulta sao mutatesValue: false', () => {
+    const tools = createToolCatalog(casos)
+    for (const id of LEITURAS) {
+      const tool = tools.find((t) => t.id === id)
+      expect(tool).toBeDefined()
+      expect(tool!.mutatesValue).toBe(false)
+    }
+  })
+
+  it('executa cada consulta sem tocar mutacoes de cadastro, venda ou cobranca', async () => {
+    const checkStockByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      view: {
+        productId: 'p-arroz',
+        description: 'Arroz 5kg',
+        salePriceCents: 2_890,
+        stockQuantity: 12,
+        location: 'Corredor 3',
+        minStock: 5,
+        belowMinimum: false,
+      },
+    }))
+    const listPayables = vi.fn(async () => payablesAgrupadas({ week: 1_000 }))
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      customerName: 'Joao Devedor',
+      walletBalanceCents: 2_500,
+    }))
+    const registerCustomer = vi.fn(casos.registerCustomer)
+    const registerSale = vi.fn(casos.registerSale)
+    const sendCustomerCharge = vi.fn(casos.sendCustomerCharge)
+    const tools = createToolCatalog({
+      ...casos,
+      checkStockByQuery,
+      listPayables,
+      checkCustomerWalletByQuery,
+      registerCustomer,
+      registerSale,
+      sendCustomerCharge,
+    })
+
+    await tools.find((t) => t.id === 'check_stock')!.execute({ query: 'arroz' }, ctx)
+    await tools.find((t) => t.id === 'list_payables')!.execute({}, ctx)
+    await tools.find((t) => t.id === 'check_customer_wallet')!.execute({ query: 'Joao' }, ctx)
+
+    expect(checkStockByQuery).toHaveBeenCalledOnce()
+    expect(listPayables).toHaveBeenCalledOnce()
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+    expect(registerCustomer).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
   })
 })
 
@@ -187,6 +455,9 @@ describe('mutatesValue — FR-002 / US4', () => {
     expect(flags).toEqual({
       list_sales: false,
       list_receivables: false,
+      list_payables: false,
+      check_stock: false,
+      check_customer_wallet: false,
       search_products: false,
       period_summary: false,
       revenue_by_month: false,
@@ -266,6 +537,35 @@ describe('create_customer — US3 / US-048', () => {
     expect(texto).toMatch(/reutilize o existente/i)
   })
 })
+
+function payablesAgrupadas(
+  over: Partial<{
+    overdue: number
+    today: number
+    week: number
+    month: number
+    later: number
+    temVencidas: boolean
+  }> = {},
+): PayablesAgrupadas {
+  const overdue = over.overdue ?? 0
+  const today = over.today ?? 0
+  const week = over.week ?? 0
+  const month = over.month ?? 0
+  const later = over.later ?? 0
+  const grupos = [
+    { faixa: 'overdue' as const, totalCents: overdue, payables: [] },
+    { faixa: 'today' as const, totalCents: today, payables: [] },
+    { faixa: 'week' as const, totalCents: week, payables: [] },
+    { faixa: 'month' as const, totalCents: month, payables: [] },
+    { faixa: 'later' as const, totalCents: later, payables: [] },
+  ]
+  return {
+    grupos,
+    totalCents: overdue + today + week + month + later,
+    temVencidas: over.temVencidas ?? overdue > 0,
+  }
+}
 
 function produto(over: Partial<ProductOutput> = {}): ProductOutput {
   return {
@@ -495,6 +795,10 @@ describe('refuse_* — US7 / RF-149–151', () => {
     async (recusa) => {
       const listSales = vi.fn(casos.listSales)
       const listReceivables = vi.fn(casos.listReceivables)
+      const checkStock = vi.fn(casos.checkStock)
+      const checkStockByQuery = vi.fn(casos.checkStockByQuery)
+      const checkCustomerWalletByQuery = vi.fn(casos.checkCustomerWalletByQuery)
+      const listPayables = vi.fn(casos.listPayables)
       const registerCustomer = vi.fn(casos.registerCustomer)
       const registerSale = vi.fn(casos.registerSale)
       const searchProducts = vi.fn(casos.searchProducts)
@@ -504,6 +808,10 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const tools = createToolCatalog({
         listSales,
         listReceivables,
+        checkStock,
+        checkStockByQuery,
+        checkCustomerWalletByQuery,
+        listPayables,
         registerCustomer,
         registerSale,
         searchProducts,
@@ -524,6 +832,9 @@ describe('refuse_* — US7 / RF-149–151', () => {
       expect(recusa.texto).toMatch(/aplicativo/i)
       expect(listSales).not.toHaveBeenCalled()
       expect(listReceivables).not.toHaveBeenCalled()
+      expect(checkStock).not.toHaveBeenCalled()
+      expect(checkStockByQuery).not.toHaveBeenCalled()
+      expect(listPayables).not.toHaveBeenCalled()
       expect(registerCustomer).not.toHaveBeenCalled()
       expect(registerSale).not.toHaveBeenCalled()
       expect(searchProducts).not.toHaveBeenCalled()

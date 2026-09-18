@@ -167,6 +167,21 @@ function cadastroEmMemoria() {
               ((criteria.phone !== undefined && c.phone === criteria.phone) ||
                 (criteria.document !== undefined && c.document === criteria.document)),
           ),
+
+    search: async (companyId, criterio) => {
+      const termo = criterio.termo?.toLowerCase() ?? ''
+      return clientes
+        .filter((c) => c.companyId === companyId)
+        .filter(
+          (c) =>
+            termo === '' ||
+            c.name.toLowerCase().includes(termo) ||
+            (c.document?.toLowerCase().includes(termo) ?? false) ||
+            (c.phone?.includes(termo) ?? false),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, criterio.limite)
+    },
   }
 
   const inventario = new InMemoryInventory(new InMemoryAuditTrail())

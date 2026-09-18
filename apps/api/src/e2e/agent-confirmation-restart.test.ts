@@ -81,6 +81,18 @@ const leituraVazia: AgentUseCases = {
     },
   }),
   listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
+  checkStock: async () => {
+    throw new Error('nao deveria consultar estoque neste smoke')
+  },
+  checkStockByQuery: async () => {
+    throw new Error('nao deveria consultar estoque neste smoke')
+  },
+  checkCustomerWalletByQuery: async () => {
+    throw new Error('nao deveria consultar fiado neste smoke')
+  },
+  listPayables: async () => {
+    throw new Error('nao deveria consultar contas a pagar neste smoke')
+  },
   registerCustomer: async () => {
     throw new Error('registerCustomer precisa do cadastro real')
   },

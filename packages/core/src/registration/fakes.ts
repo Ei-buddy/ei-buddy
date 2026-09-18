@@ -249,6 +249,34 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     }
   }
 
+  async search(
+    companyId: CompanyId,
+    criterio: { readonly termo?: string; readonly limite: number },
+  ): Promise<readonly CustomerOutput[]> {
+    const termo = criterio.termo?.trim().toLowerCase() ?? ''
+
+    return [...this.registros.values()]
+      .filter((c) => c.companyId === companyId)
+      .filter(
+        (c) =>
+          termo === '' ||
+          c.name.toLowerCase().includes(termo) ||
+          (c.document ?? '').includes(termo) ||
+          (c.phone ?? '').includes(termo),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, criterio.limite)
+      .map((c) => this.semTenant(c))
+  }
+
+  /** Ajusta saldo em carteira nos testes — o cadastro nasce zerado de proposito. */
+  definirSaldoCarteira(customerId: string, walletBalanceCents: number): void {
+    const registro = this.registros.get(customerId)
+    if (registro !== undefined) {
+      this.registros.set(customerId, { ...registro, walletBalanceCents })
+    }
+  }
+
   private semTenant(registro: CustomerOutput & { companyId: CompanyId }): CustomerOutput {
     const { companyId: _omitido, ...resto } = registro
     return resto

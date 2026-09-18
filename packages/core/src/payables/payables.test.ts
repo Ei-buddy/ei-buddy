@@ -309,6 +309,52 @@ describe('agrupar por vencimento — RF-061, RF-062', () => {
 
     expect(r.grupos.flatMap((g) => g.payables)).toHaveLength(1)
   })
+
+  it('agrupa contas depois do mes em later, com total proprio — NR-115', async () => {
+    const d = await comContas([
+      '2026-08-20',
+      '2026-09-02',
+      '2026-09-05',
+      '2026-09-25',
+      '2027-01-01',
+    ])
+
+    const r = await listPayables(d.pag, contexto())
+    const later = r.grupos.find((g) => g.faixa === 'later')
+
+    expect(later?.payables).toHaveLength(1)
+    expect(later?.totalCents).toBe(48_000)
+    expect(r.totalCents).toBe(240_000)
+  })
+
+  it('sem contas abertas devolve total zero e cinco grupos vazios — NR-115', async () => {
+    const r = await listPayables(deps().pag, contexto())
+
+    expect(r.totalCents).toBe(0)
+    expect(r.temVencidas).toBe(false)
+    expect(r.grupos).toHaveLength(5)
+    expect(r.grupos.every((g) => g.payables.length === 0 && g.totalCents === 0)).toBe(true)
+  })
+
+  it('total do grupo soma so o valor em aberto — NR-115', async () => {
+    const d = deps()
+    const [gravada] = await createPayable(
+      d,
+      contexto(),
+      conta({ dueDate: '2026-09-05', amountCents: 10_000 }),
+    )
+    const emMemoria = d.pag.todas('empresa-1')[0] as {
+      settledAmountCents: number
+      status: 'open' | 'partially_settled'
+    }
+    emMemoria.settledAmountCents = 3_000
+    emMemoria.status = 'partially_settled'
+
+    const semana = (await listPayables(d.pag, contexto())).grupos.find((g) => g.faixa === 'week')
+
+    expect(gravada?.id).toBeTruthy()
+    expect(semana?.totalCents).toBe(7_000)
+  })
 })
 
 describe('autorizacao por papel', () => {

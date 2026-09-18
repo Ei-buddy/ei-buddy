@@ -126,6 +126,18 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
       totalCents: 2_000,
       temVencidas: true,
     }),
+    checkStock: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    checkStockByQuery: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    checkCustomerWalletByQuery: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    listPayables: async () => {
+      throw new Error('nao executa neste teste')
+    },
     registerCustomer: async (_ctx: ExecutionContext, input: CreateCustomerInput) => ({
       status: 'created',
       customer: clienteSaida({
@@ -259,23 +271,313 @@ describe('processMessage — consultas (RF-096, RF-097)', () => {
     expect(r.text).not.toMatch(/US-065|estoque|em breve/i)
   })
 
-  it.each([
-    'quanto tem de camiseta?',
-    'qual o estoque de camiseta?',
-    'quais contas a pagar vencem?',
-    'quanto tenho a pagar?',
-    'qual o saldo do joao?',
-    'saldo da carteira',
-  ])('consulta fora do catalogo "%s" lista so capacidades atuais — RF-097 / US2', async (text) => {
-    const runtime = createAgentRuntime({ useCases: casos() })
-    const r = await processMessage(runtime, msg({ text }))
-    expect(r.kind).toBe('unknown')
-    expect(r.text).toContain('list_sales')
-    expect(r.text).toContain('list_receivables')
-    expect(r.text).toContain('create_sale')
-    expect(r.text).not.toMatch(/list_stock|list_payables|list_wallet|NR-115/i)
-    expect(r.text).not.toMatch(/US-065|US-066|US-067|estoque|em breve/i)
+  it.each(['saldo da carteira'])(
+    'consulta fora do catalogo "%s" lista so capacidades atuais — RF-097 / US3',
+    async (text) => {
+      const runtime = createAgentRuntime({ useCases: casos() })
+      const r = await processMessage(runtime, msg({ text }))
+      expect(r.kind).toBe('unknown')
+      expect(r.text).toContain('list_sales')
+      expect(r.text).toContain('list_receivables')
+      expect(r.text).toContain('list_payables')
+      expect(r.text).toContain('check_customer_wallet')
+      expect(r.text).toContain('create_sale')
+      expect(r.text).not.toMatch(/NR-115/i)
+      expect(r.text).not.toMatch(/US-065|US-066|US-067|em breve/i)
+    },
+  )
+})
+
+describe('processMessage — consultar estoque (US1 / NR-115)', () => {
+  it('quanto tem de camiseta responde sem confirmacao', async () => {
+    const checkStockByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      view: {
+        productId: 'p-azul',
+        description: 'Camiseta M azul',
+        salePriceCents: 4_990,
+        stockQuantity: 10,
+        location: 'Prateleira A',
+        minStock: 0,
+        belowMinimum: false,
+      },
+    }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkStockByQuery }) })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, msg({ text: 'quanto tem de camiseta?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain('Camiseta M azul')
+    expect(r.text).toContain('10 un')
+    expect(r.text).toContain(formatarCentavos(4_990))
+    expect(checkStockByQuery).toHaveBeenCalledOnce()
+    expect(put).not.toHaveBeenCalled()
   })
+
+  it('produto ambiguo lista opcoes sem escolher', async () => {
+    const checkStockByQuery = vi.fn(async () => ({
+      status: 'ambiguous' as const,
+      alternatives: [
+        {
+          id: 'p-azul',
+          description: 'Camiseta M azul',
+          barcode: null,
+          internalCode: 'PROD-0001',
+          unitOfMeasure: 'un' as const,
+          salePriceCents: 4_990,
+          costPriceCents: 2_000,
+          taxRate: 0,
+          ncm: null,
+          cfop: null,
+          taxSituationCode: null,
+          stock: 10,
+          minStock: 0,
+          category: null,
+          supplier: null,
+        },
+        {
+          id: 'p-branca',
+          description: 'Camiseta M branca',
+          barcode: null,
+          internalCode: 'PROD-0002',
+          unitOfMeasure: 'un' as const,
+          salePriceCents: 4_990,
+          costPriceCents: 2_000,
+          taxRate: 0,
+          ncm: null,
+          cfop: null,
+          taxSituationCode: null,
+          stock: 4,
+          minStock: 0,
+          category: null,
+          supplier: null,
+        },
+      ],
+    }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkStockByQuery }) })
+
+    const r = await processMessage(runtime, msg({ text: 'qual o estoque de camiseta?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/mais de um/i)
+    expect(r.text).toContain('p-azul')
+    expect(r.text).toContain('p-branca')
+  })
+
+  it('produto ausente informa sem cadastrar', async () => {
+    const checkStockByQuery = vi.fn(async () => ({ status: 'not_found' as const }))
+    const registerCustomer = vi.fn(casos().registerCustomer)
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkStockByQuery, registerCustomer }),
+    })
+
+    const r = await processMessage(runtime, msg({ text: 'quanto tem de xyz?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/nao encontrei/i)
+    expect(registerCustomer).not.toHaveBeenCalled()
+  })
+})
+
+describe('processMessage — consultar contas a pagar (US2 / NR-115)', () => {
+  function payablesSaida(
+    over: Partial<{
+      overdue: number
+      today: number
+      week: number
+      month: number
+      later: number
+      temVencidas: boolean
+    }> = {},
+  ) {
+    const overdue = over.overdue ?? 0
+    const today = over.today ?? 0
+    const week = over.week ?? 0
+    const month = over.month ?? 0
+    const later = over.later ?? 0
+    return {
+      grupos: [
+        { faixa: 'overdue' as const, totalCents: overdue, payables: [] },
+        { faixa: 'today' as const, totalCents: today, payables: [] },
+        { faixa: 'week' as const, totalCents: week, payables: [] },
+        { faixa: 'month' as const, totalCents: month, payables: [] },
+        { faixa: 'later' as const, totalCents: later, payables: [] },
+      ],
+      totalCents: overdue + today + week + month + later,
+      temVencidas: over.temVencidas ?? overdue > 0,
+    }
+  }
+
+  it('o que vence essa semana responde sem confirmacao nem mutacao', async () => {
+    const listPayables = vi.fn(async () =>
+      payablesSaida({ overdue: 5_000, today: 2_000, week: 3_000, month: 1_000, temVencidas: true }),
+    )
+    const registerSale = vi.fn(casos().registerSale)
+    const registerCustomer = vi.fn(casos().registerCustomer)
+    const runtime = createAgentRuntime({
+      useCases: casos({ listPayables, registerSale, registerCustomer }),
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, msg({ text: 'o que vence essa semana?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(formatarCentavos(5_000))
+    expect(r.text).toContain(formatarCentavos(2_000))
+    expect(r.text).toContain(formatarCentavos(3_000))
+    expect(r.text).toContain(formatarCentavos(1_000))
+    expect(listPayables).toHaveBeenCalledOnce()
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(registerCustomer).not.toHaveBeenCalled()
+  })
+
+  it('sem contas abertas declara ausencia de vencimentos', async () => {
+    const listPayables = vi.fn(async () => payablesSaida())
+    const runtime = createAgentRuntime({ useCases: casos({ listPayables }) })
+
+    const r = await processMessage(runtime, msg({ text: 'quanto tenho a pagar?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/nao ha vencimentos/i)
+    expect(listPayables).toHaveBeenCalledOnce()
+  })
+})
+
+describe('processMessage — consultar fiado (US3 / NR-115)', () => {
+  it('quanto o joao deve responde sem confirmacao', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      customerName: 'Joao Devedor',
+      walletBalanceCents: 2_500,
+    }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, msg({ text: 'quanto o joao deve?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain('Joao Devedor')
+    expect(r.text).toContain(formatarCentavos(2_500))
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('saldo zerado declara explicitamente', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'found' as const,
+      customerName: 'Maria Quitada',
+      walletBalanceCents: 0,
+    }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+
+    const r = await processMessage(runtime, msg({ text: 'qual o saldo do maria?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/nao tem saldo devedor/i)
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+  })
+
+  it('cliente ausente nao inventa saldo', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({ status: 'not_found' as const }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+
+    const r = await processMessage(runtime, msg({ text: 'quanto deve o inexistente?' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/nao encontrei/i)
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+  })
+
+  it('homonimos listam opcoes sem escolher', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'ambiguous' as const,
+      alternatives: [
+        clienteSaida({ id: 'cli-a', name: 'Maria Silva', phone: '41999991111' }),
+        clienteSaida({ id: 'cli-b', name: 'Maria Souza', phone: '41999992222' }),
+      ],
+    }))
+    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+
+    const r = await processMessage(runtime, msg({ text: 'fiado da maria' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/mais de um/i)
+    expect(r.text).toContain('cli-a')
+    expect(r.text).toContain('cli-b')
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+  })
+})
+
+describe('processMessage — consultas NR-115 cross-tool (T021)', () => {
+  const CONSULTAS: ReadonlyArray<{
+    text: string
+    trecho: string
+  }> = [
+    { text: 'quanto tem de camiseta?', trecho: 'Camiseta M azul' },
+    { text: 'o que vence essa semana?', trecho: 'R$' },
+    { text: 'quanto o joao deve?', trecho: 'Joao Devedor' },
+  ]
+
+  it.each(CONSULTAS)(
+    '"%s" responde sem confirmacao nem mutacao de estoque, titulo ou carteira',
+    async ({ text, trecho }) => {
+      const checkStockByQuery = vi.fn(async () => ({
+        status: 'found' as const,
+        view: {
+          productId: 'p-azul',
+          description: 'Camiseta M azul',
+          salePriceCents: 4_990,
+          stockQuantity: 10,
+          location: 'Prateleira A',
+          minStock: 0,
+          belowMinimum: false,
+        },
+      }))
+      const listPayables = vi.fn(async () => ({
+        grupos: [
+          { faixa: 'overdue' as const, totalCents: 5_000, payables: [] },
+          { faixa: 'today' as const, totalCents: 2_000, payables: [] },
+          { faixa: 'week' as const, totalCents: 3_000, payables: [] },
+          { faixa: 'month' as const, totalCents: 1_000, payables: [] },
+          { faixa: 'later' as const, totalCents: 0, payables: [] },
+        ],
+        totalCents: 11_000,
+        temVencidas: true,
+      }))
+      const checkCustomerWalletByQuery = vi.fn(async () => ({
+        status: 'found' as const,
+        customerName: 'Joao Devedor',
+        walletBalanceCents: 2_500,
+      }))
+      const registerCustomer = vi.fn(casos().registerCustomer)
+      const registerSale = vi.fn(casos().registerSale)
+      const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+      const runtime = createAgentRuntime({
+        useCases: casos({
+          checkStockByQuery,
+          listPayables,
+          checkCustomerWalletByQuery,
+          registerCustomer,
+          registerSale,
+          sendCustomerCharge,
+        }),
+      })
+      const put = vi.spyOn(runtime.confirmations, 'put')
+
+      const r = await processMessage(runtime, msg({ text }))
+
+      expect(r.kind).toBe('answer')
+      expect(r.kind).not.toBe('confirmation')
+      expect(r.text).toContain(trecho)
+      expect(r.text).not.toMatch(/Confirma\?/)
+      expect(put).not.toHaveBeenCalled()
+      expect(registerCustomer).not.toHaveBeenCalled()
+      expect(registerSale).not.toHaveBeenCalled()
+      expect(sendCustomerCharge).not.toHaveBeenCalled()
+    },
+  )
 })
 
 describe('processMessage — consulta sem atrito (US4 / FR-002)', () => {
@@ -1123,6 +1425,8 @@ describe('FakeLlm', () => {
   const tools = [
     { id: 'list_sales', description: '', inputSchema: {} as never, mutatesValue: false },
     { id: 'list_receivables', description: '', inputSchema: {} as never, mutatesValue: false },
+    { id: 'list_payables', description: '', inputSchema: {} as never, mutatesValue: false },
+    { id: 'check_customer_wallet', description: '', inputSchema: {} as never, mutatesValue: false },
     { id: 'period_summary', description: '', inputSchema: {} as never, mutatesValue: false },
     { id: 'revenue_by_month', description: '', inputSchema: {} as never, mutatesValue: false },
     { id: 'refuse_certificate', description: '', inputSchema: {} as never, mutatesValue: false },
@@ -1220,19 +1524,71 @@ describe('FakeLlm', () => {
     expect(d).toEqual({ type: 'unknown' })
   })
 
-  it.each([
-    'me conta uma piada',
-    'asdfghjkl',
-    'quanto tem de camiseta?',
-    'quais contas a pagar vencem?',
-    'quanto tenho a pagar?',
-    'qual o saldo do joao?',
-    'saldo da carteira',
-  ])('nao reconhece "%s" — unknown para o laco listar capacidades', async (text) => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({ text, tools, today: '2026-09-11' })
-    expect(d).toEqual({ type: 'unknown' })
-  })
+  it.each(['quanto tem de camiseta?', 'qual o estoque de camiseta?'])(
+    'reconhece "%s" como check_stock — US-065',
+    async (text) => {
+      const llm = new FakeLlm()
+      const d = await llm.decide({
+        text,
+        tools: [
+          { id: 'check_stock', description: '', inputSchema: {} as never, mutatesValue: false },
+        ],
+        today: '2026-09-11',
+      })
+      expect(d).toEqual({ type: 'tool', name: 'check_stock', args: { query: 'camiseta' } })
+    },
+  )
+
+  it.each(['o que vence essa semana?', 'quais contas a pagar vencem?', 'quanto tenho a pagar?'])(
+    'reconhece "%s" como list_payables — US2 / NR-115',
+    async (text) => {
+      const llm = new FakeLlm()
+      const d = await llm.decide({ text, tools, today: '2026-09-11' })
+      expect(d).toEqual({ type: 'tool', name: 'list_payables', args: {} })
+    },
+  )
+
+  it.each(['qual o saldo do joao?', 'quanto o joao deve?', 'fiado do joao'])(
+    'reconhece "%s" como check_customer_wallet — US3 / NR-115',
+    async (text) => {
+      const llm = new FakeLlm()
+      const d = await llm.decide({
+        text,
+        tools: [
+          ...tools,
+          {
+            id: 'check_customer_wallet',
+            description: '',
+            inputSchema: {} as never,
+            mutatesValue: false,
+          },
+        ],
+        today: '2026-09-11',
+      })
+      expect(d).toEqual({ type: 'tool', name: 'check_customer_wallet', args: { query: 'joao' } })
+    },
+  )
+
+  it.each(['me conta uma piada', 'asdfghjkl', 'saldo da carteira'])(
+    'nao reconhece "%s" — unknown para o laco listar capacidades',
+    async (text) => {
+      const llm = new FakeLlm()
+      const d = await llm.decide({
+        text,
+        tools: [
+          ...tools,
+          {
+            id: 'check_customer_wallet',
+            description: '',
+            inputSchema: {} as never,
+            mutatesValue: false,
+          },
+        ],
+        today: '2026-09-11',
+      })
+      expect(d).toEqual({ type: 'unknown' })
+    },
+  )
 
   it.each([
     ['envia o certificado A1', 'refuse_certificate'],
@@ -1318,6 +1674,10 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
   it.each(frases)('"$text" recusa com texto fixo e zero efeito — $rf', async ({ text, texto }) => {
     const listSales = vi.fn(casos().listSales)
     const listReceivables = vi.fn(casos().listReceivables)
+    const checkStock = vi.fn(casos().checkStock)
+    const checkStockByQuery = vi.fn(casos().checkStockByQuery)
+    const checkCustomerWalletByQuery = vi.fn(casos().checkCustomerWalletByQuery)
+    const listPayables = vi.fn(casos().listPayables)
     const registerCustomer = vi.fn(casos().registerCustomer)
     const registerSale = vi.fn(casos().registerSale)
     const searchProducts = vi.fn(casos().searchProducts)
@@ -1328,6 +1688,10 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
       useCases: {
         listSales,
         listReceivables,
+        checkStock,
+        checkStockByQuery,
+        checkCustomerWalletByQuery,
+        listPayables,
         registerCustomer,
         registerSale,
         searchProducts,
@@ -1344,6 +1708,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     expect(r.text).toMatch(/aplicativo/i)
     expect(listSales).not.toHaveBeenCalled()
     expect(listReceivables).not.toHaveBeenCalled()
+    expect(checkStock).not.toHaveBeenCalled()
+    expect(checkStockByQuery).not.toHaveBeenCalled()
+    expect(listPayables).not.toHaveBeenCalled()
     expect(registerCustomer).not.toHaveBeenCalled()
     expect(registerSale).not.toHaveBeenCalled()
     expect(searchProducts).not.toHaveBeenCalled()

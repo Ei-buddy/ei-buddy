@@ -168,6 +168,17 @@ export type CustomerRepository = {
       readonly limite: number
     },
   ): Promise<{ readonly clientes: readonly CustomerListItem[]; readonly total: number }>
+
+  /**
+   * Busca textual limitada para consulta conversacional de fiado — NR-115.
+   *
+   * Metodo proprio, e nao `list` com pagina 1: a lista traz historico de compra
+   * e total, e aqui basta zero, um ou poucos candidatos distinguiveis.
+   */
+  search(
+    companyId: CompanyId,
+    criterio: { readonly termo?: string; readonly limite: number },
+  ): Promise<readonly CustomerOutput[]>
 }
 
 export type NewProduct = {
