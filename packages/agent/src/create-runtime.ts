@@ -1,4 +1,5 @@
 import type { AiUsageCounter } from './ai-usage.js'
+import { FakeBarcodeDecoder } from './barcode-decoder.js'
 import { createToolCatalog, type AgentUseCases } from './catalog.js'
 import { InMemoryConversationStore } from './conversations.js'
 import { CONFIRMATION_TTL_MS } from './process-message.js'
@@ -6,6 +7,7 @@ import { InMemoryConfirmations } from './confirmations.js'
 import { FakeLlm } from './fake-llm.js'
 import type {
   AgentRuntime,
+  BarcodeDecoder,
   ConfirmationStore,
   ConversationStore,
   LlmPort,
@@ -21,6 +23,7 @@ export type CreateRuntimeOptions = {
   readonly peers?: PeerDirectory
   readonly aiUsage?: AiUsageCounter
   readonly conversations?: ConversationStore
+  readonly barcodeDecoder?: BarcodeDecoder
 }
 
 /**
@@ -37,5 +40,7 @@ export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
     ...(opcoes.peers === undefined ? {} : { peers: opcoes.peers }),
     ...(opcoes.aiUsage === undefined ? {} : { aiUsage: opcoes.aiUsage }),
     conversations: opcoes.conversations ?? new InMemoryConversationStore(),
+    findProductByBarcode: opcoes.useCases.findProductByBarcode,
+    barcodeDecoder: opcoes.barcodeDecoder ?? new FakeBarcodeDecoder(),
   }
 }

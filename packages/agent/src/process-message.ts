@@ -1,10 +1,26 @@
 import { isAppError, type ExecutionContext } from '@na-regua/core'
-import type { AgentReply } from '@na-regua/contracts'
+import type { AgentReply, CreateSaleInput, PaymentMethod, ProductOutput } from '@na-regua/contracts'
 import { TEXTO_TETO_IA } from './ai-usage.js'
 import { novaConfirmacao } from './confirmations.js'
 import { textoDasCapacidades } from './catalog.js'
 import { parseToolArgs } from './define-tool.js'
-import { chaveDaConversa, diaIso } from './format.js'
+import { chaveDaConversa, diaIso, formatarCentavos } from './format.js'
+import { parsePaymentMethod } from './parse-payment-method.js'
+import { temPedidoCadastroExplicito } from './parse-register-intent.js'
+import {
+  MIME_FOTO_VALIDOS,
+  TEXTO_FOTO_CADASTRO_CODIGO,
+  TEXTO_FOTO_CADASTRO_PRODUTO_EXISTENTE,
+  TEXTO_RECUSA_FOTO_ILEGIVEL,
+  TEXTO_RECUSA_FOTO_MULTIPLOS,
+  TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO,
+} from './photo-replies.js'
+import {
+  limparRascunhoFoto,
+  pegarRascunhoFoto,
+  salvarRascunhoFoto,
+  type PhotoSaleDraft,
+} from './photo-sale-draft.js'
 import type { AgentRuntime, HistoryTurn, IncomingMessage, LinkedPeer } from './types.js'
 
 const SIM = /^(sim+|s|ok+|pode|confirmo|confirma|yes)[.!?]*$/i
@@ -17,6 +33,7 @@ export const CONFIRMATION_TTL_MS = 5 * 60_000
 type RespostaDoLaco = {
   readonly reply: AgentReply
   readonly toolCalls?: unknown
+  readonly userBody?: string
 }
 
 export async function processMessage(
@@ -35,8 +52,8 @@ export async function processMessage(
     ...(input.peer === undefined ? {} : { peer: input.peer }),
   })
 
-  const { reply, toolCalls } = await responder(runtime, input, ctx, conversationKey)
-  await gravarTurno(runtime, ctx, conversationKey, input.text, reply, toolCalls)
+  const { reply, toolCalls, userBody } = await responder(runtime, input, ctx, conversationKey)
+  await gravarTurno(runtime, ctx, conversationKey, userBody ?? input.text, reply, toolCalls)
   return reply
 }
 
@@ -49,6 +66,16 @@ async function responder(
   const pendente = await runtime.confirmations.getOpen(ctx.companyId, conversationKey, ctx.now)
   if (pendente !== undefined) {
     return tratarConfirmacao(runtime, ctx, pendente, input, conversationKey)
+  }
+
+  if (input.image !== undefined) {
+    return tratarFoto(runtime, input, ctx, conversationKey)
+  }
+
+  const rascunho = pegarRascunhoFoto(ctx.companyId, conversationKey)
+  if (rascunho !== undefined) {
+    const doRascunho = await tratarRascunhoFoto(runtime, input, ctx, conversationKey, rascunho)
+    if (doRascunho !== undefined) return doRascunho
   }
 
   if (estourouTeto(runtime, ctx)) {
@@ -110,6 +137,221 @@ async function responder(
   }
 
   return comToolCalls(await executar(tool, args, ctx), toolCalls)
+}
+
+async function tratarFoto(
+  runtime: AgentRuntime,
+  input: IncomingMessage,
+  ctx: ExecutionContext,
+  conversationKey: string,
+): Promise<RespostaDoLaco> {
+  const imagem = input.image!
+
+  if (!MIME_FOTO_VALIDOS.has(imagem.mimeType) || imagem.bytes.length === 0) {
+    return respostaRecusaFoto(TEXTO_RECUSA_FOTO_ILEGIVEL, corpoDaFoto([]))
+  }
+
+  const decoder = runtime.barcodeDecoder
+  let codes: string[] = []
+  if (decoder !== undefined) {
+    const resultado = await Promise.resolve(
+      decoder.decode({ mimeType: imagem.mimeType, bytes: imagem.bytes }),
+    )
+    codes = resultado.codes
+  }
+
+  const userBody = corpoDaFoto(codes)
+
+  if (codes.length === 0) {
+    return respostaRecusaFoto(TEXTO_RECUSA_FOTO_ILEGIVEL, userBody)
+  }
+
+  if (codes.length > 1) {
+    return respostaRecusaFoto(TEXTO_RECUSA_FOTO_MULTIPLOS, userBody)
+  }
+
+  const barcode = codes[0]!
+
+  if (temPedidoCadastroExplicito(input.text)) {
+    return tratarCadastroFoto(runtime, ctx, barcode, userBody)
+  }
+
+  if (runtime.findProductByBarcode !== undefined) {
+    const produto = await runtime.findProductByBarcode(ctx, barcode)
+    if (produto !== undefined) {
+      return tratarProdutoFoto(runtime, input, ctx, conversationKey, produto, userBody)
+    }
+  }
+
+  return respostaRecusaFoto(TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO, userBody)
+}
+
+async function tratarCadastroFoto(
+  runtime: AgentRuntime,
+  ctx: ExecutionContext,
+  barcode: string,
+  userBody: string,
+): Promise<RespostaDoLaco> {
+  if (runtime.findProductByBarcode !== undefined) {
+    const produto = await runtime.findProductByBarcode(ctx, barcode)
+    if (produto !== undefined) {
+      return {
+        reply: {
+          kind: 'answer',
+          text: TEXTO_FOTO_CADASTRO_PRODUTO_EXISTENTE(produto.description),
+        },
+        userBody,
+      }
+    }
+  }
+
+  return {
+    reply: { kind: 'answer', text: TEXTO_FOTO_CADASTRO_CODIGO(barcode) },
+    userBody,
+  }
+}
+
+function respostaRecusaFoto(texto: string, userBody: string): RespostaDoLaco {
+  return {
+    reply: { kind: 'answer', text: texto },
+    userBody,
+  }
+}
+
+async function tratarProdutoFoto(
+  runtime: AgentRuntime,
+  input: IncomingMessage,
+  ctx: ExecutionContext,
+  conversationKey: string,
+  produto: ProductOutput,
+  userBody: string,
+): Promise<RespostaDoLaco> {
+  const pagamento = parsePaymentMethod(input.text)
+  const draft: PhotoSaleDraft = {
+    productId: produto.id,
+    barcode: produto.barcode ?? codesDoCorpo(userBody)[0] ?? '',
+    salePriceCents: produto.salePriceCents,
+    description: produto.description,
+  }
+
+  if (pagamento.kind === 'method') {
+    limparRascunhoFoto(ctx.companyId, conversationKey)
+    return proporVendaFoto(runtime, ctx, conversationKey, draft, pagamento.method, userBody)
+  }
+
+  if (pagamento.kind === 'empty') {
+    salvarRascunhoFoto(ctx.companyId, conversationKey, draft)
+    return {
+      reply: {
+        kind: 'clarify',
+        text: textoClarifyPagamentoFoto(draft.description, draft.salePriceCents),
+      },
+      userBody,
+    }
+  }
+
+  salvarRascunhoFoto(ctx.companyId, conversationKey, draft)
+  return {
+    reply: {
+      kind: 'clarify',
+      text: textoClarifyPagamentoFoto(draft.description, draft.salePriceCents),
+    },
+    userBody,
+  }
+}
+
+async function tratarRascunhoFoto(
+  runtime: AgentRuntime,
+  input: IncomingMessage,
+  ctx: ExecutionContext,
+  conversationKey: string,
+  draft: PhotoSaleDraft,
+): Promise<RespostaDoLaco | undefined> {
+  const pagamento = parsePaymentMethod(input.text)
+  if (pagamento.kind === 'method') {
+    limparRascunhoFoto(ctx.companyId, conversationKey)
+    return proporVendaFoto(runtime, ctx, conversationKey, draft, pagamento.method)
+  }
+
+  limparRascunhoFoto(ctx.companyId, conversationKey)
+  return undefined
+}
+
+function textoClarifyPagamentoFoto(description: string, salePriceCents: number): string {
+  return `${description} — ${formatarCentavos(salePriceCents)}. Qual a forma de pagamento?`
+}
+
+function montarVendaFoto(draft: PhotoSaleDraft, method: PaymentMethod): CreateSaleInput {
+  return {
+    items: [
+      {
+        productId: draft.productId,
+        quantity: 1,
+        unitPriceCents: draft.salePriceCents,
+      },
+    ],
+    payments: [{ method, amountCents: draft.salePriceCents }],
+  }
+}
+
+async function proporVendaFoto(
+  runtime: AgentRuntime,
+  ctx: ExecutionContext,
+  conversationKey: string,
+  draft: PhotoSaleDraft,
+  method: PaymentMethod,
+  userBody?: string,
+): Promise<RespostaDoLaco> {
+  const tool = runtime.tools.find((t) => t.id === 'create_sale')
+  if (tool === undefined) {
+    return { reply: { kind: 'answer', text: 'Nao consegui preparar a venda.' } }
+  }
+
+  const args = montarVendaFoto(draft, method)
+  let parsed: unknown
+  try {
+    parsed = parseToolArgs(tool.inputSchema, args)
+  } catch (erro) {
+    return { reply: responderErro(erro), ...(userBody === undefined ? {} : { userBody }) }
+  }
+
+  if (tool.mutatesValue) {
+    if (estourouTeto(runtime, ctx)) {
+      return { reply: avisoDeTeto(), ...(userBody === undefined ? {} : { userBody }) }
+    }
+    const pending = novaConfirmacao({
+      companyId: ctx.companyId,
+      conversationKey,
+      toolId: tool.id,
+      args: parsed,
+      summary: tool.formatProposal(parsed),
+      expiresAt: new Date(ctx.now.getTime() + runtime.confirmationTtlMs),
+    })
+    await runtime.confirmations.put(pending)
+    return {
+      reply: {
+        kind: 'confirmation',
+        text: `${pending.summary}. Confirma?`,
+        confirmationId: pending.id,
+      },
+      toolCalls: idsDaFerramenta(parsed),
+      ...(userBody === undefined ? {} : { userBody }),
+    }
+  }
+
+  return comToolCalls(await executar(tool, parsed, ctx), idsDaFerramenta(parsed))
+}
+
+function codesDoCorpo(userBody: string): string[] {
+  const prefix = '[foto do codigo] '
+  if (!userBody.startsWith(prefix)) return []
+  const resto = userBody.slice(prefix.length).trim()
+  return resto.length === 0 ? [] : [resto]
+}
+
+function corpoDaFoto(codes: readonly string[]): string {
+  if (codes.length === 1) return `[foto do codigo] ${codes[0]}`
+  return '[foto do codigo]'
 }
 
 async function tratarConfirmacao(

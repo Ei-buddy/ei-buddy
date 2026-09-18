@@ -5,6 +5,7 @@ import type {
   CustomerOutput,
   DreInput,
   DreOutput,
+  ProductOutput,
   RevenueByMonthInput,
   SaleHistoryInput,
   SendChargeInput,
@@ -18,12 +19,21 @@ import { FakeLlm } from './fake-llm.js'
 import { formatarCentavos, LIMITE_TEXTO_MENSAGEM } from './format.js'
 import { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-message.js'
 import { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
+import { bytesFromMarker } from './barcode-decoder.js'
 import {
   TEXTO_RECUSA_BANCO,
   TEXTO_RECUSA_CERTIFICADO,
   TEXTO_RECUSA_NOTA,
   type AgentUseCases,
 } from './catalog.js'
+import { pegarRascunhoFoto } from './photo-sale-draft.js'
+import {
+  TEXTO_FOTO_CADASTRO_CODIGO,
+  TEXTO_FOTO_CADASTRO_PRODUTO_EXISTENTE,
+  TEXTO_RECUSA_FOTO_ILEGIVEL,
+  TEXTO_RECUSA_FOTO_MULTIPLOS,
+  TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO,
+} from './photo-replies.js'
 import type { HistoryTurn, IncomingMessage, LlmPort } from './types.js'
 
 const agora = new Date('2026-09-11T15:00:00.000Z')
@@ -213,6 +223,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
       amountCents: 5_000,
       to: '5511988887777',
     }),
+    findProductByBarcode: async () => undefined,
     ...over,
   }
 }
@@ -1684,6 +1695,7 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     const revenueByMonth = vi.fn(casos().revenueByMonth)
     const buildDre = vi.fn(casos().buildDre)
     const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const findProductByBarcode = vi.fn(casos().findProductByBarcode)
     const runtime = createAgentRuntime({
       useCases: {
         listSales,
@@ -1698,6 +1710,7 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
         revenueByMonth,
         buildDre,
         sendCustomerCharge,
+        findProductByBarcode,
       },
     })
 
@@ -1717,6 +1730,7 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     expect(revenueByMonth).not.toHaveBeenCalled()
     expect(buildDre).not.toHaveBeenCalled()
     expect(sendCustomerCharge).not.toHaveBeenCalled()
+    expect(findProductByBarcode).not.toHaveBeenCalled()
   })
 
   it('cancela a nota recusa; cancela a venda nao vira comando de nota — RF-151', async () => {
@@ -2544,5 +2558,441 @@ describe('processMessage — HTTP app e Studio wa nao compartilham fio (US6 / T0
     const hist = historicoWa[0] ?? []
     expect(hist).toHaveLength(0)
     expect(hist.some((h) => h.body.includes(fraseAncora))).toBe(false)
+  })
+})
+
+const BARCODE_EAN = '7891234567895'
+
+function produtoEan(): ProductOutput {
+  return {
+    id: 'p-ean',
+    description: 'Camiseta M',
+    barcode: BARCODE_EAN,
+    internalCode: 'PROD-EAN',
+    unitOfMeasure: 'un',
+    salePriceCents: 4_990,
+    costPriceCents: 2_000,
+    taxRate: 0,
+    ncm: null,
+    cfop: null,
+    taxSituationCode: null,
+    stock: 10,
+    minStock: 0,
+    category: null,
+    supplier: null,
+  }
+}
+
+function casosFoto(over: Partial<AgentUseCases> = {}): AgentUseCases {
+  const registerSale = vi.fn(casos().registerSale)
+  return casos({
+    findProductByBarcode: async (c, barcode) => {
+      if (c.companyId === 'emp-1' && barcode === BARCODE_EAN) return produtoEan()
+      return undefined
+    },
+    registerSale,
+    ...over,
+  })
+}
+
+function fotoMsg(over: Partial<IncomingMessage> = {}): IncomingMessage {
+  return msg({
+    text: '',
+    image: { mimeType: 'image/png', bytes: bytesFromMarker(BARCODE_EAN) },
+    ...over,
+  })
+}
+
+describe('processMessage — venda por foto (NR-116 US1 / T008)', () => {
+  it('foto so pede pagamento sem confirmacao nem venda', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const r = await processMessage(runtime, fotoMsg())
+
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toContain('Camiseta M')
+    expect(r.text).toContain(formatarCentavos(4_990))
+    expect(r.text).toMatch(/forma de pagamento/i)
+    expect(r.confirmationId).toBeUndefined()
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('foto + no pix pede confirmacao sem gravar', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const r = await processMessage(runtime, fotoMsg({ text: 'no pix' }))
+
+    expect(r.kind).toBe('confirmation')
+    expect(r.confirmationId).toBeDefined()
+    expect(r.text).toMatch(/Confirma\?/)
+    expect(r.text).toContain('p-ean')
+    expect(r.text).toContain('pix')
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('sim apos confirmacao da foto grava venda com preco copiado', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const proposta = await processMessage(runtime, fotoMsg({ text: 'no pix' }))
+    expect(proposta.kind).toBe('confirmation')
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(registerSale).toHaveBeenCalledOnce()
+    const input = registerSale.mock.calls[0]?.[1] as CreateSaleInput
+    expect(input.items[0]?.productId).toBe('p-ean')
+    expect(input.items[0]?.quantity).toBe(1)
+    expect(input.items[0]?.unitPriceCents).toBe(4_990)
+    expect(input.payments[0]?.method).toBe('pix')
+    expect(input.payments[0]?.amountCents).toBe(4_990)
+  })
+
+  it('pagamento na mensagem seguinte reutiliza o rascunho sem reenviar foto', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const pergunta = await processMessage(runtime, fotoMsg())
+    expect(pergunta.kind).toBe('clarify')
+
+    const proposta = await processMessage(runtime, msg({ text: 'no pix' }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toContain('p-ean')
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('mensagem que nao e pagamento descarta o rascunho e atende a consulta', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    await processMessage(runtime, fotoMsg())
+    const consulta = await processMessage(runtime, msg({ text: 'quanto vendi hoje?' }))
+    expect(consulta.kind).toBe('answer')
+    expect(consulta.kind).not.toBe('confirmation')
+    expect(consulta.text).toContain('3 vendas')
+
+    const tardio = await processMessage(runtime, msg({ text: 'no pix' }))
+    expect(tardio.kind).not.toBe('confirmation')
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('outra empresa nao vende produto da empresa A', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+    const ctxB: ExecutionContext = { ...ctx, companyId: 'emp-2', requestId: 'req-b' }
+
+    const r = await processMessage(
+      runtime,
+      fotoMsg({ text: 'no pix', ctx: ctxB, requestId: 'req-b' }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO)
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+})
+
+const BARCODE_DESCONHECIDO = '0000000000000'
+
+function fotoRefusalMsg(over: Partial<IncomingMessage> = {}): IncomingMessage {
+  return msg({
+    text: '',
+    image: { mimeType: 'image/png', bytes: bytesFromMarker(BARCODE_DESCONHECIDO) },
+    ...over,
+  })
+}
+
+describe('processMessage — recusas por foto (NR-116 US2 / T013–T016)', () => {
+  it('bytes vazios recusa ilegivel sem confirmacao nem venda', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(
+      runtime,
+      msg({ text: '', image: { mimeType: 'image/jpeg', bytes: new Uint8Array() } }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_ILEGIVEL)
+    expect(r.text).toMatch(/por texto/i)
+    expect(r.text).toMatch(/vender ou cadastrar/i)
+    expect(r.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(await runtime.confirmations.getOpen('emp-1', 'app:emp-1:user-1', agora)).toBeUndefined()
+  })
+
+  it('dois codigos recusa um produto por vez sem escolher codigo', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const findProductByBarcode = vi.fn(casosFoto().findProductByBarcode)
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale, findProductByBarcode }),
+    })
+
+    const r = await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: {
+          mimeType: 'image/png',
+          bytes: bytesFromMarker(`${BARCODE_EAN}\n${BARCODE_DESCONHECIDO}`),
+        },
+      }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_MULTIPLOS)
+    expect(r.text).toMatch(/um produto por vez/i)
+    expect(r.text).not.toContain(BARCODE_EAN)
+    expect(r.text).not.toContain(BARCODE_DESCONHECIDO)
+    expect(r.confirmationId).toBeUndefined()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(findProductByBarcode).not.toHaveBeenCalled()
+  })
+
+  it('codigo sem produto pede descricao por texto sem avulso nem convite a cadastrar', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const findProductByBarcode = vi.fn(async () => undefined)
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale, findProductByBarcode }),
+    })
+
+    const r = await processMessage(runtime, fotoRefusalMsg())
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO)
+    expect(r.text).toMatch(/por texto/i)
+    expect(r.text).not.toMatch(/avulso/i)
+    expect(r.text).not.toMatch(/quer cadastrar/i)
+    expect(r.text).not.toMatch(/cadastra\?/i)
+    expect(r.confirmationId).toBeUndefined()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(findProductByBarcode).toHaveBeenCalledOnce()
+  })
+
+  it('marcador corrompido com zero codigos recusa como ilegivel', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const r = await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: { mimeType: 'image/webp', bytes: bytesFromMarker('desconhecido') },
+      }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_ILEGIVEL)
+    expect(r.confirmationId).toBeUndefined()
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('MIME invalido recusa como ilegivel', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const r = await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: {
+          mimeType: 'image/gif' as 'image/png',
+          bytes: bytesFromMarker(BARCODE_EAN),
+        },
+      }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_ILEGIVEL)
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('empresa B com codigo da A recusa produto desconhecido sem vazar produto da A — T014', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const findProductByBarcode = vi.fn(casosFoto().findProductByBarcode)
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale, findProductByBarcode }),
+    })
+    const ctxB: ExecutionContext = { ...ctx, companyId: 'emp-2', requestId: 'req-b' }
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(
+      runtime,
+      fotoMsg({ text: 'no pix', ctx: ctxB, requestId: 'req-b' }),
+    )
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain(TEXTO_RECUSA_FOTO_PRODUTO_DESCONHECIDO)
+    expect(r.text).not.toContain('Camiseta M')
+    expect(r.text).not.toContain('p-ean')
+    expect(r.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(findProductByBarcode).toHaveBeenCalledWith(
+      expect.objectContaining({ companyId: 'emp-2' }),
+      BARCODE_EAN,
+    )
+  })
+
+  it('recusas nao gravam confirmacao nem mutam catalogo — T016', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const findProductByBarcode = vi.fn(async () => undefined)
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale, findProductByBarcode }),
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+    const chave = 'app:emp-1:user-1'
+
+    await processMessage(runtime, fotoRefusalMsg())
+    await processMessage(
+      runtime,
+      msg({ text: '', image: { mimeType: 'image/jpeg', bytes: new Uint8Array() } }),
+    )
+    await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: {
+          mimeType: 'image/png',
+          bytes: bytesFromMarker(`${BARCODE_EAN}\n${BARCODE_DESCONHECIDO}`),
+        },
+      }),
+    )
+
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(findProductByBarcode).toHaveBeenCalled()
+    expect(await runtime.confirmations.getOpen('emp-1', chave, agora)).toBeUndefined()
+  })
+})
+
+describe('processMessage — cadastro por foto (NR-116 US3 / T017)', () => {
+  it('codigo desconhecido + cadastra este devolve o codigo sem venda nem rascunho', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const findProductByBarcode = vi.fn(async () => undefined)
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale, findProductByBarcode }),
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, fotoRefusalMsg({ text: 'cadastra este' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toBe(TEXTO_FOTO_CADASTRO_CODIGO(BARCODE_DESCONHECIDO))
+    expect(r.text).toContain(BARCODE_DESCONHECIDO)
+    expect(r.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(pegarRascunhoFoto('emp-1', 'app:emp-1:user-1')).toBeUndefined()
+
+    const tardio = await processMessage(runtime, msg({ text: 'no pix' }))
+    expect(tardio.kind).not.toBe('confirmation')
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('produto existente + cadastra este avisa sem venda nem duplicar', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, fotoMsg({ text: 'cadastra este' }))
+
+    expect(r.kind).toBe('answer')
+    expect(r.text).toBe(TEXTO_FOTO_CADASTRO_PRODUTO_EXISTENTE('Camiseta M'))
+    expect(r.text).toContain('Camiseta M')
+    expect(r.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+    expect(pegarRascunhoFoto('emp-1', 'app:emp-1:user-1')).toBeUndefined()
+  })
+
+  it('produto existente + no pix segue rota de venda US1 — regressao', async () => {
+    const registerSale = vi.fn(casos().registerSale)
+    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+
+    const r = await processMessage(runtime, fotoMsg({ text: 'no pix' }))
+
+    expect(r.kind).toBe('confirmation')
+    expect(r.confirmationId).toBeDefined()
+    expect(r.text).toMatch(/Confirma\?/)
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+})
+
+describe('processMessage — foto do codigo (NR-116 T006)', () => {
+  it('texto so continua chamando o LLM', async () => {
+    const decide = vi.fn(async () => ({ type: 'unknown' as const }))
+    const llm: LlmPort = { decide }
+    const runtime = createAgentRuntime({ useCases: casos(), llm })
+    await processMessage(runtime, msg({ text: 'quanto vendi hoje?' }))
+    expect(decide).toHaveBeenCalledOnce()
+  })
+
+  it('foto presente nao chama llm.decide', async () => {
+    const decide = vi.fn(async () => ({ type: 'unknown' as const }))
+    const llm: LlmPort = { decide }
+    const runtime = createAgentRuntime({ useCases: casos(), llm })
+    const bytes = bytesFromMarker('7891234567895')
+    await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: { mimeType: 'image/jpeg', bytes },
+      }),
+    )
+    expect(decide).not.toHaveBeenCalled()
+  })
+
+  it('historico grava [foto do codigo] sem base64', async () => {
+    const store = new InMemoryConversationStore()
+    const runtime = createAgentRuntime({ useCases: casos(), conversations: store })
+    const marker = '7891234567895'
+    const dataBase64 = Buffer.from(marker, 'utf-8').toString('base64')
+    await processMessage(
+      runtime,
+      msg({
+        text: '',
+        image: { mimeType: 'image/jpeg', bytes: bytesFromMarker(marker) },
+      }),
+    )
+    const ativo = await store.loadActive(ctx.companyId, 'app:emp-1:user-1', agora)
+    expect(ativo?.messages[0]?.body).toBe(`[foto do codigo] ${marker}`)
+    expect(ativo?.messages[0]?.body).not.toContain(dataBase64)
+    expect(ativo?.messages[0]?.body).not.toContain('data:')
+  })
+})
+
+describe('processMessage — privacidade da foto (NR-116 T022)', () => {
+  it('turno com foto nao persiste dataBase64 nem bytes crus no historico', async () => {
+    const store = new InMemoryConversationStore()
+    const runtime = createAgentRuntime({
+      useCases: casosFoto(),
+      conversations: store,
+    })
+    const bytes = bytesFromMarker(BARCODE_EAN)
+    const dataBase64 = Buffer.from(bytes).toString('base64')
+
+    await processMessage(runtime, fotoMsg())
+
+    const ativo = await store.loadActive(ctx.companyId, 'app:emp-1:user-1', agora)
+    expect(ativo?.messages.length).toBeGreaterThan(0)
+
+    const corpos = (ativo?.messages ?? []).map((m) => m.body)
+    expect(corpos.some((body) => body.includes('[foto do codigo]'))).toBe(true)
+
+    for (const body of corpos) {
+      expect(body).not.toContain('dataBase64')
+      expect(body).not.toContain(dataBase64)
+      expect(body).not.toContain('data:')
+      expect(Buffer.from(body, 'utf-8')).not.toEqual(Buffer.from(bytes))
+    }
+
+    const serializado = JSON.stringify(ativo)
+    expect(serializado).not.toContain(dataBase64)
+    expect(serializado).not.toMatch(/data:image\//)
   })
 })

@@ -1,5 +1,5 @@
 import type { AiUsageCounter } from './ai-usage.js'
-import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
+import type { AgentReply, AgentReplyKind, ProductOutput, Role } from '@na-regua/contracts'
 import type {
   Channel,
   ConfirmationStore,
@@ -63,10 +63,21 @@ export type IncomingMessage = {
   readonly requestId: string
   readonly now: Date
   readonly channel: Channel
+  readonly image?: {
+    readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
+    readonly bytes: Uint8Array
+  }
   /** Sessao autenticada — canal `app` ou `api`. */
   readonly ctx?: ExecutionContext
   /** Numero de origem — canal `whatsapp`. */
   readonly peer?: string
+}
+
+export type BarcodeDecoder = {
+  decode(input: {
+    readonly mimeType: string
+    readonly bytes: Uint8Array
+  }): Promise<{ codes: string[] }> | { codes: string[] }
 }
 
 export type AgentRuntime = {
@@ -80,4 +91,9 @@ export type AgentRuntime = {
   readonly aiUsage?: AiUsageCounter
   /** Historico do fio ativo. Ausente = decide sem history e sem append. */
   readonly conversations?: ConversationStore
+  readonly barcodeDecoder?: BarcodeDecoder
+  readonly findProductByBarcode?: (
+    ctx: ExecutionContext,
+    barcode: string,
+  ) => Promise<ProductOutput | undefined>
 }

@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { Agent } from '@mastra/core/agent'
 import { Mastra } from '@mastra/core'
 import { createTool } from '@mastra/core/tools'
-import { agentMessageInputSchema } from '@na-regua/contracts'
+import { agentMessageInputSchema, type AgentMessageInput } from '@na-regua/contracts'
 import { processMessage } from '../process-message.js'
-import type { AgentRuntime } from '../types.js'
+import type { AgentRuntime, IncomingMessage } from '../types.js'
 import type { FixturePeerDirectory } from './fixture-peer-directory.js'
 import { resolverPeerDoStudio, studioRequestContextSchema } from './request-context.js'
 import { createStudioRelayModel } from './relay-model.js'
@@ -65,17 +65,14 @@ export function createStudioHarnessAgent(opcoes: CreateStudioHarnessOptions): Ag
     description: 'Encaminha o texto do painel para o laco do assistente.',
     inputSchema: agentMessageInputSchema,
     requestContextSchema: studioRequestContextSchema,
-    execute: async ({ text }, context) => {
+    execute: async (input, context) => {
       const startedAt = now()
       const requestId = proximoId()
       const peer = await resolverPeerDoStudio(opcoes.directory, context?.requestContext)
-      const reply = await processMessage(opcoes.runtime, {
-        text,
-        requestId,
-        now: startedAt,
-        channel: 'whatsapp',
-        ...(peer === undefined ? {} : { peer }),
-      })
+      const reply = await processMessage(
+        opcoes.runtime,
+        montarIncomingMessageRelay(input, requestId, startedAt, peer),
+      )
       const durationMs = Math.max(0, now().getTime() - startedAt.getTime())
       const kind = reply.kind
       const envelope = {
@@ -105,6 +102,30 @@ export function createStudioMastra(opcoes: CreateStudioHarnessOptions): Mastra {
     agents: { [STUDIO_HARNESS_AGENT_ID]: createStudioHarnessAgent(opcoes) },
     workers: false,
   })
+}
+
+/** Input validado da tool → mesmo envelope do POST /agent/messages. */
+export function montarIncomingMessageRelay(
+  input: AgentMessageInput,
+  requestId: string,
+  now: Date,
+  peer: string | undefined,
+): IncomingMessage {
+  return {
+    text: input.text ?? '',
+    requestId,
+    now,
+    channel: 'whatsapp',
+    ...(peer === undefined ? {} : { peer }),
+    ...(input.image === undefined
+      ? {}
+      : {
+          image: {
+            mimeType: input.image.mimeType,
+            bytes: Uint8Array.from(Buffer.from(input.image.dataBase64, 'base64')),
+          },
+        }),
+  }
 }
 
 async function registrarTurno(

@@ -8,9 +8,11 @@ import { chaveDaConversa, formatarCentavos } from '../format.js'
 import { processMessage } from '../process-message.js'
 import { FixturePeerDirectory } from './fixture-peer-directory.js'
 import type { StudioPreset } from './presets.js'
+import { bytesFromMarker } from '../barcode-decoder.js'
 import {
   createStudioHarnessAgent,
   mascararPeerDoStudio,
+  montarIncomingMessageRelay,
   type StudioTurnLog,
 } from './relay-agent.js'
 
@@ -96,6 +98,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
     sendCustomerCharge: async () => {
       throw new Error('nao deveria cobrar neste teste')
     },
+    findProductByBarcode: async () => undefined,
     ...over,
   }
 }
@@ -412,6 +415,36 @@ describe('studio-harness — US2 identidade forjada', () => {
     expect(talvez.envelope.text).toMatch(/cancelei/i)
     expect(talvez.envelope.text).toMatch(/Nada foi registrado/)
     expect(gravados).toBe(0)
+  })
+})
+
+describe('studio-harness — NR-116 foto', () => {
+  it('montarIncomingMessageRelay converte dataBase64 em bytes; text vazio por padrao', () => {
+    const marker = '7891234567895'
+    const dataBase64 = Buffer.from(marker, 'utf-8').toString('base64')
+    const entrada = montarIncomingMessageRelay(
+      { image: { mimeType: 'image/jpeg', dataBase64 } },
+      'req-img',
+      agora,
+      PRESET.peer,
+    )
+
+    expect(entrada.text).toBe('')
+    expect(entrada.image?.mimeType).toBe('image/jpeg')
+    expect(entrada.image?.bytes).toEqual(bytesFromMarker(marker))
+    expect(JSON.stringify(entrada)).not.toContain(dataBase64)
+    expect(JSON.stringify(entrada)).not.toMatch(/data:image\//)
+  })
+
+  it('texto so no relay permanece igual ao HTTP', () => {
+    const entrada = montarIncomingMessageRelay(
+      { text: 'quanto vendi hoje?' },
+      'req-txt',
+      agora,
+      PRESET.peer,
+    )
+    expect(entrada.text).toBe('quanto vendi hoje?')
+    expect(entrada.image).toBeUndefined()
   })
 })
 

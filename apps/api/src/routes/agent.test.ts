@@ -63,6 +63,7 @@ const useCases: AgentUseCases = {
   sendCustomerCharge: async () => {
     throw new Error('nao deveria cobrar neste teste')
   },
+  findProductByBarcode: async () => undefined,
 }
 
 function buildApp(
@@ -90,6 +91,25 @@ describe('POST /agent/messages', () => {
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
     expect(corpo.kind).toBe('answer')
     expect(corpo.text).toContain('1 venda')
+    await app.close()
+  })
+
+  it('aceita corpo so com imagem — NR-116 T007', async () => {
+    const app = buildApp()
+    const marker = '7891234567895'
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: {
+        image: {
+          mimeType: 'image/jpeg',
+          dataBase64: Buffer.from(marker, 'utf-8').toString('base64'),
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('answer')
     await app.close()
   })
 
@@ -430,6 +450,83 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
     expect(corpoNao.text).toMatch(/Cancelado/)
     expect(recusas).toBe(0)
     await appRecusa.close()
+  })
+
+  it('foto com pagamento pede confirmacao de venda — NR-116 US1 / T009', async () => {
+    const barcode = '7891234567895'
+    const app = buildAppConfirmacao(
+      {
+        findProductByBarcode: async (_ctx, code) => {
+          if (code !== barcode) return undefined
+          return {
+            id: 'p-ean',
+            description: 'Camiseta M',
+            barcode,
+            internalCode: 'PROD-EAN',
+            unitOfMeasure: 'un',
+            salePriceCents: 4_990,
+            costPriceCents: 2_000,
+            taxRate: 0,
+            ncm: null,
+            cfop: null,
+            taxSituationCode: null,
+            stock: 10,
+            minStock: 0,
+            category: null,
+            supplier: null,
+          }
+        },
+        registerSale: async () => vendaSaida(),
+      },
+      new FakeLlm(),
+    )
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: {
+        text: 'no pix',
+        image: {
+          mimeType: 'image/png',
+          dataBase64: Buffer.from(barcode).toString('base64'),
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('confirmation')
+    expect(corpo.text).toMatch(/Confirma\?/)
+    expect(corpo.text).toContain('p-ean')
+    await app.close()
+  })
+
+  it('foto com cadastra este devolve codigo sem confirmacao — NR-116 US3 / T019', async () => {
+    const barcode = '0000000000000'
+    const app = buildAppConfirmacao(
+      {
+        findProductByBarcode: async () => undefined,
+        registerSale: async () => vendaSaida(),
+      },
+      new FakeLlm(),
+    )
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: {
+        text: 'cadastra este',
+        image: {
+          mimeType: 'image/png',
+          dataBase64: Buffer.from(barcode).toString('base64'),
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(res.body))
+    expect(corpo.kind).toBe('answer')
+    expect(corpo.text).toContain(barcode)
+    expect(corpo.confirmationId).toBeUndefined()
+    await app.close()
   })
 })
 

@@ -44,6 +44,7 @@ const useCases: AgentUseCases = {
   sendCustomerCharge: async () => {
     throw new Error('nao executa neste teste')
   },
+  findProductByBarcode: async () => undefined,
 }
 
 describe('createAgentRuntime — US1', () => {

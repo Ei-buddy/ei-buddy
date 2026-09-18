@@ -71,6 +71,7 @@ const casos: AgentUseCases = {
   sendCustomerCharge: async () => {
     throw new Error('nao executa neste teste')
   },
+  findProductByBarcode: async () => undefined,
 }
 
 function dreSaida(over: Partial<DreOutput> = {}): DreOutput {
@@ -805,6 +806,7 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const revenueByMonth = vi.fn(casos.revenueByMonth)
       const buildDre = vi.fn(casos.buildDre)
       const sendCustomerCharge = vi.fn(casos.sendCustomerCharge)
+      const findProductByBarcode = vi.fn(casos.findProductByBarcode)
       const tools = createToolCatalog({
         listSales,
         listReceivables,
@@ -818,6 +820,7 @@ describe('refuse_* — US7 / RF-149–151', () => {
         revenueByMonth,
         buildDre,
         sendCustomerCharge,
+        findProductByBarcode,
       })
       const tool = tools.find((t) => t.id === recusa.id)
       expect(tool).toBeDefined()
@@ -841,6 +844,7 @@ describe('refuse_* — US7 / RF-149–151', () => {
       expect(revenueByMonth).not.toHaveBeenCalled()
       expect(buildDre).not.toHaveBeenCalled()
       expect(sendCustomerCharge).not.toHaveBeenCalled()
+      expect(findProductByBarcode).not.toHaveBeenCalled()
     },
   )
 })

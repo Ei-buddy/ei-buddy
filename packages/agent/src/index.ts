@@ -7,6 +7,7 @@
  * Runtime: Mastra + gpt-4o-mini (ADR-0010). Sem WhatsApp, o canal e HTTP
  * autenticado (`POST /agent/messages`) e `AGENT_PROVIDER=fake`.
  */
+export { bytesFromMarker, FakeBarcodeDecoder } from './barcode-decoder.js'
 export { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
 export type { AiUsageCounter, InMemoryAiUsageOptions } from './ai-usage.js'
 export { createToolCatalog, textoDasCapacidades } from './catalog.js'
@@ -21,6 +22,7 @@ export { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-messa
 export type {
   AgentRuntime,
   AgentTool,
+  BarcodeDecoder,
   ConfirmationDecision,
   ConfirmationStore,
   ConversationStore,

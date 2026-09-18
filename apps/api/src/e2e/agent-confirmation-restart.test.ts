@@ -112,6 +112,7 @@ const leituraVazia: AgentUseCases = {
   sendCustomerCharge: async () => {
     throw new Error('nao deveria cobrar neste smoke')
   },
+  findProductByBarcode: async () => undefined,
 }
 
 describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', () => {
