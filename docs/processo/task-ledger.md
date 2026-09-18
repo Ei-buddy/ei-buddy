@@ -51,10 +51,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     100 |  250 |
-| ✅ Concluídas                 |      86 |  211 |
+| ✅ Concluídas                 |      87 |  213 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      13 |   35 |
+| ⬜ A fazer, pode começar hoje |      12 |   33 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -89,7 +89,7 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **39 dias que faltam, 35 podem começar hoje** — inclusive NR-015 (deploy na
+Dos **37 dias que faltam, 33 podem começar hoje** — inclusive NR-015 (deploy na
 VM), a cascata E11 no Studio (115–119 → NR-120) agora que a NR-121, a NR-061
 e a NR-062 estão ✅, depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
 DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava tarefa no
