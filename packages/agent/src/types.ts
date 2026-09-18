@@ -1,7 +1,9 @@
 import type { AiUsageCounter } from './ai-usage.js'
 import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
-import type { Channel, ExecutionContext } from '@na-regua/core'
+import type { Channel, ConversationRole, ConversationStore, ExecutionContext } from '@na-regua/core'
 import type { z } from 'zod'
+
+export type { ConversationRole, ConversationStore }
 
 export type { AgentReply, AgentReplyKind }
 
@@ -24,11 +26,18 @@ export type LlmDecision =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'unknown' }
 
+export type HistoryTurn = {
+  readonly role: ConversationRole
+  readonly body: string
+}
+
 export type LlmPort = {
   decide(input: {
     readonly text: string
     readonly tools: readonly ToolDescriptor[]
     readonly today: string
+    /** 0..12; omitido = []. Idle ou store ausente = []. */
+    readonly history?: readonly HistoryTurn[]
   }): Promise<LlmDecision>
 }
 
@@ -77,4 +86,6 @@ export type AgentRuntime = {
   readonly peers?: PeerDirectory
   /** Contador de decides por empresa; ausente = sem teto e sem medicao. */
   readonly aiUsage?: AiUsageCounter
+  /** Historico do fio ativo. Ausente = decide sem history e sem append. */
+  readonly conversations?: ConversationStore
 }

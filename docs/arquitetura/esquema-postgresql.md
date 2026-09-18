@@ -558,17 +558,20 @@ FK de `attachment_id` é adicionada depois de criar `attachments`.
 
 ### `conversations`
 
-| Coluna       | Tipo                   | Notas                        |
-| ------------ | ---------------------- | ---------------------------- |
-| `id`         | `uuid` PK              |                              |
-| `company_id` | `uuid NOT NULL`        | → `companies`                |
-| `channel`    | `text NOT NULL`        | `whatsapp` \| `web` \| `app` |
-| `peer`       | `text`                 |                              |
-| `deleted_at` | `timestamptz`          | nulo = vigente               |
-| `created_at` | `timestamptz NOT NULL` |                              |
-| `updated_at` | `timestamptz NOT NULL` |                              |
+| Coluna        | Tipo                   | Notas                                                                                                    |
+| ------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| `id`          | `uuid` PK              |                                                                                                          |
+| `company_id`  | `uuid NOT NULL`        | → `companies`                                                                                            |
+| `channel`     | `text NOT NULL`        | `whatsapp` \| `web` \| `app`                                                                             |
+| `number_from` | `text`                 | interlocutor; chave lógica `wa:{companyId}:{peer}` / `app:{companyId}:{userId}`; vazio recusado no store |
+| `deleted_at`  | `timestamptz`          | nulo = vigente                                                                                           |
+| `created_at`  | `timestamptz NOT NULL` |                                                                                                          |
+| `updated_at`  | `timestamptz NOT NULL` |                                                                                                          |
 
-Índice: `(company_id, created_at DESC)`.
+Índices: `(company_id, created_at DESC)`; UNIQUE parcial
+`conversations_identidade_unica` em `(company_id, channel, number_from)
+WHERE deleted_at IS NULL` (migration 0019; a 0018 da NR-061 não existe nesta
+branch).
 
 ### `messages`
 
@@ -585,7 +588,9 @@ FK de `attachment_id` é adicionada depois de criar `attachments`.
 | `deleted_at`      | `timestamptz`          | nulo = vigente                    |
 | `created_at`      | `timestamptz NOT NULL` |                                   |
 
-Índice: `(company_id, conversation_id)`.
+Índices: `(company_id, conversation_id)` (`messages_company_conversation_idx`);
+`messages_por_conversa` em `(company_id, conversation_id, created_at DESC)
+WHERE deleted_at IS NULL` (0019).
 
 ### `confirmations`
 

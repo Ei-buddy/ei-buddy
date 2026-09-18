@@ -30,7 +30,9 @@ export class FakeLlm implements LlmPort {
     readonly text: string
     readonly tools: readonly ToolDescriptor[]
     readonly today: string
+    readonly history?: readonly { readonly role: string; readonly body: string }[]
   }): Promise<LlmDecision> {
+    /* history e ignorado no reconhecedor — frases completas inalteradas. */
     const chave = normalizar(input.text)
     const roteiro = this.roteiros.get(chave)
     if (roteiro !== undefined) return roteiro

@@ -11,10 +11,11 @@ import type {
 } from '@na-regua/contracts'
 import { AppError, type ExecutionContext } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
+import { InMemoryConversationStore } from './conversations.js'
 import { createAgentRuntime } from './create-runtime.js'
 import { FakeLlm } from './fake-llm.js'
 import { formatarCentavos, LIMITE_TEXTO_MENSAGEM } from './format.js'
-import { eNao, eSim, processMessage } from './process-message.js'
+import { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-message.js'
 import { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
 import {
   TEXTO_RECUSA_BANCO,
@@ -22,7 +23,7 @@ import {
   TEXTO_RECUSA_NOTA,
   type AgentUseCases,
 } from './catalog.js'
-import type { IncomingMessage, LlmPort } from './types.js'
+import type { HistoryTurn, IncomingMessage, LlmPort } from './types.js'
 
 const agora = new Date('2026-09-11T15:00:00.000Z')
 
@@ -1293,5 +1294,596 @@ describe('processMessage — teto de IA (RNF-073, FR-020)', () => {
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('3 vendas')
     expect(aiUsage.unitsOf('emp-1', agora)).toBe(1)
+  })
+})
+
+describe('processMessage — anafora no fio ativo (US1 / RF-105)', () => {
+  const fraseAncora = 'cobra o Joao'
+  const fraseEle = 'manda a cobranca pra ele'
+
+  it('segundo turno com "ele" reusa o customerId ancorado via history — T013', async () => {
+    const historicos: Array<readonly HistoryTurn[] | undefined> = []
+    let turno = 0
+    const llm: LlmPort = {
+      async decide(input) {
+        historicos.push(input.history)
+        turno += 1
+        if (turno === 1) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        const hist = input.history ?? []
+        if (hist.length > 0) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+    const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const runtime = createAgentRuntime({
+      useCases: casos({ sendCustomerCharge }),
+      llm,
+      confirmationTtlMs: 1_000,
+    })
+
+    const ancora = await processMessage(runtime, msg({ text: fraseAncora }))
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-1')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+
+    const store = runtime.conversations
+    expect(store).toBeDefined()
+    if (store === undefined) return
+    const ativo = await store.loadActive(ctx.companyId, 'app:emp-1:user-1', agora)
+    expect(ativo?.idle).toBe(false)
+    const comIds = JSON.stringify(ativo?.messages.map((m) => m.toolCalls) ?? [])
+    expect(comIds).toContain('cli-1')
+
+    const depois = new Date(agora.getTime() + 5_000)
+    const ele = await processMessage(runtime, msg({ text: fraseEle, now: depois }))
+    expect(ele.kind).toBe('confirmation')
+    expect(ele.text).toContain('cli-1')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+
+    expect(historicos.length).toBeGreaterThanOrEqual(2)
+    const hist2 = historicos[1] ?? []
+    expect(hist2.length).toBeGreaterThan(0)
+    expect(hist2[0]?.body).toBe(fraseAncora)
+    expect(hist2.some((h) => h.role === 'user' && h.body === fraseAncora)).toBe(true)
+    expect(hist2.some((h) => h.role === 'assistant')).toBe(true)
+  })
+
+  it('consulta "quanto vendi hoje?" pelo FakeLlm continua igual — T013 regressao', async () => {
+    const runtime = createAgentRuntime({ useCases: casos() })
+    const r = await processMessage(runtime, msg())
+    expect(r.kind).toBe('answer')
+    expect(r.text).toContain('3 vendas')
+    expect(r.text).toContain(formatarCentavos(15_000))
+  })
+
+  it('primeira mensagem com nome explicito chama decide com history vazio — T014', async () => {
+    const visto: Array<readonly HistoryTurn[] | undefined> = []
+    const llm: LlmPort = {
+      async decide(input) {
+        visto.push(input.history)
+        return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+      },
+    }
+    const runtime = createAgentRuntime({ useCases: casos(), llm })
+    const r = await processMessage(runtime, msg({ text: 'manda a cobranca pro Joao' }))
+    expect(r.kind).toBe('confirmation')
+    expect(r.text).toContain('cli-1')
+    expect(visto).toHaveLength(1)
+    const hist = visto[0]
+    expect(hist === undefined || hist.length === 0).toBe(true)
+
+    const consulta = createAgentRuntime({ useCases: casos() })
+    const nr060 = await processMessage(consulta, msg())
+    expect(nr060.kind).toBe('answer')
+    expect(nr060.text).toContain('3 vendas')
+  })
+
+  it('dois candidatos no history esclarecem e nao executam send_charge — T015', async () => {
+    const store = new InMemoryConversationStore()
+    const chave = 'app:emp-1:user-1'
+    await store.append(ctx.companyId, {
+      conversationKey: chave,
+      userBody: 'cobra o Joao cli-1',
+      assistantBody: 'Enviar cobranca para cliente cli-1. Confirma?',
+      toolCalls: { customerId: 'cli-1' },
+      at: agora,
+    })
+    await store.append(ctx.companyId, {
+      conversationKey: chave,
+      userBody: 'cobra a Maria cli-2',
+      assistantBody: 'Enviar cobranca para cliente cli-2. Confirma?',
+      toolCalls: { customerId: 'cli-2' },
+      at: agora,
+    })
+
+    const llm: LlmPort = {
+      async decide(input) {
+        const texto = (input.history ?? []).map((h) => h.body).join('\n')
+        const tem1 = texto.includes('cli-1')
+        const tem2 = texto.includes('cli-2')
+        if (tem1 && tem2) {
+          return { type: 'text', text: 'Qual cliente: Joao (cli-1) ou Maria (cli-2)?' }
+        }
+        return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+      },
+    }
+    const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const runtime = createAgentRuntime({
+      useCases: casos({ sendCustomerCharge }),
+      llm,
+      conversations: store,
+    })
+
+    const r = await processMessage(runtime, msg({ text: 'manda a cobranca pra ele' }))
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toMatch(/Qual cliente/)
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+  })
+})
+
+describe('processMessage — isolamento entre empresas (US2 / T019)', () => {
+  it('history da loja A nao entra no decide da loja B; "ele" nao ancora o cliente da A', async () => {
+    const store = new InMemoryConversationStore()
+    const ctxA: ExecutionContext = { ...ctx, companyId: 'emp-A', requestId: 'req-a' }
+    const ctxB: ExecutionContext = { ...ctx, companyId: 'emp-B', requestId: 'req-b' }
+
+    const historicoB: Array<readonly HistoryTurn[] | undefined> = []
+    const llmA: LlmPort = {
+      async decide() {
+        return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-da-A' } }
+      },
+    }
+    const llmB: LlmPort = {
+      async decide(input) {
+        historicoB.push(input.history)
+        const texto = (input.history ?? []).map((h) => h.body).join('\n')
+        if (texto.includes('cli-da-A') || texto.includes('Joao da A')) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-da-A' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+
+    const runtimeA = createAgentRuntime({
+      useCases: casos(),
+      llm: llmA,
+      conversations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos(),
+      llm: llmB,
+      conversations: store,
+    })
+
+    const ancora = await processMessage(
+      runtimeA,
+      msg({ text: 'cobra o Joao da A', ctx: ctxA, requestId: 'req-a' }),
+    )
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-da-A')
+
+    const ele = await processMessage(
+      runtimeB,
+      msg({ text: 'manda a cobranca pra ele', ctx: ctxB, requestId: 'req-b' }),
+    )
+    expect(ele.kind).not.toBe('confirmation')
+    expect(ele.text).not.toContain('cli-da-A')
+
+    expect(historicoB).toHaveLength(1)
+    const hist = historicoB[0] ?? []
+    expect(hist).toHaveLength(0)
+    expect(hist.some((h) => h.body.includes('Joao da A'))).toBe(false)
+    expect(hist.some((h) => h.body.includes('cli-da-A'))).toBe(false)
+  })
+})
+
+describe('processMessage — idle 2 h (US3 / RF-106)', () => {
+  const fraseAncora = 'cobra o Joao'
+  const fraseEle = 'manda a cobranca pra ele'
+  const duasHorasMs = 2 * 60 * 60 * 1000
+
+  it('depois de 2 h o stub recebe history vazio e nao devolve o customerId antigo — T024', async () => {
+    const historicos: Array<readonly HistoryTurn[] | undefined> = []
+    let turno = 0
+    const llm: LlmPort = {
+      async decide(input) {
+        historicos.push(input.history)
+        turno += 1
+        if (turno === 1) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        const hist = input.history ?? []
+        if (hist.length > 0) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+    const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const runtime = createAgentRuntime({
+      useCases: casos({ sendCustomerCharge }),
+      llm,
+    })
+
+    const ancora = await processMessage(runtime, msg({ text: fraseAncora }))
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-1')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+
+    const depoisIdle = new Date(agora.getTime() + duasHorasMs + 1)
+    const ctxIdle: ExecutionContext = { ...ctx, now: depoisIdle, requestId: 'req-idle' }
+    const ele = await processMessage(
+      runtime,
+      msg({ text: fraseEle, now: depoisIdle, ctx: ctxIdle, requestId: 'req-idle' }),
+    )
+
+    expect(historicos.length).toBeGreaterThanOrEqual(2)
+    const hist2 = historicos[1] ?? []
+    expect(hist2).toHaveLength(0)
+    expect(ele.kind).not.toBe('confirmation')
+    expect(ele.text).not.toContain('cli-1')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+  })
+
+  it('recomeco apos idle ancora so o trecho novo — T026', async () => {
+    const historicos: Array<readonly HistoryTurn[] | undefined> = []
+    let turno = 0
+    const llm: LlmPort = {
+      async decide(input) {
+        historicos.push(input.history)
+        turno += 1
+        const texto = (input.history ?? []).map((h) => h.body).join('\n')
+        if (turno === 1) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-antigo' } }
+        }
+        if (turno === 2) {
+          if (texto.includes('cli-antigo') || texto.includes(fraseAncora)) {
+            return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-antigo' } }
+          }
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-novo' } }
+        }
+        if (texto.includes('cli-antigo') || texto.includes(fraseAncora)) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-antigo' } }
+        }
+        if (texto.includes('cli-novo') || texto.includes('cobra a Maria')) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-novo' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+    const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const runtime = createAgentRuntime({
+      useCases: casos({ sendCustomerCharge }),
+      llm,
+      confirmationTtlMs: 1_000,
+    })
+
+    const ancora = await processMessage(runtime, msg({ text: fraseAncora }))
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-antigo')
+
+    const tRecomeco = new Date(agora.getTime() + duasHorasMs + 1)
+    const ctxRecomeco: ExecutionContext = { ...ctx, now: tRecomeco, requestId: 'req-re' }
+    const recomeco = await processMessage(
+      runtime,
+      msg({
+        text: 'cobra a Maria',
+        now: tRecomeco,
+        ctx: ctxRecomeco,
+        requestId: 'req-re',
+      }),
+    )
+    expect(recomeco.kind).toBe('confirmation')
+    expect(recomeco.text).toContain('cli-novo')
+    expect(recomeco.text).not.toContain('cli-antigo')
+
+    const hist2 = historicos[1] ?? []
+    expect(hist2).toHaveLength(0)
+
+    const tPronome = new Date(tRecomeco.getTime() + 5_000)
+    const ctxPronome: ExecutionContext = { ...ctx, now: tPronome, requestId: 'req-ele' }
+    const ele = await processMessage(
+      runtime,
+      msg({
+        text: fraseEle,
+        now: tPronome,
+        ctx: ctxPronome,
+        requestId: 'req-ele',
+      }),
+    )
+    expect(ele.kind).toBe('confirmation')
+    expect(ele.text).toContain('cli-novo')
+    expect(ele.text).not.toContain('cli-antigo')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+
+    const hist3 = historicos[2] ?? []
+    expect(hist3.length).toBeGreaterThan(0)
+    expect(hist3.some((h) => h.body.includes(fraseAncora))).toBe(false)
+    expect(hist3.some((h) => h.body.includes('cli-antigo'))).toBe(false)
+    expect(hist3.some((h) => h.body.includes('cobra a Maria'))).toBe(true)
+  })
+
+  it('confirmacao pendente + 2 h nao estende expiresAt; sim apos 5 min expira — T027', async () => {
+    const store = new InMemoryConversationStore()
+    const loadActive = vi.spyOn(store, 'loadActive')
+    let chamadas = 0
+    const llm: LlmPort = {
+      async decide() {
+        return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+      },
+    }
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        sendCustomerCharge: async (c, i) => {
+          chamadas += 1
+          return casos().sendCustomerCharge(c, i)
+        },
+      }),
+      llm,
+      conversations: store,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: 'cobra o Joao' }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(chamadas).toBe(0)
+
+    const chave = 'app:emp-1:user-1'
+    const pendente = await runtime.confirmations.getOpen(chave, agora)
+    expect(pendente).toBeDefined()
+    const expiresAtOriginal = pendente!.expiresAt.getTime()
+    expect(expiresAtOriginal).toBe(agora.getTime() + CONFIRMATION_TTL_MS)
+
+    const daqui2h = new Date(agora.getTime() + duasHorasMs)
+    const ainda = await runtime.confirmations.getOpen(chave, daqui2h)
+    expect(ainda?.expiresAt.getTime()).toBe(expiresAtOriginal)
+
+    loadActive.mockClear()
+    const depoisTtl = new Date(agora.getTime() + CONFIRMATION_TTL_MS + 1)
+    const ctxExpirada: ExecutionContext = { ...ctx, now: depoisTtl, requestId: 'req-sim' }
+    const r = await processMessage(
+      runtime,
+      msg({ text: 'sim', now: depoisTtl, ctx: ctxExpirada, requestId: 'req-sim' }),
+    )
+    expect(r.text).toMatch(/expirou/i)
+    expect(chamadas).toBe(0)
+    expect(loadActive).not.toHaveBeenCalled()
+  })
+})
+
+describe('processMessage — janela de 12 mensagens (US4 / RNF-075)', () => {
+  it('13 turnos no InMemory; 14o decide recebe history.length === 12 — T029', async () => {
+    const historicos: Array<readonly HistoryTurn[] | undefined> = []
+    const llm: LlmPort = {
+      async decide(input) {
+        historicos.push(input.history)
+        return {
+          type: 'tool',
+          name: 'list_sales',
+          args: { from: '2026-09-11', to: '2026-09-11' },
+        }
+      },
+    }
+    const runtime = createAgentRuntime({ useCases: casos(), llm })
+    const t0 = agora.getTime()
+
+    for (let i = 1; i <= 13; i++) {
+      const now = new Date(t0 + i * 1_000)
+      const ctxTurno: ExecutionContext = { ...ctx, now, requestId: `req-w${i}` }
+      await processMessage(
+        runtime,
+        msg({ text: `consulta ${i}`, now, ctx: ctxTurno, requestId: `req-w${i}` }),
+      )
+    }
+
+    const store = runtime.conversations
+    expect(store).toBeDefined()
+    if (store === undefined) return
+    const agora14 = new Date(t0 + 14_000)
+    const antesDo14 = await store.loadActive(ctx.companyId, 'app:emp-1:user-1', agora14)
+    expect(antesDo14?.idle).toBe(false)
+    expect(antesDo14?.messages).toHaveLength(12)
+
+    const ctx14: ExecutionContext = { ...ctx, now: agora14, requestId: 'req-w14' }
+    await processMessage(
+      runtime,
+      msg({ text: 'consulta 14', now: agora14, ctx: ctx14, requestId: 'req-w14' }),
+    )
+
+    expect(historicos).toHaveLength(14)
+    const hist14 = historicos[13] ?? []
+    expect(hist14).toHaveLength(12)
+
+    const users = hist14.filter((h) => h.role === 'user').map((h) => h.body)
+    expect(users).toEqual([
+      'consulta 8',
+      'consulta 9',
+      'consulta 10',
+      'consulta 11',
+      'consulta 12',
+      'consulta 13',
+    ])
+    expect(hist14.some((h) => h.body === 'consulta 1')).toBe(false)
+    expect(hist14[0]?.role).toBe('user')
+    expect(hist14[hist14.length - 1]?.role).toBe('assistant')
+    for (let i = 1; i < hist14.length; i++) {
+      expect(hist14[i]?.role).not.toBe(hist14[i - 1]?.role)
+    }
+  })
+
+  it('ancora so na mensagem 1 de 13+ nao viaja; pronome pede de novo — T031', async () => {
+    const store = new InMemoryConversationStore()
+    const chave = 'app:emp-1:user-1'
+    const loadActive = vi.spyOn(store, 'loadActive')
+
+    await store.append(ctx.companyId, {
+      conversationKey: chave,
+      userBody: 'cobra o Joao ancora-fora-da-janela',
+      assistantBody: 'Enviar cobranca para cliente cli-1. Confirma?',
+      toolCalls: { customerId: 'cli-1' },
+      at: agora,
+    })
+    for (let i = 2; i <= 13; i++) {
+      await store.append(ctx.companyId, {
+        conversationKey: chave,
+        userBody: `consulta ${i}`,
+        assistantBody: `ok ${i}`,
+        at: new Date(agora.getTime() + i * 1_000),
+      })
+    }
+
+    const historicos: Array<readonly HistoryTurn[] | undefined> = []
+    const llm: LlmPort = {
+      async decide(input) {
+        historicos.push(input.history)
+        const texto = (input.history ?? []).map((h) => h.body).join('\n')
+        if (texto.includes('cli-1') || texto.includes('ancora-fora-da-janela')) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        return { type: 'text', text: 'Quem e o cliente?' }
+      },
+    }
+    const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
+    const runtime = createAgentRuntime({
+      useCases: casos({ sendCustomerCharge }),
+      llm,
+      conversations: store,
+    })
+
+    const tPronome = new Date(agora.getTime() + 14_000)
+    const ctxPronome: ExecutionContext = { ...ctx, now: tPronome, requestId: 'req-janela' }
+    const r = await processMessage(
+      runtime,
+      msg({
+        text: 'manda a cobranca pra ele',
+        now: tPronome,
+        ctx: ctxPronome,
+        requestId: 'req-janela',
+      }),
+    )
+
+    expect(historicos).toHaveLength(1)
+    const hist = historicos[0] ?? []
+    expect(hist).toHaveLength(12)
+    expect(hist.some((h) => h.body.includes('ancora-fora-da-janela'))).toBe(false)
+    expect(hist.some((h) => h.body.includes('cli-1'))).toBe(false)
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toMatch(/Quem e o cliente/)
+    expect(r.text).not.toContain('cli-1')
+    expect(sendCustomerCharge).not.toHaveBeenCalled()
+
+    const ultima = loadActive.mock.calls[loadActive.mock.calls.length - 1]
+    const opcoes = ultima?.[3]
+    expect(opcoes?.window === undefined || opcoes.window === 12).toBe(true)
+  })
+})
+
+describe('processMessage — mesmo peer wa ancora; outro nao (US6 / T042)', () => {
+  const fraseAncora = 'cobra o Joao'
+  const fraseEle = 'manda a cobranca pra ele'
+  const peerA = '5511999000001'
+  const peerB = '5511999000002'
+
+  function wa(peer: string, text: string, now = agora, requestId = 'req-wa'): IncomingMessage {
+    return {
+      text,
+      requestId,
+      now,
+      channel: 'whatsapp',
+      peer,
+    }
+  }
+
+  it('mesmo peer herda a ancora; peer distinto nao herda', async () => {
+    let turno = 0
+    const llm: LlmPort = {
+      async decide(input) {
+        turno += 1
+        if (turno === 1) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        const hist = input.history ?? []
+        if (hist.some((h) => h.body.includes(fraseAncora))) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+    const runtime = createAgentRuntime({
+      useCases: casos(),
+      llm,
+      confirmationTtlMs: 1_000,
+      peers: {
+        resolve: async () => ({ companyId: 'emp-1', userId: 'user-1', role: 'owner' }),
+      },
+    })
+
+    const ancora = await processMessage(runtime, wa(peerA, fraseAncora, agora, 'req-wa-1'))
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-1')
+
+    const depois = new Date(agora.getTime() + 5_000)
+    const mesmo = await processMessage(runtime, wa(peerA, fraseEle, depois, 'req-wa-2'))
+    expect(mesmo.kind).toBe('confirmation')
+    expect(mesmo.text).toContain('cli-1')
+
+    const outro = await processMessage(runtime, wa(peerB, fraseEle, depois, 'req-wa-3'))
+    expect(outro.kind).not.toBe('confirmation')
+    expect(outro.text).not.toContain('cli-1')
+  })
+})
+
+describe('processMessage — HTTP app e Studio wa nao compartilham fio (US6 / T045 / FR-011)', () => {
+  const fraseAncora = 'cobra o Joao'
+  const fraseEle = 'manda a cobranca pra ele'
+
+  it('pronome no WhatsApp nao herda ancora do harness HTTP da mesma loja', async () => {
+    let turno = 0
+    const historicoWa: Array<readonly HistoryTurn[] | undefined> = []
+    const llm: LlmPort = {
+      async decide(input) {
+        turno += 1
+        if (turno === 1) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        historicoWa.push(input.history)
+        const hist = input.history ?? []
+        if (hist.some((h) => h.body.includes(fraseAncora))) {
+          return { type: 'tool', name: 'send_charge', args: { customerId: 'cli-1' } }
+        }
+        return { type: 'unknown' }
+      },
+    }
+    const runtime = createAgentRuntime({
+      useCases: casos(),
+      llm,
+      confirmationTtlMs: 1_000,
+      peers: {
+        resolve: async () => ({ companyId: 'emp-1', userId: 'user-1', role: 'owner' }),
+      },
+    })
+
+    const ancora = await processMessage(runtime, msg({ text: fraseAncora }))
+    expect(ancora.kind).toBe('confirmation')
+    expect(ancora.text).toContain('cli-1')
+
+    const depois = new Date(agora.getTime() + 5_000)
+    const ele = await processMessage(runtime, {
+      text: fraseEle,
+      requestId: 'req-wa-fr011',
+      now: depois,
+      channel: 'whatsapp',
+      peer: '5511999000001',
+    })
+    expect(ele.kind).not.toBe('confirmation')
+    expect(ele.text).not.toContain('cli-1')
+
+    expect(historicoWa).toHaveLength(1)
+    const hist = historicoWa[0] ?? []
+    expect(hist).toHaveLength(0)
+    expect(hist.some((h) => h.body.includes(fraseAncora))).toBe(false)
   })
 })

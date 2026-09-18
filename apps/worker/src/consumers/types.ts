@@ -1,4 +1,4 @@
-import type { InvoiceIssuer, MessageSender } from '@na-regua/core'
+import type { ConversationPurgeRepository, InvoiceIssuer, MessageSender } from '@na-regua/core'
 
 /**
  * Consumidores de fila — NR-041.
@@ -16,6 +16,9 @@ export type ConsumerDeps = {
   readonly overdue: OverdueReader
   readonly enqueue: Enqueuer
   readonly now: () => Date
+  /** Expurgo de 30 d — porta do nucleo; o worker so orquestra o laco por tenant. */
+  readonly conversations: ConversationPurgeRepository
+  readonly listTenantIds: () => Promise<readonly string[]>
 }
 
 /**

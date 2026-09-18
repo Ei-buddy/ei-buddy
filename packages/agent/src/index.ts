@@ -12,6 +12,7 @@ export type { AiUsageCounter, InMemoryAiUsageOptions } from './ai-usage.js'
 export { createToolCatalog, textoDasCapacidades } from './catalog.js'
 export type { AgentUseCases } from './catalog.js'
 export { InMemoryConfirmations, novaConfirmacao } from './confirmations.js'
+export { InMemoryConversationStore } from './conversations.js'
 export { createAgentRuntime } from './create-runtime.js'
 export type { CreateRuntimeOptions } from './create-runtime.js'
 export { defineTool, parseToolArgs } from './define-tool.js'
@@ -21,6 +22,8 @@ export type {
   AgentRuntime,
   AgentTool,
   ConfirmationStore,
+  ConversationStore,
+  HistoryTurn,
   IncomingMessage,
   LinkedPeer,
   LlmDecision,
