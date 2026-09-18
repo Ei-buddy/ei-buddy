@@ -40,7 +40,8 @@ function cnpjValido(base12: string): string {
   return `${base12}${d1}${d2}`
 }
 
-const CNPJ = cnpjValido(String(Date.now()).slice(-12))
+const agoraMs = Date.now()
+const CNPJ = cnpjValido(String(agoraMs).slice(-12))
 const SENHA = 'senha-de-teste'
 const CADASTRO = {
   name: 'Operadora NR-061 Restart',
@@ -51,8 +52,18 @@ const CADASTRO = {
   acceptedLegalTerms: true as const,
 }
 
-const PEDIDO = 'cadastra o Joao, 11 98888-7777'
-const ARGS_CADASTRO = { name: 'Joao', phone: '11 98888-7777' }
+/*
+ * Nome e telefone unicos por execucao.
+ *
+ * O banco da CI e compartilhado entre suites E2E; `GET /clientes` sem filtro
+ * pode enxergar linhas de outras lojas se a conexao ignorar RLS (o caminho
+ * critico ja documenta isso). Contar `total === 0` falha com lixo alheio.
+ * Buscar pelo telefone desta rodada isola o efeito do `sim`.
+ */
+const NOME_CLIENTE = `Joao NR061 ${String(agoraMs).slice(-8)}`
+const TELEFONE_CLIENTE = `1198${String(agoraMs).slice(-7)}`
+const PEDIDO = `cadastra o ${NOME_CLIENTE}, ${TELEFONE_CLIENTE}`
+const ARGS_CADASTRO = { name: NOME_CLIENTE, phone: TELEFONE_CLIENTE }
 
 const leituraVazia: AgentUseCases = {
   listSales: async () => ({
@@ -112,6 +123,18 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
     return opcoes.payload === undefined
       ? http().inject(base)
       : http().inject({ ...base, payload: opcoes.payload })
+  }
+
+  async function clientesDoPedido(): Promise<{
+    total: number
+    customers: ReadonlyArray<{ name: string; phone: string | null }>
+  }> {
+    const lista = await comSessao({
+      method: 'GET',
+      url: `/clientes?q=${encodeURIComponent(TELEFONE_CLIENTE)}`,
+    })
+    expect(lista.statusCode).toBe(200)
+    return lista.json()
   }
 
   function casosComCadastroReal(): AgentUseCases {
@@ -187,9 +210,8 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
     expect(corpo.kind).toBe('confirmation')
     expect(corpo.text).toMatch(/Confirma\?/)
 
-    const lista = await comSessao({ method: 'GET', url: '/clientes' })
-    expect(lista.statusCode).toBe(200)
-    expect(lista.json().total).toBe(0)
+    const lista = await clientesDoPedido()
+    expect(lista.total).toBe(0)
   })
 
   it('SC-003: depois de matar o processo, sim no prazo grava uma vez', async () => {
@@ -205,11 +227,11 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
     expect(sim.statusCode).toBe(200)
     const corpo = agentReplySchema.parse(JSON.parse(sim.body))
     expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toBe('Cliente Joao cadastrado.')
+    expect(corpo.text).toBe(`Cliente ${NOME_CLIENTE} cadastrado.`)
 
-    const lista = await comSessao({ method: 'GET', url: '/clientes' })
-    expect(lista.json().total).toBe(1)
-    expect(lista.json().customers[0]?.name).toBe('Joao')
+    const lista = await clientesDoPedido()
+    expect(lista.total).toBe(1)
+    expect(lista.customers[0]?.name).toBe(NOME_CLIENTE)
   })
 
   it('segundo sim nao duplica', async () => {
@@ -219,7 +241,7 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
       payload: { text: 'sim' },
     })
     expect(deNovo.statusCode).toBe(200)
-    const lista = await comSessao({ method: 'GET', url: '/clientes' })
-    expect(lista.json().total).toBe(1)
+    const lista = await clientesDoPedido()
+    expect(lista.total).toBe(1)
   })
 })
