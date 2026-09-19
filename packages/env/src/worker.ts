@@ -10,6 +10,12 @@ import { parseEnv } from './parse.js'
  * reais entram a partir do NR-041. Exigir a variavel antes disso barraria o
  * boot por algo que o processo nao usa.
  */
+/** Dias inteiros e positivos, ou ausente. Vazio conta como ausente. */
+const diasOpcionais = z.preprocess((v) => {
+  if (v === undefined || v === '') return undefined
+  return v
+}, z.coerce.number().int().positive().optional())
+
 export const workerEnvSchema = baseEnvSchema.extend({
   REDIS_URL: z
     .string()
@@ -49,6 +55,24 @@ export const workerEnvSchema = baseEnvSchema.extend({
    * serve". Gere com `openssl rand -base64 32`.
    */
   SECRETS_KEY: opcionalNaoVazia,
+
+  /**
+   * Prazos da assinatura, para a varredura — RF-111, RF-117, NR-063.
+   *
+   * **Sem default, como na api**, e pelo mesmo motivo: sao a QST-002. Um
+   * numero aqui bloquearia lojas por um prazo que ninguem escolheu — e num
+   * arquivo de configuracao, onde ninguem procuraria a decisao.
+   *
+   * Ausentes, o job de varredura responde `skipped` dizendo por que, em vez
+   * de nao existir. O worker sobe do mesmo jeito.
+   */
+  BILLING_TRIAL_DAYS: diasOpcionais,
+  BILLING_TRIAL_WARNING_DAYS: diasOpcionais,
+  /** Zero e valido: bloquear no vencimento, sem tolerancia. Quem escolhe, escolhe. */
+  BILLING_GRACE_DAYS: z.preprocess((v) => {
+    if (v === undefined || v === '') return undefined
+    return v
+  }, z.coerce.number().int().min(0).optional()),
 })
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>

@@ -1,6 +1,7 @@
 import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
 import {
   createConversationPurgeRepository,
+  createSubscriptionRepository,
   createFiscalCredentials,
   createInvoiceStore,
   getClient,
@@ -115,6 +116,39 @@ function montarEmissor(): ConsumerDeps['invoices'] {
   })
 }
 
+/**
+ * A varredura de assinatura — RF-111, RF-117, NR-063.
+ *
+ * `undefined` quando falta o banco OU quando os prazos nao estao no ambiente.
+ * Os prazos sao a QST-002: varrer sem politica exigiria inventar quantos dias
+ * dura o teste, e o job estaria bloqueando lojas por um numero que ninguem
+ * escolheu. O consumidor devolve `skipped` e diz por que.
+ *
+ * Os quatro andam juntos pelo mesmo motivo da api: meia politica seria um
+ * teste que comeca e nunca avisa que vai acabar.
+ */
+function montarVarreduraDeAssinatura(): ConsumerDeps['assinatura'] {
+  const { BILLING_TRIAL_DAYS, BILLING_TRIAL_WARNING_DAYS, BILLING_GRACE_DAYS } = env
+
+  if (
+    env.DATABASE_URL === undefined ||
+    BILLING_TRIAL_DAYS === undefined ||
+    BILLING_TRIAL_WARNING_DAYS === undefined ||
+    BILLING_GRACE_DAYS === undefined
+  ) {
+    return undefined
+  }
+
+  return {
+    subscriptions: createSubscriptionRepository(getClient(env.DATABASE_URL)),
+    politica: {
+      diasDeTeste: BILLING_TRIAL_DAYS,
+      diasDeAvisoDoFimDoTeste: BILLING_TRIAL_WARNING_DAYS,
+      diasDeTolerancia: BILLING_GRACE_DAYS,
+    },
+  }
+}
+
 export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
   const expurgo = montarExpurgo()
   return {
@@ -135,5 +169,6 @@ export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
     now: () => new Date(),
     conversations: expurgo.conversations,
     listTenantIds: expurgo.listTenantIds,
+    assinatura: montarVarreduraDeAssinatura(),
   }
 }

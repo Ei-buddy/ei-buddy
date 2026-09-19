@@ -1,4 +1,9 @@
-import type { ConversationPurgeRepository, InvoiceIssuer, MessageSender } from '@na-regua/core'
+import type {
+  ConversationPurgeRepository,
+  InvoiceIssuer,
+  MessageSender,
+  SweepSubscriptionDeps,
+} from '@na-regua/core'
 
 /**
  * Consumidores de fila — NR-041.
@@ -19,6 +24,14 @@ export type ConsumerDeps = {
   /** Expurgo de 30 d — porta do nucleo; o worker so orquestra o laco por tenant. */
   readonly conversations: ConversationPurgeRepository
   readonly listTenantIds: () => Promise<readonly string[]>
+  /**
+   * Varredura de assinatura — RF-111, RF-117.
+   *
+   * `undefined` quando os prazos nao estao configurados (QST-002). Varrer sem
+   * politica exigiria inventar quantos dias dura o teste, e o job estaria
+   * bloqueando lojas por um numero que ninguem escolheu.
+   */
+  readonly assinatura?: SweepSubscriptionDeps | undefined
 }
 
 /**
