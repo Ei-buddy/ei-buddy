@@ -23,6 +23,8 @@ import {
   listReceivables,
   listSales,
   adjustStock,
+  createAppointment,
+  listDayAppointments,
   registerCustomer,
   registerProduct,
   registerSale,
@@ -859,6 +861,7 @@ export function buildAgentUseCases(): AgentUseCases {
   const contas = buildContasDeps()
   const estoque = buildEstoqueDeps()
   const baixas = buildBaixasDeps()
+  const agenda = buildAgendaDeps()
   const relatorios = buildRelatoriosDeps()
   const contabilidade = buildContabilidadeDeps()
   const messages = createFakeMessageSender()
@@ -900,6 +903,9 @@ export function buildAgentUseCases(): AgentUseCases {
     settlePayable: (ctx, input) => settlePayable(baixas, ctx, input),
     settleReceivable: (ctx, input) => settleReceivable(baixas, ctx, input),
     adjustStock: (ctx, input) => adjustStock(estoque, ctx, input),
+    /* NR-119: agenda tambem sai do caso de uso da tela (US-043, US-045). */
+    createAppointment: (ctx, input) => createAppointment(agenda, ctx, input),
+    listDayAppointments: (ctx, input) => listDayAppointments(agenda, ctx, input),
     sendCustomerCharge: (ctx, input) =>
       sendCustomerCharge(
         {

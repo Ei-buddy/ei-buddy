@@ -9,6 +9,8 @@ import {
   createSaleInputSchema,
   dreInputSchema,
   adjustStockInputSchema,
+  createAppointmentInputSchema,
+  listDayAppointmentsInputSchema,
   settlePayableInputSchema,
   settleReceivableInputSchema,
   listPayablesInputSchema,
@@ -18,9 +20,15 @@ import {
   type PayableOutput,
   type ProductOutput,
   type ReceivableOutput,
+  type AppointmentOutput,
   type SettlementOutput,
 } from '@na-regua/contracts'
-import type { ExecutionContext, PayablesAgrupadas, RegisterSaleResult } from '@na-regua/core'
+import type {
+  DayAgenda,
+  ExecutionContext,
+  PayablesAgrupadas,
+  RegisterSaleResult,
+} from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createToolCatalog,
@@ -97,6 +105,12 @@ const casos: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   adjustStock: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  createAppointment: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  listDayAppointments: async () => {
     throw new Error('nao executa neste teste')
   },
 }
@@ -497,6 +511,8 @@ describe('mutatesValue — FR-002 / US4', () => {
       settle_payable: true,
       settle_receivable: true,
       adjust_stock: true,
+      create_appointment: true,
+      day_agenda: false,
       send_charge: true,
       refuse_certificate: false,
       refuse_banking: false,
@@ -846,6 +862,8 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const settlePayable = vi.fn(casos.settlePayable)
       const settleReceivable = vi.fn(casos.settleReceivable)
       const adjustStock = vi.fn(casos.adjustStock)
+      const createAppointment = vi.fn(casos.createAppointment)
+      const listDayAppointments = vi.fn(casos.listDayAppointments)
       const tools = createToolCatalog({
         listSales,
         listReceivables,
@@ -866,6 +884,8 @@ describe('refuse_* — US7 / RF-149–151', () => {
         settlePayable,
         settleReceivable,
         adjustStock,
+        createAppointment,
+        listDayAppointments,
       })
       const tool = tools.find((t) => t.id === recusa.id)
       expect(tool).toBeDefined()
@@ -1112,5 +1132,62 @@ describe('adjust_stock — US-074 / RF-145', () => {
     const texto = tool.formatReply(out)
     expect(texto).toContain('-7')
     expect(texto).toContain('3 un')
+  })
+})
+
+describe('create_appointment / day_agenda — US-076 / RF-148', () => {
+  it('create_appointment exige confirmacao; day_agenda nao muta', () => {
+    const tools = createToolCatalog(casos)
+    const criar = tools.find((t) => t.id === 'create_appointment')!
+    const agenda = tools.find((t) => t.id === 'day_agenda')!
+    expect(criar.mutatesValue).toBe(true)
+    expect(criar.inputSchema).toBe(createAppointmentInputSchema)
+    expect(agenda.mutatesValue).toBe(false)
+    expect(agenda.inputSchema).toBe(listDayAppointmentsInputSchema)
+  })
+
+  /* "nao invente horario" da US-076: sem `startsAt` o schema recusa, e o
+     assistente pergunta em vez de chutar. */
+  it('recusa compromisso sem horario', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_appointment')!
+    expect(() => parseToolArgs(tool.inputSchema, { title: 'Entrega do Joao' })).toThrow()
+  })
+
+  it('cria pelo caso de uso da agenda e resume titulo, horario e lembrete', async () => {
+    const compromisso = {
+      id: 'ag-1',
+      title: 'Entrega do Joao',
+      startsAt: '2026-09-20T13:00:00.000Z',
+      endsAt: null,
+      location: null,
+      status: 'scheduled',
+    } as unknown as AppointmentOutput
+    const createAppointment = vi.fn(async () => compromisso)
+    const tool = createToolCatalog({ ...casos, createAppointment }).find(
+      (t) => t.id === 'create_appointment',
+    )!
+    const input = {
+      title: 'Entrega do Joao',
+      startsAt: '2026-09-20T13:00:00.000Z',
+      reminderMinutesBefore: 30,
+    }
+
+    const out = await tool.execute(input, ctx)
+
+    expect(createAppointment).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toContain('30 min antes')
+    expect(tool.formatReply(out)).toContain('Entrega do Joao')
+  })
+
+  /* RF-093: "livre" e resposta, nao ausencia de resposta. */
+  it('dia sem compromisso responde agenda livre', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'day_agenda')!
+    const texto = tool.formatReply({
+      day: '2026-09-20',
+      appointments: [],
+      isFree: true,
+    } as unknown as DayAgenda)
+    expect(texto).toMatch(/livre/i)
+    expect(texto).toContain('2026-09-20')
   })
 })

@@ -63,6 +63,12 @@ const useCases: AgentUseCases = {
   adjustStock: async () => {
     throw new Error('nao executa neste teste')
   },
+  createAppointment: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  listDayAppointments: async () => {
+    throw new Error('nao executa neste teste')
+  },
 }
 
 describe('createAgentRuntime — US1', () => {
