@@ -1,8 +1,12 @@
 name: Deploy — api
 
-# ESQUELETO. Nao faz deploy de nada ainda.
+# Atalho manual. A sequencia de verdade esta em `deploy.yml`, que sobe api,
+# worker e web juntos: e o mesmo `infra/docker-compose.prod.yml` na mesma VM
+# (ADR-0015; DEC-014, tag por app, segue adiada).
 #
-# Alvo: VPS + Compose (ADR-0015 / DEC-009). Preencher os passos e a NR-015.
+# Sem gatilho de tag aqui — ele mora em `deploy.yml`, senao um `v*` rodaria o
+# mesmo deploy duas vezes. Sem `concurrency` aqui tambem: quem serializa e o
+# workflow chamado, e disputar o mesmo grupo com ele travaria os dois.
 
 on:
   workflow_dispatch:
@@ -12,28 +16,10 @@ on:
         required: true
         type: choice
         options: [staging, production]
-  push:
-    tags: ['v*']
-
-concurrency:
-  group: deploy-api-${{ github.event.inputs.ambiente || 'production' }}
-  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy da api
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.ambiente || 'production' }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Bloqueado ate a NR-015
-        run: |
-          echo "::warning::Deploy nao configurado — NR-015 (VPS + Compose, ADR-0015)."
-          echo "Quando a tarefa fechar, implementar aqui:"
-          echo "  1. SSH na VPS (ou runner na maquina)"
-          echo "  2. docker compose -f infra/docker-compose.prod.yml build no commit da tag"
-          echo "  3. migrations com DATABASE_MIGRATION_URL"
-          echo "  4. up -d com health check em /health"
-          echo "  5. reversao se /health nao passar em 2 min (RNF-064)"
-          exit 1
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ambiente: ${{ inputs.ambiente }}
+    secrets: inherit

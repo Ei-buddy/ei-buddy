@@ -6,14 +6,15 @@ Os pipelines do GitHub Actions, o que cada um barra, e o que ainda não existe.
 
 ## Visão geral
 
-| Workflow                                                       | Gatilho              | O que faz                                                                                                 | Barra o merge        |
-| -------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------- | -------------------- |
-| [`ci.yml`](../../.github/workflows/ci.yml)                     | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                        | ✅                   |
-| [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)       | PR aberto ou editado | título, nome da branch, referência à tarefa                                                               | ✅                   |
-| [`security.yml`](../../.github/workflows/security.yml)         | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                | ✅ (severidade alta) |
-| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | tag / manual         | **esqueleto** — NR-015, alvo [ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)                       | —                    |
-| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | tag / manual         | **esqueleto** — NR-015, mesmo compose da VM                                                               | —                    |
-| [`mobile-build.yml`](../../.github/workflows/mobile-build.yml) | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md)) | —                    |
+| Workflow                                                       | Gatilho              | O que faz                                                                                                        | Barra o merge        |
+| -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------- |
+| [`ci.yml`](../../.github/workflows/ci.yml)                     | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                               | ✅                   |
+| [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)       | PR aberto ou editado | título, nome da branch, referência à tarefa                                                                      | ✅                   |
+| [`security.yml`](../../.github/workflows/security.yml)         | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                       | ✅ (severidade alta) |
+| [`deploy.yml`](../../.github/workflows/deploy.yml)             | tag `v*` / manual    | build na VPS, migrations, `up -d`, `/health` e reversão ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)) | —                    |
+| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | manual               | atalho — chama `deploy.yml`                                                                                      | —                    |
+| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | manual               | atalho — chama `deploy.yml` (mesmo compose da VM)                                                                | —                    |
+| [`mobile-build.yml`](../../.github/workflows/mobile-build.yml) | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md))        | —                    |
 
 ## `ci.yml` — a verificação principal
 
@@ -131,22 +132,41 @@ E em _Settings → General → Pull Requests_:
 O `default message: pull request title` é o que faz o título do PR virar a
 mensagem do commit — e é por isso que `pr-checks.yml` valida o título.
 
-## Deploy — esqueleto até a NR-015
+## Deploy — VPS com Compose
 
-Os workflows de deploy ainda **falham de propósito**, com uma mensagem do que
-falta. A [DEC-009](../decisoes/README.md#dec-009) fechou
-([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)): o alvo é a VPS com
-`infra/docker-compose.prod.yml`. Preencher os passos é a NR-015.
+O alvo é a VPS com `infra/docker-compose.prod.yml`
+([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)). Quem dispara é
+[`deploy.yml`](../../.github/workflows/deploy.yml), por tag `v*` ou à mão;
+`deploy-api.yml` e `deploy-web.yml` são atalhos manuais que chamam o mesmo
+workflow — a VM sobe api, worker e web no **mesmo compose**, então não há
+deploy separado por app enquanto a [DEC-014](../decisoes/README.md#dec-014)
+seguir adiada.
 
-`deploy-api.yml` (e o compose na VM) precisa:
+A sequência vive em [`infra/deploy.sh`](../../infra/deploy.sh), versionada,
+para poder ser lida e corrigida como código em vez de ficar colada num passo
+de YAML. Ela:
 
-1. SSH na VPS (ou runner na própria máquina)
-2. `docker compose -f infra/docker-compose.prod.yml build` no commit da tag
-3. Migrations com `DATABASE_MIGRATION_URL` (papel com `BYPASSRLS`)
-4. `up -d` com verificação de `/health`
-5. **Reversão** para a imagem/commit anterior se `/health` não passar em 2 minutos ([RNF-064](../produto/requisitos-nao-funcionais.md))
+1. builda no commit pedido, marcando as imagens com ele (`DEPLOY_TAG`)
+2. roda as migrations com `DATABASE_MIGRATION_URL` (papel com `BYPASSRLS`)
+3. sobe com `up -d`
+4. só termina bem se `/health` responder 200 em até 2 minutos — e `/health` só
+   responde 200 com banco **e** Redis de pé
+
+Se qualquer passo falhar, o workflow volta para o commit anterior e sobe de
+novo. **Sem rebuild**: a imagem antiga continua na máquina marcada com o commit
+dela, e é isso que torna o teto de 10 minutos da
+[RNF-064](../produto/requisitos-nao-funcionais.md) factível sem PaaS.
+
+> **A reversão não desfaz migration.** As migrations são forward-only: voltar o
+> código não volta o schema, e por isso o rollback roda com `MIGRAR=nao`.
+> Migration que precise ser desfeita é migration nova, escrita para isso.
 
 Não há registry obrigatório neste recorte — o build é na VM.
+
+Falta ainda, na mesma NR-015: backup com restore testado
+([RNF-013](../produto/requisitos-nao-funcionais.md),
+[RNF-014](../produto/requisitos-nao-funcionais.md)) e destino do XML fiscal de
+5 anos ([RNF-037](../produto/requisitos-nao-funcionais.md)).
 
 E os requisitos que o deploy precisa atender:
 
@@ -159,11 +179,14 @@ E os requisitos que o deploy precisa atender:
 
 ## Segredos da CI
 
-| Segredo               | Usado por        | Estado                         |
-| --------------------- | ---------------- | ------------------------------ |
-| `GITHUB_TOKEN`        | gitleaks, CodeQL | automático                     |
-| `EXPO_TOKEN`          | build mobile     | ⏳ falta conta EAS             |
-| credenciais de deploy | deploy           | ⏳ NR-015 (SSH / acesso à VPS) |
+| Segredo           | Usado por        | Estado                         |
+| ----------------- | ---------------- | ------------------------------ |
+| `GITHUB_TOKEN`    | gitleaks, CodeQL | automático                     |
+| `EXPO_TOKEN`      | build mobile     | ⏳ falta conta EAS             |
+| `VPS_HOST`        | deploy           | endereço da VPS                |
+| `VPS_USER`        | deploy           | usuário do SSH                 |
+| `VPS_SSH_KEY`     | deploy           | chave privada do deploy        |
+| `VPS_KNOWN_HOSTS` | deploy           | opcional — fingerprint do host |
 
 Segredos de produção ficam em _Environments_ com **aprovação obrigatória**, não
 em _Repository secrets_: assim um workflow de PR de fork não os alcança.

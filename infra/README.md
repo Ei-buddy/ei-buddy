@@ -3,7 +3,7 @@
 Ambiente local em Docker Compose, e produção na VPS
 ([ADR-0015](../docs/decisoes/adr/0015-vps-docker-compose.md)).
 
-**Estado:** ✅ ambiente local · ⬜ produção na VM, NR-015 (workflows, backup, PITR)
+**Estado:** ✅ ambiente local · ✅ deploy automatizado · ⬜ NR-015 (backup, PITR, restore testado)
 
 ## Ambiente local
 
@@ -64,12 +64,16 @@ o que ela muda em relação ao ambiente local e por quê — inclusive as duas q
 mais quebram: o provedor de autenticação e o papel do banco em `DATABASE_URL`
 (usar o papel com `BYPASSRLS` faz a API **recusar subir**, de propósito).
 
-Duas coisas que **não** acontecem sozinhas depois de subir os containers — a
-primeira aqui, a segunda na seção seguinte:
+Migration **não** sai de `docker compose up`: nenhum container a aplica. Quem
+aplica é [`deploy.sh`](deploy.sh), e só por isso o deploy automatizado não
+sobe código novo contra schema velho. Subindo o compose na mão, o comando
+continua sendo seu:
 
 ```bash
-pnpm db:migrate   # nenhum container aplica migrations
+pnpm db:migrate
 ```
+
+A outra coisa que não acontece sozinha está na seção seguinte.
 
 ## Primeiro Super Admin
 
@@ -99,17 +103,48 @@ Alvo: [ADR-0015](../docs/decisoes/adr/0015-vps-docker-compose.md).
 [`docker-compose.prod.yml`](docker-compose.prod.yml) (Caddy, sem porta pública
 em Postgres/Redis).
 
+### Deploy
+
+Dispara por tag `v*` ou à mão, pelo
+[`deploy.yml`](../.github/workflows/deploy.yml); a sequência que roda na VM é
+[`deploy.sh`](deploy.sh) — build marcado com o commit, migrations, `up -d` e
+`/health`, com reversão para o commit anterior se algo falhar. Detalhes em
+[ci-cd.md](../docs/engenharia/ci-cd.md#deploy--vps-com-compose).
+
+À mão, na própria máquina, é o mesmo caminho:
+
+```bash
+cd /opt/na-regua && git fetch origin && git checkout --detach <commit>
+DEPLOY_TAG=<commit> ./infra/deploy.sh
+```
+
+Para o workflow alcançar a VM, configure no **Environment** `production` (não
+em Repository secrets — assim um PR de fork não os alcança):
+
+| Segredo           | O que é                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `VPS_HOST`        | endereço da máquina                                                                                           |
+| `VPS_USER`        | usuário do SSH, com permissão de `docker`                                                                     |
+| `VPS_SSH_KEY`     | chave privada correspondente à pública no `authorized_keys` da VM                                             |
+| `VPS_KNOWN_HOSTS` | opcional, e recomendado: `ssh-keyscan <host>`. Sem ele, o deploy confia em quem responder na primeira conexão |
+
+E, se a máquina fugir do padrão, as **variables** `VPS_SSH_PORT` (padrão `22`)
+e `VPS_DEPLOY_PATH` (padrão `/opt/na-regua`).
+
+O clone na VM precisa conseguir `git fetch` sozinho — deploy key de leitura no
+repositório, ou credencial já configurada na máquina.
+
 O que a NR-015 ainda precisa atender na VM:
 
-| Requisito                                               | O que exige                                                    |
-| ------------------------------------------------------- | -------------------------------------------------------------- |
-| [RNF-009](../docs/produto/requisitos-nao-funcionais.md) | disponibilidade ≥ 99,5%                                        |
-| [RNF-013](../docs/produto/requisitos-nao-funcionais.md) | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho |
-| [RNF-014](../docs/produto/requisitos-nao-funcionais.md) | backup diário, **com restauração testada mensalmente**         |
-| [RNF-020](../docs/produto/requisitos-nao-funcionais.md) | TLS 1.2+ (Caddy); banco e Redis sem exposição pública          |
-| [RNF-037](../docs/produto/requisitos-nao-funcionais.md) | object storage com retenção de 5 anos para XML fiscal          |
-| [RNF-064](../docs/produto/requisitos-nao-funcionais.md) | deploy rastreável ao commit e reversível em ≤ 10 min           |
-| [RNF-074](../docs/produto/requisitos-nao-funcionais.md) | custo ≤ 8% da mensalidade por empresa ativa                    |
+| Requisito                                                   | O que exige                                                                  |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [RNF-009](../docs/produto/requisitos-nao-funcionais.md)     | disponibilidade ≥ 99,5%                                                      |
+| [RNF-013](../docs/produto/requisitos-nao-funcionais.md)     | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho               |
+| [RNF-014](../docs/produto/requisitos-nao-funcionais.md)     | backup diário, **com restauração testada mensalmente**                       |
+| [RNF-020](../docs/produto/requisitos-nao-funcionais.md)     | TLS 1.2+ (Caddy); banco e Redis sem exposição pública                        |
+| [RNF-037](../docs/produto/requisitos-nao-funcionais.md)     | object storage com retenção de 5 anos para XML fiscal                        |
+| ~~[RNF-064](../docs/produto/requisitos-nao-funcionais.md)~~ | ✅ deploy rastreável ao commit e reversível sem rebuild — ver "Deploy" acima |
+| [RNF-074](../docs/produto/requisitos-nao-funcionais.md)     | custo ≤ 8% da mensalidade por empresa ativa                                  |
 
 PaaS com Postgres gerenciado foi abdicado neste recorte. Backup não testado
 não é backup: o teste mensal é requisito, não boa prática.
