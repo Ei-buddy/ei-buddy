@@ -2,6 +2,7 @@ import type { SendChargeInput, SendRejectionReason, SendTextRequest } from '@na-
 import { sendTextRequestSchema } from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
 import { AppError } from '../app-error.js'
+import type { PaymentGateway } from '../ports/payment-gateway.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { MessageSender } from '../ports/message-sender.js'
@@ -29,6 +30,15 @@ export type SendCustomerChargeDeps = {
   readonly customers: CustomerRepository
   readonly messages: MessageSender
   readonly consents: WhatsappConsentReader
+  /**
+   * Gateway de pagamento — RF-068, opcional de proposito.
+   *
+   * Com ele, a cobranca leva um link que o cliente paga em dois toques. Sem
+   * ele (loja sem conta de recebimento, provedor fora do ar), a mensagem sai
+   * do mesmo jeito com o valor e o vencimento: cobrar sem link e melhor que
+   * nao cobrar.
+   */
+  readonly gateway?: PaymentGateway | undefined
 }
 
 export type SendCustomerChargeResult =
@@ -37,6 +47,8 @@ export type SendCustomerChargeResult =
       readonly customerName: string
       readonly amountCents: number
       readonly to: string
+      /** Ausente quando nao houve gateway, ou quando ele nao respondeu. */
+      readonly paymentLinkUrl?: string | undefined
     }
   | {
       readonly status: 'nothing_to_charge'
@@ -94,11 +106,17 @@ export async function sendCustomerCharge(
   }
 
   const amountCents = titulos.reduce((soma, t) => soma + t.amountCents, 0)
+  const linkDePagamento = await criarLink(deps, ctx, { amountCents, titulos })
+
   const pedido = montarPedido({
     ctx,
     to: cliente.phone,
     optedInAt: consentimento.optedInAt,
-    body: textoDaCobrancaAoCliente({ customerName: cliente.name, titulos }),
+    body: textoDaCobrancaAoCliente({
+      customerName: cliente.name,
+      titulos,
+      ...(linkDePagamento === undefined ? {} : { paymentLinkUrl: linkDePagamento }),
+    }),
   })
 
   const r = await deps.messages.sendText(pedido)
@@ -111,20 +129,68 @@ export async function sendCustomerCharge(
     }
   }
 
-  return { status: 'sent', customerName: cliente.name, amountCents, to: r.to }
+  return {
+    status: 'sent',
+    customerName: cliente.name,
+    amountCents,
+    to: r.to,
+    ...(linkDePagamento === undefined ? {} : { paymentLinkUrl: linkDePagamento }),
+  }
+}
+
+/**
+ * O link de pagamento, quando da — RF-068.
+ *
+ * Falha do provedor NAO derruba a cobranca. O lojista pediu para cobrar; o
+ * link e uma facilidade em cima disso, e trocar "mensagem sem link" por
+ * "nenhuma mensagem" seria piorar o resultado para proteger um detalhe.
+ *
+ * `externalReference` e o `requestId`: reenvio do mesmo pedido reaproveita o
+ * link em vez de criar um segundo para a mesma divida.
+ */
+async function criarLink(
+  deps: SendCustomerChargeDeps,
+  ctx: ExecutionContext,
+  dados: { readonly amountCents: number; readonly titulos: readonly TituloAberto[] },
+): Promise<string | undefined> {
+  if (deps.gateway === undefined) return undefined
+
+  /* O vencimento do link e o mais PROXIMO em aberto: usar o mais distante
+     daria ao cliente a impressao de que tudo vence la na frente. */
+  const vencimento = [...dados.titulos].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
+    ?.dueDate
+
+  try {
+    const link = await deps.gateway.createPaymentLink({
+      companyId: ctx.companyId,
+      externalReference: ctx.requestId,
+      amountCents: dados.amountCents,
+      description: 'Pagamento de valores em aberto',
+      ...(vencimento === undefined ? {} : { dueDate: vencimento }),
+      requestedAt: ctx.now.toISOString(),
+    })
+    return link.url
+  } catch {
+    return undefined
+  }
 }
 
 export function textoDaCobrancaAoCliente(input: {
   readonly customerName: string
   readonly titulos: readonly TituloAberto[]
+  readonly paymentLinkUrl?: string | undefined
 }): string {
   const partes = input.titulos.map((t) => {
     return `${Money.fromCents(t.amountCents).format()} com vencimento em ${formatarDia(t.dueDate)} (${t.description})`
   })
   const detalhe = partes.join('; ')
+  const link =
+    input.paymentLinkUrl === undefined
+      ? ''
+      : ` Se preferir, da para pagar por aqui: ${input.paymentLinkUrl}.`
   return (
     `Ola, ${input.customerName}! Passando para lembrar do valor em aberto de ` +
-    `${detalhe}. Qualquer duvida, e so responder por aqui.`
+    `${detalhe}.${link} Qualquer duvida, e so responder por aqui.`
   )
 }
 

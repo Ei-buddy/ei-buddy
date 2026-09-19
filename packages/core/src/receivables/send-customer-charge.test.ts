@@ -8,6 +8,7 @@ import { InMemoryReceivables } from './fakes.js'
 import {
   sendCustomerCharge,
   textoDaCobrancaAoCliente,
+  type SendCustomerChargeDeps,
   type WhatsappConsent,
   type WhatsappConsentReader,
 } from './send-customer-charge.js'
@@ -237,5 +238,95 @@ describe('sendCustomerCharge — US-052 / RF-107', () => {
     })
 
     expect(d.messages.enviadas[0]?.idempotencyKey).toBe('agent:req-cobranca-1')
+  })
+})
+
+describe('link de pagamento na cobranca — RF-068', () => {
+  const gatewayQueResponde = (url = 'https://www.asaas.com/c/link_1') =>
+    ({
+      createPaymentLink: async () => ({
+        linkId: 'link_1',
+        externalReference: 'req-cobranca-1',
+        status: 'pending' as const,
+        amountCents: 5_000,
+        url,
+        dueDate: null,
+      }),
+    }) as unknown as NonNullable<SendCustomerChargeDeps['gateway']>
+
+  it('poe o link na mensagem e no resultado quando ha gateway', async () => {
+    const d = await cenario()
+
+    const r = await sendCustomerCharge({ ...d, gateway: gatewayQueResponde() }, contexto(), {
+      customerId: d.cliente.id,
+    })
+
+    expect(r.status).toBe('sent')
+    if (r.status !== 'sent') return
+    expect(r.paymentLinkUrl).toBe('https://www.asaas.com/c/link_1')
+    expect(d.messages.enviadas[0]?.body).toContain('https://www.asaas.com/c/link_1')
+  })
+
+  it('sem gateway a cobranca sai igual, so sem link', async () => {
+    const d = await cenario()
+
+    const r = await sendCustomerCharge(d, contexto(), { customerId: d.cliente.id })
+
+    expect(r.status).toBe('sent')
+    if (r.status !== 'sent') return
+    expect(r.paymentLinkUrl).toBeUndefined()
+    expect(d.messages.enviadas).toHaveLength(1)
+  })
+
+  /*
+   * O lojista pediu para cobrar. O link e facilidade em cima disso — trocar
+   * "mensagem sem link" por "nenhuma mensagem" pioraria o resultado para
+   * proteger um detalhe.
+   */
+  it('provedor fora do ar nao derruba a cobranca', async () => {
+    const d = await cenario()
+    const quebrado = {
+      createPaymentLink: async () => {
+        throw new Error('Asaas fora do ar')
+      },
+    } as unknown as NonNullable<SendCustomerChargeDeps['gateway']>
+
+    const r = await sendCustomerCharge({ ...d, gateway: quebrado }, contexto(), {
+      customerId: d.cliente.id,
+    })
+
+    expect(r.status).toBe('sent')
+    if (r.status !== 'sent') return
+    expect(r.paymentLinkUrl).toBeUndefined()
+    expect(d.messages.enviadas).toHaveLength(1)
+  })
+
+  it('o vencimento do link e o titulo mais proximo, nao o mais distante', async () => {
+    const d = await cenario()
+    d.receivables.adicionar('emp-1', {
+      dueDate: '2026-12-30',
+      customerId: d.cliente.id,
+      customerName: 'Joao',
+      description: 'Outro fiado',
+      amountCents: 1_000,
+    })
+    const pedidos: { dueDate?: string }[] = []
+    const espiao = {
+      createPaymentLink: async (p: { dueDate?: string }) => {
+        pedidos.push(p)
+        return {
+          linkId: 'l',
+          externalReference: 'r',
+          status: 'pending',
+          amountCents: 1,
+          url: 'https://x/y',
+          dueDate: null,
+        }
+      },
+    } as unknown as NonNullable<SendCustomerChargeDeps['gateway']>
+
+    await sendCustomerCharge({ ...d, gateway: espiao }, contexto(), { customerId: d.cliente.id })
+
+    expect(pedidos[0]?.dueDate).toBe('2026-09-01')
   })
 })

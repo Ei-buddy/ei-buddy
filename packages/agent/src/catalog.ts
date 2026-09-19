@@ -502,7 +502,8 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
         if (out.status === 'rejected') {
           return `Nao deu para enviar a cobranca para ${out.customerName}. ${out.message}`
         }
-        return `Cobranca de ${formatarCentavos(out.amountCents)} enviada para ${out.customerName}.`
+        const link = out.paymentLinkUrl === undefined ? '' : ` Link enviado: ${out.paymentLinkUrl}`
+        return `Cobranca de ${formatarCentavos(out.amountCents)} enviada para ${out.customerName}.${link}`
       },
     }),
     defineTool({
