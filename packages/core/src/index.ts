@@ -134,6 +134,11 @@ export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-
 export type { CouponRepository } from './ports/coupon-repository.js'
 export { previewCoupon } from './subscriptions/preview-coupon.js'
 export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
+export { sweepSubscription } from './subscriptions/sweep-subscription.js'
+export type {
+  ResultadoDaVarredura,
+  SweepSubscriptionDeps,
+} from './subscriptions/sweep-subscription.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
 export type {
   ConfirmationDecision,
@@ -186,6 +191,7 @@ export type {
   WhatsappConsentReader,
 } from './receivables/send-customer-charge.js'
 export { InMemoryManualReceivables, InMemoryReceivables } from './receivables/fakes.js'
+export { InMemorySubscriptionRepository } from './subscriptions/fakes.js'
 export type {
   GrupoDeRecebimento,
   ListReceivablesDeps,

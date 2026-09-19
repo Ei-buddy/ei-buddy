@@ -15,6 +15,14 @@ export const QUEUES = {
   chargeOverdue: 'charge-overdue',
   /** Expurgo de corpos de conversa com mais de 30 dias — RNF-035, NR-062 US5. */
   conversationPurge: 'conversation-purge',
+  /**
+   * Varredura diaria das assinaturas — RF-111, RF-117, NR-063.
+   *
+   * O agendamento precisa cair entre 03h e 21h de Brasilia: o prazo do lojista
+   * e um DIA de calendario, e o job compara em UTC. Fora dessa janela o UTC ja
+   * virou, e a loja seria restringida um dia antes do combinado.
+   */
+  subscriptionSweep: 'subscription-sweep',
   /** Importacao periodica de extrato bancario. */
   bankSync: 'bank-sync',
   /** Processamento de webhook recebido, apos resposta 200 imediata. */
