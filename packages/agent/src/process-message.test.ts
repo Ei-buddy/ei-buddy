@@ -224,6 +224,15 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
       to: '5511988887777',
     }),
     findProductByBarcode: async () => undefined,
+    registerProduct: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    createPayable: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    createReceivable: async () => {
+      throw new Error('nao executa neste teste')
+    },
     ...over,
   }
 }
@@ -1696,6 +1705,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     const buildDre = vi.fn(casos().buildDre)
     const sendCustomerCharge = vi.fn(casos().sendCustomerCharge)
     const findProductByBarcode = vi.fn(casos().findProductByBarcode)
+    const registerProduct = vi.fn(casos().registerProduct)
+    const createPayable = vi.fn(casos().createPayable)
+    const createReceivable = vi.fn(casos().createReceivable)
     const runtime = createAgentRuntime({
       useCases: {
         listSales,
@@ -1711,6 +1723,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
         buildDre,
         sendCustomerCharge,
         findProductByBarcode,
+        registerProduct,
+        createPayable,
+        createReceivable,
       },
     })
 
@@ -1731,6 +1746,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     expect(buildDre).not.toHaveBeenCalled()
     expect(sendCustomerCharge).not.toHaveBeenCalled()
     expect(findProductByBarcode).not.toHaveBeenCalled()
+    expect(registerProduct).not.toHaveBeenCalled()
+    expect(createPayable).not.toHaveBeenCalled()
+    expect(createReceivable).not.toHaveBeenCalled()
   })
 
   it('cancela a nota recusa; cancela a venda nao vira comando de nota — RF-151', async () => {

@@ -3,13 +3,18 @@ import {
   checkCustomerWalletInputSchema,
   checkStockByQueryInputSchema,
   createCustomerInputSchema,
+  createPayableInputSchema,
+  createProductInputSchema,
+  createReceivableInputSchema,
   createSaleInputSchema,
   dreInputSchema,
   listPayablesInputSchema,
   sendChargeInputSchema,
   type CustomerOutput,
   type DreOutput,
+  type PayableOutput,
   type ProductOutput,
+  type ReceivableOutput,
 } from '@na-regua/contracts'
 import type { ExecutionContext, PayablesAgrupadas, RegisterSaleResult } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
@@ -72,6 +77,15 @@ const casos: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   findProductByBarcode: async () => undefined,
+  registerProduct: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  createPayable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  createReceivable: async () => {
+    throw new Error('nao executa neste teste')
+  },
 }
 
 function dreSaida(over: Partial<DreOutput> = {}): DreOutput {
@@ -464,6 +478,9 @@ describe('mutatesValue — FR-002 / US4', () => {
       revenue_by_month: false,
       create_customer: true,
       create_sale: true,
+      create_product: true,
+      create_payable: true,
+      create_receivable: true,
       send_charge: true,
       refuse_certificate: false,
       refuse_banking: false,
@@ -807,6 +824,9 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const buildDre = vi.fn(casos.buildDre)
       const sendCustomerCharge = vi.fn(casos.sendCustomerCharge)
       const findProductByBarcode = vi.fn(casos.findProductByBarcode)
+      const registerProduct = vi.fn(casos.registerProduct)
+      const createPayable = vi.fn(casos.createPayable)
+      const createReceivable = vi.fn(casos.createReceivable)
       const tools = createToolCatalog({
         listSales,
         listReceivables,
@@ -821,6 +841,9 @@ describe('refuse_* — US7 / RF-149–151', () => {
         buildDre,
         sendCustomerCharge,
         findProductByBarcode,
+        registerProduct,
+        createPayable,
+        createReceivable,
       })
       const tool = tools.find((t) => t.id === recusa.id)
       expect(tool).toBeDefined()
@@ -847,4 +870,133 @@ describe('refuse_* — US7 / RF-149–151', () => {
       expect(findProductByBarcode).not.toHaveBeenCalled()
     },
   )
+})
+
+describe('create_product — US-069 / RF-140', () => {
+  it('usa o schema de contracts e exige confirmacao', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_product')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+    expect(tool!.inputSchema).toBe(createProductInputSchema)
+  })
+
+  it('cadastra pelo mesmo caso de uso do aplicativo e resume custo e venda', async () => {
+    const registerProduct = vi.fn(async () =>
+      produto({ description: 'Camiseta M', salePriceCents: 4990, costPriceCents: 2000 }),
+    )
+    const tool = createToolCatalog({ ...casos, registerProduct }).find(
+      (t) => t.id === 'create_product',
+    )!
+    const input = {
+      description: 'Camiseta M',
+      unitOfMeasure: 'un' as const,
+      costPriceCents: 2000,
+      salePriceCents: 4990,
+    }
+
+    const out = await tool.execute(input, ctx)
+
+    expect(registerProduct).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toBe(
+      `Cadastrar produto Camiseta M: custo ${formatarCentavos(2000)}, venda ${formatarCentavos(4990)}`,
+    )
+    expect(tool.formatReply(out)).toContain('PROD-0001')
+  })
+
+  /*
+   * RF-140 pede "o mesmo caso de uso do aplicativo", e o aplicativo recusa
+   * preco abaixo do custo no proprio schema. Herdar a recusa e a garantia de
+   * que a conversa nao vira a porta dos fundos da regra.
+   */
+  it('recusa preco abaixo do custo, como a tela', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_product')!
+    expect(() =>
+      parseToolArgs(tool.inputSchema, {
+        description: 'Camiseta M',
+        unitOfMeasure: 'un',
+        costPriceCents: 5000,
+        salePriceCents: 1000,
+      }),
+    ).toThrow()
+  })
+})
+
+describe('create_payable — US-070 / RF-141', () => {
+  const conta = {
+    id: 'pag-1',
+    supplier: 'Imobiliaria',
+    description: 'Aluguel',
+    amountCents: 180_000,
+    dueDate: '2026-10-10',
+    status: 'open',
+  } as unknown as PayableOutput
+
+  it('usa o schema de contracts e exige confirmacao', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_payable')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+    expect(tool!.inputSchema).toBe(createPayableInputSchema)
+  })
+
+  it('lanca pelo caso de uso e resume fornecedor, valor e vencimento', async () => {
+    const createPayable = vi.fn(async () => [conta])
+    const tool = createToolCatalog({ ...casos, createPayable }).find(
+      (t) => t.id === 'create_payable',
+    )!
+    const input = {
+      supplier: 'Imobiliaria',
+      description: 'Aluguel',
+      amountCents: 180_000,
+      dueDate: '2026-10-10',
+    }
+
+    const out = await tool.execute(input, ctx)
+
+    expect(createPayable).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toContain('Imobiliaria')
+    expect(tool.formatProposal(input)).toContain('2026-10-10')
+    expect(tool.formatReply(out)).toContain(formatarCentavos(180_000))
+  })
+
+  /* Recorrencia vira N titulos de verdade — quem confirmou "aluguel" precisa
+     saber que nasceram doze, nao um. */
+  it('diz quantas contas nasceram quando ha recorrencia', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_payable')!
+    const texto = tool.formatReply([conta, conta, conta])
+    expect(texto).toContain('3 contas')
+    expect(texto).toContain('2026-10-10')
+  })
+})
+
+describe('create_receivable — US-071 / RF-142', () => {
+  it('usa o schema de contracts e exige confirmacao', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'create_receivable')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+    expect(tool!.inputSchema).toBe(createReceivableInputSchema)
+  })
+
+  it('lanca pelo caso de uso e resume a proposta', async () => {
+    const recebivel = {
+      id: 'rec-1',
+      description: 'Aluguel da vitrine',
+      amountCents: 50_000,
+      dueDate: '2026-09-18',
+    } as unknown as ReceivableOutput
+    const createReceivable = vi.fn(async () => recebivel)
+    const tool = createToolCatalog({ ...casos, createReceivable }).find(
+      (t) => t.id === 'create_receivable',
+    )!
+    const input = {
+      description: 'Aluguel da vitrine',
+      amountCents: 50_000,
+      dueDate: '2026-09-18',
+    }
+
+    const out = await tool.execute(input, ctx)
+
+    expect(createReceivable).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toContain('Aluguel da vitrine')
+    expect(tool.formatReply(out)).toContain(formatarCentavos(50_000))
+  })
 })

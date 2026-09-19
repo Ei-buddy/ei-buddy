@@ -16,11 +16,14 @@ import {
   checkStock,
   checkStockByQuery,
   createDefaultSaleSettings,
+  createPayable,
+  createReceivable,
   findProductByBarcode,
   listPayables,
   listReceivables,
   listSales,
   registerCustomer,
+  registerProduct,
   registerSale,
   searchProducts,
   sendCustomerCharge,
@@ -882,6 +885,13 @@ export function buildAgentUseCases(): AgentUseCases {
       }),
     revenueByMonth: (ctx, input) => buildRevenueByMonth(relatorios, ctx, input),
     buildDre: (ctx, input) => buildDre(contabilidade, ctx, input),
+    /* NR-117: os MESMOS casos de uso das telas — RF-140/141/142 pedem isso com
+       todas as letras. Reimplementar aqui seria ter duas regras de cadastro
+       divergindo em silencio, que e o que a promessa "app e WhatsApp acionam as
+       mesmas regras" existe para impedir. */
+    registerProduct: (ctx, input) => registerProduct(cadastro, ctx, input),
+    createPayable: (ctx, input) => createPayable(contas, ctx, input),
+    createReceivable: (ctx, input) => createReceivable({ uow: contas.receivablesUow }, ctx, input),
     sendCustomerCharge: (ctx, input) =>
       sendCustomerCharge(
         {
