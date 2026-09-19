@@ -195,11 +195,19 @@ export function createFakeSubscriptionProvider(
   return new FakeSubscriptionProvider(opcoes)
 }
 
+/**
+ * Os mesmos avisos que o adapter real reconhece.
+ *
+ * A lista sai da tabela de "quais avisos cadastrar" do
+ * [fluxo-asaas.md](../../../docs/arquitetura/integracoes/fluxo-asaas.md).
+ * `PAYMENT_CREDIT_CARD_CAPTURE_REFUSED` estava aqui e saiu: eu o escrevi sem
+ * fonte, e evento inventado num falso e pior que evento faltando — ele faz o
+ * teste passar por um caminho que producao nunca percorre.
+ */
 const TIPOS: Record<string, SubscriptionEventType> = {
   PAYMENT_CONFIRMED: 'subscription.paid',
   PAYMENT_RECEIVED: 'subscription.paid',
   PAYMENT_OVERDUE: 'subscription.payment_failed',
-  PAYMENT_CREDIT_CARD_CAPTURE_REFUSED: 'subscription.payment_failed',
   SUBSCRIPTION_DELETED: 'subscription.cancelled',
 }
 

@@ -51,7 +51,7 @@ export function pedidoDeAssinatura(
 
 export function verificarContratoDeAssinatura(nome: string, criar: () => ProvedorSobTeste): void {
   describe(`contrato SubscriptionProvider — ${nome}`, () => {
-    it('cria a recorrencia sem ativar nada', async () => {
+    it('cria a recorrencia e devolve o que a nossa tabela precisa', async () => {
       const provedor = criar()
 
       const r = await provedor.createSubscription(pedidoDeAssinatura())
@@ -59,10 +59,31 @@ export function verificarContratoDeAssinatura(nome: string, criar: () => Provedo
       expect(() => providerSubscriptionSchema.parse(r)).not.toThrow()
       expect(r.externalReference).toBe('assinatura-1')
       expect(r.nextDueDate).toBe('2026-10-05')
-      /* Criar a recorrencia NAO e o lojista ter pago. Quem ativa o acesso e o
-         evento `subscription.paid` — ler o contrario aqui liberaria o sistema
-         para quem so chegou na tela de pagamento. */
-      expect(r.providerStatus).not.toBe('ACTIVE')
+      expect(r.providerSubscriptionId.length).toBeGreaterThan(0)
+    })
+
+    it('criar a recorrencia nao diz que o lojista pagou', async () => {
+      const provedor = criar()
+
+      const r = await provedor.createSubscription(pedidoDeAssinatura())
+
+      /*
+       * A versao anterior deste teste afirmava `providerStatus !== 'ACTIVE'`,
+       * e falhou contra o Asaas de verdade — onde uma assinatura recem-criada
+       * E `ACTIVE`. E ela esta certa: a RECORRENCIA esta ativa, o PAGAMENTO
+       * nao aconteceu. O teste confundia as duas coisas.
+       *
+       * A garantia real e estrutural: nao existe, no retorno, nenhum campo do
+       * NOSSO vocabulario que signifique "pago". Quem ativa o acesso e o
+       * evento `subscription.paid`, e nao ha atalho.
+       */
+      expect(Object.keys(r).sort()).toEqual(
+        ['externalReference', 'nextDueDate', 'providerStatus', 'providerSubscriptionId'].sort(),
+      )
+      /* `providerStatus` e texto CRU do provedor, guardado em
+         `provider_status` para auditoria. Quem decidir acesso por ele esta
+         lendo o vocabulario errado. */
+      expect(typeof r.providerStatus).toBe('string')
     })
 
     it('pedir a mesma assinatura duas vezes devolve a mesma', async () => {
