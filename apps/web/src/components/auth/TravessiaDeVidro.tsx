@@ -30,6 +30,18 @@ import styles from './TravessiaDeVidro.module.css'
  * ~1,4s: a sequencia nao espera rede nenhuma, e por isso nao vira aquele
  * carregamento artificial que so existe para exibir a animacao.
  *
+ * ## Quando a navegacao nao vem
+ *
+ * A sequencia esconde a interface antes de saber se a proxima tela existe. Se
+ * o `router.push` nao completar — api lenta no render do `/app`, rede que
+ * caiu —, ninguem desmonta este componente e o desfoque fica para sempre: uma
+ * tela borrada, sem nada clicavel, que so o recarregar resolve. Foi assim em
+ * producao.
+ *
+ * Por isso existe o `SOCORRO`: a animacao sabe se desfazer sozinha e devolve
+ * a tela por `aoDesistir`. Animacao que esconde a interface nao pode depender
+ * de rede para voltar atras.
+ *
  * ## Movimento reduzido
  *
  * Nada disso acontece: `aoTerminar` e chamado no primeiro quadro e a pessoa
@@ -46,8 +58,36 @@ const CONVERGENCIA = 250
  * transparente, e a troca nao aparece.
  */
 const TRAVESSIA = 950
+/**
+ * Quando a travessia desiste e devolve a tela — em ms, contados do inicio.
+ *
+ * ## Por que uma animacao precisa de um plano B
+ *
+ * O `data-entrando` desfoca o fundo e encolhe o cartao; enquanto ele estiver
+ * no `<body>`, nao ha nada para ler nem onde clicar. Ate aqui, a unica coisa
+ * que o removia era o React DESMONTAR este componente — o que so acontece se a
+ * navegacao levar a pessoa embora.
+ *
+ * Quando a navegacao nao completa, ninguem desmonta nada: a tela fica borrada
+ * para sempre e o unico caminho e recarregar a pagina. Aconteceu em producao
+ * com a api lenta — o `/app` e `force-dynamic`, o componente de servidor
+ * ficou esperando, e o `router.push` nunca voltou.
+ *
+ * Uma animacao que esconde a interface tem de saber se desfazer sozinha. Sete
+ * segundos: bem mais que os ~950ms da travessia feliz (ate com a rota vindo da
+ * rede), e bem menos que o tempo em que alguem olhando uma tela parada conclui
+ * que o sistema quebrou.
+ */
+const SOCORRO = 7000
 
-export default function TravessiaDeVidro({ aoTerminar }: { aoTerminar: () => void }) {
+export default function TravessiaDeVidro({
+  aoTerminar,
+  aoDesistir,
+}: {
+  aoTerminar: () => void
+  /** Chamado quando a navegacao nao aconteceu a tempo. A tela volta ao normal. */
+  aoDesistir: () => void
+}) {
   const semMovimento = useReducedMotion()
   /* A navegacao e um efeito colateral que so pode acontecer uma vez; o React
      monta o efeito duas vezes em desenvolvimento (StrictMode). */
@@ -71,14 +111,29 @@ export default function TravessiaDeVidro({ aoTerminar }: { aoTerminar: () => voi
       aoTerminar()
     }, TRAVESSIA)
 
+    /*
+     * Se este relogio chegar ao fim, a navegacao nao levou ninguem embora —
+     * estamos aqui, ainda montados, com a tela escondida atras do desfoque.
+     *
+     * O desfoque sai PRIMEIRO, antes de avisar quem chamou: tirar o atributo
+     * e sincrono e devolve a tela no mesmo quadro, enquanto a mudanca de
+     * estado do pai so aparece no proximo. Em uma tela travada, esse quadro e
+     * a diferenca entre "voltou" e "continua quebrado".
+     */
+    const socorro = window.setTimeout(() => {
+      delete document.body.dataset.entrando
+      aoDesistir()
+    }, SOCORRO)
+
     return () => {
       window.clearTimeout(converge)
       window.clearTimeout(atravessa)
+      window.clearTimeout(socorro)
       /* Sem isto, uma volta ao login (por um erro na escolha de loja, por
          exemplo) encontraria a tela ainda encolhida e desfocada. */
       delete document.body.dataset.entrando
     }
-  }, [semMovimento, aoTerminar])
+  }, [semMovimento, aoTerminar, aoDesistir])
 
   if (semMovimento || typeof document === 'undefined') return null
 

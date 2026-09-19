@@ -88,6 +88,8 @@ describe('api inalcancavel', () => {
     expect(console.error).toHaveBeenCalledWith('[api-server] chamada a api falhou', {
       method: 'POST',
       url: `${API}/auth/login`,
+      motivo: 'sem conexao',
+      esperaMs: 10_000,
       causa: 'fetch failed',
     })
   })
@@ -110,5 +112,79 @@ describe('api inalcancavel', () => {
     const [formato, dados] = vi.mocked(console.error).mock.calls[0]!
     expect(formato).toBe('[api-server] chamada a api falhou')
     expect(dados).toMatchObject({ url: `${API}/auth/%s%s%s` })
+  })
+})
+
+/**
+ * A api que nao responde — NR-132.
+ *
+ * Nao e a api FORA DO AR, que ja tinha teste acima: e a api que aceita a
+ * conexao e nunca devolve. Sem teto de espera, `fetch` no Node espera para
+ * sempre — e numa PAGINA isso trava a navegacao inteira, porque o componente
+ * de servidor so responde quando a leitura volta.
+ *
+ * Foi esse o caminho da tela de login presa no desfoque: `/app` e
+ * `force-dynamic`, `carregarPainel` ficou pendurado, o `router.push` nunca
+ * completou e o lojista ficou olhando uma tela borrada sem nada para clicar.
+ */
+describe('api que nao responde', () => {
+  it('desiste no teto de espera e devolve o mesmo 503 de api fora do ar', async () => {
+    /* Aceita a conexao e nunca resolve — so o `signal` interrompe. */
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted.', 'TimeoutError'))
+            })
+          }),
+      ),
+    )
+
+    const { chamarApi } = await comAmbiente('development')
+
+    /* 20ms para o teste nao esperar os dez segundos de verdade. */
+    const r = await chamarApi('/auth/login', { method: 'POST', timeoutMs: 20 })
+
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    /* O mesmo 503 de sempre: a tela ja sabe mostrar "nao carregou" nele. */
+    expect([r.status, r.code]).toEqual([503, 'UNAVAILABLE'])
+  })
+
+  it('manda um signal em toda chamada, mesmo sem teto proprio', async () => {
+    const espiao = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() =>
+      Promise.reject(new Error('fetch failed')),
+    )
+    vi.stubGlobal('fetch', espiao)
+
+    const { chamarApi } = await comAmbiente('development')
+    await chamarApi('/auth/login', { method: 'POST' })
+
+    /* Sem isto a protecao valeria so para quem lembrasse de pedir. */
+    expect(espiao.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('o log distingue tempo esgotado de sem conexao', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted.', 'TimeoutError'))
+            })
+          }),
+      ),
+    )
+
+    const { chamarApi } = await comAmbiente('development')
+    await chamarApi('/auth/login', { method: 'POST', timeoutMs: 20 })
+
+    /* "Fora do ar" se resolve subindo o processo; "lenta demais", olhando a
+       consulta. Na tela as duas sao a mesma frase; no log, nao. */
+    const [, dados] = vi.mocked(console.error).mock.calls[0]!
+    expect(dados).toMatchObject({ motivo: 'tempo esgotado' })
   })
 })

@@ -57,6 +57,20 @@ export default function LoginForm() {
    */
   const [destino, setDestino] = useState<string | null>(null)
 
+  /**
+   * O painel nao abriu — NR-132.
+   *
+   * A credencial FOI aceita e o cookie ja existe: o que falhou foi so a
+   * navegacao. Por isso a mensagem daqui nao pode soar como erro de login;
+   * quem ler "senha invalida" depois de ter entrado vai digitar de novo sem
+   * necessidade.
+   *
+   * Guarda o DESTINO, e nao um booleano: o `destino` precisa voltar a
+   * `null` (e o que desmonta a travessia e devolve a tela), e o link de
+   * escape continua precisando saber para onde ia.
+   */
+  const [naoAbriu, setNaoAbriu] = useState<string | null>(null)
+
   /* A rota do painel e pedida enquanto a pessoa ainda digita: assim a
      navegacao no fim da animacao e instantanea, e a sequencia nunca vira
      espera de rede disfarcada. */
@@ -67,6 +81,17 @@ export default function LoginForm() {
   const atravessar = useCallback(() => {
     if (destino) router.push(destino)
   }, [destino, router])
+
+  /*
+   * Desmontar a travessia (`destino` a `null`) e o que garante a limpeza do
+   * `data-entrando` pelo React, alem da que ela mesma ja fez. A tela volta
+   * inteira: formulario utilizavel, com um aviso e uma saida de verdade.
+   */
+  const desistir = useCallback(() => {
+    setNaoAbriu(destino)
+    setDestino(null)
+    setLoading(false)
+  }, [destino])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -117,6 +142,7 @@ export default function LoginForm() {
     /* Super Admin sem loja nenhuma: sem este desvio cairia no "conta sem
        vinculo" logo abaixo, que e o erro certo para todo MUNDO menos ele. */
     if (sessao.isPlatformAdmin) {
+      setNaoAbriu(null)
       setDestino('/app/plataforma/cargos')
       return
     }
@@ -163,8 +189,30 @@ export default function LoginForm() {
     const proximo = new URLSearchParams(window.location.search).get('proximo')
     /* Nao navega aqui: guarda o destino e deixa a travessia levar. Com
        movimento reduzido ela vai no primeiro quadro, sem animacao nenhuma. */
+    setNaoAbriu(null)
     setDestino(proximo && proximo.startsWith('/app') ? proximo : '/app')
   }
+
+  /**
+   * O aviso de que a travessia desistiu — NR-132.
+   *
+   * `tone="warning"` e nao `error`: nada deu errado com a pessoa nem com a
+   * senha dela. Ela esta dentro; foi o painel que nao abriu a tempo.
+   *
+   * A saida e um `<a>` comum, de proposito, e nao um `<Link>`: o `Link`
+   * repetiria exatamente a navegacao de cliente que acabou de nao funcionar.
+   * O `<a>` carrega a pagina do zero — outro caminho, com a barra de
+   * progresso do proprio navegador no lugar de uma tela parada.
+   */
+  const avisoDePainelQueNaoAbriu =
+    naoAbriu === null ? null : (
+      <Alert tone="warning">
+        Você entrou, mas o painel não abriu a tempo.{' '}
+        <a href={naoAbriu} className={loginStyles.forgot}>
+          Abrir o painel
+        </a>
+      </Alert>
+    )
 
   /* Escolha de loja — US-059. Substitui o formulario em vez de aparecer abaixo
      dele: a senha ja foi aceita, e deixar os campos na tela convida a pessoa a
@@ -179,7 +227,11 @@ export default function LoginForm() {
 
         {formError ? <Alert tone="error">{formError}</Alert> : null}
 
-        {destino !== null ? <TravessiaDeVidro aoTerminar={atravessar} /> : null}
+        {avisoDePainelQueNaoAbriu}
+
+        {destino !== null ? (
+          <TravessiaDeVidro aoTerminar={atravessar} aoDesistir={desistir} />
+        ) : null}
 
         <ul className={loginStyles.lojas}>
           {escolhendo.memberships.map((v) => (
@@ -205,6 +257,8 @@ export default function LoginForm() {
       <FormHeader title="Entrar" subtitle="Acesse o painel do seu negócio." />
 
       {formError ? <Alert tone="error">{formError}</Alert> : null}
+
+      {avisoDePainelQueNaoAbriu}
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
@@ -253,7 +307,7 @@ export default function LoginForm() {
         </SubmitButton>
       </form>
 
-      {destino !== null ? <TravessiaDeVidro aoTerminar={atravessar} /> : null}
+      {destino !== null ? <TravessiaDeVidro aoTerminar={atravessar} aoDesistir={desistir} /> : null}
 
       <FormFooter>
         Não tem conta? <Link href="/criar-conta">Criar conta</Link>
