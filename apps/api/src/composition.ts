@@ -87,6 +87,7 @@ import {
   createCustomerRepository,
   createPartnerApplicationRepository,
   createPaymentCredentials,
+  createSubscriptionRepository,
   createLegalConsentRepository,
   createFiscalCredentials,
   createInvoiceStore,
@@ -454,6 +455,45 @@ export function buildCadastroDeps(): CadastroDeps {
     /* Geocodifica o endereco ao salvar — ADR-0008. Fecha o TODO de
        `GET /enderecos/cep/:cep` que so existia como mock no front. */
     cepLookup: createBrasilApiCepLookup(),
+    /* Periodo de teste junto com a empresa — RF-110. `undefined` sem os
+       prazos configurados, e o cadastro segue funcionando. */
+    assinatura: montarInicioDoTeste(),
+  }
+}
+
+/**
+ * As dependencias do periodo de teste — RF-110, NR-063.
+ *
+ * `undefined` quando os prazos nao estao configurados, e e o caso padrao
+ * hoje: eles sao a QST-002, ainda aberta. Enquanto for assim, a empresa nasce
+ * sem assinatura — o estado que `getSubscription` trata como "pode lancar".
+ *
+ * Os quatro andam juntos de proposito. Meio periodo de teste configurado seria
+ * um teste que comeca e nunca avisa que vai acabar, ou uma tolerancia sem
+ * teste que a preceda — e um `?? 7` aqui escolheria por produto, escondido
+ * numa raiz de composicao.
+ */
+export function montarInicioDoTeste() {
+  const { BILLING_TRIAL_DAYS, BILLING_TRIAL_WARNING_DAYS, BILLING_GRACE_DAYS, BILLING_TRIAL_PLAN } =
+    env
+
+  if (
+    BILLING_TRIAL_DAYS === undefined ||
+    BILLING_TRIAL_WARNING_DAYS === undefined ||
+    BILLING_GRACE_DAYS === undefined ||
+    BILLING_TRIAL_PLAN === undefined
+  ) {
+    return undefined
+  }
+
+  return {
+    subscriptions: createSubscriptionRepository(getClient(env.DATABASE_URL)),
+    politica: {
+      diasDeTeste: BILLING_TRIAL_DAYS,
+      diasDeAvisoDoFimDoTeste: BILLING_TRIAL_WARNING_DAYS,
+      diasDeTolerancia: BILLING_GRACE_DAYS,
+    },
+    planoDoTeste: BILLING_TRIAL_PLAN,
   }
 }
 

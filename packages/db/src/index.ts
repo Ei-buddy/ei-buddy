@@ -18,6 +18,7 @@ export type { Migration, MigrationResult } from './migrate.js'
 
 /* --- Repositorios: implementam as portas declaradas por core --- */
 export { createAppointmentRepository } from './appointment-repository.js'
+export { createSubscriptionRepository } from './subscription-repository.js'
 export { createConfirmationStore } from './confirmation-repository.js'
 export {
   createCompanyRepository,

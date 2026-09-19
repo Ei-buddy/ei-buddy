@@ -126,6 +126,11 @@ export type {
   PoliticaDeAssinatura,
   Transicao,
 } from './subscriptions/estado.js'
+export type { SubscriptionRepository } from './ports/subscription-repository.js'
+export { startTrial } from './subscriptions/start-trial.js'
+export type { StartTrialDeps } from './subscriptions/start-trial.js'
+export { getSubscription } from './subscriptions/get-subscription.js'
+export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-subscription.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
 export type {
   ConfirmationDecision,

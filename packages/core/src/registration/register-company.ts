@@ -5,12 +5,23 @@ import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
 import type { CepLookup } from '../ports/cep-lookup.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
+import { startTrial, type StartTrialDeps } from '../subscriptions/start-trial.js'
 import { resolveCoordinates } from './geocoding.js'
 
 export type RegisterCompanyDeps = {
   readonly companies: CompanyRepository
   readonly accounts: ChartOfAccountsRepository
   readonly cepLookup: CepLookup
+  /**
+   * Comeca o periodo de teste junto com a empresa — RF-110.
+   *
+   * Opcional, e pelo mesmo criterio de `SECRETS_KEY`: os prazos vem de
+   * configuracao (QST-002, ainda aberta), e sem eles o cadastro continua
+   * funcionando — a empresa nasce sem assinatura, que e o estado que
+   * `getSubscription` ja trata como "pode lancar". Uma funcionalidade a
+   * menos e melhor que um cadastro que nao conclui.
+   */
+  readonly assinatura?: StartTrialDeps | undefined
 }
 
 /**
@@ -77,6 +88,19 @@ export async function registerCompany(
    * refazer seja seguro.
    */
   await deps.accounts.insertDefaults(empresa.id, PLANO_DE_CONTAS_PADRAO, ctx.userId, ctx.now)
+
+  /*
+   * O periodo de teste comeca aqui — RF-110.
+   *
+   * Fora da criacao da empresa e depois dela, pelo mesmo desenho (e a mesma
+   * razao) da semeadura do plano de contas: se isto falhar, a empresa existe
+   * sem assinatura — visivel, recuperavel, e reexecutavel porque
+   * `startTrial` e idempotente. Perder o cadastro por causa do teste seria
+   * pior que comecar o teste um minuto depois.
+   */
+  if (deps.assinatura !== undefined) {
+    await startTrial(deps.assinatura, { companyId: empresa.id, criadaEm: ctx.now })
+  }
 
   return empresa
 }

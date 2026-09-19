@@ -15,6 +15,12 @@ export const DEFAULT_AGENT_STUDIO_PRESETS = 'packages/agent/studio/presets.json'
  * obrigatorios que nada consome ainda so far barrar o boot local sem
  * necessidade.
  */
+/** Dias inteiros e positivos, ou ausente. Vazio conta como ausente. */
+const diasOpcionais = z.preprocess((v) => {
+  if (v === undefined || v === '') return undefined
+  return v
+}, z.coerce.number().int().positive().optional())
+
 export const apiEnvSchema = baseEnvSchema.extend({
   API_PORT: z.coerce
     .number({ error: 'API_PORT precisa ser um numero.' })
@@ -127,6 +133,32 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * de `SECRETS_KEY`, uma funcionalidade a menos e melhor que travar o boot.
    */
   WAITLIST_ADMIN_KEY: opcionalNaoVazia,
+
+  /**
+   * Periodo de teste e tolerancia da assinatura — RF-110, RF-116, NR-063.
+   *
+   * **Sem default de proposito.** Prazo de teste, aviso e tolerancia sao a
+   * QST-002, ainda em aberto (DEC-010): escrever um numero aqui seria inventar
+   * decisao de produto e, pior, escondê-la num arquivo de configuracao onde
+   * ninguem procuraria por ela.
+   *
+   * Ausentes, a api sobe e o cadastro de empresa continua funcionando — a
+   * empresa so nasce sem assinatura, que e o estado que `getSubscription`
+   * trata como "pode lancar". Mesmo criterio de `SECRETS_KEY`: uma
+   * funcionalidade a menos e melhor que nao subir.
+   *
+   * Os tres andam juntos: meio periodo de teste configurado seria um teste que
+   * comeca e nunca avisa que vai acabar.
+   */
+  BILLING_TRIAL_DAYS: diasOpcionais,
+  BILLING_TRIAL_WARNING_DAYS: diasOpcionais,
+  /** Zero e valido: significa bloquear no vencimento, sem tolerancia. */
+  BILLING_GRACE_DAYS: z.preprocess((v) => {
+    if (v === undefined || v === '') return undefined
+    return v
+  }, z.coerce.number().int().min(0).optional()),
+  /** Plano em que o teste roda. Texto, como `subscriptions.plan_code`. */
+  BILLING_TRIAL_PLAN: opcionalNaoVazia,
 
   /**
    * Segredo do webhook do Asaas — RNF-028, NR-044.
