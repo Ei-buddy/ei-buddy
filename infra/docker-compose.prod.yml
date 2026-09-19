@@ -31,6 +31,11 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      # WAL arquivado e os backups — NR-015. O WAL fica em volume; os backups
+      # em caminho do HOST, para `infra/backup.sh` e o rclone alcancarem sem
+      # entrar no container.
+      - wal-archive:/wal
+      - ${BACKUP_DIR:-/var/backups/na-regua}:/backups
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
@@ -43,6 +48,21 @@ services:
       - 'log_statement=none'
       - '-c'
       - 'max_connections=200'
+      # Arquivamento de WAL — RNF-013 (RPO <= 15 min). Backup diario sozinho
+      # daria RPO de 24 h; sao os segmentos de WAL entre um backup e outro que
+      # permitem restaurar ate um ponto no tempo.
+      #
+      # `archive_timeout=900` forca a troca de segmento a cada 15 min mesmo com
+      # o banco parado — sem isso, um dia de pouco movimento nao fecharia
+      # segmento nenhum e o RPO seria o intervalo real de escrita, nao 15 min.
+      # O preco e um segmento de 16 MB a cada 15 min; quem apara e o
+      # `infra/backup.sh`.
+      - '-c'
+      - 'archive_mode=on'
+      - '-c'
+      - 'archive_command=test ! -f /wal/%f && cp %p /wal/%f'
+      - '-c'
+      - 'archive_timeout=900'
 
   redis:
     image: redis:7-alpine
@@ -122,6 +142,7 @@ services:
 
 volumes:
   postgres-data:
+  wal-archive:
   redis-data:
   caddy-data:
   caddy-config:

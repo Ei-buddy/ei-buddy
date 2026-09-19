@@ -3,7 +3,7 @@
 Ambiente local em Docker Compose, e produção na VPS
 ([ADR-0015](../docs/decisoes/adr/0015-vps-docker-compose.md)).
 
-**Estado:** ✅ ambiente local · ✅ deploy automatizado · ⬜ NR-015 (backup, PITR, restore testado)
+**Estado:** ✅ ambiente local · ✅ deploy automatizado · ✅ backup com PITR e ensaio mensal · ⬜ NR-015 (destino remoto do backup e do XML fiscal)
 
 ## Ambiente local
 
@@ -134,17 +134,55 @@ e `VPS_DEPLOY_PATH` (padrão `/opt/na-regua`).
 O clone na VM precisa conseguir `git fetch` sozinho — deploy key de leitura no
 repositório, ou credencial já configurada na máquina.
 
+### Backup e recuperação
+
+`archive_mode=on` no compose arquiva o WAL, e `archive_timeout=900` força a
+troca de segmento a cada 15 min — é isso que dá o RPO da
+[RNF-013](../docs/produto/requisitos-nao-funcionais.md). Backup diário sozinho
+daria RPO de 24 h.
+
+| Script                                 | Quando              | O que faz                                                      |
+| -------------------------------------- | ------------------- | -------------------------------------------------------------- |
+| [`backup.sh`](backup.sh)               | diário, por cron    | `pg_basebackup` comprimido, apara os antigos e o WAL já inútil |
+| [`restore-drill.sh`](restore-drill.sh) | mensal, pelo GitHub | restaura o mais recente num Postgres descartável e confere     |
+
+No cron da VM:
+
+```cron
+10 3 * * *  cd /opt/na-regua && ./infra/backup.sh >> /var/log/na-regua-backup.log 2>&1
+```
+
+O ensaio mensal roda pelo
+[`restore-drill.yml`](../.github/workflows/restore-drill.yml), e **o histórico
+desse workflow é o registro** que a [RNF-014](../docs/produto/requisitos-nao-funcionais.md)
+pede. Era isso ou uma planilha que alguém lembra de preencher — a execução que
+falha aparece sozinha.
+
+> **Backup no mesmo disco não é backup.** Por padrão ele fica só em
+> `BACKUP_DIR` (`/var/backups/na-regua`), e o incidente que leva a VM leva os
+> dois. Defina `BACKUP_REMOTO` com um destino de [rclone](https://rclone.org)
+> — S3, R2, B2, SFTP, tanto faz, e é por isso que é rclone — para o envio
+> passar a acontecer no fim de cada backup. **Enquanto isso não existir, a
+> RNF-013 continua furada.**
+
+Variáveis: `BACKUP_DIR` (onde), `MANTER` (quantos backups base, padrão `7`),
+`BACKUP_REMOTO` (destino do rclone).
+
+Espaço: com `archive_timeout` de 15 min, o pior caso é ~1,5 GB de WAL por dia
+mesmo com o banco parado (96 segmentos de 16 MB). O `backup.sh` apara o que já
+não serve a nenhum backup retido, mas vale olhar o disco depois do primeiro mês.
+
 O que a NR-015 ainda precisa atender na VM:
 
-| Requisito                                                   | O que exige                                                                  |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [RNF-009](../docs/produto/requisitos-nao-funcionais.md)     | disponibilidade ≥ 99,5%                                                      |
-| [RNF-013](../docs/produto/requisitos-nao-funcionais.md)     | RPO ≤ 15 min, RTO ≤ 4 h — WAL/basebackup, não o volume sozinho               |
-| [RNF-014](../docs/produto/requisitos-nao-funcionais.md)     | backup diário, **com restauração testada mensalmente**                       |
-| [RNF-020](../docs/produto/requisitos-nao-funcionais.md)     | TLS 1.2+ (Caddy); banco e Redis sem exposição pública                        |
-| [RNF-037](../docs/produto/requisitos-nao-funcionais.md)     | object storage com retenção de 5 anos para XML fiscal                        |
-| ~~[RNF-064](../docs/produto/requisitos-nao-funcionais.md)~~ | ✅ deploy rastreável ao commit e reversível sem rebuild — ver "Deploy" acima |
-| [RNF-074](../docs/produto/requisitos-nao-funcionais.md)     | custo ≤ 8% da mensalidade por empresa ativa                                  |
+| Requisito                                                   | O que exige                                                                   |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [RNF-009](../docs/produto/requisitos-nao-funcionais.md)     | disponibilidade ≥ 99,5%                                                       |
+| [RNF-013](../docs/produto/requisitos-nao-funcionais.md)     | ⚠️ WAL e basebackup prontos; falta `BACKUP_REMOTO` — no mesmo disco não conta |
+| ~~[RNF-014](../docs/produto/requisitos-nao-funcionais.md)~~ | ✅ backup diário por cron e ensaio mensal registrado no workflow              |
+| [RNF-020](../docs/produto/requisitos-nao-funcionais.md)     | TLS 1.2+ (Caddy); banco e Redis sem exposição pública                         |
+| [RNF-037](../docs/produto/requisitos-nao-funcionais.md)     | object storage com retenção de 5 anos para XML fiscal                         |
+| ~~[RNF-064](../docs/produto/requisitos-nao-funcionais.md)~~ | ✅ deploy rastreável ao commit e reversível sem rebuild — ver "Deploy" acima  |
+| [RNF-074](../docs/produto/requisitos-nao-funcionais.md)     | custo ≤ 8% da mensalidade por empresa ativa                                   |
 
 PaaS com Postgres gerenciado foi abdicado neste recorte. Backup não testado
 não é backup: o teste mensal é requisito, não boa prática.

@@ -1,0 +1,60 @@
+name: Ensaio de restauração
+
+# Restaura o backup mais recente num Postgres descartavel na VPS e confere que
+# ele sobe e responde — NR-015, RNF-014 ("mensal, registrado").
+#
+# O REGISTRO e o historico deste workflow. Era isso ou uma planilha que alguem
+# lembra de preencher; a execucao que falha e visivel sozinha, a planilha nao.
+#
+# Nao toca em producao: o script sobe container e volume proprios e apaga os
+# dois no fim, inclusive se falhar no meio.
+
+on:
+  schedule:
+    # Dia 1, 04:00 UTC (01:00 em Sao Paulo) — dentro da janela de manutencao
+    # da RNF-015 (22h as 6h).
+    - cron: '0 4 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: restore-drill
+  cancel-in-progress: false
+
+jobs:
+  ensaio:
+    name: Restaurar o backup mais recente
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      HOST: ${{ secrets.VPS_HOST }}
+      USUARIO: ${{ secrets.VPS_USER }}
+      PORTA: ${{ vars.VPS_SSH_PORT || '22' }}
+      CAMINHO: ${{ vars.VPS_DEPLOY_PATH || '/opt/na-regua' }}
+
+    steps:
+      - name: Chave de acesso
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          FINGERPRINT: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
+          if [ -n "$FINGERPRINT" ]; then
+            printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS nao configurado — confiando no host na primeira conexao."
+            ssh-keyscan -p "$PORTA" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Ensaio
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' && bash infra/restore-drill.sh"
+
+      - name: Apagar a chave
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
