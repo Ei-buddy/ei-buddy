@@ -92,6 +92,11 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
      entregar a chave da casa junto com o inventario dela — e o titular do
      direito de portabilidade nao pediu isso. */
   company_fiscal_credentials: 'Credenciais cifradas de terceiros. Segredo, nao dado do titular.',
+  /* Mesma razao da linha acima, e o risco aqui e ainda mais direto: a chave da
+     subconta de recebimento move dinheiro. Exportar seria entregar a conta
+     bancaria da loja dentro de um pacote de portabilidade. */
+  company_payment_credentials:
+    'Chave cifrada da conta de recebimento. Segredo da loja, nao dado do titular.',
   /* Numeracao de nota fiscal. Controle interno, e nao dado de negocio: levar o
      contador para outro sistema faria a serie continuar de onde parou por
      acidente, o que e problema fiscal e nao portabilidade. */
