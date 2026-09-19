@@ -134,6 +134,11 @@ export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-
 export type { CouponRepository } from './ports/coupon-repository.js'
 export { previewCoupon } from './subscriptions/preview-coupon.js'
 export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
+export { handleSubscriptionEvent } from './subscriptions/handle-subscription-event.js'
+export type {
+  HandleSubscriptionEventDeps,
+  ResultadoDoEvento,
+} from './subscriptions/handle-subscription-event.js'
 export { sweepSubscription } from './subscriptions/sweep-subscription.js'
 export type {
   ResultadoDaVarredura,

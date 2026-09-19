@@ -246,7 +246,20 @@ export const createSubscriptionRequestSchema = z
     }),
     /** Primeiro vencimento. Os seguintes o provedor gera mensalmente. */
     firstDueDate: dateSchema,
-    /** `subscriptions.id` do nosso lado — como o webhook volta a nos achar. */
+    /**
+     * O `company_id`, e nao o `subscriptions.id` — e a escolha importa.
+     *
+     * E o que o webhook devolve para nos, e e assim que o aviso diz de QUAL
+     * loja ele fala. Com o id da assinatura seria preciso uma consulta
+     * cross-tenant so para descobrir a empresa: o aviso chega sem contexto de
+     * tenant, e a RLS recusa leitura sem ele. Ou seja, custaria uma segunda
+     * funcao `SECURITY DEFINER` — mais superficie privilegiada para responder
+     * uma pergunta que o proprio aviso pode carregar.
+     *
+     * Serve como chave porque e UMA assinatura por empresa
+     * (`UNIQUE (company_id)`): o `company_id` identifica a recorrencia de
+     * forma unica e permanente.
+     */
     externalReference: idSchema,
     requestedAt: dateTimeSchema,
   })
