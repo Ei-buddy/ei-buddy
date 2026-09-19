@@ -113,6 +113,7 @@ export {
   InMemorySupplierDirectory,
 } from './connections/fakes.js'
 export type { PaymentGateway } from './ports/payment-gateway.js'
+export type { SubscriptionProvider } from './ports/subscription-provider.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
 export type {
   ConfirmationDecision,
