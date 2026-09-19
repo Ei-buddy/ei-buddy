@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { cardTokenRequestSchema } from '@na-regua/contracts'
 import type {
   BoletoCharge,
@@ -53,10 +53,14 @@ export type AsaasOptions = {
   readonly ambiente: AmbienteAsaas
   readonly credenciais: CredenciaisAsaas
   /**
-   * Segredo do webhook, para conferir o HMAC — RNF-028.
+   * O `authToken` que cadastramos no Asaas — RNF-028.
    *
-   * Sem ele o adapter recusa TODO webhook como assinatura invalida, em vez de
-   * aceitar sem conferir. Configuracao faltando nao pode virar porta aberta.
+   * Nao e a chave da API, e nao e segredo de HMAC: o Asaas repete este mesmo
+   * valor no cabecalho `asaas-access-token` de cada aviso, e conferir e
+   * compara-lo.
+   *
+   * Sem ele o adapter recusa TODO webhook, em vez de aceitar sem conferir.
+   * Configuracao faltando nao pode virar porta aberta.
    */
   readonly webhookSecret?: string
   /** Injetavel para teste. Sem isto, o teste falaria com o Asaas de verdade. */
@@ -450,7 +454,7 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
          configuracao faltando em porta aberta — qualquer um postaria
          "pagamento autorizado" e o titulo baixaria sozinho. */
       if (opcoes.webhookSecret === undefined) return { status: 'invalid_signature' }
-      if (!assinaturaConfere(rawBody, signature, opcoes.webhookSecret)) {
+      if (!tokenConfere(signature, opcoes.webhookSecret)) {
         return { status: 'invalid_signature' }
       }
 
@@ -577,16 +581,35 @@ function primeiroErro(corpo: Record<string, unknown>): Record<string, unknown> |
 }
 
 /**
- * HMAC sobre os BYTES que chegaram — RNF-028.
+ * O Asaas autentica webhook com TOKEN ESTATICO, e nao com HMAC — RNF-028.
  *
- * Comparacao em tempo constante: `===` vazaria, pelo tempo de resposta, quanto
- * do prefixo bateu, e com isso da para descobrir a assinatura byte a byte.
+ * ## O defeito que isto corrige
+ *
+ * A primeira versao calculava `HMAC-SHA256` sobre o corpo e comparava com o
+ * cabecalho. O Asaas nao assina corpo nenhum: ele manda, em
+ * `asaas-access-token`, o mesmo `authToken` que NOS cadastramos ao criar o
+ * webhook (32–255 caracteres) — e nao e a chave da API
+ * ([asaas.md](../../../docs/arquitetura/integracoes/asaas.md)).
+ *
+ * Nenhum aviso verdadeiro passaria: todos responderiam 401 e nenhuma cobranca
+ * daria baixa. Pior, o sintoma seria silencioso — o lojista veria "aguardando
+ * pagamento" para um Pix que o cliente ja pagou.
+ *
+ * ## Continua sendo tempo constante
+ *
+ * `===` vazaria, pelo tempo de resposta, quanto do prefixo bateu — e com isso
+ * se descobre o token caractere a caractere. A comparacao de tamanho antes e
+ * necessaria porque `timingSafeEqual` LANCA com buffers de tamanhos
+ * diferentes, e um throw aqui seria 500 em vez de 401.
  */
-function assinaturaConfere(rawBody: string, assinatura: string, segredo: string): boolean {
-  const esperada = createHmac('sha256', segredo).update(rawBody, 'utf8').digest('hex')
-  const recebida = assinatura.trim()
-  if (recebida.length !== esperada.length) return false
-  return timingSafeEqual(Buffer.from(recebida), Buffer.from(esperada))
+function tokenConfere(recebido: string, esperado: string): boolean {
+  /* `trim` no recebido, e nao no esperado: o cabecalho pode chegar com espaco
+     de um proxy no caminho; o segredo configurado nao tem espaco por regra do
+     proprio Asaas. */
+  const a = Buffer.from(recebido.trim(), 'utf8')
+  const b = Buffer.from(esperado, 'utf8')
+  if (a.length !== b.length || a.length === 0) return false
+  return timingSafeEqual(a, b)
 }
 
 /**

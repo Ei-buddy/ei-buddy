@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { criarGatewayAsaas, type CredenciaisAsaas } from './asaas-gateway.js'
 import {
@@ -244,11 +243,19 @@ describe('webhook do Asaas — RNF-028', () => {
     dateCreated: '2026-09-19T12:00:00.000Z',
     payment: { id: 'pay_1', value: 129.9, externalReference: 'ref-1' },
   })
-  const assinar = (texto: string, segredo = SEGREDO) =>
-    createHmac('sha256', segredo).update(texto, 'utf8').digest('hex')
 
-  it('aceita evento com assinatura valida e traduz para o nosso vocabulario', () => {
-    const r = gateway().readWebhook(corpo, assinar(corpo))
+  /*
+   * O Asaas NAO assina o corpo. Ele repete, no cabecalho `asaas-access-token`,
+   * o mesmo `authToken` que nos cadastramos ao criar o webhook.
+   *
+   * A versao anterior desta suite calculava HMAC aqui e passava — passava pelo
+   * motivo errado, porque o adapter fazia a mesma conta errada dos dois lados.
+   * Um duble que imita o provedor de verdade e o que teria pegado isso.
+   */
+  const cabecalhoDoAsaas = SEGREDO
+
+  it('aceita o aviso com o token que cadastramos, e traduz para o nosso vocabulario', () => {
+    const r = gateway().readWebhook(corpo, cabecalhoDoAsaas)
 
     expect(r.status).toBe('accepted')
     if (r.status !== 'accepted') return
@@ -257,28 +264,52 @@ describe('webhook do Asaas — RNF-028', () => {
     expect(r.event.amountCents).toBe(12990)
   })
 
-  it('assinatura errada NAO vira 200 — recusa explicita', () => {
-    expect(gateway().readWebhook(corpo, assinar(corpo, 'outro-segredo')).status).toBe(
-      'invalid_signature',
-    )
+  it('token errado NAO vira 200 — recusa explicita', () => {
+    /* 200 ensinaria o atacante que o corpo foi aceito. */
+    expect(gateway().readWebhook(corpo, 'token-de-outro').status).toBe('invalid_signature')
   })
 
-  /* O HMAC e sobre os BYTES que chegaram: um espaco a mais ja muda a
-     assinatura, e reserializar depois de parsear quebraria a conferencia. */
-  it('corpo alterado depois de assinado e recusado', () => {
+  it('token vazio e recusado, e nao tratado como "sem conferencia"', () => {
+    expect(gateway().readWebhook(corpo, '').status).toBe('invalid_signature')
+  })
+
+  it('token de tamanho diferente recusa sem lancar', () => {
+    /* `timingSafeEqual` LANCA com buffers de tamanhos diferentes, e um throw
+       aqui viraria 500 em vez de 401 — o que conta ao atacante que o tamanho
+       do palpite dele nao bate. */
+    expect(() => gateway().readWebhook(corpo, 'curto')).not.toThrow()
+    expect(gateway().readWebhook(corpo, 'curto').status).toBe('invalid_signature')
+  })
+
+  it('espaco de proxy no cabecalho nao invalida um token correto', () => {
+    expect(gateway().readWebhook(corpo, ` ${SEGREDO} `).status).toBe('accepted')
+  })
+
+  it('corpo alterado com token valido ainda e aceito — e isso e do provedor', () => {
+    /*
+     * Registrado de proposito, e nao como aprovacao: o Asaas nao assina corpo,
+     * entao quem tiver o token pode mandar qualquer conteudo. A protecao e o
+     * segredo do token e o `eventId` (que impede reprocessar o mesmo aviso),
+     * nao a integridade do corpo. Trocar por um provedor que assine muda isto
+     * — e este teste e onde a mudanca aparece.
+     */
     const adulterado = corpo.replace('129.9', '1299.9')
-    expect(gateway().readWebhook(adulterado, assinar(corpo)).status).toBe('invalid_signature')
+    const r = gateway().readWebhook(adulterado, cabecalhoDoAsaas)
+
+    expect(r.status).toBe('accepted')
+    if (r.status !== 'accepted') return
+    expect(r.event.amountCents).toBe(129990)
   })
 
-  /* Configuracao faltando nao pode virar porta aberta: sem segredo, qualquer
-     um postaria "pagamento recebido" e o titulo baixaria sozinho. */
-  it('sem segredo configurado recusa tudo, em vez de aceitar sem conferir', () => {
+  /* Configuracao faltando nao pode virar porta aberta: sem token, qualquer um
+     postaria "pagamento recebido" e o titulo baixaria sozinho. */
+  it('sem token configurado recusa tudo, em vez de aceitar sem conferir', () => {
     const g = criarGatewayAsaas({
       ambiente: 'sandbox',
       credenciais,
       fetch: async () => new Response('{}'),
     })
-    expect(g.readWebhook(corpo, assinar(corpo)).status).toBe('invalid_signature')
+    expect(g.readWebhook(corpo, cabecalhoDoAsaas).status).toBe('invalid_signature')
   })
 
   it('evento que nao interessa e ignorado, nao tratado como erro', () => {
@@ -287,12 +318,13 @@ describe('webhook do Asaas — RNF-028', () => {
       event: 'PAYMENT_UPDATED',
       payment: { id: 'pay_1' },
     })
-    expect(gateway().readWebhook(outro, assinar(outro)).status).toBe('ignored')
+    /* 4xx faria o provedor reentregar para sempre um evento que nunca vamos
+       querer. */
+    expect(gateway().readWebhook(outro, cabecalhoDoAsaas).status).toBe('ignored')
   })
 
   it('corpo que nao e JSON responde malformed, nao explode', () => {
-    const lixo = 'nao sou json'
-    expect(gateway().readWebhook(lixo, assinar(lixo)).status).toBe('malformed')
+    expect(gateway().readWebhook('nao sou json', cabecalhoDoAsaas).status).toBe('malformed')
   })
 })
 
