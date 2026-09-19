@@ -26,6 +26,7 @@
     "@na-regua/db": "workspace:*",
     "@na-regua/env": "workspace:*",
     "@na-regua/fiscal": "workspace:*",
+    "@na-regua/payments": "workspace:*",
     "@na-regua/money": "workspace:*",
     "@na-regua/whatsapp": "workspace:*",
     "better-auth": "^1.7.4",

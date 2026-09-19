@@ -86,6 +86,7 @@ import {
   createConversationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
+  createPaymentCredentials,
   createLegalConsentRepository,
   createFiscalCredentials,
   createInvoiceStore,
@@ -109,6 +110,7 @@ import {
 } from '@na-regua/db'
 import { createFileStatementReader } from '@na-regua/banking'
 import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
+import { criarGatewayAsaas } from '@na-regua/payments'
 import type { InvoiceIssuer } from '@na-regua/core'
 import type { CadastroDeps } from './routes/cadastro.js'
 import type { ConnectionsRouteDeps } from './routes/connections.js'
@@ -860,6 +862,32 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
 }
 
 /** `null` = sem runtime utilizavel; a rota do assistente responde 503. */
+
+/**
+ * Gateway de pagamento do lojista — NR-044, ADR-0004.
+ *
+ * `undefined` quando falta `SECRETS_KEY`: sem chave nao da para decifrar a
+ * credencial da subconta, e um gateway que nao consegue autenticar so
+ * produziria erro na hora da cobranca. Quem consome trata a ausencia — a
+ * cobranca sai sem link, em vez de nao sair.
+ *
+ * O segredo do webhook e da PLATAFORMA, nao da loja: o corpo precisa ser
+ * verificado antes de saber de qual empresa ele fala, entao nao da para
+ * resolver uma chave por empresa nesse ponto.
+ */
+export function montarGatewayDePagamento() {
+  if (env.SECRETS_KEY === undefined) return undefined
+
+  const sql = getClient(env.DATABASE_URL)
+  return criarGatewayAsaas({
+    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    credenciais: createPaymentCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY)),
+    ...(env.ASAAS_WEBHOOK_AUTH_TOKEN === undefined
+      ? {}
+      : { webhookSecret: env.ASAAS_WEBHOOK_AUTH_TOKEN }),
+  })
+}
+
 export function buildAgentUseCases(): AgentUseCases {
   const sales = buildSaleDeps()
   const cadastro = buildCadastroDeps()
@@ -918,6 +946,9 @@ export function buildAgentUseCases(): AgentUseCases {
           receivables: contas.receivables,
           customers: cadastro.customers,
           messages,
+          /* Com conta de recebimento configurada, a cobranca leva link
+             (RF-068). Sem ela, sai so com valor e vencimento. */
+          gateway: montarGatewayDePagamento(),
           consents: {
             /* Harness: o aceite real (coluna whatsapp_consent_at) entra com
                NR-046. Sem isso no CustomerOutput, o canal de teste trata o
