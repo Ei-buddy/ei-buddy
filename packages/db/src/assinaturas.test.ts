@@ -111,7 +111,7 @@ describe.skipIf(!DATABASE_URL)('assinatura — NR-063', () => {
   })
 
   it('voltar de restrita para ativa limpa a marca do bloqueio — RF-118', async () => {
-    const empresa = await criarEmpresa(cnpjDeTeste('a'), 'Mercearia D')
+    const empresa = await criarEmpresa(cnpjDeTeste('0'), 'Mercearia D')
     await repo().startTrial({
       companyId: empresa,
       planCode: 'essencial',
