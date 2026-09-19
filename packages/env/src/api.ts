@@ -127,6 +127,15 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * de `SECRETS_KEY`, uma funcionalidade a menos e melhor que travar o boot.
    */
   WAITLIST_ADMIN_KEY: opcionalNaoVazia,
+
+  /**
+   * Segredo do webhook do Asaas — RNF-028, NR-044.
+   *
+   * Da PLATAFORMA e nao da loja: o corpo precisa ser verificado antes de se
+   * saber de qual empresa ele fala. Ausente, o adapter recusa TODO webhook em
+   * vez de aceitar sem conferir.
+   */
+  ASAAS_WEBHOOK_AUTH_TOKEN: opcionalNaoVazia,
 })
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>

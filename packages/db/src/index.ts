@@ -69,6 +69,7 @@ export { listCompanyIds } from './list-company-ids.js'
 /* Segredo de lojista cifrado em coluna — RF-004, RNF-022, NR-042. */
 export { ChaveDeSegredoInvalida, cifrar, decifrar, lerChaveDeSegredo } from './secret-box.js'
 export { createFiscalCredentials } from './fiscal-credentials-repository.js'
+export { createPaymentCredentials } from './payment-credentials-repository.js'
 export type { SituacaoFiscalDaEmpresa } from './fiscal-credentials-repository.js'
 export { createSaleFiscalReader } from './sale-fiscal-repository.js'
 
