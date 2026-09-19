@@ -1,9 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import postgres, { type Sql } from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createCouponRepository } from './coupon-repository.js'
 import { migrate } from './migrate.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
-import { withPlatformScope } from './tenant.js'
+import { withPlatformScope, withTenant } from './tenant.js'
 
 /**
  * Cupons pelo caminho publico — NR-063, RF-114, RF-115.
@@ -37,21 +38,28 @@ describe.skipIf(!DATABASE_URL)('cupons — NR-063', () => {
     aplicacao = await conectarComoAplicacao(admin, DATABASE_URL!)
     sql = aplicacao.sql
 
-    /* Empresa e cupom pelas funcoes que a 0014 definiu — nao ha outro jeito. */
+    /*
+     * A empresa nasce sob `withTenant` com o id ja escolhido: a politica de
+     * `companies` e `id = current_company_id()`, entao um INSERT sem tenant no
+     * contexto morre em `current_company_id()` antes de chegar na politica.
+     */
     const cnpj = cnpjDeTeste('6')
-    const [empresa] = await withPlatformScope(
+    const empresa = randomUUID()
+    await withTenant(
       sql,
-      (tx) => tx<{ id: string }[]>`
-        INSERT INTO companies (legal_name, cnpj, email, phone)
-        VALUES (${'Mercearia do Cupom'}, ${cnpj}, ${'contato@' + cnpj + '.local'}, ${'41999990000'})
-        RETURNING id
+      empresa,
+      (tx) => tx`
+        INSERT INTO companies (id, legal_name, cnpj, email, phone)
+        VALUES (${empresa}, ${'Mercearia do Cupom'}, ${cnpj},
+                ${'contato@' + cnpj + '.local'}, ${'41999990000'})
       `,
     )
 
+    /* O cupom, pela funcao da 0014 — nao ha INSERT possivel em `coupons`. */
     codigoDoLojista = `IND${Date.now()}`
     await withPlatformScope(
       sql,
-      (tx) => tx`SELECT * FROM coupon_create_for_company(${empresa!.id}, ${codigoDoLojista})`,
+      (tx) => tx`SELECT * FROM coupon_create_for_company(${empresa}, ${codigoDoLojista})`,
     )
   }, 60_000)
 
