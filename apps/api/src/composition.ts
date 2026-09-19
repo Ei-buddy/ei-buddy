@@ -23,6 +23,7 @@ import {
   listReceivables,
   listSales,
   adjustStock,
+  cancelSale,
   createAppointment,
   listDayAppointments,
   registerCustomer,
@@ -909,6 +910,7 @@ export function buildAgentUseCases(): AgentUseCases {
     adjustStock: (ctx, input) => adjustStock(estoque, ctx, input),
     /* NR-119: agenda tambem sai do caso de uso da tela (US-043, US-045). */
     createAppointment: (ctx, input) => createAppointment(agenda, ctx, input),
+    cancelSale: (ctx, input) => cancelSale(sales, ctx, input),
     listDayAppointments: (ctx, input) => listDayAppointments(agenda, ctx, input),
     sendCustomerCharge: (ctx, input) =>
       sendCustomerCharge(

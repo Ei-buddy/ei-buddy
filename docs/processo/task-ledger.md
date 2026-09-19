@@ -51,10 +51,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     101 |  253 |
-| ✅ Concluídas                 |      90 |  218 |
+| ✅ Concluídas                 |      91 |  220 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |       9 |   28 |
+| ⬜ A fazer, pode começar hoje |       8 |   26 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -67,12 +67,11 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > A **NR-062** já está ✅ na `main` (#228). A **NR-061** entra como ✅ **neste
 > PR** (branch `feat/NR-061-confirmacao-acao-sensivel`); a `main` só passa a
 > contar o squash depois do merge — sem URL de PR ainda.
-> A **NR-118** entregou US-072, US-073 e US-074 (RF-143/144/145). A US-075
-> (cancelar/devolver venda por mensagem, RF-147) **nao pode ser feita ainda**:
-> ela pede "o mesmo caso de uso do aplicativo", e esse caso de uso nao existe —
-> RF-043 e RF-044 estao ⬜, e a **NR-122** foi aberta para cobri-los. Fazer isso
-> dentro do agente seria implementar cancelamento de venda fora do nucleo,
-> que e o oposto do que o RF-147 pede. Falta abrir a tarefa de `core`/`fiscal`.
+> A **NR-118** fechou com a NR-122: a US-075 pedia "o mesmo caso de uso do
+> aplicativo" para cancelar venda, e esse caso de uso nao existia — RF-043 e
+> a US-021 estavam no papel desde o inicio, sem tarefa nenhuma cobrindo. A
+> NR-122 escreveu o caso de uso, e a tool `cancel_sale` passou a chama-lo.
+> Devolucao parcial (RF-044) segue aberta, na propria NR-122.
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi
@@ -183,7 +182,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ✅   |
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ✅   |
 | NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ✅   |
-| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
+| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ✅   |
 | NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   🟨   |
 | NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                       |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
 | NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |

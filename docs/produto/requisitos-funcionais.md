@@ -87,7 +87,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-040 | Calcular e exibir bruto, custo, imposto, tarifa de cartão, líquido e margem da venda                       | US-020 | `domain`    |  M  | ⬜  |
 | RF-041 | Calcular imposto conforme o regime tributário configurado para a empresa                                   | US-020 | `domain`    |  M  | ⬜  |
 | RF-042 | Ocultar custo, imposto e margem do resumo da venda para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
-| RF-043 | Cancelar venda estornando estoque, contas a receber e saldo de carteira                                    | US-021 | `core`      |  M  | ⬜  |
+| RF-043 | Cancelar venda estornando estoque, contas a receber e saldo de carteira                                    | US-021 | `core`      |  M  | ✅  |
 | RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  | ⬜  |
 
 ## E5 — Emissão Fiscal
@@ -204,7 +204,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                      | US-072 | `agent`     |  S  | ✅  |
 | RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                          | US-073 | `agent`     |  S  | ✅  |
 | RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                                 | US-074 | `agent`     |  S  | ✅  |
-| RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota            | US-075 | `agent`     |  S  | ⬜  |
+| RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota            | US-075 | `agent`     |  S  | ✅  |
 | RF-148 | Criar compromisso por mensagem usando o mesmo caso de uso do aplicativo                                               | US-076 | `agent`     |  C  | ✅  |
 | RF-149 | Recusar certificado A1, senha e cadastro de emitente pelo WhatsApp, orientando o app                                  | US-077 | `agent`     |  M  | ⬜  |
 | RF-150 | Recusar importação de extrato, Open Finance e conciliação pelo WhatsApp, orientando o app                             | US-078 | `agent`     |  M  | ⬜  |
