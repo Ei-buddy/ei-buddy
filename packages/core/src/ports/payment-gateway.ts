@@ -137,13 +137,21 @@ export type PaymentGateway = {
   /**
    * Le um webhook do provedor.
    *
-   * Recebe o **corpo bruto**, e nao um objeto ja parseado, porque o HMAC e
-   * calculado sobre os bytes que chegaram: reserializar depois de `JSON.parse`
-   * muda os bytes e a verificacao falha — RNF-028. Quem chama nao deve parsear
-   * antes.
+   * `signature` e o que veio no cabecalho de autenticacao, **cru**. O que
+   * fazer com ele e do adapter, porque provedores diferentes autenticam de
+   * formas diferentes: o Asaas repete um token estatico
+   * (`asaas-access-token`), e outros assinam o corpo com HMAC. A porta nao
+   * escolhe entre os dois — ela so promete que a requisicao foi autenticada
+   * antes de virar evento (RNF-028).
    *
-   * Sincrona de proposito: e HMAC local, sem I/O. `Promise` aqui convidaria a
-   * enfiar chamada de rede no meio da validacao de assinatura.
+   * Recebe o **corpo bruto**, e nao um objeto ja parseado, porque o provedor
+   * que assina o corpo assina os BYTES que chegaram: reserializar depois de
+   * `JSON.parse` muda os bytes e a verificacao falha. Quem chama nao deve
+   * parsear antes — e isso vale mesmo com o provedor de hoje, que nao assina
+   * corpo nenhum, para que trocar de provedor nao vire trocar a rota.
+   *
+   * Sincrona de proposito: a conferencia e local, sem I/O. `Promise` aqui
+   * convidaria a enfiar chamada de rede no meio da autenticacao.
    *
    * O resultado distingue quatro casos porque eles pedem codigos HTTP
    * diferentes — ver `WebhookReadResult`. Em especial, assinatura invalida

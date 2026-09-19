@@ -25,7 +25,7 @@ import {
   type WebhookReadResult,
 } from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'node:crypto'
 
 /**
  * Gateway falso — `PAYMENTS_PROVIDER=fake`.
@@ -377,11 +377,11 @@ export class FakePaymentGateway {
 
   readWebhook(rawBody: string, signature: string): WebhookReadResult {
     /*
-     * HMAC sobre o corpo BRUTO, antes de qualquer parse — RNF-028. Se isso
-     * rodasse depois de `JSON.parse` + reserializacao, a ordem das chaves e o
-     * espacamento mudariam os bytes e nenhuma assinatura legitima passaria.
+     * Autentica ANTES de parsear — RNF-028. Corpo so vira objeto depois de a
+     * requisicao ser reconhecida; o contrario faria o parser rodar sobre
+     * entrada de qualquer um.
      */
-    if (!this.assinaturaConfere(rawBody, signature)) {
+    if (!this.tokenConfere(signature)) {
       return { status: 'invalid_signature' }
     }
 
@@ -460,13 +460,21 @@ export class FakePaymentGateway {
   /* --- Apoio de teste: nao faz parte da porta --- */
 
   /**
-   * Assina um corpo como o provedor assinaria. Existe para o teste montar
-   * webhook valido sem duplicar o calculo do HMAC.
+   * O que o provedor manda no cabecalho de autenticacao.
+   *
+   * ## Era um HMAC, e isso ensinava a forma errada
+   *
+   * O Asaas nao assina o corpo: ele repete, em `asaas-access-token`, o mesmo
+   * `authToken` que nos cadastramos. Enquanto o falso assinava o corpo, quem
+   * escrevesse a rota contra ele calcularia HMAC — e em producao nenhum aviso
+   * verdadeiro passaria. E exatamente o tipo de armadilha que este falso
+   * existe para reproduzir, e nao para esconder.
+   *
+   * O parametro `rawBody` sumiu junto: nada aqui depende dele. Mante-lo seria
+   * sugerir que o corpo participa da conferencia.
    */
-  assinar(rawBody: string): string {
-    return createHmac('sha256', this.opcoes.webhookSecret ?? SEGREDO_PADRAO)
-      .update(rawBody, 'utf8')
-      .digest('hex')
+  tokenDeAviso(): string {
+    return this.opcoes.webhookSecret ?? SEGREDO_PADRAO
   }
 
   /**
@@ -498,12 +506,14 @@ export class FakePaymentGateway {
     })
   }
 
-  private assinaturaConfere(rawBody: string, signature: string): boolean {
-    const esperada = Buffer.from(this.assinar(rawBody), 'utf8')
-    const recebida = Buffer.from(signature, 'utf8')
-    /* Comparacao de tempo constante: `===` vaza o tamanho do prefixo correto. */
-    if (esperada.length !== recebida.length) return false
-    return timingSafeEqual(esperada, recebida)
+  private tokenConfere(recebido: string): boolean {
+    const a = Buffer.from(recebido.trim(), 'utf8')
+    const b = Buffer.from(this.tokenDeAviso(), 'utf8')
+    /* Tempo constante: `===` vaza o tamanho do prefixo correto. O tamanho e
+       conferido antes porque `timingSafeEqual` lanca com buffers diferentes, e
+       um throw aqui viraria 500 em vez de 401. */
+    if (a.length !== b.length || a.length === 0) return false
+    return timingSafeEqual(a, b)
   }
 
   private guardar(cobranca: Cobranca, id: string): void {

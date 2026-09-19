@@ -18,7 +18,7 @@ async function cobrancaPaga(gateway: ReturnType<typeof createFakePaymentGateway>
     amount: (valor / 100).toFixed(2),
     occurredAt: AGORA,
   })
-  const leitura = gateway.readWebhook(corpo, gateway.assinar(corpo))
+  const leitura = gateway.readWebhook(corpo, gateway.tokenDeAviso())
   return { cobranca, leitura }
 }
 
@@ -51,7 +51,7 @@ describe('webhook — as armadilhas do provedor', () => {
       amount: '129.90',
       occurredAt: AGORA,
     })
-    const leitura = gateway.readWebhook(corpo, gateway.assinar(corpo))
+    const leitura = gateway.readWebhook(corpo, gateway.tokenDeAviso())
 
     /*
      * Tratar `approved` como confirmacao e esperar para sempre uma baixa que
@@ -76,7 +76,7 @@ describe('webhook — as armadilhas do provedor', () => {
       amount: '129.90',
       occurredAt: AGORA,
     })
-    const leitura = gateway.readWebhook(corpo, gateway.assinar(corpo))
+    const leitura = gateway.readWebhook(corpo, gateway.tokenDeAviso())
 
     /* O corpo tem `event` e `data` preenchidos; o adapter nao olha para eles. */
     expect(leitura.status).toBe('ignored')
@@ -94,7 +94,7 @@ describe('webhook — as armadilhas do provedor', () => {
       amount: '129.90',
       occurredAt: AGORA,
     })
-    const assinatura = gateway.assinar(corpo)
+    const assinatura = gateway.tokenDeAviso()
 
     const primeira = gateway.readWebhook(corpo, assinatura)
     const segunda = gateway.readWebhook(corpo, assinatura)
@@ -104,7 +104,7 @@ describe('webhook — as armadilhas do provedor', () => {
     expect(segunda.status).toBe('ignored')
   })
 
-  it('valida o HMAC sobre o corpo bruto: reserializar invalida', async () => {
+  it('o corpo NAO e protegido — quem tem o token manda o que quiser', async () => {
     const gateway = createFakePaymentGateway()
     const cobranca = await gateway.createPixCharge(pedidoDePix())
     const corpo = gateway.corpoDeWebhook({
@@ -114,20 +114,27 @@ describe('webhook — as armadilhas do provedor', () => {
       amount: '129.90',
       occurredAt: AGORA,
     })
-    const assinatura = gateway.assinar(corpo)
 
-    /* Mesmo objeto, bytes diferentes — e o bug de validar depois do parse. */
+    /*
+     * Registrado de proposito, e nao como aprovacao. O provedor autentica com
+     * TOKEN ESTATICO, entao reserializar o corpo nao invalida nada: o que
+     * protege e o segredo do token e o `eventId`, que impede reprocessar o
+     * mesmo aviso — nunca a integridade do corpo.
+     *
+     * Este teste existiu ao contrario por um tempo, afirmando um HMAC que o
+     * provedor nao faz. Ele passava porque o falso repetia a conta errada dos
+     * dois lados.
+     */
     const reserializado = JSON.stringify(JSON.parse(corpo), null, 2)
 
-    expect(gateway.readWebhook(corpo, assinatura).status).toBe('accepted')
-    expect(gateway.readWebhook(reserializado, assinatura).status).toBe('invalid_signature')
+    expect(gateway.readWebhook(reserializado, gateway.tokenDeAviso()).status).toBe('accepted')
   })
 
   it('corpo ilegivel com assinatura valida e malformado, nao invalido', async () => {
     const gateway = createFakePaymentGateway()
     const corpo = 'isto nao e json'
 
-    const leitura = gateway.readWebhook(corpo, gateway.assinar(corpo))
+    const leitura = gateway.readWebhook(corpo, gateway.tokenDeAviso())
 
     /* A distincao decide o codigo HTTP: 400 aqui, 401 na assinatura. */
     expect(leitura.status).toBe('malformed')
@@ -141,7 +148,7 @@ describe('webhook — as armadilhas do provedor', () => {
       occurred_at: AGORA,
     })
 
-    const leitura = gateway.readWebhook(corpo, gateway.assinar(corpo))
+    const leitura = gateway.readWebhook(corpo, gateway.tokenDeAviso())
 
     /* Correlacionar por valor ou horario seria dar baixa na cobranca errada. */
     expect(leitura.status).toBe('malformed')
@@ -159,8 +166,8 @@ describe('webhook — as armadilhas do provedor', () => {
       occurredAt: AGORA,
     })
 
-    expect(gateway.readWebhook(corpo, gateway.assinar(corpo)).status).toBe('accepted')
-    expect(gateway.readWebhook(corpo, outro.assinar(corpo)).status).toBe('invalid_signature')
+    expect(gateway.readWebhook(corpo, gateway.tokenDeAviso()).status).toBe('accepted')
+    expect(gateway.readWebhook(corpo, outro.tokenDeAviso()).status).toBe('invalid_signature')
   })
 })
 
