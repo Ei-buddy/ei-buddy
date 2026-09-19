@@ -24,6 +24,7 @@ export {
   estaVencida,
   faixaDeVencimento,
   ocorrenciasDaRecorrencia,
+  somarDias,
 } from './due-date.js'
 export type { FaixaDeVencimento, Frequencia } from './due-date.js'
 export { aplicarBaixa, estornarBaixa, situacaoPorValor } from './settlement.js'

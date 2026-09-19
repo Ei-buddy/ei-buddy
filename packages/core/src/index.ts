@@ -114,6 +114,18 @@ export {
 } from './connections/fakes.js'
 export type { PaymentGateway } from './ports/payment-gateway.js'
 export type { SubscriptionProvider } from './ports/subscription-provider.js'
+export {
+  avancar,
+  deveAvisarDoFimDoTeste,
+  fimDaTolerancia,
+  fimDoTeste,
+} from './subscriptions/estado.js'
+export type {
+  AssinaturaParaDecidir,
+  EventoDaAssinatura,
+  PoliticaDeAssinatura,
+  Transicao,
+} from './subscriptions/estado.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
 export type {
   ConfirmationDecision,
