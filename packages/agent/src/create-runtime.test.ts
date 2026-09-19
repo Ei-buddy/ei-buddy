@@ -45,6 +45,15 @@ const useCases: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   findProductByBarcode: async () => undefined,
+  registerProduct: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  createPayable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  createReceivable: async () => {
+    throw new Error('nao executa neste teste')
+  },
 }
 
 describe('createAgentRuntime — US1', () => {

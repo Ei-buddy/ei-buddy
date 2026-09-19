@@ -198,9 +198,9 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-137 | Tratar foto de código de barras, sem pedido de cadastro, como item de venda                                           | US-068 | `agent`     |  S  | ⬜  |
 | RF-138 | Tratar foto de código com pedido explícito de cadastro como cadastro de produto                                       | US-068 | `agent`     |  S  | ⬜  |
 | RF-139 | Recusar foto ilegível ou código sem produto e orientar venda ou cadastro por texto                                    | US-068 | `agent`     |  S  | ⬜  |
-| RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                               | US-069 | `agent`     |  S  | ⬜  |
-| RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                            | US-070 | `agent`     |  S  | ⬜  |
-| RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                         | US-071 | `agent`     |  S  | ⬜  |
+| RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                               | US-069 | `agent`     |  S  | ✅  |
+| RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                            | US-070 | `agent`     |  S  | ✅  |
+| RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                         | US-071 | `agent`     |  S  | ✅  |
 | RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                      | US-072 | `agent`     |  S  | ⬜  |
 | RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                          | US-073 | `agent`     |  S  | ⬜  |
 | RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                                 | US-074 | `agent`     |  S  | ⬜  |

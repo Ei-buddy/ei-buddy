@@ -2,6 +2,9 @@ import {
   catalogInputSchema,
   checkCustomerWalletInputSchema,
   createCustomerInputSchema,
+  createPayableInputSchema,
+  createProductInputSchema,
+  createReceivableInputSchema,
   createSaleInputSchema,
   dreInputSchema,
   revenueByMonthInputSchema,
@@ -14,9 +17,14 @@ import {
   checkStockByQueryInputSchema,
   listPayablesInputSchema,
   type CreateCustomerInput,
+  type CreatePayableInput,
+  type CreateProductInput,
+  type CreateReceivableInput,
   type CreateSaleInput,
   type DreInput,
   type DreOutput,
+  type PayableOutput,
+  type ReceivableOutput,
   type RevenueByMonthInput,
   type RevenueByMonthOutput,
   type SaleHistoryInput,
@@ -100,6 +108,21 @@ export type AgentUseCases = {
     ctx: ExecutionContext,
     barcode: string,
   ) => Promise<ProductOutput | undefined>
+  /** RF-140 — o MESMO caso de uso do aplicativo, incluindo a recusa de EAN repetido. */
+  readonly registerProduct: (
+    ctx: ExecutionContext,
+    input: CreateProductInput,
+  ) => Promise<ProductOutput>
+  /** RF-141 — devolve N titulos quando ha recorrencia, como no aplicativo. */
+  readonly createPayable: (
+    ctx: ExecutionContext,
+    input: CreatePayableInput,
+  ) => Promise<readonly PayableOutput[]>
+  /** RF-142 — recebivel que nao vem de venda. */
+  readonly createReceivable: (
+    ctx: ExecutionContext,
+    input: CreateReceivableInput,
+  ) => Promise<ReceivableOutput>
 }
 
 export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
@@ -260,6 +283,67 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
       },
       formatReply: (out) =>
         `Venda #${out.sale.number} registrada — ${formatarCentavos(out.sale.netAmountCents)}.`,
+    }),
+    defineTool({
+      id: 'create_product',
+      description:
+        'Cadastra um produto com descricao, custo e preco de venda. Exige confirmacao. Use para "cadastra [produto] custo X vende a Y".',
+      inputSchema: createProductInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.registerProduct(ctx, input),
+      formatProposal: (input) => {
+        const codigo = input.barcode === undefined ? '' : ` (codigo ${input.barcode})`
+        return (
+          `Cadastrar produto ${input.description}${codigo}: ` +
+          `custo ${formatarCentavos(input.costPriceCents)}, ` +
+          `venda ${formatarCentavos(input.salePriceCents)}`
+        )
+      },
+      formatReply: (out) =>
+        `Produto ${out.description} cadastrado (${out.internalCode}) — ${formatarCentavos(out.salePriceCents)}.`,
+    }),
+    defineTool({
+      id: 'create_payable',
+      description:
+        'Lanca uma conta a pagar com fornecedor, valor e vencimento. Exige confirmacao. Nao invente valor nem vencimento: pergunte o que faltar.',
+      inputSchema: createPayableInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.createPayable(ctx, input),
+      formatProposal: (input) => {
+        const repete = input.recurrence === undefined ? '' : ', repetindo'
+        return (
+          `Lancar conta a pagar de ${input.supplier}: ${input.description}, ` +
+          `${formatarCentavos(input.amountCents)}, vence ${input.dueDate}${repete}`
+        )
+      },
+      formatReply: (out) => {
+        const primeira = out[0]
+        if (primeira === undefined) return 'Nenhuma conta foi lancada.'
+        // Recorrencia vira N titulos de verdade (ver `createPayable`), entao a
+        // resposta precisa dizer quantos — senao o lojista confirma "aluguel" e
+        // nao sabe que nasceram doze.
+        if (out.length > 1) {
+          return `${out.length} contas lancadas para ${primeira.supplier}, de ${formatarCentavos(primeira.amountCents)} cada. A primeira vence ${primeira.dueDate}.`
+        }
+        return `Conta de ${primeira.supplier} lancada: ${formatarCentavos(primeira.amountCents)}, vence ${primeira.dueDate}.`
+      },
+    }),
+    defineTool({
+      id: 'create_receivable',
+      description:
+        'Lanca um valor a receber que NAO vem de venda (aluguel, servico avulso). Exige confirmacao. Para venda, use create_sale.',
+      inputSchema: createReceivableInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.createReceivable(ctx, input),
+      formatProposal: (input) => {
+        const cliente = input.customerId === undefined ? '' : ` do cliente ${input.customerId}`
+        return (
+          `Lancar a receber${cliente}: ${input.description}, ` +
+          `${formatarCentavos(input.amountCents)}, vence ${input.dueDate}`
+        )
+      },
+      formatReply: (out) =>
+        `A receber lancado: ${out.description}, ${formatarCentavos(out.amountCents)}, vence ${out.dueDate}.`,
     }),
     defineTool({
       id: 'send_charge',
