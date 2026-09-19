@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   couponApplicationSchema,
-  couponSchema,
+  couponLookupSchema,
   createSubscriptionRequestSchema,
   planSchema,
   podeEscrever,
@@ -58,32 +58,45 @@ describe('plano', () => {
   })
 })
 
-const cupomBase = {
-  id: 'cup_1',
-  code: 'PARCEIRO10',
-  kind: 'percent' as const,
-  percent: 10,
-  amountCents: null,
-  expiresAt: null,
-  revokedAt: null,
-  discountCycles: null,
-  maxRedemptions: 100,
-  redeemedCount: 3,
+const consulta = {
+  couponId: 'cup_1',
+  kind: 'partner' as const,
+  referrerLabel: 'Barbearia do Ze',
+  active: true,
+  discountPercent: 30,
+  reason: 'ok' as const,
 }
 
 describe('cupom', () => {
-  it('aceita cupom de percentual', () => {
-    expect(couponSchema.parse(cupomBase).percent).toBe(10)
+  it('a consulta traz so o que a leitura publica pode expor', () => {
+    const c = couponLookupSchema.parse(consulta)
+
+    /* PIX e a mensagem da candidatura NUNCA saem daqui — a consulta e por
+       codigo e quem digita ainda nao tem empresa. */
+    expect(Object.keys(c).sort()).toEqual(
+      ['active', 'couponId', 'discountPercent', 'kind', 'reason', 'referrerLabel'].sort(),
+    )
   })
 
-  it('recusa cupom sem o valor do proprio tipo', () => {
-    /* O CHECK do banco diz o mesmo: `percent` e `amount` sao exclusivos, e um
-       cupom sem nenhum dos dois nao desconta nada mas parece valido. */
-    expect(couponSchema.safeParse({ ...cupomBase, percent: null }).success).toBe(false)
-    expect(
-      couponSchema.safeParse({ ...cupomBase, kind: 'amount', percent: null, amountCents: null })
-        .success,
-    ).toBe(false)
+  it('recusa campo que nao pertence a consulta publica', () => {
+    /* `.strict()` e o que impede alguem acrescentar `pixKey` no retorno e o
+       contrato aceitar em silencio. */
+    expect(couponLookupSchema.safeParse({ ...consulta, pixKey: '11999998888' }).success).toBe(false)
+  })
+
+  it('o tipo diz quem INDICOU, e nao a forma do desconto', () => {
+    /* O desconto de quem resgata e sempre percentual (ADR-0013). 'percent' e
+       'amount' aqui seriam a pergunta errada. */
+    expect(couponLookupSchema.safeParse({ ...consulta, kind: 'percent' }).success).toBe(false)
+    expect(couponLookupSchema.parse({ ...consulta, kind: 'lojista' }).kind).toBe('lojista')
+  })
+
+  it('o motivo cobre os quatro jeitos de um cupom nao valer', () => {
+    for (const reason of ['revoked', 'inactive', 'expired', 'exhausted'] as const) {
+      expect(couponLookupSchema.parse({ ...consulta, active: false, reason }).reason).toBe(reason)
+    }
+    /* 'inactive' existe porque cupom de parceiro nasce aguardando aprovacao —
+       e "ainda nao vale" e uma conversa diferente de "nao vale mais". */
   })
 
   it('a aplicacao traz o valor FINAL, e nao so o desconto', () => {
@@ -93,12 +106,12 @@ describe('cupom', () => {
       status: 'applied',
       couponId: 'cup_1',
       code: 'PARCEIRO10',
-      discountCents: 890,
-      finalCents: 8010,
+      discountCents: 2697,
+      finalCents: 6293,
       cycles: 1,
     })
     if (r.status !== 'applied') throw new Error('esperava aplicado')
-    expect(r.finalCents).toBe(8010)
+    expect(r.finalCents).toBe(6293)
   })
 
   it('a recusa traz o motivo exato, e nao "invalido"', () => {

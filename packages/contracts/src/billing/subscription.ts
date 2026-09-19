@@ -88,58 +88,72 @@ export const planSchema = z
 
 export type Plan = z.infer<typeof planSchema>
 
-/** `percent` e `amount` sao mutuamente exclusivos — o CHECK do banco diz o mesmo. */
-export const couponKindSchema = z.enum(['percent', 'amount'], {
+/**
+ * Quem indicou — ADR-0013.
+ *
+ * Nao e o tipo de desconto: o desconto de quem RESGATA e sempre percentual,
+ * igual nos dois casos. O que muda e o beneficio de quem INDICOU (comissao
+ * recorrente para o parceiro, credito de mes gratis para o lojista), e isso
+ * nao atravessa esta porta.
+ *
+ * Lido da FK preenchida no banco, nunca de um campo que quem cadastra escolhe.
+ */
+export const couponReferrerKindSchema = z.enum(['partner', 'lojista'], {
   error: 'Tipo de cupom invalido.',
 })
-export type CouponKind = z.infer<typeof couponKindSchema>
-
-export const couponSchema = z
-  .object({
-    id: idSchema,
-    /** O que o lojista digita. */
-    code: z.string().trim().min(1, 'Codigo do cupom obrigatorio.').max(40),
-    kind: couponKindSchema,
-    /** Pontos por cem: `10` = 10%. Presente so quando `kind = percent`. */
-    percent: rateSchema.nullable(),
-    /** Presente so quando `kind = amount`. */
-    amountCents: moneyCentsSchema.nullable(),
-    /** Nulo = sem validade de calendario. */
-    expiresAt: dateTimeSchema.nullable(),
-    /** Preenchido = codigo morto. A linha nao e apagada — RNF-040. */
-    revokedAt: dateTimeSchema.nullable(),
-    /** Nulo = desconto em todos os ciclos; `1` = so o primeiro. */
-    discountCycles: z.number().int().positive().nullable(),
-    /** Nulo = sem cota. */
-    maxRedemptions: z.number().int().positive().nullable(),
-    redeemedCount: z.number().int().min(0),
-  })
-  .strict()
-  .refine((c) => (c.kind === 'percent' ? c.percent !== null : c.amountCents !== null), {
-    message: 'Cupom sem o valor do proprio tipo.',
-  })
-
-export type Coupon = z.infer<typeof couponSchema>
+export type CouponReferrerKind = z.infer<typeof couponReferrerKindSchema>
 
 /**
  * Por que o cupom foi recusado — RF-115.
  *
- * O requisito pede o **motivo exato**, e nao "cupom invalido": quem digitou um
- * codigo que existe mas expirou precisa saber que expirou, para nao ficar
- * conferindo se digitou errado. Sao quatro coisas diferentes, com quatro
- * acoes diferentes de quem le.
+ * O requisito pede o **motivo exato**, e nao "cupom invalido": as acoes de
+ * quem le sao diferentes — conferir a digitacao, esperar a aprovacao, pedir
+ * outro codigo, ou desistir porque alguem chegou antes.
+ *
+ * Espelha o `reason` de `coupon_lookup` (migration 0024). A decisao mora no
+ * SQL, e nao aqui, porque a consulta e PUBLICA por codigo: devolver as colunas
+ * cruas transformaria a funcao num contador de resgates de qualquer codigo que
+ * alguem adivinhe.
  */
 export const couponRejectionCodeSchema = z.enum([
-  /** Nao existe, ou foi digitado errado. */
+  /** Nao existe, foi digitado errado, ou foi apagado. */
   'not_found',
   /** Existia e foi revogado por quem o emitiu. */
   'revoked',
+  /** Cupom de parceiro que ainda nao foi aprovado — pode vir a valer. */
+  'inactive',
   /** Passou da validade de calendario. */
   'expired',
   /** A cota acabou — alguem chegou antes. */
   'exhausted',
 ])
 export type CouponRejectionCode = z.infer<typeof couponRejectionCodeSchema>
+
+/**
+ * O que `coupon_lookup` devolve — e so isso.
+ *
+ * **Nao e a linha da tabela `coupons`.** A tabela tem RLS forcada sem
+ * politica permissiva (migration 0014), e o unico caminho de leitura e aquela
+ * funcao. Modelar a tabela aqui seria descrever algo que ninguem consegue ler.
+ *
+ * `referrerLabel` e o nome de quem indicou, para a tela dizer "indicado por
+ * Barbearia do Ze" — e o unico texto que sai da consulta publica. PIX e
+ * mensagem da candidatura nunca saem.
+ */
+export const couponLookupSchema = z
+  .object({
+    couponId: idSchema,
+    kind: couponReferrerKindSchema,
+    referrerLabel: z.string().min(1),
+    /** Verdadeiro so quando `reason` e `ok`. Vem calculado do mesmo SQL. */
+    active: z.boolean(),
+    /** Pontos por cem: `30` = 30%. Sempre percentual (ADR-0013). */
+    discountPercent: rateSchema,
+    reason: z.union([z.literal('ok'), couponRejectionCodeSchema]),
+  })
+  .strict()
+
+export type CouponLookup = z.infer<typeof couponLookupSchema>
 
 /**
  * O resultado de aplicar um cupom.
@@ -160,8 +174,15 @@ export const couponApplicationSchema = z.discriminatedUnion('status', [
       code: z.string().min(1),
       discountCents: moneyCentsSchema,
       finalCents: moneyCentsSchema,
-      /** Em quantos ciclos o desconto vale. Nulo = em todos. */
-      cycles: z.number().int().positive().nullable(),
+      /**
+       * Em quantos ciclos o desconto vale.
+       *
+       * A ADR-0013 fixa **um**, e o numero vem explicito assim mesmo: a tela
+       * precisa dizer qual e, ou o lojista assina esperando desconto para
+       * sempre. Deixa-lo implicito no codigo faria a mensagem ser escrita a
+       * mao em cada tela.
+       */
+      cycles: z.number().int().positive(),
     })
     .strict(),
   z

@@ -131,6 +131,9 @@ export { startTrial } from './subscriptions/start-trial.js'
 export type { StartTrialDeps } from './subscriptions/start-trial.js'
 export { getSubscription } from './subscriptions/get-subscription.js'
 export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-subscription.js'
+export type { CouponRepository } from './ports/coupon-repository.js'
+export { previewCoupon } from './subscriptions/preview-coupon.js'
+export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
 export type { ReminderScheduler } from './ports/reminder-scheduler.js'
 export type {
   ConfirmationDecision,
