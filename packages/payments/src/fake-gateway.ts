@@ -1,11 +1,19 @@
 import {
   boletoChargeRequestSchema,
+  cardChargeRequestSchema,
+  cardTokenRequestSchema,
   paymentEventTypeSchema,
   pixChargeRequestSchema,
   paymentLinkRequestSchema,
   refundRequestSchema,
   type BoletoCharge,
   type BoletoChargeRequest,
+  type CardBrand,
+  type CardCharge,
+  type CardChargeRequest,
+  type CardChargeResult,
+  type CardToken,
+  type CardTokenRequest,
   type FeeQuote,
   type FeeQuoteResult,
   type PaymentLink,
@@ -48,6 +56,7 @@ type Cobranca = {
   restanteCents: number
   readonly pix?: PixCharge
   readonly boleto?: BoletoCharge
+  readonly cartao?: CardCharge
   readonly link?: PaymentLink
 }
 
@@ -65,6 +74,11 @@ export type FakePaymentGatewayOptions = {
    * **lanca** — nao e resultado de negocio, e job para retentar.
    */
   readonly falhaDeInfraestrutura?: string
+  /**
+   * Recusa da operadora no cartao. Esta **nao lanca**: "sem limite" e resposta
+   * normal, e quem chama tem de saber lidar com ela sem desfazer a venda.
+   */
+  readonly recusaDeCartao?: { readonly code: string; readonly message: string }
 }
 
 export class FakePaymentGateway {
@@ -176,6 +190,70 @@ export class FakePaymentGateway {
     return boleto
   }
 
+  async tokenizeCard(request: CardTokenRequest): Promise<CardToken> {
+    this.talvezFalhar()
+    const validado = cardTokenRequestSchema.parse(request)
+
+    /*
+     * O numero NAO e guardado em lugar nenhum — nem num Map de teste. Um falso
+     * que retem o PAN ensina o formato errado de pensar, e um dia alguem copia
+     * o desenho dele para o real.
+     */
+    const token = this.proximoId('tok')
+    return {
+      token,
+      brand: bandeiraPeloPrefixo(validado.number),
+      last4: validado.number.slice(-4),
+    }
+  }
+
+  async createCardCharge(request: CardChargeRequest): Promise<CardChargeResult> {
+    this.talvezFalhar()
+    const validado = cardChargeRequestSchema.parse(request)
+
+    const recusa = this.opcoes.recusaDeCartao
+    if (recusa) return { status: 'declined', decline: { ...recusa } }
+
+    const chave = chaveDeReferencia(validado.companyId, validado.externalReference)
+    const existente = this.porReferencia.get(chave)
+    if (existente?.cartao) return { status: 'authorized', charge: existente.cartao }
+
+    /* Meio trocado para a mesma divida e erro de quem chama — no cartao, o
+       erro seria um segundo debito no limite do cliente. */
+    if (existente?.pix || existente?.boleto) {
+      throw new Error(
+        `A referencia ${validado.externalReference} ja tem cobranca de outro meio. Uma divida gera um documento so.`,
+      )
+    }
+
+    const chargeId = this.proximoId('pay')
+    const cartao: CardCharge = {
+      chargeId,
+      externalReference: validado.externalReference,
+      status: 'authorized',
+      amountCents: validado.amountCents,
+      installments: validado.installments,
+      brand: 'unknown',
+      last4: '0000',
+    }
+
+    this.guardar(
+      {
+        companyId: validado.companyId,
+        externalReference: validado.externalReference,
+        amountCents: validado.amountCents,
+        /* Cartao nasce autorizado, ao contrario de Pix e boleto: a operadora
+           responde na hora. O dinheiro CAIR e outra coisa, e vem por webhook. */
+        status: 'authorized',
+        restanteCents: validado.amountCents,
+        cartao,
+      },
+      chargeId,
+    )
+
+    return { status: 'authorized', charge: cartao }
+  }
+
   async createPaymentLink(request: PaymentLinkRequest): Promise<PaymentLink> {
     this.talvezFalhar()
     const validado = paymentLinkRequestSchema.parse(request)
@@ -262,6 +340,7 @@ export class FakePaymentGateway {
       chargeId:
         cobranca.pix?.chargeId ??
         cobranca.boleto?.chargeId ??
+        cobranca.cartao?.chargeId ??
         cobranca.link?.linkId ??
         validado.data.chargeId,
       amountCents: pedido,
@@ -500,4 +579,23 @@ function linhaDigitavel(chargeId: string, amountCents: number): string {
   const digitosDoId = chargeId.replace(/\D/g, '').padStart(10, '0').slice(-10)
   const valor = String(amountCents).padStart(10, '0').slice(-10)
   return `34191${digitosDoId}00000${digitosDoId}0000${valor}`.padEnd(47, '0').slice(0, 47)
+}
+
+/**
+ * Bandeira pelo primeiro digito — a regra publica de IIN.
+ *
+ * Existe no falso para a tela ter o que mostrar, nao para valer como
+ * identificacao: quem diz a bandeira de verdade e a operadora, na resposta da
+ * tokenizacao. O que nao cai nas faixas conhecidas vira `unknown`, e nao um
+ * chute.
+ */
+function bandeiraPeloPrefixo(numero: string): CardBrand {
+  /* Elo e Hipercard vem ANTES: as faixas delas comecam com 4 e 6, e testar
+     Visa primeiro engoliria todo cartao Elo emitido na faixa 4011. */
+  if (/^(4011|4312|4389|5041|6362|6504)/.test(numero)) return 'elo'
+  if (/^(606282|3841)/.test(numero)) return 'hipercard'
+  if (/^4/.test(numero)) return 'visa'
+  if (/^5[1-5]/.test(numero)) return 'mastercard'
+  if (/^3[47]/.test(numero)) return 'amex'
+  return 'unknown'
 }

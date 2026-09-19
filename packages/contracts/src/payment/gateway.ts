@@ -159,6 +159,183 @@ export const boletoChargeSchema = z
 
 export type BoletoCharge = z.infer<typeof boletoChargeSchema>
 
+/* -------------------------------------------------------------------------
+ * Cartao online — RF-034
+ *
+ * **Este e o unico ponto do sistema que ve o numero e o CVV de um cartao, e
+ * ele existe justamente para que eles nao sejam guardados.** O caminho e:
+ * recebe -> tokeniza no provedor -> guarda so o token, a bandeira e os quatro
+ * ultimos digitos. Nada aqui entra em banco, log ou mensagem de erro.
+ *
+ * A consequencia pratica de errar isto nao e uma multa abstrata: e o numero do
+ * cartao do cliente da mercearia num backup nosso.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * O numero do cartao, em digito puro e conferido pelo Luhn.
+ *
+ * O Luhn roda AQUI porque ele e aritmetica, nao consulta: um numero digitado
+ * errado no balcao e recusado antes de virar uma tentativa negada na conta do
+ * lojista — e negativa demais faz a adquirente olhar a loja com desconfianca.
+ * Ele nao diz que o cartao tem limite, so que os digitos fecham.
+ */
+const cardNumberSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ''))
+  .refine((d) => d.length >= 13 && d.length <= 19, {
+    message: 'Numero de cartao invalido.',
+  })
+  .refine(passaNoLuhn, { message: 'Numero de cartao invalido. Confira os digitos.' })
+
+function passaNoLuhn(digitos: string): boolean {
+  let soma = 0
+  let dobra = false
+  for (let i = digitos.length - 1; i >= 0; i -= 1) {
+    let n = Number(digitos[i])
+    if (dobra) {
+      n *= 2
+      if (n > 9) n -= 9
+    }
+    soma += n
+    dobra = !dobra
+  }
+  return soma % 10 === 0
+}
+
+/**
+ * Dados do portador que a analise de risco do provedor exige.
+ *
+ * Nao e burocracia nossa: cobranca de cartao sem eles e recusada por
+ * antifraude, e o lojista recebe "transacao negada" sem entender por que.
+ */
+export const cardHolderSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Nome do portador muito curto.').max(120, 'Nome muito longo.'),
+    email: z.string().trim().email('E-mail do portador invalido.'),
+    document: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ''))
+      .refine((d) => d.length === 11 || d.length === 14, {
+        message: 'Documento invalido. Informe CPF ou CNPJ.',
+      }),
+    postalCode: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ''))
+      .refine((d) => d.length === 8, { message: 'CEP invalido.' }),
+    addressNumber: z.string().trim().min(1, 'Numero do endereco obrigatorio.').max(20),
+    phone: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ''))
+      .refine((d) => d.length >= 10 && d.length <= 11, { message: 'Telefone invalido.' }),
+  })
+  .strict()
+
+export type CardHolder = z.infer<typeof cardHolderSchema>
+
+export const cardTokenRequestSchema = z
+  .object({
+    companyId: idSchema,
+    /** Cliente no provedor. Token nasce preso a um pagador, nunca solto. */
+    customerReference: idSchema,
+    holderName: z
+      .string()
+      .trim()
+      .min(2, 'Nome impresso no cartao muito curto.')
+      .max(120, 'Nome muito longo.'),
+    number: cardNumberSchema,
+    expiryMonth: z.string().regex(/^(0[1-9]|1[0-2])$/, 'Mes de validade invalido. Use MM.'),
+    expiryYear: z.string().regex(/^20\d{2}$/, 'Ano de validade invalido. Use AAAA.'),
+    cvv: z.string().regex(/^\d{3,4}$/, 'Codigo de seguranca invalido.'),
+    holder: cardHolderSchema,
+    /**
+     * IP de quem digitou o cartao. O antifraude do provedor exige, e mandar o
+     * IP do nosso servidor faria toda compra do pais parecer vir do mesmo
+     * lugar — que e exatamente o padrao que o antifraude procura.
+     */
+    remoteIp: z.string().min(1, 'IP de origem obrigatorio.'),
+    requestedAt: dateTimeSchema,
+  })
+  .strict()
+
+export type CardTokenRequest = z.infer<typeof cardTokenRequestSchema>
+
+/**
+ * O que sobra do cartao depois de tokenizar — e e tudo que pode sobrar.
+ *
+ * Os quatro ultimos digitos e a bandeira existem para o lojista reconhecer o
+ * cartao na tela ("Visa final 4321"). Com eles nao se cobra nada; com o token,
+ * so a conta que o gerou cobra.
+ */
+export const cardTokenSchema = z
+  .object({
+    token: z.string().min(1, 'Token de cartao vazio nao serve.'),
+    brand: cardBrandSchema,
+    last4: z.string().regex(/^\d{4}$/, 'Ultimos digitos invalidos.'),
+  })
+  .strict()
+
+export type CardToken = z.infer<typeof cardTokenSchema>
+
+export const cardChargeRequestSchema = z
+  .object({
+    companyId: idSchema,
+    externalReference: externalReferenceSchema,
+    amountCents: chargeableAmountSchema,
+    description: z.string().trim().min(1, 'Descricao obrigatoria.').max(140, 'Descricao longa.'),
+    dueDate: dateSchema,
+    /** Token de `tokenizeCard`. O numero do cartao nao passa por aqui. */
+    token: z.string().min(1, 'Token de cartao obrigatorio.'),
+    /**
+     * `amountCents` continua sendo o TOTAL, e nao o valor da parcela.
+     *
+     * Trocar os dois e o erro classico de integracao de cartao: 12x de R$ 100
+     * vira R$ 1.200 cobrados, ou R$ 8,33 recebidos. O total atravessa a porta;
+     * a divisao e do provedor.
+     */
+    installments: z.number().int().min(1, 'Parcela minima e 1.').max(21, 'Maximo de 21 parcelas.'),
+    remoteIp: z.string().min(1, 'IP de origem obrigatorio.'),
+    requestedAt: dateTimeSchema,
+  })
+  .strict()
+
+export type CardChargeRequest = z.infer<typeof cardChargeRequestSchema>
+
+export const cardChargeSchema = z
+  .object({
+    chargeId: idSchema,
+    externalReference: externalReferenceSchema,
+    status: chargeStatusSchema,
+    amountCents: chargeableAmountSchema,
+    installments: z.number().int().min(1).max(21),
+    brand: cardBrandSchema,
+    last4: z.string().regex(/^\d{4}$/, 'Ultimos digitos invalidos.'),
+  })
+  .strict()
+
+export type CardCharge = z.infer<typeof cardChargeSchema>
+
+/**
+ * Resultado da cobranca no cartao.
+ *
+ * Uniao discriminada pela mesma razao do estorno: **recusa e resultado, nao
+ * excecao.** "Sem limite", "cartao vencido" e "suspeita de fraude" sao
+ * respostas normais da adquirente, e o lojista precisa ler qual foi para saber
+ * se pede outro cartao ou outro meio. Um `throw` aqui viraria "erro
+ * inesperado" na tela e, pior, deixaria o `catch` mais proximo desfazer a
+ * venda por causa de uma resposta previsivel.
+ */
+export const cardChargeResultSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('authorized'), charge: cardChargeSchema }).strict(),
+  z
+    .object({
+      status: z.literal('declined'),
+      decline: z.object({ code: z.string().min(1), message: z.string().min(1) }).strict(),
+    })
+    .strict(),
+])
+
+export type CardChargeResult = z.infer<typeof cardChargeResultSchema>
+
 export const paymentLinkRequestSchema = z
   .object({
     companyId: idSchema,
