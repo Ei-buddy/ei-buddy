@@ -8,6 +8,9 @@ import {
   createReceivableInputSchema,
   createSaleInputSchema,
   dreInputSchema,
+  adjustStockInputSchema,
+  settlePayableInputSchema,
+  settleReceivableInputSchema,
   listPayablesInputSchema,
   sendChargeInputSchema,
   type CustomerOutput,
@@ -15,6 +18,7 @@ import {
   type PayableOutput,
   type ProductOutput,
   type ReceivableOutput,
+  type SettlementOutput,
 } from '@na-regua/contracts'
 import type { ExecutionContext, PayablesAgrupadas, RegisterSaleResult } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
@@ -84,6 +88,15 @@ const casos: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   createReceivable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  settlePayable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  settleReceivable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  adjustStock: async () => {
     throw new Error('nao executa neste teste')
   },
 }
@@ -481,6 +494,9 @@ describe('mutatesValue — FR-002 / US4', () => {
       create_product: true,
       create_payable: true,
       create_receivable: true,
+      settle_payable: true,
+      settle_receivable: true,
+      adjust_stock: true,
       send_charge: true,
       refuse_certificate: false,
       refuse_banking: false,
@@ -827,6 +843,9 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const registerProduct = vi.fn(casos.registerProduct)
       const createPayable = vi.fn(casos.createPayable)
       const createReceivable = vi.fn(casos.createReceivable)
+      const settlePayable = vi.fn(casos.settlePayable)
+      const settleReceivable = vi.fn(casos.settleReceivable)
+      const adjustStock = vi.fn(casos.adjustStock)
       const tools = createToolCatalog({
         listSales,
         listReceivables,
@@ -844,6 +863,9 @@ describe('refuse_* — US7 / RF-149–151', () => {
         registerProduct,
         createPayable,
         createReceivable,
+        settlePayable,
+        settleReceivable,
+        adjustStock,
       })
       const tool = tools.find((t) => t.id === recusa.id)
       expect(tool).toBeDefined()
@@ -998,5 +1020,97 @@ describe('create_receivable — US-071 / RF-142', () => {
     expect(createReceivable).toHaveBeenCalledWith(ctx, input)
     expect(tool.formatProposal(input)).toContain('Aluguel da vitrine')
     expect(tool.formatReply(out)).toContain(formatarCentavos(50_000))
+  })
+})
+
+describe('settle_payable / settle_receivable — US-072, US-073 / RF-143, RF-144', () => {
+  const baixa = {
+    id: 'baixa-1',
+    payableId: 'pag-1',
+    receivableId: null,
+    amountCents: 90_000,
+    method: null,
+    bankAccount: 'Itau',
+    settledOn: '2026-09-19',
+    notes: null,
+    reversesId: null,
+  } as unknown as SettlementOutput
+
+  it('usam os schemas de contracts e exigem confirmacao', () => {
+    const tools = createToolCatalog(casos)
+    const pagar = tools.find((t) => t.id === 'settle_payable')!
+    const receber = tools.find((t) => t.id === 'settle_receivable')!
+    expect(pagar.mutatesValue).toBe(true)
+    expect(receber.mutatesValue).toBe(true)
+    expect(pagar.inputSchema).toBe(settlePayableInputSchema)
+    expect(receber.inputSchema).toBe(settleReceivableInputSchema)
+  })
+
+  it('baixa parcial passa o valor pedido ao caso de uso, sem arredondar', async () => {
+    const settlePayable = vi.fn(async () => baixa)
+    const tool = createToolCatalog({ ...casos, settlePayable }).find(
+      (t) => t.id === 'settle_payable',
+    )!
+    const input = {
+      payableId: 'pag-1',
+      amountCents: 90_000,
+      settledOn: '2026-09-19',
+      bankAccount: 'Itau',
+    }
+
+    const out = await tool.execute(input, ctx)
+
+    expect(settlePayable).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toContain(formatarCentavos(90_000))
+    expect(tool.formatReply(out)).toContain(formatarCentavos(90_000))
+  })
+
+  /*
+   * O core devolve a LINHA de baixa, nao o titulo — um titulo tem varias. Dizer
+   * "quitada" aqui seria afirmar o que esta saida nao sabe.
+   */
+  it('nao afirma quitacao nem saldo restante', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'settle_payable')!
+    const texto = tool.formatReply(baixa)
+    expect(texto).not.toMatch(/quitad|restam|em aberto/i)
+  })
+})
+
+describe('adjust_stock — US-074 / RF-145', () => {
+  it('usa adjustStockInputSchema e exige confirmacao', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'adjust_stock')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+    expect(tool!.inputSchema).toBe(adjustStockInputSchema)
+  })
+
+  /* RF-023 pede motivo. Ajuste sem motivo vira numero que mudou sozinho. */
+  it('recusa ajuste sem motivo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'adjust_stock')!
+    expect(() =>
+      parseToolArgs(tool.inputSchema, { productId: 'p-1', countedQuantity: 10 }),
+    ).toThrow()
+  })
+
+  it('mostra a diferenca e o saldo final, para contagem digitada errada aparecer', async () => {
+    const adjustStock = vi.fn(async () => ({
+      id: 'mov-1',
+      productId: 'p-1',
+      kind: 'adjustment',
+      quantityDelta: -7,
+      balanceAfter: 3,
+      reason: 'quebra',
+      saleId: null,
+    }))
+    const tool = createToolCatalog({
+      ...casos,
+      adjustStock: adjustStock as unknown as AgentUseCases['adjustStock'],
+    }).find((t) => t.id === 'adjust_stock')!
+
+    const out = await tool.execute({ productId: 'p-1', countedQuantity: 3, reason: 'quebra' }, ctx)
+
+    const texto = tool.formatReply(out)
+    expect(texto).toContain('-7')
+    expect(texto).toContain('3 un')
   })
 })

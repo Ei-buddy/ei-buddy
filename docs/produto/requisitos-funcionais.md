@@ -201,9 +201,9 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-140 | Cadastrar produto por mensagem usando o mesmo caso de uso do aplicativo                                               | US-069 | `agent`     |  S  | ✅  |
 | RF-141 | Lançar conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                            | US-070 | `agent`     |  S  | ✅  |
 | RF-142 | Lançar recebível avulso por mensagem usando o mesmo caso de uso do aplicativo                                         | US-071 | `agent`     |  S  | ✅  |
-| RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                      | US-072 | `agent`     |  S  | ⬜  |
-| RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                          | US-073 | `agent`     |  S  | ⬜  |
-| RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                                 | US-074 | `agent`     |  S  | ⬜  |
+| RF-143 | Dar baixa em conta a pagar por mensagem usando o mesmo caso de uso do aplicativo                                      | US-072 | `agent`     |  S  | ✅  |
+| RF-144 | Dar baixa em recebível por mensagem usando o mesmo caso de uso do aplicativo                                          | US-073 | `agent`     |  S  | ✅  |
+| RF-145 | Ajustar estoque por mensagem usando o mesmo caso de uso do aplicativo                                                 | US-074 | `agent`     |  S  | ✅  |
 | RF-147 | Cancelar ou devolver venda por mensagem usando o mesmo caso de uso do aplicativo, com Focus se houver nota            | US-075 | `agent`     |  S  | ⬜  |
 | RF-148 | Criar compromisso por mensagem usando o mesmo caso de uso do aplicativo                                               | US-076 | `agent`     |  C  | ⬜  |
 | RF-149 | Recusar certificado A1, senha e cadastro de emitente pelo WhatsApp, orientando o app                                  | US-077 | `agent`     |  M  | ⬜  |

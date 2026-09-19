@@ -67,6 +67,12 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > A **NR-062** já está ✅ na `main` (#228). A **NR-061** entra como ✅ **neste
 > PR** (branch `feat/NR-061-confirmacao-acao-sensivel`); a `main` só passa a
 > contar o squash depois do merge — sem URL de PR ainda.
+> A **NR-118** entregou US-072, US-073 e US-074 (RF-143/144/145). A US-075
+> (cancelar/devolver venda por mensagem, RF-147) **nao pode ser feita ainda**:
+> ela pede "o mesmo caso de uso do aplicativo", e esse caso de uso nao existe —
+> RF-043 e RF-044 estao ⬜ e **nenhuma tarefa do quadro os cobre**. Fazer isso
+> dentro do agente seria implementar cancelamento de venda fora do nucleo,
+> que e o oposto do que o RF-147 pede. Falta abrir a tarefa de `core`/`fiscal`.
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi

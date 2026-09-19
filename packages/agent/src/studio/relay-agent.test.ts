@@ -108,6 +108,15 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
     createReceivable: async () => {
       throw new Error('nao executa neste teste')
     },
+    settlePayable: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    settleReceivable: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    adjustStock: async () => {
+      throw new Error('nao executa neste teste')
+    },
     ...over,
   }
 }
