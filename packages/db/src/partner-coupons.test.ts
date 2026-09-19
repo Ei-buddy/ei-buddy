@@ -326,7 +326,9 @@ describe.skipIf(!DATABASE_URL)('conta de parceiro e cupons — NR-114', () => {
 
       const [linha] = await sql`SELECT * FROM coupon_lookup(${codigo})`
       expect(Object.keys(linha ?? {}).sort()).toEqual(
-        ['active', 'coupon_id', 'discount_percent', 'kind', 'referrer_label'].sort(),
+        /* O motivo entrou na 0024 para a RF-115. Continua sendo retorno
+           minimo: um enum de motivo, nunca PIX nem mensagem. */
+        ['active', 'coupon_id', 'discount_percent', 'kind', 'referrer_label', 'reason'].sort(),
       )
     })
 
