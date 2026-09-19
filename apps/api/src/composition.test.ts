@@ -32,6 +32,10 @@ const { db, storePostgres } = vi.hoisted(() => {
       createProductRepository: vi.fn(vazio),
       createChartOfAccountsRepository: vi.fn(vazio),
       createInventoryUnitOfWork: vi.fn(vazio),
+      /* NR-118: o agente passou a usar baixa de titulo, e `buildBaixasDeps`
+         pede estes dois. Sem eles o mock derruba todo o arquivo. */
+      createSettlementUnitOfWork: vi.fn(vazio),
+      createSettlementQueries: vi.fn(vazio),
       createInventoryQueries: vi.fn(() => ({ products: {} })),
       createInventoryHistory: vi.fn(vazio),
       createAuditTrail: vi.fn(vazio),

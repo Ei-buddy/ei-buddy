@@ -22,11 +22,14 @@ import {
   listPayables,
   listReceivables,
   listSales,
+  adjustStock,
   registerCustomer,
   registerProduct,
   registerSale,
   searchProducts,
   sendCustomerCharge,
+  settlePayable,
+  settleReceivable,
 } from '@na-regua/core'
 import { createFakeMessageSender } from '@na-regua/whatsapp'
 import {
@@ -855,6 +858,7 @@ export function buildAgentUseCases(): AgentUseCases {
   const cadastro = buildCadastroDeps()
   const contas = buildContasDeps()
   const estoque = buildEstoqueDeps()
+  const baixas = buildBaixasDeps()
   const relatorios = buildRelatoriosDeps()
   const contabilidade = buildContabilidadeDeps()
   const messages = createFakeMessageSender()
@@ -892,6 +896,10 @@ export function buildAgentUseCases(): AgentUseCases {
     registerProduct: (ctx, input) => registerProduct(cadastro, ctx, input),
     createPayable: (ctx, input) => createPayable(contas, ctx, input),
     createReceivable: (ctx, input) => createReceivable({ uow: contas.receivablesUow }, ctx, input),
+    /* NR-118: baixa e ajuste tambem saem dos casos de uso das telas. */
+    settlePayable: (ctx, input) => settlePayable(baixas, ctx, input),
+    settleReceivable: (ctx, input) => settleReceivable(baixas, ctx, input),
+    adjustStock: (ctx, input) => adjustStock(estoque, ctx, input),
     sendCustomerCharge: (ctx, input) =>
       sendCustomerCharge(
         {

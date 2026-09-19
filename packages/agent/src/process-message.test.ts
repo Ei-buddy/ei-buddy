@@ -233,6 +233,15 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
     createReceivable: async () => {
       throw new Error('nao executa neste teste')
     },
+    settlePayable: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    settleReceivable: async () => {
+      throw new Error('nao executa neste teste')
+    },
+    adjustStock: async () => {
+      throw new Error('nao executa neste teste')
+    },
     ...over,
   }
 }
@@ -1708,6 +1717,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     const registerProduct = vi.fn(casos().registerProduct)
     const createPayable = vi.fn(casos().createPayable)
     const createReceivable = vi.fn(casos().createReceivable)
+    const settlePayable = vi.fn(casos().settlePayable)
+    const settleReceivable = vi.fn(casos().settleReceivable)
+    const adjustStock = vi.fn(casos().adjustStock)
     const runtime = createAgentRuntime({
       useCases: {
         listSales,
@@ -1726,6 +1738,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
         registerProduct,
         createPayable,
         createReceivable,
+        settlePayable,
+        settleReceivable,
+        adjustStock,
       },
     })
 
@@ -1749,6 +1764,9 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
     expect(registerProduct).not.toHaveBeenCalled()
     expect(createPayable).not.toHaveBeenCalled()
     expect(createReceivable).not.toHaveBeenCalled()
+    expect(settlePayable).not.toHaveBeenCalled()
+    expect(settleReceivable).not.toHaveBeenCalled()
+    expect(adjustStock).not.toHaveBeenCalled()
   })
 
   it('cancela a nota recusa; cancela a venda nao vira comando de nota — RF-151', async () => {

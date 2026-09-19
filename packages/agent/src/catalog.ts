@@ -7,6 +7,9 @@ import {
   createReceivableInputSchema,
   createSaleInputSchema,
   dreInputSchema,
+  adjustStockInputSchema,
+  settlePayableInputSchema,
+  settleReceivableInputSchema,
   revenueByMonthInputSchema,
   saleHistoryInputSchema,
   sendChargeInputSchema,
@@ -23,8 +26,13 @@ import {
   type CreateSaleInput,
   type DreInput,
   type DreOutput,
+  type AdjustStockInput,
+  type InventoryMovementOutput,
   type PayableOutput,
   type ReceivableOutput,
+  type SettlePayableInput,
+  type SettleReceivableInput,
+  type SettlementOutput,
   type RevenueByMonthInput,
   type RevenueByMonthOutput,
   type SaleHistoryInput,
@@ -123,6 +131,21 @@ export type AgentUseCases = {
     ctx: ExecutionContext,
     input: CreateReceivableInput,
   ) => Promise<ReceivableOutput>
+  /** RF-143 — baixa de conta a pagar, total ou parcial. */
+  readonly settlePayable: (
+    ctx: ExecutionContext,
+    input: SettlePayableInput,
+  ) => Promise<SettlementOutput>
+  /** RF-144 — baixa de recebivel, total ou parcial. */
+  readonly settleReceivable: (
+    ctx: ExecutionContext,
+    input: SettleReceivableInput,
+  ) => Promise<SettlementOutput>
+  /** RF-145 — ajuste de saldo com motivo, virando movimento na trilha. */
+  readonly adjustStock: (
+    ctx: ExecutionContext,
+    input: AdjustStockInput,
+  ) => Promise<InventoryMovementOutput>
 }
 
 export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
@@ -346,6 +369,45 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
         `A receber lancado: ${out.description}, ${formatarCentavos(out.amountCents)}, vence ${out.dueDate}.`,
     }),
     defineTool({
+      id: 'settle_payable',
+      description:
+        'Da baixa numa conta a pagar, total ou parcial. Exige confirmacao. Precisa do id da conta — use list_payables antes se nao souber.',
+      inputSchema: settlePayableInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.settlePayable(ctx, input),
+      formatProposal: (input) =>
+        `Baixar ${formatarCentavos(input.amountCents)} da conta ${input.payableId} em ${input.settledOn}, por ${input.bankAccount}`,
+      formatReply: (out) => formatarBaixa(out, 'Conta'),
+    }),
+    defineTool({
+      id: 'settle_receivable',
+      description:
+        'Da baixa num recebivel, total ou parcial. Exige confirmacao. Precisa do id do recebivel — use list_receivables antes se nao souber.',
+      inputSchema: settleReceivableInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.settleReceivable(ctx, input),
+      formatProposal: (input) =>
+        `Registrar recebimento de ${formatarCentavos(input.amountCents)} do titulo ${input.receivableId} em ${input.settledOn}, por ${input.method}`,
+      formatReply: (out) => formatarBaixa(out, 'Recebivel'),
+    }),
+    defineTool({
+      id: 'adjust_stock',
+      description:
+        'Corrige o saldo de um produto para a quantidade contada, com motivo obrigatorio. Exige confirmacao. Informe quantas unidades EXISTEM, nao a diferenca.',
+      inputSchema: adjustStockInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.adjustStock(ctx, input),
+      formatProposal: (input) =>
+        `Ajustar o estoque de ${input.productId} para ${input.countedQuantity} un. Motivo: ${input.reason}`,
+      formatReply: (out) => {
+        // `quantityDelta` e assinado; dizer so o saldo final esconderia um
+        // ajuste grande digitado errado, que e o erro que este fluxo mais
+        // convida — contagem no lugar de diferenca.
+        const sinal = out.quantityDelta > 0 ? `+${out.quantityDelta}` : `${out.quantityDelta}`
+        return `Estoque ajustado em ${sinal} un. Saldo agora: ${out.balanceAfter} un.`
+      },
+    }),
+    defineTool({
       id: 'send_charge',
       description:
         'Envia cobranca por mensagem a um cliente com divida em aberto. Exige confirmacao. Sem divida, informa e nao envia.',
@@ -476,4 +538,15 @@ function formatarRespostaFiado(out: CheckCustomerWalletByQueryResult): string {
   }
 
   return `${out.customerName} deve ${formatarCentavos(out.walletBalanceCents)}.`
+}
+
+/**
+ * Texto da baixa — RF-143, RF-144.
+ *
+ * O core devolve a LINHA de baixa, nao o titulo, entao daqui nao da para dizer
+ * "quitada" ou "resta X": um titulo tem varias baixas, e o saldo e a soma
+ * delas. Dizer o que foi baixado e honesto; inventar o restante seria chutar.
+ */
+function formatarBaixa(out: SettlementOutput, rotulo: 'Conta' | 'Recebivel'): string {
+  return `${rotulo} baixada em ${formatarCentavos(out.amountCents)}, com data de ${out.settledOn}.`
 }

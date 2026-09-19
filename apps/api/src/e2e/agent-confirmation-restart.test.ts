@@ -122,6 +122,15 @@ const leituraVazia: AgentUseCases = {
   createReceivable: async () => {
     throw new Error('nao executa neste teste')
   },
+  settlePayable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  settleReceivable: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  adjustStock: async () => {
+    throw new Error('nao executa neste teste')
+  },
 }
 
 describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', () => {
