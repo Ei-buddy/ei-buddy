@@ -96,6 +96,69 @@ export const pixChargeSchema = z
 
 export type PixCharge = z.infer<typeof pixChargeSchema>
 
+/**
+ * Boleto — RF-034.
+ *
+ * `dueDate` e **obrigatorio** aqui, e opcional no Pix, porque sao dois
+ * documentos diferentes: o Pix pode nascer sem prazo e o provedor decide; o
+ * boleto E um titulo com vencimento impresso nele. Boleto sem vencimento nao
+ * existe no banco que vai recebe-lo.
+ */
+export const boletoChargeRequestSchema = z
+  .object({
+    companyId: idSchema,
+    externalReference: externalReferenceSchema,
+    amountCents: chargeableAmountSchema,
+    /** Sai impresso no boleto, no campo de demonstrativo. */
+    description: z.string().trim().min(1, 'Descricao obrigatoria.').max(140, 'Descricao longa.'),
+    dueDate: dateSchema,
+    payer: payerSchema.optional(),
+    requestedAt: dateTimeSchema,
+  })
+  .strict()
+
+export type BoletoChargeRequest = z.infer<typeof boletoChargeRequestSchema>
+
+/**
+ * A linha digitavel, em **digito puro**.
+ *
+ * O provedor devolve formatado — `34191.09008 61713.957308 …` —, e os pontos e
+ * espacos sao apresentacao, nao dado: quem confere, compara ou grava precisa
+ * dos 47 digitos, e quem MOSTRA reinsere a pontuacao. Mesmo criterio de
+ * dinheiro em centavo: a forma canonica atravessa a porta, a formatacao fica
+ * na tela.
+ *
+ * Sao 47 porque e boleto de cobranca bancaria, o unico que uma loja emite para
+ * uma venda. Os 48 digitos sao de arrecadacao (agua, luz, tributo) — outro
+ * documento, que nao sai daqui.
+ */
+const digitableLineSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ''))
+  .refine((d) => d.length === 47, {
+    message: 'Linha digitavel invalida. Um boleto de cobranca tem 47 digitos.',
+  })
+
+export const boletoChargeSchema = z
+  .object({
+    chargeId: idSchema,
+    externalReference: externalReferenceSchema,
+    status: chargeStatusSchema,
+    amountCents: chargeableAmountSchema,
+    dueDate: dateSchema,
+    /**
+     * Obrigatoria, pelo mesmo motivo do copia-e-cola no Pix: boleto sem linha
+     * digitavel nao e pagavel, e devolver um pela metade faria a tela mostrar
+     * um campo vazio no lugar do unico dado que o cliente precisa digitar.
+     */
+    digitableLine: digitableLineSchema,
+    /** PDF do boleto, para imprimir ou anexar. Nem sempre o provedor devolve. */
+    pdfUrl: z.string().url('URL do boleto invalida.').nullable(),
+  })
+  .strict()
+
+export type BoletoCharge = z.infer<typeof boletoChargeSchema>
+
 export const paymentLinkRequestSchema = z
   .object({
     companyId: idSchema,

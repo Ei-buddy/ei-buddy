@@ -1,4 +1,6 @@
 import type {
+  BoletoCharge,
+  BoletoChargeRequest,
   FeeQuoteResult,
   PaymentLink,
   PaymentLinkRequest,
@@ -59,6 +61,19 @@ export type PaymentGateway = {
     readonly companyId: string
     readonly chargeId: string
   }): Promise<PixCharge | undefined>
+
+  /**
+   * Cria boleto — RF-034.
+   *
+   * Idempotente por `externalReference`, como o Pix, e com uma recusa a mais:
+   * pedir boleto para uma referencia que ja tem cobranca de OUTRO meio nao
+   * devolve aquela cobranca disfarcada de boleto. Uma divida, um documento.
+   *
+   * Devolve a linha digitavel junto, e nao so o id: um boleto sem ela nao e
+   * pagavel, e deixar isso para uma segunda chamada opcional convida a tela a
+   * mostrar um campo vazio.
+   */
+  createBoletoCharge(request: BoletoChargeRequest): Promise<BoletoCharge>
 
   /**
    * Cria link de pagamento — RF-068.

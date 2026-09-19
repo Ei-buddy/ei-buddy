@@ -1,9 +1,12 @@
 import {
+  boletoChargeSchema,
   feeQuoteResultSchema,
   paymentLinkSchema,
   pixChargeSchema,
   refundResultSchema,
   webhookReadResultSchema,
+  type BoletoCharge,
+  type BoletoChargeRequest,
   type FeeQuoteResult,
   type PaymentLink,
   type PaymentLinkRequest,
@@ -31,6 +34,7 @@ import { describe, expect, it } from 'vitest'
 export type GatewaySobTeste = {
   createPixCharge(request: PixChargeRequest): Promise<PixCharge>
   getPixCharge(request: { companyId: string; chargeId: string }): Promise<PixCharge | undefined>
+  createBoletoCharge(request: BoletoChargeRequest): Promise<BoletoCharge>
   createPaymentLink(request: PaymentLinkRequest): Promise<PaymentLink>
   refund(request: RefundRequest): Promise<RefundResult>
   fetchFeeQuotes(request: { companyId: string; requestedAt: string }): Promise<FeeQuoteResult>
@@ -47,6 +51,20 @@ export function pedidoDePix(sobrescreve: Partial<PixChargeRequest> = {}): PixCha
     externalReference: 'venda-1',
     amountCents: 12990,
     description: 'Venda 1 — Mercearia',
+    requestedAt: AGORA,
+    ...sobrescreve,
+  }
+}
+
+export function pedidoDeBoleto(
+  sobrescreve: Partial<BoletoChargeRequest> = {},
+): BoletoChargeRequest {
+  return {
+    companyId: EMPRESA,
+    externalReference: 'venda-boleto-1',
+    amountCents: 8990,
+    description: 'Venda 2 — Mercearia',
+    dueDate: '2026-09-12',
     requestedAt: AGORA,
     ...sobrescreve,
   }
@@ -112,6 +130,42 @@ export function verificarContratoDoGateway(nome: string, criar: () => GatewaySob
 
       /* Inexistente, nunca "proibido": 403 confirmaria que a cobranca existe. */
       expect(lida).toBeUndefined()
+    })
+
+    it('cria boleto com linha digitavel de 47 digitos e vencimento', async () => {
+      const gateway = criar()
+
+      const boleto = await gateway.createBoletoCharge(pedidoDeBoleto())
+
+      expect(() => boletoChargeSchema.parse(boleto)).not.toThrow()
+      expect(boleto.status).toBe('pending')
+      expect(boleto.dueDate).toBe('2026-09-12')
+      /* Digito puro: pontuacao e apresentacao, e quem grava ou compara quer os
+         47 digitos. */
+      expect(boleto.digitableLine).toMatch(/^[0-9]{47}$/)
+    })
+
+    it('pedir o mesmo boleto duas vezes devolve o mesmo titulo', async () => {
+      const gateway = criar()
+      const pedido = pedidoDeBoleto()
+
+      const primeiro = await gateway.createBoletoCharge(pedido)
+      const segundo = await gateway.createBoletoCharge(pedido)
+
+      /* Dois boletos para uma divida e o cliente pagando duas vezes — e, no
+         boleto, sem o estorno instantaneo que o Pix teria. */
+      expect(segundo.chargeId).toBe(primeiro.chargeId)
+    })
+
+    it('recusa boleto para uma referencia que ja tem Pix', async () => {
+      const gateway = criar()
+      const pix = await gateway.createPixCharge(pedidoDePix())
+
+      /* Uma divida gera um documento so. Devolver o Pix disfarcado de boleto
+         daria uma linha digitavel vazia na tela do lojista. */
+      await expect(
+        gateway.createBoletoCharge(pedidoDeBoleto({ externalReference: pix.externalReference })),
+      ).rejects.toThrow()
     })
 
     it('cria link de pagamento com URL e vencimento', async () => {
