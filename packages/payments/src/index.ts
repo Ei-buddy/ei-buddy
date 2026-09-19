@@ -18,3 +18,6 @@
  */
 export { centavosDeDecimal, createFakePaymentGateway, FakePaymentGateway } from './fake-gateway.js'
 export type { FakePaymentGatewayOptions } from './fake-gateway.js'
+
+export { criarGatewayAsaas } from './asaas-gateway.js'
+export type { AmbienteAsaas, AsaasOptions, CredenciaisAsaas } from './asaas-gateway.js'

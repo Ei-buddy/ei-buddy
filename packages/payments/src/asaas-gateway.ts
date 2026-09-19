@@ -1,0 +1,394 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import type {
+  FeeQuote,
+  FeeQuoteResult,
+  PaymentLink,
+  PaymentLinkRequest,
+  PixCharge,
+  PixChargeRequest,
+  RefundRequest,
+  RefundResult,
+  WebhookReadResult,
+} from '@na-regua/contracts'
+
+/**
+ * Gateway de pagamento do lojista no Asaas — NR-044, ADR-0004.
+ *
+ * Satisfaz `PaymentGateway` (declarada em `core`) estruturalmente: a regra de
+ * fronteira proibe `payments` de importar `core`, entao o vocabulario vem de
+ * `contracts` — mesmo desenho de `criarEmissorFocusNfe`.
+ *
+ * ## Chave por loja, nao por plataforma
+ *
+ * Cada loja tem uma SUBCONTA no Asaas, com chave propria, guardada no cofre.
+ * Por isso `credenciais` e uma porta e nao uma string: o adapter resolve a
+ * chave por `companyId` a cada chamada. Uma chave global aqui faria toda
+ * cobranca cair na conta-pai — o dinheiro do lojista entrando na nossa conta.
+ *
+ * ## Dinheiro atravessa em centavo; o Asaas fala decimal
+ *
+ * A conversao acontece **na borda**, aqui, e em nenhum outro lugar. `value:
+ * 129.9` no corpo e `amountCents: 12990` no contrato sao o mesmo dinheiro, e
+ * deixar o decimal vazar para dentro seria reintroduzir ponto flutuante em
+ * valor monetario.
+ */
+
+export type CredenciaisAsaas = {
+  /** Chave da subconta da loja. `undefined` quando a loja ainda nao tem conta. */
+  apiKeyDaEmpresa(companyId: string): Promise<string | undefined>
+}
+
+export type AmbienteAsaas = 'sandbox' | 'producao'
+
+export type AsaasOptions = {
+  readonly ambiente: AmbienteAsaas
+  readonly credenciais: CredenciaisAsaas
+  /**
+   * Segredo do webhook, para conferir o HMAC — RNF-028.
+   *
+   * Sem ele o adapter recusa TODO webhook como assinatura invalida, em vez de
+   * aceitar sem conferir. Configuracao faltando nao pode virar porta aberta.
+   */
+  readonly webhookSecret?: string
+  /** Injetavel para teste. Sem isto, o teste falaria com o Asaas de verdade. */
+  readonly fetch?: typeof globalThis.fetch
+  /** Teto de espera. Cobranca trava o atendimento; nao pode pendurar. */
+  readonly timeoutMs?: number
+}
+
+const URLS: Record<AmbienteAsaas, string> = {
+  sandbox: 'https://api-sandbox.asaas.com/v3',
+  producao: 'https://api.asaas.com/v3',
+}
+
+const TIMEOUT_PADRAO_MS = 15_000
+
+/** Sem conta no Asaas a loja nao cobra — e isso e resposta, nao excecao de rede. */
+const SEM_CONTA = 'Esta loja ainda nao tem conta de recebimento configurada.'
+
+export function criarGatewayAsaas(opcoes: AsaasOptions) {
+  const buscar = opcoes.fetch ?? globalThis.fetch
+  const base = URLS[opcoes.ambiente]
+  const timeoutMs = opcoes.timeoutMs ?? TIMEOUT_PADRAO_MS
+
+  async function chamar(
+    companyId: string,
+    caminho: string,
+    init: { method: string; body?: unknown } = { method: 'GET' },
+  ): Promise<{ ok: boolean; status: number; corpo: Record<string, unknown> }> {
+    const apiKey = await opcoes.credenciais.apiKeyDaEmpresa(companyId)
+    if (apiKey === undefined) throw new Error(SEM_CONTA)
+
+    /* `AbortSignal.timeout` e nao um setTimeout solto: o segundo deixa a
+       requisicao correndo depois de a promessa rejeitar, e em volume isso
+       segura conexao que ninguem mais espera. */
+    const resposta = await buscar(`${base}${caminho}`, {
+      method: init.method,
+      headers: {
+        access_token: apiKey,
+        'content-type': 'application/json',
+      },
+      ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    const corpo = (await resposta.json().catch(() => ({}))) as Record<string, unknown>
+    return { ok: resposta.ok, status: resposta.status, corpo }
+  }
+
+  /**
+   * A cobranca ja existente com esta referencia, se houver.
+   *
+   * E o que torna `createPixCharge` idempotente: o Asaas nao tem chave de
+   * idempotencia no POST de cobranca, entao a garantia sai de consultar por
+   * `externalReference` antes. Duas cobrancas para uma divida e o cliente
+   * pagando duas vezes.
+   */
+  async function porReferencia(
+    companyId: string,
+    externalReference: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    const { corpo } = await chamar(
+      companyId,
+      `/payments?externalReference=${encodeURIComponent(externalReference)}`,
+    )
+    const lista = Array.isArray(corpo.data) ? (corpo.data as Record<string, unknown>[]) : []
+    return lista[0]
+  }
+
+  return {
+    createPixCharge: async (request: PixChargeRequest): Promise<PixCharge> => {
+      const existente = await porReferencia(request.companyId, request.externalReference)
+
+      const pagamento =
+        existente ??
+        (
+          await chamar(request.companyId, '/payments', {
+            method: 'POST',
+            body: {
+              billingType: 'PIX',
+              value: centavosParaDecimal(request.amountCents),
+              dueDate: (request.expiresAt ?? request.requestedAt).slice(0, 10),
+              description: request.description,
+              externalReference: request.externalReference,
+            },
+          })
+        ).corpo
+
+      const id = String(pagamento.id ?? '')
+      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+
+      /* O copia-e-cola vem de OUTRA chamada: o POST cria a cobranca, nao o QR.
+         Gerar o QR tambem nao e o cliente ter pago. */
+      const { corpo: qr } = await chamar(request.companyId, `/payments/${id}/pixQrCode`)
+
+      return {
+        chargeId: id,
+        externalReference: request.externalReference,
+        status: traduzirStatus(String(pagamento.status ?? 'PENDING')),
+        amountCents: decimalParaCentavos(pagamento.value),
+        qrCodePayload: String(qr.payload ?? ''),
+        expiresAt: request.expiresAt ?? null,
+      }
+    },
+
+    getPixCharge: async (request: {
+      companyId: string
+      chargeId: string
+    }): Promise<PixCharge | undefined> => {
+      const { ok, corpo } = await chamar(request.companyId, `/payments/${request.chargeId}`)
+      if (!ok) return undefined
+
+      const { corpo: qr } = await chamar(
+        request.companyId,
+        `/payments/${request.chargeId}/pixQrCode`,
+      )
+
+      return {
+        chargeId: String(corpo.id ?? request.chargeId),
+        externalReference: String(corpo.externalReference ?? ''),
+        status: traduzirStatus(String(corpo.status ?? 'PENDING')),
+        amountCents: decimalParaCentavos(corpo.value),
+        qrCodePayload: String(qr.payload ?? ''),
+        expiresAt: null,
+      }
+    },
+
+    createPaymentLink: async (request: PaymentLinkRequest): Promise<PaymentLink> => {
+      const { corpo } = await chamar(request.companyId, '/paymentLinks', {
+        method: 'POST',
+        body: {
+          name: request.description,
+          billingType: 'UNDEFINED',
+          chargeType: 'DETACHED',
+          value: centavosParaDecimal(request.amountCents),
+          externalReference: request.externalReference,
+          ...(request.dueDate === undefined
+            ? {}
+            : { dueDateLimitDays: 1, endDate: request.dueDate }),
+        },
+      })
+
+      return {
+        linkId: String(corpo.id ?? ''),
+        externalReference: request.externalReference,
+        status: 'pending',
+        amountCents: request.amountCents,
+        url: String(corpo.url ?? ''),
+        dueDate: request.dueDate ?? null,
+      }
+    },
+
+    refund: async (request: RefundRequest): Promise<RefundResult> => {
+      const { ok, corpo } = await chamar(
+        request.companyId,
+        `/payments/${request.chargeId}/refund`,
+        {
+          method: 'POST',
+          body: {
+            ...(request.amountCents === undefined
+              ? {}
+              : { value: centavosParaDecimal(request.amountCents) }),
+            description: request.reason,
+          },
+        },
+      )
+
+      /* Recusa e RESULTADO, nao excecao: "prazo expirado" e "valor acima do
+         pago" sao respostas normais do provedor, e quem chama precisa exibir a
+         razao — nao capturar um throw. */
+      if (!ok) {
+        return {
+          status: 'rejected',
+          rejection: {
+            code: String(primeiroErro(corpo)?.code ?? 'refund_rejected'),
+            message: String(primeiroErro(corpo)?.description ?? 'O Asaas recusou o estorno.'),
+          },
+        }
+      }
+
+      const valorEstornado = decimalParaCentavos(corpo.value)
+      return {
+        status: 'refunded',
+        refundId: String(corpo.id ?? request.chargeId),
+        chargeId: request.chargeId,
+        amountCents: request.amountCents ?? valorEstornado,
+        remainingCents: Math.max(0, valorEstornado - (request.amountCents ?? valorEstornado)),
+        refundedAt: request.requestedAt,
+      }
+    },
+
+    fetchFeeQuotes: async (request: {
+      companyId: string
+      requestedAt: string
+    }): Promise<FeeQuoteResult> => {
+      const { ok, corpo } = await chamar(request.companyId, '/myAccount/fees/')
+
+      /* `unavailable` e resposta esperada, nao falha: a tarifa vem repassada da
+         adquirente e nao tem contrato estavel (RNF-003). Quem chama roda
+         periodicamente e segue com a tabela que ja tinha. */
+      if (!ok) {
+        return {
+          status: 'unavailable',
+          reason: `Asaas respondeu ${String(corpo.status ?? 'erro')}.`,
+        }
+      }
+
+      const cotacoes = lerCotacoesDeCartao(corpo)
+      if (cotacoes.length === 0) {
+        return { status: 'unavailable', reason: 'O Asaas nao devolveu tarifa de cartao.' }
+      }
+
+      return { status: 'quoted', quotes: cotacoes, quotedAt: request.requestedAt }
+    },
+
+    readWebhook: (rawBody: string, signature: string): WebhookReadResult => {
+      /* Segredo ausente recusa TUDO. Aceitar sem conferir seria transformar
+         configuracao faltando em porta aberta — qualquer um postaria
+         "pagamento autorizado" e o titulo baixaria sozinho. */
+      if (opcoes.webhookSecret === undefined) return { status: 'invalid_signature' }
+      if (!assinaturaConfere(rawBody, signature, opcoes.webhookSecret)) {
+        return { status: 'invalid_signature' }
+      }
+
+      let corpo: Record<string, unknown>
+      try {
+        corpo = JSON.parse(rawBody) as Record<string, unknown>
+      } catch {
+        return { status: 'malformed', reason: 'Corpo do webhook nao e JSON.' }
+      }
+
+      const tipo = TIPOS_DE_EVENTO[String(corpo.event ?? '')]
+      if (tipo === undefined) {
+        return { status: 'ignored', reason: `Evento ${String(corpo.event ?? '?')} nao interessa.` }
+      }
+
+      const pagamento = (corpo.payment ?? {}) as Record<string, unknown>
+      const chargeId = String(pagamento.id ?? '')
+      if (chargeId === '') {
+        return { status: 'malformed', reason: 'Webhook sem id de cobranca.' }
+      }
+
+      return {
+        status: 'accepted',
+        event: {
+          eventId: String(corpo.id ?? chargeId),
+          type: tipo,
+          chargeId,
+          externalReference:
+            pagamento.externalReference === undefined || pagamento.externalReference === null
+              ? null
+              : String(pagamento.externalReference),
+          amountCents: decimalParaCentavos(pagamento.value),
+          occurredAt: String(corpo.dateCreated ?? new Date().toISOString()),
+        },
+      }
+    },
+  }
+}
+
+/**
+ * O decimal do provedor vira centavo inteiro.
+ *
+ * `Math.round` e nao `Math.trunc`: `129.9 * 100` da `12989.999...` em ponto
+ * flutuante, e truncar cobraria um centavo a menos do lojista em toda venda
+ * terminada em 9.
+ */
+function decimalParaCentavos(valor: unknown): number {
+  const numero = typeof valor === 'number' ? valor : Number(valor ?? 0)
+  return Number.isFinite(numero) ? Math.round(numero * 100) : 0
+}
+
+function centavosParaDecimal(centavos: number): number {
+  return centavos / 100
+}
+
+/** Estados do Asaas para os nossos. O que nao reconhecemos fica `pending`. */
+const ESTADOS: Record<string, PixCharge['status']> = {
+  PENDING: 'pending',
+  AWAITING_RISK_ANALYSIS: 'pending',
+  CONFIRMED: 'authorized',
+  RECEIVED: 'authorized',
+  RECEIVED_IN_CASH: 'authorized',
+  REFUNDED: 'refunded',
+  REFUND_REQUESTED: 'refunded',
+  OVERDUE: 'expired',
+  CHARGEBACK_REQUESTED: 'failed',
+  CHARGEBACK_DISPUTE: 'failed',
+}
+
+function traduzirStatus(bruto: string): PixCharge['status'] {
+  return ESTADOS[bruto] ?? 'pending'
+}
+
+const TIPOS_DE_EVENTO: Record<
+  string,
+  'payment.authorized' | 'payment.refunded' | 'payment.failed'
+> = {
+  PAYMENT_CONFIRMED: 'payment.authorized',
+  PAYMENT_RECEIVED: 'payment.authorized',
+  PAYMENT_REFUNDED: 'payment.refunded',
+  PAYMENT_CHARGEBACK_REQUESTED: 'payment.failed',
+}
+
+function primeiroErro(corpo: Record<string, unknown>): Record<string, unknown> | undefined {
+  const erros = Array.isArray(corpo.errors) ? (corpo.errors as Record<string, unknown>[]) : []
+  return erros[0]
+}
+
+/**
+ * HMAC sobre os BYTES que chegaram — RNF-028.
+ *
+ * Comparacao em tempo constante: `===` vazaria, pelo tempo de resposta, quanto
+ * do prefixo bateu, e com isso da para descobrir a assinatura byte a byte.
+ */
+function assinaturaConfere(rawBody: string, assinatura: string, segredo: string): boolean {
+  const esperada = createHmac('sha256', segredo).update(rawBody, 'utf8').digest('hex')
+  const recebida = assinatura.trim()
+  if (recebida.length !== esperada.length) return false
+  return timingSafeEqual(Buffer.from(recebida), Buffer.from(esperada))
+}
+
+/**
+ * Tarifa de cartao, do que o Asaas devolver.
+ *
+ * `brand: 'unknown'` de proposito, e nao uma bandeira escolhida: a tarifa do
+ * Asaas e da CONTA, nao por bandeira — ele cobra o mesmo para Visa e Elo.
+ * Repetir a mesma taxa sob cinco bandeiras daria a impressao de cinco medidas
+ * independentes; `unknown` diz o que a cotacao realmente e.
+ */
+function lerCotacoesDeCartao(corpo: Record<string, unknown>): FeeQuote[] {
+  const cartao = (corpo.creditCard ?? {}) as Record<string, unknown>
+  const aVista = Number(cartao.operationValue ?? cartao.oneInstallmentPercentage ?? NaN)
+  const parcelado = Number(cartao.upToSixInstallmentsPercentage ?? NaN)
+
+  const cotacoes: FeeQuote[] = []
+  if (Number.isFinite(aVista)) {
+    cotacoes.push({ brand: 'unknown', installments: 1, feeRatePercent: aVista })
+  }
+  if (Number.isFinite(parcelado)) {
+    cotacoes.push({ brand: 'unknown', installments: 6, feeRatePercent: parcelado })
+  }
+
+  return cotacoes
+}
