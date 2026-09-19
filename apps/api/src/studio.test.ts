@@ -76,6 +76,9 @@ const useCases: AgentUseCases = {
   adjustStock: async () => {
     throw new Error('nao executa neste teste')
   },
+  cancelSale: async () => {
+    throw new Error('nao executa neste teste')
+  },
   createAppointment: async () => {
     throw new Error('nao executa neste teste')
   },

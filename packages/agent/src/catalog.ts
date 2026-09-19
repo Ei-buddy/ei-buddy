@@ -8,6 +8,7 @@ import {
   createSaleInputSchema,
   dreInputSchema,
   adjustStockInputSchema,
+  cancelSaleInputSchema,
   createAppointmentInputSchema,
   listDayAppointmentsInputSchema,
   settlePayableInputSchema,
@@ -29,6 +30,7 @@ import {
   type DreInput,
   type DreOutput,
   type AdjustStockInput,
+  type CancelSaleInput,
   type AppointmentOutput,
   type CreateAppointmentInput,
   type ListDayAppointmentsInput,
@@ -157,6 +159,14 @@ export type AgentUseCases = {
     ctx: ExecutionContext,
     input: CreateAppointmentInput,
   ) => Promise<AppointmentOutput>
+  /**
+   * RF-147 — cancelamento total pelo caso de uso da tela.
+   *
+   * Devolucao parcial nao esta aqui: ela e o RF-044, que ainda nao existe nem
+   * no aplicativo. Oferecer pela conversa antes disso seria a conversa virando
+   * a porta dos fundos da regra.
+   */
+  readonly cancelSale: (ctx: ExecutionContext, input: CancelSaleInput) => Promise<void>
   /** US-045 pela conversa: a agenda de um dia, com "livre" explicito. */
   readonly listDayAppointments: (
     ctx: ExecutionContext,
@@ -422,6 +432,18 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
         const sinal = out.quantityDelta > 0 ? `+${out.quantityDelta}` : `${out.quantityDelta}`
         return `Estoque ajustado em ${sinal} un. Saldo agora: ${out.balanceAfter} un.`
       },
+    }),
+    defineTool({
+      id: 'cancel_sale',
+      description:
+        'Cancela uma venda inteira, devolvendo os itens ao saldo do produto. Exige confirmacao e motivo. Precisa do id da venda. Nao faz devolucao parcial.',
+      inputSchema: cancelSaleInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.cancelSale(ctx, input),
+      formatProposal: (input) => `Cancelar a venda ${input.saleId}. Motivo: ${input.reason}`,
+      // O caso de uso nao devolve nada: ou cancelou, ou lancou. Inventar um
+      // resumo com numeros aqui seria afirmar o que esta resposta nao tem.
+      formatReply: () => 'Venda cancelada. O estoque voltou e os recebiveis dela foram cancelados.',
     }),
     defineTool({
       id: 'create_appointment',

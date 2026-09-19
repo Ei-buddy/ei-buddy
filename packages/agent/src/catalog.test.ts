@@ -9,6 +9,7 @@ import {
   createSaleInputSchema,
   dreInputSchema,
   adjustStockInputSchema,
+  cancelSaleInputSchema,
   createAppointmentInputSchema,
   listDayAppointmentsInputSchema,
   settlePayableInputSchema,
@@ -105,6 +106,9 @@ const casos: AgentUseCases = {
     throw new Error('nao executa neste teste')
   },
   adjustStock: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  cancelSale: async () => {
     throw new Error('nao executa neste teste')
   },
   createAppointment: async () => {
@@ -511,6 +515,7 @@ describe('mutatesValue — FR-002 / US4', () => {
       settle_payable: true,
       settle_receivable: true,
       adjust_stock: true,
+      cancel_sale: true,
       create_appointment: true,
       day_agenda: false,
       send_charge: true,
@@ -864,6 +869,7 @@ describe('refuse_* — US7 / RF-149–151', () => {
       const adjustStock = vi.fn(casos.adjustStock)
       const createAppointment = vi.fn(casos.createAppointment)
       const listDayAppointments = vi.fn(casos.listDayAppointments)
+      const cancelSale = vi.fn(casos.cancelSale)
       const tools = createToolCatalog({
         listSales,
         listReceivables,
@@ -886,6 +892,7 @@ describe('refuse_* — US7 / RF-149–151', () => {
         adjustStock,
         createAppointment,
         listDayAppointments,
+        cancelSale,
       })
       const tool = tools.find((t) => t.id === recusa.id)
       expect(tool).toBeDefined()
@@ -1189,5 +1196,31 @@ describe('create_appointment / day_agenda — US-076 / RF-148', () => {
     } as unknown as DayAgenda)
     expect(texto).toMatch(/livre/i)
     expect(texto).toContain('2026-09-20')
+  })
+})
+
+describe('cancel_sale — US-075 / RF-147', () => {
+  it('usa cancelSaleInputSchema e exige confirmacao', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'cancel_sale')
+    expect(tool).toBeDefined()
+    expect(tool!.mutatesValue).toBe(true)
+    expect(tool!.inputSchema).toBe(cancelSaleInputSchema)
+  })
+
+  /* O motivo e obrigatorio no contrato — US-021 pede quem, quando e por que. */
+  it('recusa cancelamento sem motivo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'cancel_sale')!
+    expect(() => parseToolArgs(tool.inputSchema, { saleId: 'venda-1' })).toThrow()
+  })
+
+  it('cancela pelo caso de uso do aplicativo e poe o motivo na proposta', async () => {
+    const cancelSale = vi.fn(async () => undefined)
+    const tool = createToolCatalog({ ...casos, cancelSale }).find((t) => t.id === 'cancel_sale')!
+    const input = { saleId: 'venda-1', reason: 'cliente desistiu' }
+
+    await tool.execute(input, ctx)
+
+    expect(cancelSale).toHaveBeenCalledWith(ctx, input)
+    expect(tool.formatProposal(input)).toContain('cliente desistiu')
   })
 })
