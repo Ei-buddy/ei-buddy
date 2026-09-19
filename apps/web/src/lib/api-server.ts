@@ -74,6 +74,31 @@ const INDISPONIVEL = 'Nao conseguimos falar com o servidor. Tente de novo em ins
  */
 const PRODUCAO = process.env.NODE_ENV === 'production'
 
+/**
+ * Teto de espera de uma chamada a api — em milissegundos.
+ *
+ * ## Por que isto existe
+ *
+ * Sem teto, `fetch` no Node espera indefinidamente. Numa rota de API do Next
+ * isso seria ruim; numa PAGINA isso trava a navegacao inteira, porque o
+ * componente de servidor so responde quando a leitura volta. Foi assim que a
+ * tela de login ficou presa no desfoque da travessia (NR-132): o `/app` e
+ * `force-dynamic` e chama `carregarPainel`, a api nao respondeu, o
+ * `router.push` nunca completou, e a pessoa ficou olhando uma tela borrada
+ * sem nada para clicar.
+ *
+ * Com o teto, a api que nao responde vira o MESMO 503 que uma api fora do ar
+ * ja produzia — e a tela ja sabe mostrar "nao carregou" nesse caso. A falha
+ * passa a ser visivel em vez de eterna.
+ *
+ * ## O numero
+ *
+ * Dez segundos: mais que qualquer leitura saudavel desta api e menos que a
+ * paciencia de quem esta olhando uma tela parada. Quem precisa de mais (uma
+ * exportacao, um relatorio pesado) passa `timeoutMs` e diz por que.
+ */
+const ESPERA_PADRAO_MS = 10_000
+
 export async function chamarApi<T>(
   caminho: string,
   opcoes: {
@@ -82,6 +107,8 @@ export async function chamarApi<T>(
     token?: string | undefined
     /** Cabecalhos extras da rota. Hoje so a chave de idempotencia (RNF-043). */
     headers?: Record<string, string>
+    /** Teto de espera proprio, para a leitura que justificadamente demora mais. */
+    timeoutMs?: number
   } = {},
 ): Promise<Resposta<T>> {
   let resposta: Response
@@ -107,6 +134,12 @@ export async function chamarApi<T>(
       ...(opcoes.body === undefined ? {} : { body: JSON.stringify(opcoes.body) }),
       /* Sessao nunca vem de cache. */
       cache: 'no-store',
+      /*
+       * `AbortSignal.timeout` e nao um `setTimeout` solto: o segundo deixa a
+       * requisicao correndo depois de a promessa rejeitar, e em volume isso
+       * segura conexao que ninguem mais espera.
+       */
+      signal: AbortSignal.timeout(opcoes.timeoutMs ?? ESPERA_PADRAO_MS),
     })
   } catch (erro) {
     /*
@@ -129,9 +162,16 @@ export async function chamarApi<T>(
      * embaralhando o log; e log embaralhado por quem escolhe a entrada e
      * falsificacao de log.
      */
+    /* "Fora do ar" e "lenta demais" pedem conserto diferente — um e subir o
+       processo, o outro e olhar a consulta. Na tela as duas continuam sendo a
+       mesma frase generica; no log do servidor, nao. */
+    const estourouOTempo = erro instanceof Error && erro.name === 'TimeoutError'
+
     console.error('[api-server] chamada a api falhou', {
       method: opcoes.method ?? 'GET',
       url: `${API_URL}${caminho}`,
+      motivo: estourouOTempo ? 'tempo esgotado' : 'sem conexao',
+      esperaMs: opcoes.timeoutMs ?? ESPERA_PADRAO_MS,
       causa: erro instanceof Error ? erro.message : erro,
     })
 
