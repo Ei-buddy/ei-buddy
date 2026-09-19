@@ -131,6 +131,12 @@ const leituraVazia: AgentUseCases = {
   adjustStock: async () => {
     throw new Error('nao executa neste teste')
   },
+  createAppointment: async () => {
+    throw new Error('nao executa neste teste')
+  },
+  listDayAppointments: async () => {
+    throw new Error('nao executa neste teste')
+  },
 }
 
 describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', () => {

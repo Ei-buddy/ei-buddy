@@ -8,6 +8,8 @@ import {
   createSaleInputSchema,
   dreInputSchema,
   adjustStockInputSchema,
+  createAppointmentInputSchema,
+  listDayAppointmentsInputSchema,
   settlePayableInputSchema,
   settleReceivableInputSchema,
   revenueByMonthInputSchema,
@@ -27,6 +29,9 @@ import {
   type DreInput,
   type DreOutput,
   type AdjustStockInput,
+  type AppointmentOutput,
+  type CreateAppointmentInput,
+  type ListDayAppointmentsInput,
   type InventoryMovementOutput,
   type PayableOutput,
   type ReceivableOutput,
@@ -45,6 +50,7 @@ import {
 import type {
   CheckCustomerWalletByQueryResult,
   CheckStockByQueryResult,
+  DayAgenda,
   ExecutionContext,
   RegisterCustomerResult,
   RegisterSaleResult,
@@ -146,6 +152,16 @@ export type AgentUseCases = {
     ctx: ExecutionContext,
     input: AdjustStockInput,
   ) => Promise<InventoryMovementOutput>
+  /** RF-148 — compromisso com lembrete, pelo caso de uso da agenda. */
+  readonly createAppointment: (
+    ctx: ExecutionContext,
+    input: CreateAppointmentInput,
+  ) => Promise<AppointmentOutput>
+  /** US-045 pela conversa: a agenda de um dia, com "livre" explicito. */
+  readonly listDayAppointments: (
+    ctx: ExecutionContext,
+    input: ListDayAppointmentsInput,
+  ) => Promise<DayAgenda>
 }
 
 export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
@@ -405,6 +421,42 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
         // convida — contagem no lugar de diferenca.
         const sinal = out.quantityDelta > 0 ? `+${out.quantityDelta}` : `${out.quantityDelta}`
         return `Estoque ajustado em ${sinal} un. Saldo agora: ${out.balanceAfter} un.`
+      },
+    }),
+    defineTool({
+      id: 'create_appointment',
+      description:
+        'Cria um compromisso na agenda, com lembrete opcional. Exige confirmacao. Nao invente data nem hora: se faltar, pergunte.',
+      inputSchema: createAppointmentInputSchema,
+      mutatesValue: true,
+      execute: (input, ctx) => casos.createAppointment(ctx, input),
+      formatProposal: (input) => {
+        const onde = input.location === undefined ? '' : `, em ${input.location}`
+        const lembrete =
+          input.reminderMinutesBefore === undefined
+            ? ''
+            : `, lembrando ${input.reminderMinutesBefore} min antes`
+        return `Marcar "${input.title}" para ${input.startsAt}${onde}${lembrete}`
+      },
+      formatReply: (out) => `Compromisso "${out.title}" marcado para ${out.startsAt}.`,
+    }),
+    defineTool({
+      id: 'day_agenda',
+      description:
+        'Mostra os compromissos de um dia. Use para "o que tenho hoje?" ou "minha agenda de amanha".',
+      inputSchema: listDayAppointmentsInputSchema,
+      mutatesValue: false,
+      execute: (input, ctx) => casos.listDayAppointments(ctx, input),
+      formatProposal: (input) => `Consultar a agenda de ${input.day}`,
+      formatReply: (out) => {
+        // `isFree` existe como campo justamente para "nao ha nada" nao se
+        // confundir com "nao consegui carregar" — RF-093.
+        if (out.appointments.length === 0) return `Agenda livre em ${out.day}.`
+        const linhas = out.appointments
+          .slice(0, 10)
+          .map((a) => `- ${a.startsAt}: ${a.title}${a.location === null ? '' : ` (${a.location})`}`)
+        const extra = out.appointments.length > 10 ? '\n(e outros)' : ''
+        return `Agenda de ${out.day}:\n${linhas.join('\n')}${extra}`
       },
     }),
     defineTool({

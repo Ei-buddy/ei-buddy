@@ -51,10 +51,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     100 |  250 |
-| ✅ Concluídas                 |      89 |  217 |
+| ✅ Concluídas                 |      90 |  218 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |      10 |   29 |
+| ⬜ A fazer, pode começar hoje |       9 |   28 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -95,7 +95,7 @@ NR-022, NR-023), a agenda no schema (NR-035) e a trilha de auditoria
 (NR-025) e as contas a pagar com baixa e estorno (NR-028, NR-029) os
 consumidores de fila (NR-041) e o plano de contas com DRE (NR-032).
 
-Dos **33 dias que faltam, 29 podem começar hoje** — inclusive NR-015 (deploy na
+Dos **32 dias que faltam, 28 podem começar hoje** — inclusive NR-015 (deploy na
 VM), a cascata E11 no Studio (115–119 → NR-120) agora que a NR-121, a NR-061
 e a NR-062 estão ✅, depois o canal real (NR-113 + NR-046), e a NR-075 (cupons;
 DEC-012 já ADR-0013). Só a DEC-005 (Open Finance) ainda trava tarefa no
@@ -184,7 +184,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ✅   |
 | NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ✅   |
 | NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
-| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ⬜   |
+| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
 | NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`               |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
 | NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |

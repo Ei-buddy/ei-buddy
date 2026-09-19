@@ -36,6 +36,8 @@ const { db, storePostgres } = vi.hoisted(() => {
          pede estes dois. Sem eles o mock derruba todo o arquivo. */
       createSettlementUnitOfWork: vi.fn(vazio),
       createSettlementQueries: vi.fn(vazio),
+      /* NR-119: e a agenda, pelo mesmo motivo. */
+      createAppointmentRepository: vi.fn(vazio),
       createInventoryQueries: vi.fn(() => ({ products: {} })),
       createInventoryHistory: vi.fn(vazio),
       createAuditTrail: vi.fn(vazio),
@@ -80,6 +82,12 @@ vi.mock('@na-regua/core', async (importOriginal) => {
 vi.mock('ioredis', () => ({
   Redis: class {
     status = 'ready'
+    /* `getRedis` registra um ouvinte de `error` na criacao — sem isto o mock
+       derruba qualquer caminho que toque Redis, e a agenda do agente (NR-119)
+       passou a tocar, pelo agendador de lembrete. */
+    on(): this {
+      return this
+    }
     async connect(): Promise<void> {}
     async ping(): Promise<string> {
       return 'PONG'
