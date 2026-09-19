@@ -6,15 +6,16 @@ Os pipelines do GitHub Actions, o que cada um barra, e o que ainda não existe.
 
 ## Visão geral
 
-| Workflow                                                       | Gatilho              | O que faz                                                                                                        | Barra o merge        |
-| -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------- |
-| [`ci.yml`](../../.github/workflows/ci.yml)                     | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                               | ✅                   |
-| [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)       | PR aberto ou editado | título, nome da branch, referência à tarefa                                                                      | ✅                   |
-| [`security.yml`](../../.github/workflows/security.yml)         | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                       | ✅ (severidade alta) |
-| [`deploy.yml`](../../.github/workflows/deploy.yml)             | tag `v*` / manual    | build na VPS, migrations, `up -d`, `/health` e reversão ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md)) | —                    |
-| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)     | manual               | atalho — chama `deploy.yml`                                                                                      | —                    |
-| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)     | manual               | atalho — chama `deploy.yml` (mesmo compose da VM)                                                                | —                    |
-| [`mobile-build.yml`](../../.github/workflows/mobile-build.yml) | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md))        | —                    |
+| Workflow                                                         | Gatilho              | O que faz                                                                                                              | Barra o merge        |
+| ---------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| [`ci.yml`](../../.github/workflows/ci.yml)                       | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                                     | ✅                   |
+| [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)         | PR aberto ou editado | título, nome da branch, referência à tarefa                                                                            | ✅                   |
+| [`security.yml`](../../.github/workflows/security.yml)           | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                             | ✅ (severidade alta) |
+| [`deploy.yml`](../../.github/workflows/deploy.yml)               | tag `v*` / manual    | build na VPS, migrations, `up -d`, `/health` e reversão ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md))       | —                    |
+| [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)       | manual               | atalho — chama `deploy.yml`                                                                                            | —                    |
+| [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)       | manual               | atalho — chama `deploy.yml` (mesmo compose da VM)                                                                      | —                    |
+| [`restore-drill.yml`](../../.github/workflows/restore-drill.yml) | mensal / manual      | restaura o backup mais recente num Postgres descartável e confere ([RNF-014](../produto/requisitos-nao-funcionais.md)) | —                    |
+| [`mobile-build.yml`](../../.github/workflows/mobile-build.yml)   | manual               | **esqueleto** — EAS; nome nas lojas: EiBuddy ([ADR-0011](../decisoes/adr/0011-eibuddy-nome-e-dominio.md))              | —                    |
 
 ## `ci.yml` — a verificação principal
 
@@ -163,10 +164,13 @@ dela, e é isso que torna o teto de 10 minutos da
 
 Não há registry obrigatório neste recorte — o build é na VM.
 
-Falta ainda, na mesma NR-015: backup com restore testado
-([RNF-013](../produto/requisitos-nao-funcionais.md),
-[RNF-014](../produto/requisitos-nao-funcionais.md)) e destino do XML fiscal de
-5 anos ([RNF-037](../produto/requisitos-nao-funcionais.md)).
+Backup e ensaio de restauração estão em
+[`infra/README.md`](../../infra/README.md#backup-e-recuperação). Falta ainda,
+na mesma NR-015: o destino remoto do backup (sem ele a
+[RNF-013](../produto/requisitos-nao-funcionais.md) segue furada) e o object
+storage do XML fiscal de 5 anos
+([RNF-037](../produto/requisitos-nao-funcionais.md)) — os dois dependem de
+escolher um provedor.
 
 E os requisitos que o deploy precisa atender:
 

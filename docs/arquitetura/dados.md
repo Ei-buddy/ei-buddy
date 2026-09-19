@@ -272,6 +272,13 @@ substituídos, o registro e os valores permanecem
 
 Backup não testado não é backup. O teste mensal é requisito, não boa prática.
 
+Como isso é feito na VM: [`infra/README.md`](../../infra/README.md#backup-e-recuperação).
+`archive_mode` com `archive_timeout=900` dá o RPO; [`infra/backup.sh`](../../infra/backup.sh)
+roda diário por cron; [`infra/restore-drill.sh`](../../infra/restore-drill.sh)
+restaura num Postgres descartável todo mês, pelo
+[workflow](../../.github/workflows/restore-drill.yml) cujo histórico é o
+registro do teste.
+
 ## Documentos relacionados
 
 - [`packages/db`](../../packages/db/README.md) — implementação do schema
