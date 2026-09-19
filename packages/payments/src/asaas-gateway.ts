@@ -1,7 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { cardTokenRequestSchema } from '@na-regua/contracts'
 import type {
   BoletoCharge,
   BoletoChargeRequest,
+  CardBrand,
+  CardCharge,
+  CardChargeRequest,
+  CardChargeResult,
+  CardToken,
+  CardTokenRequest,
   FeeQuote,
   FeeQuoteResult,
   PaymentLink,
@@ -109,7 +116,7 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
   async function porReferencia(
     companyId: string,
     externalReference: string,
-    billingType: 'PIX' | 'BOLETO',
+    billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD',
   ): Promise<Record<string, unknown> | undefined> {
     const { corpo } = await chamar(
       companyId,
@@ -236,6 +243,118 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
         digitableLine,
         pdfUrl: textoOuNulo(pagamento.bankSlipUrl),
       }
+    },
+
+    tokenizeCard: async (request: CardTokenRequest): Promise<CardToken> => {
+      /*
+       * O unico metodo deste adapter que valida a entrada, e por uma razao que
+       * nao vale para os outros: aqui os campos vem de um formulario digitado
+       * no balcao, e formulario entrega '4111 1111 1111 1111' e '01310-100'.
+       * O schema normaliza para digito puro ANTES de o numero ir para a rede —
+       * sem isso, mandariamos o cartao com espacos e o provedor recusaria sem
+       * dizer por que. De quebra, o Luhn barra o erro de digitacao antes de
+       * ele virar uma tentativa negada na conta do lojista.
+       */
+      const validado = cardTokenRequestSchema.parse(request)
+
+      const { ok, corpo } = await chamar(validado.companyId, '/creditCard/tokenizeCreditCard', {
+        method: 'POST',
+        body: {
+          customer: validado.customerReference,
+          creditCard: {
+            holderName: validado.holderName,
+            number: validado.number,
+            expiryMonth: validado.expiryMonth,
+            expiryYear: validado.expiryYear,
+            ccv: validado.cvv,
+          },
+          creditCardHolderInfo: {
+            name: validado.holder.name,
+            email: validado.holder.email,
+            cpfCnpj: validado.holder.document,
+            postalCode: validado.holder.postalCode,
+            addressNumber: validado.holder.addressNumber,
+            phone: validado.holder.phone,
+          },
+          remoteIp: validado.remoteIp,
+        },
+      })
+
+      const token = String(corpo.creditCardToken ?? '')
+      if (!ok || token === '') {
+        /* A mensagem sai do provedor e NAO leva nada do cartao junto: mensagem
+           de erro acaba em log, e log e o lugar onde um PAN sobrevive por
+           anos sem ninguem notar. */
+        throw new Error(
+          `O provedor nao tokenizou o cartao: ${String(
+            primeiroErro(corpo)?.description ?? 'resposta sem token',
+          )}`,
+        )
+      }
+
+      return {
+        token,
+        brand: traduzirBandeira(corpo.creditCardBrand),
+        last4: apenasDigitos(corpo.creditCardNumber).slice(-4).padStart(4, '0'),
+      }
+    },
+
+    createCardCharge: async (request: CardChargeRequest): Promise<CardChargeResult> => {
+      const existente = await porReferencia(
+        request.companyId,
+        request.externalReference,
+        'CREDIT_CARD',
+      )
+
+      /* Idempotencia importa mais no cartao que em qualquer outro meio: aqui a
+         segunda tentativa nao gera um segundo boleto que ninguem paga, gera um
+         segundo debito no limite do cliente. */
+      const resposta = existente
+        ? { ok: true, corpo: existente }
+        : await chamar(request.companyId, '/payments', {
+            method: 'POST',
+            body: {
+              billingType: 'CREDIT_CARD',
+              /* `totalValue` e nao `value`: no parcelado, `value` e o valor da
+                 PARCELA. Mandar o total ali cobraria doze vezes a venda. */
+              totalValue: centavosParaDecimal(request.amountCents),
+              installmentCount: request.installments,
+              dueDate: request.dueDate,
+              description: request.description,
+              externalReference: request.externalReference,
+              creditCardToken: request.token,
+              remoteIp: request.remoteIp,
+            },
+          })
+
+      if (!resposta.ok) {
+        return {
+          status: 'declined',
+          decline: {
+            code: String(primeiroErro(resposta.corpo)?.code ?? 'card_declined'),
+            message: String(
+              primeiroErro(resposta.corpo)?.description ?? 'A operadora recusou o cartao.',
+            ),
+          },
+        }
+      }
+
+      const pagamento = resposta.corpo
+      const id = String(pagamento.id ?? '')
+      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+
+      const cartao = (pagamento.creditCard ?? {}) as Record<string, unknown>
+      const cobranca: CardCharge = {
+        chargeId: id,
+        externalReference: request.externalReference,
+        status: traduzirStatus(String(pagamento.status ?? 'PENDING')),
+        amountCents: request.amountCents,
+        installments: request.installments,
+        brand: traduzirBandeira(cartao.creditCardBrand),
+        last4: apenasDigitos(cartao.creditCardNumber).slice(-4).padStart(4, '0'),
+      }
+
+      return { status: 'authorized', charge: cobranca }
     },
 
     createPaymentLink: async (request: PaymentLinkRequest): Promise<PaymentLink> => {
@@ -415,6 +534,27 @@ const ESTADOS: Record<string, PixCharge['status']> = {
   OVERDUE: 'expired',
   CHARGEBACK_REQUESTED: 'failed',
   CHARGEBACK_DISPUTE: 'failed',
+}
+
+/**
+ * Bandeira do provedor para a nossa.
+ *
+ * O que nao reconhecemos vira `unknown`, e nao um chute: a bandeira aparece na
+ * tela como "Visa final 4321", e escrever a errada faz o lojista procurar um
+ * cartao que o cliente nao usou.
+ */
+const BANDEIRAS: Record<string, CardBrand> = {
+  VISA: 'visa',
+  MASTERCARD: 'mastercard',
+  ELO: 'elo',
+  AMEX: 'amex',
+  DINERS: 'unknown',
+  DISCOVER: 'unknown',
+  HIPERCARD: 'hipercard',
+}
+
+function traduzirBandeira(bruto: unknown): CardBrand {
+  return typeof bruto === 'string' ? (BANDEIRAS[bruto.toUpperCase()] ?? 'unknown') : 'unknown'
 }
 
 function traduzirStatus(bruto: string): PixCharge['status'] {

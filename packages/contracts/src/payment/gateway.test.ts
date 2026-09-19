@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  boletoChargeRequestSchema,
+  boletoChargeSchema,
+  cardChargeRequestSchema,
+  cardChargeResultSchema,
+  cardHolderSchema,
+  cardTokenRequestSchema,
+  cardTokenSchema,
   chargeStatusSchema,
   feeQuoteResultSchema,
   feeQuoteSchema,
@@ -363,5 +370,209 @@ describe('leitura do webhook', () => {
 
   it('recusa estado que nao existe na uniao', () => {
     expect(webhookReadResultSchema.safeParse({ status: 'erro' }).success).toBe(false)
+  })
+})
+
+const LINHA_FORMATADA = '34191.09008 61713.957308 71444.640008 5 84400000002000'
+
+const pedidoBoleto = {
+  companyId: 'e1',
+  externalReference: 'venda-2',
+  amountCents: 8990,
+  description: 'Venda 2',
+  dueDate: '2026-09-12',
+  requestedAt: AGORA,
+}
+
+describe('boleto', () => {
+  it('aceita o pedido completo', () => {
+    expect(boletoChargeRequestSchema.parse(pedidoBoleto).dueDate).toBe('2026-09-12')
+  })
+
+  it('exige vencimento', () => {
+    /* O Pix pode nascer sem prazo; o boleto E um titulo com o vencimento
+       impresso nele. */
+    const { dueDate, ...semVencimento } = pedidoBoleto
+    void dueDate
+    expect(boletoChargeRequestSchema.safeParse(semVencimento).success).toBe(false)
+  })
+
+  it('recusa valor zero', () => {
+    expect(boletoChargeRequestSchema.safeParse({ ...pedidoBoleto, amountCents: 0 }).success).toBe(
+      false,
+    )
+  })
+
+  it('normaliza a linha digitavel formatada para digito puro', () => {
+    const boleto = boletoChargeSchema.parse({
+      chargeId: 'pay_1',
+      externalReference: 'venda-2',
+      status: 'pending',
+      amountCents: 8990,
+      dueDate: '2026-09-12',
+      digitableLine: LINHA_FORMATADA,
+      pdfUrl: 'https://www.asaas.com/b/pdf/pay_1',
+    })
+
+    /* Pontuacao e apresentacao. Quem compara ou grava quer os 47 digitos. */
+    expect(boleto.digitableLine).toBe('34191090086171395730871444640008584400000002000')
+  })
+
+  it('recusa linha digitavel que nao tem 47 digitos', () => {
+    const curta = {
+      chargeId: 'pay_1',
+      externalReference: 'venda-2',
+      status: 'pending',
+      amountCents: 8990,
+      dueDate: '2026-09-12',
+      digitableLine: '3419109008',
+      pdfUrl: null,
+    }
+    expect(boletoChargeSchema.safeParse(curta).success).toBe(false)
+  })
+})
+
+const portador = {
+  name: 'Maria da Silva',
+  email: 'maria@exemplo.com.br',
+  document: '390.533.447-05',
+  postalCode: '01310-100',
+  addressNumber: '1578',
+  phone: '(11) 98765-4321',
+}
+
+const pedidoToken = {
+  companyId: 'e1',
+  customerReference: 'cus_1',
+  holderName: 'MARIA DA SILVA',
+  number: '4111 1111 1111 1111',
+  expiryMonth: '12',
+  expiryYear: '2030',
+  cvv: '123',
+  holder: portador,
+  remoteIp: '200.100.50.25',
+  requestedAt: AGORA,
+}
+
+describe('cartao — tokenizacao', () => {
+  it('normaliza numero, documento, CEP e telefone para digito puro', () => {
+    const t = cardTokenRequestSchema.parse(pedidoToken)
+
+    /* Formulario entrega com mascara; a rede precisa ver digito puro, ou o
+       provedor recusa sem dizer por que. */
+    expect(t.number).toBe('4111111111111111')
+    expect(t.holder.document).toBe('39053344705')
+    expect(t.holder.postalCode).toBe('01310100')
+    expect(t.holder.phone).toBe('11987654321')
+  })
+
+  it('recusa numero que nao fecha no Luhn', () => {
+    /* Barra o erro de digitacao antes de ele virar tentativa negada na conta
+       do lojista. */
+    expect(
+      cardTokenRequestSchema.safeParse({ ...pedidoToken, number: '4111111111111112' }).success,
+    ).toBe(false)
+  })
+
+  it('recusa numero curto demais para ser cartao', () => {
+    expect(cardTokenRequestSchema.safeParse({ ...pedidoToken, number: '4111' }).success).toBe(false)
+  })
+
+  it('recusa mes e ano de validade fora do formato', () => {
+    expect(cardTokenRequestSchema.safeParse({ ...pedidoToken, expiryMonth: '13' }).success).toBe(
+      false,
+    )
+    expect(cardTokenRequestSchema.safeParse({ ...pedidoToken, expiryYear: '30' }).success).toBe(
+      false,
+    )
+  })
+
+  it('recusa CVV com letra ou tamanho errado', () => {
+    expect(cardTokenRequestSchema.safeParse({ ...pedidoToken, cvv: '12a' }).success).toBe(false)
+    expect(cardTokenRequestSchema.safeParse({ ...pedidoToken, cvv: '12' }).success).toBe(false)
+  })
+
+  it('exige os dados do portador que o antifraude pede', () => {
+    /* Sem eles a cobranca e recusada por antifraude, e o lojista le "transacao
+       negada" sem entender por que. */
+    expect(cardHolderSchema.safeParse({ ...portador, email: 'nao-e-email' }).success).toBe(false)
+    expect(cardHolderSchema.safeParse({ ...portador, postalCode: '013' }).success).toBe(false)
+    expect(cardHolderSchema.safeParse({ ...portador, document: '123' }).success).toBe(false)
+    expect(cardHolderSchema.safeParse({ ...portador, phone: '1198' }).success).toBe(false)
+  })
+
+  it('o token guarda so bandeira e ultimos quatro', () => {
+    expect(cardTokenSchema.parse({ token: 'tok_1', brand: 'visa', last4: '1111' }).last4).toBe(
+      '1111',
+    )
+    /* last4 com o numero inteiro seria PAN guardado com outro nome. */
+    expect(
+      cardTokenSchema.safeParse({ token: 'tok_1', brand: 'visa', last4: '4111111111111111' })
+        .success,
+    ).toBe(false)
+  })
+})
+
+const pedidoCartao = {
+  companyId: 'e1',
+  externalReference: 'venda-3',
+  amountCents: 24000,
+  description: 'Venda 3',
+  dueDate: '2026-09-03',
+  token: 'tok_1',
+  installments: 3,
+  remoteIp: '200.100.50.25',
+  requestedAt: AGORA,
+}
+
+describe('cartao — cobranca', () => {
+  it('aceita o pedido com total e numero de parcelas', () => {
+    const c = cardChargeRequestSchema.parse(pedidoCartao)
+    /* amountCents e o TOTAL. Trocar por parcela cobraria 3x a venda. */
+    expect(c.amountCents).toBe(24000)
+    expect(c.installments).toBe(3)
+  })
+
+  it('recusa parcelamento fora da faixa', () => {
+    expect(cardChargeRequestSchema.safeParse({ ...pedidoCartao, installments: 0 }).success).toBe(
+      false,
+    )
+    expect(cardChargeRequestSchema.safeParse({ ...pedidoCartao, installments: 22 }).success).toBe(
+      false,
+    )
+  })
+
+  it('exige IP de quem digitou o cartao', () => {
+    /* Mandar o IP do nosso servidor faria toda compra do pais parecer vir do
+       mesmo lugar — o padrao que o antifraude procura. */
+    const { remoteIp, ...semIp } = pedidoCartao
+    void remoteIp
+    expect(cardChargeRequestSchema.safeParse(semIp).success).toBe(false)
+  })
+
+  it('recusa e resultado, com codigo e mensagem', () => {
+    const r = cardChargeResultSchema.parse({
+      status: 'declined',
+      decline: { code: 'invalid_credit_card', message: 'Cartao sem limite.' },
+    })
+    if (r.status !== 'declined') throw new Error('esperava recusa')
+    expect(r.decline.message).toBe('Cartao sem limite.')
+  })
+
+  it('autorizada carrega a cobranca inteira', () => {
+    const r = cardChargeResultSchema.parse({
+      status: 'authorized',
+      charge: {
+        chargeId: 'pay_1',
+        externalReference: 'venda-3',
+        status: 'authorized',
+        amountCents: 24000,
+        installments: 3,
+        brand: 'visa',
+        last4: '1111',
+      },
+    })
+    if (r.status !== 'authorized') throw new Error('esperava autorizada')
+    expect(r.charge.amountCents).toBe(24000)
   })
 })

@@ -1,5 +1,7 @@
 import {
   boletoChargeSchema,
+  cardChargeResultSchema,
+  cardTokenSchema,
   feeQuoteResultSchema,
   paymentLinkSchema,
   pixChargeSchema,
@@ -7,6 +9,10 @@ import {
   webhookReadResultSchema,
   type BoletoCharge,
   type BoletoChargeRequest,
+  type CardChargeRequest,
+  type CardChargeResult,
+  type CardToken,
+  type CardTokenRequest,
   type FeeQuoteResult,
   type PaymentLink,
   type PaymentLinkRequest,
@@ -35,6 +41,8 @@ export type GatewaySobTeste = {
   createPixCharge(request: PixChargeRequest): Promise<PixCharge>
   getPixCharge(request: { companyId: string; chargeId: string }): Promise<PixCharge | undefined>
   createBoletoCharge(request: BoletoChargeRequest): Promise<BoletoCharge>
+  tokenizeCard(request: CardTokenRequest): Promise<CardToken>
+  createCardCharge(request: CardChargeRequest): Promise<CardChargeResult>
   createPaymentLink(request: PaymentLinkRequest): Promise<PaymentLink>
   refund(request: RefundRequest): Promise<RefundResult>
   fetchFeeQuotes(request: { companyId: string; requestedAt: string }): Promise<FeeQuoteResult>
@@ -65,6 +73,48 @@ export function pedidoDeBoleto(
     amountCents: 8990,
     description: 'Venda 2 — Mercearia',
     dueDate: '2026-09-12',
+    requestedAt: AGORA,
+    ...sobrescreve,
+  }
+}
+
+/**
+ * Cartao de teste. `4111 1111 1111 1111` e o numero publico de exemplo das
+ * bandeiras — passa no Luhn e nao pertence a ninguem.
+ */
+export function pedidoDeToken(sobrescreve: Partial<CardTokenRequest> = {}): CardTokenRequest {
+  return {
+    companyId: EMPRESA,
+    customerReference: 'cus_1',
+    holderName: 'MARIA DA SILVA',
+    number: '4111111111111111',
+    expiryMonth: '12',
+    expiryYear: '2030',
+    cvv: '123',
+    holder: {
+      name: 'Maria da Silva',
+      email: 'maria@exemplo.com.br',
+      document: '39053344705',
+      postalCode: '01310100',
+      addressNumber: '1578',
+      phone: '11987654321',
+    },
+    remoteIp: '200.100.50.25',
+    requestedAt: AGORA,
+    ...sobrescreve,
+  }
+}
+
+export function pedidoDeCartao(sobrescreve: Partial<CardChargeRequest> = {}): CardChargeRequest {
+  return {
+    companyId: EMPRESA,
+    externalReference: 'venda-cartao-1',
+    amountCents: 24000,
+    description: 'Venda 3 — Mercearia',
+    dueDate: '2026-09-03',
+    token: 'tok_de_teste',
+    installments: 3,
+    remoteIp: '200.100.50.25',
     requestedAt: AGORA,
     ...sobrescreve,
   }
@@ -166,6 +216,57 @@ export function verificarContratoDoGateway(nome: string, criar: () => GatewaySob
       await expect(
         gateway.createBoletoCharge(pedidoDeBoleto({ externalReference: pix.externalReference })),
       ).rejects.toThrow()
+    })
+
+    it('tokeniza o cartao e devolve so bandeira e ultimos digitos', async () => {
+      const gateway = criar()
+
+      const token = await gateway.tokenizeCard(pedidoDeToken())
+
+      expect(() => cardTokenSchema.parse(token)).not.toThrow()
+      expect(token.last4).toBe('1111')
+      expect(token.brand).toBe('visa')
+      /* O que volta nao pode conter o numero: o retorno vai para tela, log e,
+         um dia, backup. */
+      expect(JSON.stringify(token)).not.toContain('4111111111111111')
+    })
+
+    it('recusa numero de cartao que nao fecha no Luhn', async () => {
+      const gateway = criar()
+
+      /* Recusar aqui poupa uma tentativa negada na conta do lojista — e
+         negativa demais faz a adquirente olhar a loja com desconfianca. */
+      await expect(
+        gateway.tokenizeCard(pedidoDeToken({ number: '4111111111111112' })),
+      ).rejects.toThrow()
+    })
+
+    it('cobra no cartao com o TOTAL, nao com o valor da parcela', async () => {
+      const gateway = criar()
+
+      const resultado = await gateway.createCardCharge(pedidoDeCartao())
+
+      expect(() => cardChargeResultSchema.parse(resultado)).not.toThrow()
+      if (resultado.status !== 'authorized') throw new Error('esperava autorizada')
+      /* 3x de R$ 80,00 sao R$ 240,00 cobrados uma vez — trocar total por
+         parcela e o erro classico de integracao de cartao. */
+      expect(resultado.charge.amountCents).toBe(24000)
+      expect(resultado.charge.installments).toBe(3)
+    })
+
+    it('cobrar a mesma referencia no cartao duas vezes nao debita duas vezes', async () => {
+      const gateway = criar()
+      const pedido = pedidoDeCartao()
+
+      const primeira = await gateway.createCardCharge(pedido)
+      const segunda = await gateway.createCardCharge(pedido)
+
+      if (primeira.status !== 'authorized' || segunda.status !== 'authorized') {
+        throw new Error('esperava as duas autorizadas')
+      }
+      /* No cartao a segunda tentativa nao gera um papel a mais: gera um
+         segundo debito no limite do cliente. */
+      expect(segunda.charge.chargeId).toBe(primeira.charge.chargeId)
     })
 
     it('cria link de pagamento com URL e vencimento', async () => {

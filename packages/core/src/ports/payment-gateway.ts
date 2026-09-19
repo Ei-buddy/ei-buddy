@@ -1,6 +1,10 @@
 import type {
   BoletoCharge,
   BoletoChargeRequest,
+  CardChargeRequest,
+  CardChargeResult,
+  CardToken,
+  CardTokenRequest,
   FeeQuoteResult,
   PaymentLink,
   PaymentLinkRequest,
@@ -74,6 +78,31 @@ export type PaymentGateway = {
    * mostrar um campo vazio.
    */
   createBoletoCharge(request: BoletoChargeRequest): Promise<BoletoCharge>
+
+  /**
+   * Troca um cartao por um token — RF-034, RNF-022.
+   *
+   * **A unica chamada do sistema que recebe numero e CVV, e ela existe para
+   * que eles nao sejam guardados.** O que volta e token, bandeira e os quatro
+   * ultimos digitos; com isso o lojista reconhece o cartao na tela e nao
+   * cobra nada fora da conta que gerou o token.
+   *
+   * O dado bruto nao pode chegar aqui vindo do banco, de log ou de fila: ele
+   * vem da requisicao, atravessa esta chamada e morre. Guardar para "tentar de
+   * novo depois" e como o numero do cartao do cliente aparece num backup.
+   */
+  tokenizeCard(request: CardTokenRequest): Promise<CardToken>
+
+  /**
+   * Cobra um cartao ja tokenizado — RF-034.
+   *
+   * Recusa e RESULTADO, como no estorno: "sem limite" e "suspeita de fraude"
+   * sao respostas normais da adquirente, e quem chama precisa mostrar qual foi
+   * para o lojista decidir entre outro cartao e outro meio. Excecao aqui
+   * viraria "erro inesperado" na tela e deixaria um `catch` distante desfazer
+   * a venda por causa de uma resposta previsivel.
+   */
+  createCardCharge(request: CardChargeRequest): Promise<CardChargeResult>
 
   /**
    * Cria link de pagamento — RF-068.

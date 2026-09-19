@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { criarGatewayAsaas, type CredenciaisAsaas } from './asaas-gateway.js'
 import {
   pedidoDeBoleto,
+  pedidoDeCartao,
   pedidoDeLink,
   pedidoDePix,
+  pedidoDeToken,
   verificarContratoDoGateway,
 } from './payment-gateway-contract.js'
 
@@ -61,6 +63,18 @@ function asaasFalso() {
         ...(corpo.billingType === 'BOLETO'
           ? { dueDate: corpo.dueDate, bankSlipUrl: `https://www.asaas.com/b/pdf/${id}` }
           : {}),
+        ...(corpo.billingType === 'CREDIT_CARD'
+          ? {
+              status: 'CONFIRMED',
+              /* No parcelado o Asaas devolve `value` = PARCELA e `totalValue` =
+                 total. O duble reproduz isso para o adapter nao poder confiar
+                 em `value` sem perceber. */
+              value: Number(corpo.totalValue) / Number(corpo.installmentCount ?? 1),
+              totalValue: corpo.totalValue,
+              installmentCount: corpo.installmentCount,
+              creditCard: { creditCardNumber: '1111', creditCardBrand: 'VISA' },
+            }
+          : {}),
       }
       minhas.set(id, criada)
       return json(criada)
@@ -114,6 +128,25 @@ function asaasFalso() {
       return cobranca === undefined
         ? json({ errors: [{ code: 'not_found', description: 'nao existe' }] }, 404)
         : json(cobranca)
+    }
+
+    if (caminho === '/creditCard/tokenizeCreditCard' && metodo === 'POST') {
+      const cartao = (corpo.creditCard ?? {}) as Record<string, unknown>
+      const numero = String(cartao.number ?? '')
+      /* O Asaas recusa numero com espaco. O duble tambem, porque e por isso
+         que o adapter normaliza antes de mandar. */
+      if (!/^[0-9]+$/.test(numero)) {
+        return json(
+          { errors: [{ code: 'invalid_creditCard', description: 'numero invalido' }] },
+          400,
+        )
+      }
+      sequencia += 1
+      return json({
+        creditCardNumber: numero.slice(-4),
+        creditCardBrand: 'VISA',
+        creditCardToken: `tok_${sequencia}`,
+      })
     }
 
     if (caminho === '/paymentLinks' && metodo === 'POST') {
@@ -340,5 +373,82 @@ describe('boleto no Asaas — NR-044', () => {
     await expect(
       gateway({ fetchFalso: semLinha }).createBoletoCharge(pedidoDeBoleto()),
     ).rejects.toThrow(/linha digitavel/i)
+  })
+})
+
+describe('cartao no Asaas — NR-044', () => {
+  it('normaliza o numero antes de mandar, e nao devolve o PAN', async () => {
+    const token = await gateway().tokenizeCard(pedidoDeToken({ number: '4111 1111 1111 1111' }))
+
+    /* O formulario entrega com espaco; a rede tem de ver digito puro. */
+    expect(token.token).toMatch(/^tok_/)
+    expect(token.last4).toBe('1111')
+    expect(JSON.stringify(token)).not.toContain('4111111111111111')
+  })
+
+  it('manda totalValue e installmentCount, nunca o total no campo da parcela', async () => {
+    const { fetchFalso } = asaasFalso()
+    const corpos: Record<string, unknown>[] = []
+    const espiao: typeof globalThis.fetch = async (entrada, init) => {
+      if (init?.method === 'POST' && String(entrada).endsWith('/payments')) {
+        corpos.push(JSON.parse(String(init.body)) as Record<string, unknown>)
+      }
+      return fetchFalso(entrada, init)
+    }
+
+    await gateway({ fetchFalso: espiao }).createCardCharge(
+      pedidoDeCartao({ amountCents: 24000, installments: 3 }),
+    )
+
+    /* `value` no Asaas e o valor da PARCELA: mandar 240,00 ali cobraria
+       3 x R$ 240,00 do cliente. */
+    expect(corpos[0]?.totalValue).toBe(240)
+    expect(corpos[0]?.installmentCount).toBe(3)
+    expect(corpos[0]?.value).toBeUndefined()
+  })
+
+  it('recusa da operadora volta como resultado, nao como excecao', async () => {
+    const { fetchFalso } = asaasFalso()
+    const recusa: typeof globalThis.fetch = async (entrada, init) => {
+      if (init?.method === 'POST' && String(entrada).endsWith('/payments')) {
+        return new Response(
+          JSON.stringify({
+            errors: [{ code: 'invalid_credit_card', description: 'Cartao sem limite.' }],
+          }),
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return fetchFalso(entrada, init)
+    }
+
+    const r = await gateway({ fetchFalso: recusa }).createCardCharge(pedidoDeCartao())
+
+    /* O lojista precisa ler a razao para decidir entre outro cartao e outro
+       meio — um throw viraria "erro inesperado" na tela. */
+    if (r.status !== 'declined') throw new Error('esperava recusa')
+    expect(r.decline.message).toMatch(/limite/i)
+  })
+
+  it('traduz a bandeira do provedor, e o desconhecido fica unknown', async () => {
+    const { fetchFalso } = asaasFalso()
+    const outraBandeira: typeof globalThis.fetch = async (entrada, init) => {
+      if (String(entrada).includes('/creditCard/tokenizeCreditCard')) {
+        return new Response(
+          JSON.stringify({
+            creditCardNumber: '4321',
+            creditCardBrand: 'JCB',
+            creditCardToken: 'tok_jcb',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return fetchFalso(entrada, init)
+    }
+
+    const token = await gateway({ fetchFalso: outraBandeira }).tokenizeCard(pedidoDeToken())
+
+    /* Escrever a bandeira errada faz o lojista procurar um cartao que o
+       cliente nao usou. */
+    expect(token.brand).toBe('unknown')
   })
 })
