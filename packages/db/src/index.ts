@@ -42,6 +42,7 @@ export {
   createReconciliationUnitOfWork,
 } from './bank-transaction-repository.js'
 export { createSaleUnitOfWork } from './sale-unit-of-work.js'
+export { createSaleCancellationUnitOfWork } from './sale-cancellation.js'
 
 /* Diretorio de usuarios — NR-014. Le por fora da RLS, pelas funcoes auth_* da
    migration 0003; ver user-directory.ts sobre por que isso e necessario. */

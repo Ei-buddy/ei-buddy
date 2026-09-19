@@ -1,6 +1,12 @@
-import { createSaleInputSchema, saleHistoryInputSchema } from '@na-regua/contracts'
+import {
+  cancelSaleInputSchema,
+  createSaleInputSchema,
+  saleHistoryInputSchema,
+} from '@na-regua/contracts'
 import {
   AppError,
+  cancelSale,
+  type CancelSaleDeps,
   getSale,
   listSales,
   type ListSalesDeps,
@@ -23,7 +29,7 @@ import { validate } from '../plugins/validate.js'
  * Recebe `deps` em vez de importar a composicao: e o que permite testar a rota
  * com repositorio em memoria, sem Postgres.
  */
-export type SaleRouteDeps = RegisterSaleDeps & ListSalesDeps
+export type SaleRouteDeps = RegisterSaleDeps & ListSalesDeps & CancelSaleDeps
 
 export function registerSaleRoutes(app: FastifyInstance, deps: SaleRouteDeps): void {
   /**
@@ -100,4 +106,28 @@ export function registerSaleRoutes(app: FastifyInstance, deps: SaleRouteDeps): v
       replayed: resultado.replayed,
     })
   })
+
+  /**
+   * Cancela a venda inteira — RF-043, US-021.
+   *
+   * POST, e nao DELETE: a venda NAO e apagada (RNF-040). Ela fica no
+   * historico, cancelada, com o motivo — que e o que permite responder depois
+   * por que o caixa daquele dia nao fecha.
+   */
+  app.post(
+    '/sales/:id/cancelar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(cancelSaleInputSchema, {
+        saleId: id,
+        ...(request.body as Record<string, unknown>),
+      })
+
+      await cancelSale(deps, ctx, input)
+
+      return reply.code(204).send()
+    },
+  )
 }

@@ -180,6 +180,13 @@ export { listSettlements } from './settlements/list-settlements.js'
 export type { ListSettlementsDeps } from './settlements/list-settlements.js'
 export { reverseSettlement } from './settlements/reverse-settlement.js'
 export { settlePayable, settleReceivable } from './settlements/settle.js'
+export { cancelSale } from './sales/cancel-sale.js'
+export type { CancelSaleDeps } from './sales/cancel-sale.js'
+export type {
+  SaleCancellationTransaction,
+  SaleCancellationUnitOfWork,
+  SaleToCancel,
+} from './ports/sale-cancellation.js'
 export type { SettleDeps } from './settlements/settle.js'
 export { mexeNoSaldoDoCliente } from './settlements/customer-balance.js'
 export type {

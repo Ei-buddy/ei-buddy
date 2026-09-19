@@ -136,6 +136,13 @@ function buildApp(
     /* O historico e leitura e nao participa do fechamento; um falso vazio
        basta para os testes de escrita, e os de leitura o sobrescrevem. */
     history: historicoEmMemoria(),
+    /* O cancelamento tem suite propria em `core`; aqui so precisa existir para
+       o tipo fechar. Quem testar a rota de cancelar sobrescreve. */
+    uow: {
+      transaction: async () => {
+        throw new Error('nao executa neste teste')
+      },
+    },
     ...over,
   }
 
