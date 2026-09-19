@@ -122,7 +122,14 @@ export function ocorrenciasDaRecorrencia(
   return ocorrencias
 }
 
-function somarDias(data: string, dias: number): string {
+/**
+ * Dias somados a uma data de calendario, sem passar por fuso.
+ *
+ * Exportada porque a assinatura tambem conta prazo em dia corrido — fim do
+ * teste e fim da tolerancia (NR-063). Reimplementar isso la reintroduziria o
+ * `new Date('2026-03-31')` que este modulo inteiro existe para evitar.
+ */
+export function somarDias(data: string, dias: number): string {
   const { ano, mes, dia } = decompor(data)
   const d = new Date(Date.UTC(ano, mes - 1, dia + dias))
   return compor({ ano: d.getUTCFullYear(), mes: d.getUTCMonth() + 1, dia: d.getUTCDate() })
