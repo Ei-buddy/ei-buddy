@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type {
+  BoletoCharge,
+  BoletoChargeRequest,
   FeeQuote,
   FeeQuoteResult,
   PaymentLink,
@@ -107,18 +109,33 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
   async function porReferencia(
     companyId: string,
     externalReference: string,
+    billingType: 'PIX' | 'BOLETO',
   ): Promise<Record<string, unknown> | undefined> {
     const { corpo } = await chamar(
       companyId,
       `/payments?externalReference=${encodeURIComponent(externalReference)}`,
     )
     const lista = Array.isArray(corpo.data) ? (corpo.data as Record<string, unknown>[]) : []
-    return lista[0]
+    const existente = lista[0]
+    if (existente === undefined) return undefined
+
+    /* A busca e so por referencia, entao o meio precisa ser conferido aqui:
+       sem isso, pedir boleto para uma venda que ja tem Pix devolveria o Pix
+       disfarcado, e a chamada da linha digitavel falharia sem dizer por que.
+       Uma divida tem um documento. */
+    const tipo = String(existente.billingType ?? '')
+    if (tipo !== billingType) {
+      throw new Error(
+        `A referencia ${externalReference} ja tem cobranca ${tipo} no Asaas. Uma divida gera um documento so.`,
+      )
+    }
+
+    return existente
   }
 
   return {
     createPixCharge: async (request: PixChargeRequest): Promise<PixCharge> => {
-      const existente = await porReferencia(request.companyId, request.externalReference)
+      const existente = await porReferencia(request.companyId, request.externalReference, 'PIX')
 
       const pagamento =
         existente ??
@@ -171,6 +188,53 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
         amountCents: decimalParaCentavos(corpo.value),
         qrCodePayload: String(qr.payload ?? ''),
         expiresAt: null,
+      }
+    },
+
+    createBoletoCharge: async (request: BoletoChargeRequest): Promise<BoletoCharge> => {
+      const existente = await porReferencia(request.companyId, request.externalReference, 'BOLETO')
+
+      const pagamento =
+        existente ??
+        (
+          await chamar(request.companyId, '/payments', {
+            method: 'POST',
+            body: {
+              billingType: 'BOLETO',
+              value: centavosParaDecimal(request.amountCents),
+              dueDate: request.dueDate,
+              description: request.description,
+              externalReference: request.externalReference,
+            },
+          })
+        ).corpo
+
+      const id = String(pagamento.id ?? '')
+      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+
+      /* A linha digitavel vem de OUTRA chamada, como o copia-e-cola do Pix: o
+         POST cria o titulo, o banco e que numera o documento. */
+      const { ok, corpo: ficha } = await chamar(
+        request.companyId,
+        `/payments/${id}/identificationField`,
+      )
+
+      const digitableLine = apenasDigitos(ficha.identificationField)
+      if (!ok || digitableLine === '') {
+        /* Lanca, e nao devolve pela metade: boleto sem linha digitavel nao e
+           pagavel, e entregar um assim faria a tela exibir um campo vazio no
+           lugar do unico dado que o cliente precisa digitar. */
+        throw new Error('O Asaas nao devolveu a linha digitavel do boleto.')
+      }
+
+      return {
+        chargeId: id,
+        externalReference: request.externalReference,
+        status: traduzirStatus(String(pagamento.status ?? 'PENDING')),
+        amountCents: decimalParaCentavos(pagamento.value),
+        dueDate: String(pagamento.dueDate ?? request.dueDate),
+        digitableLine,
+        pdfUrl: textoOuNulo(pagamento.bankSlipUrl),
       }
     },
 
@@ -317,6 +381,22 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
 function decimalParaCentavos(valor: unknown): number {
   const numero = typeof valor === 'number' ? valor : Number(valor ?? 0)
   return Number.isFinite(numero) ? Math.round(numero * 100) : 0
+}
+
+/**
+ * So os digitos — a linha digitavel atravessa a porta em forma canonica.
+ *
+ * O Asaas devolve `34191.09008 61713.957308 …`, e pontos e espacos sao
+ * apresentacao. Quem mostra reinsere a pontuacao; quem compara ou grava quer
+ * os 47 digitos. Mesmo criterio do dinheiro em centavo.
+ */
+function apenasDigitos(valor: unknown): string {
+  return typeof valor === 'string' ? valor.replace(/\D/g, '') : ''
+}
+
+/** String nao vazia do provedor, ou `null`. Campo ausente nao vira `"undefined"`. */
+function textoOuNulo(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() !== '' ? valor : null
 }
 
 function centavosParaDecimal(centavos: number): number {

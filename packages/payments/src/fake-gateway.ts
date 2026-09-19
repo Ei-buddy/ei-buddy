@@ -1,8 +1,11 @@
 import {
+  boletoChargeRequestSchema,
   paymentEventTypeSchema,
   pixChargeRequestSchema,
   paymentLinkRequestSchema,
   refundRequestSchema,
+  type BoletoCharge,
+  type BoletoChargeRequest,
   type FeeQuote,
   type FeeQuoteResult,
   type PaymentLink,
@@ -44,6 +47,7 @@ type Cobranca = {
   /** Quanto ainda pode ser estornado. */
   restanteCents: number
   readonly pix?: PixCharge
+  readonly boleto?: BoletoCharge
   readonly link?: PaymentLink
 }
 
@@ -126,6 +130,50 @@ export class FakePaymentGateway {
     /* Cobranca de outra empresa e o mesmo que inexistente — nunca "proibido". */
     if (!cobranca?.pix || cobranca.companyId !== request.companyId) return undefined
     return { ...cobranca.pix, status: cobranca.status }
+  }
+
+  async createBoletoCharge(request: BoletoChargeRequest): Promise<BoletoCharge> {
+    this.talvezFalhar()
+    const validado = boletoChargeRequestSchema.parse(request)
+
+    const chave = chaveDeReferencia(validado.companyId, validado.externalReference)
+    const existente = this.porReferencia.get(chave)
+    if (existente?.boleto) return existente.boleto
+
+    /* Meio trocado para a mesma divida e erro de quem chama, e o falso precisa
+       reproduzir isso: o real recusa porque a busca por referencia acharia a
+       cobranca do outro meio, e um falso permissivo aqui esconderia o bug ate
+       producao. */
+    if (existente?.pix) {
+      throw new Error(
+        `A referencia ${validado.externalReference} ja tem cobranca PIX. Uma divida gera um documento so.`,
+      )
+    }
+
+    const chargeId = this.proximoId('pay')
+    const boleto: BoletoCharge = {
+      chargeId,
+      externalReference: validado.externalReference,
+      status: 'pending',
+      amountCents: validado.amountCents,
+      dueDate: validado.dueDate,
+      digitableLine: linhaDigitavel(chargeId, validado.amountCents),
+      pdfUrl: `https://fake.payments.local/boleto/${chargeId}.pdf`,
+    }
+
+    this.guardar(
+      {
+        companyId: validado.companyId,
+        externalReference: validado.externalReference,
+        amountCents: validado.amountCents,
+        status: 'pending',
+        restanteCents: validado.amountCents,
+        boleto,
+      },
+      chargeId,
+    )
+
+    return boleto
   }
 
   async createPaymentLink(request: PaymentLinkRequest): Promise<PaymentLink> {
@@ -211,7 +259,11 @@ export class FakePaymentGateway {
     return {
       status: 'refunded',
       refundId: this.proximoId('ref'),
-      chargeId: cobranca.pix?.chargeId ?? cobranca.link?.linkId ?? validado.data.chargeId,
+      chargeId:
+        cobranca.pix?.chargeId ??
+        cobranca.boleto?.chargeId ??
+        cobranca.link?.linkId ??
+        validado.data.chargeId,
       amountCents: pedido,
       remainingCents: cobranca.restanteCents,
       refundedAt: validado.data.requestedAt,
@@ -434,4 +486,18 @@ function copiaECola(chargeId: string, amountCents: number): string {
     campo('58', 'BR'),
     campo('62', campo('05', chargeId)),
   ].join('')
+}
+
+/**
+ * Linha digitavel deterministica de 47 digitos.
+ *
+ * Nao e um boleto valido — os digitos verificadores sao arbitrarios, e emitir
+ * um documento bancario de mentira que PASSA na conferencia de um banco seria
+ * pior que um que nao passa. O que o falso promete e o formato: 47 digitos,
+ * estaveis para a mesma cobranca, com o valor no fim, onde ele fica de verdade.
+ */
+function linhaDigitavel(chargeId: string, amountCents: number): string {
+  const digitosDoId = chargeId.replace(/\D/g, '').padStart(10, '0').slice(-10)
+  const valor = String(amountCents).padStart(10, '0').slice(-10)
+  return `34191${digitosDoId}00000${digitosDoId}0000${valor}`.padEnd(47, '0').slice(0, 47)
 }

@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { criarGatewayAsaas, type CredenciaisAsaas } from './asaas-gateway.js'
 import {
+  pedidoDeBoleto,
   pedidoDeLink,
   pedidoDePix,
   verificarContratoDoGateway,
@@ -55,7 +56,11 @@ function asaasFalso() {
         id,
         status: 'PENDING',
         value: corpo.value,
+        billingType: corpo.billingType,
         externalReference: corpo.externalReference,
+        ...(corpo.billingType === 'BOLETO'
+          ? { dueDate: corpo.dueDate, bankSlipUrl: `https://www.asaas.com/b/pdf/${id}` }
+          : {}),
       }
       minhas.set(id, criada)
       return json(criada)
@@ -65,6 +70,21 @@ function asaasFalso() {
       const ref = url.searchParams.get('externalReference')
       const achadas = [...minhas.values()].filter((c) => c.externalReference === ref)
       return json({ data: achadas })
+    }
+
+    const linhaDoBoleto = /^\/payments\/([^/]+)\/identificationField$/.exec(caminho)
+    if (linhaDoBoleto) {
+      const cobranca = minhas.get(linhaDoBoleto[1]!)
+      if (cobranca === undefined || cobranca.billingType !== 'BOLETO') {
+        return json({ errors: [{ code: 'invalid_action', description: 'nao e boleto' }] }, 400)
+      }
+      /* Formatada, com pontos e espacos — e assim que ela chega de verdade, e
+         normalizar isso e trabalho do adapter. */
+      return json({
+        identificationField: '34191.09008 61713.957308 71444.640008 5 84400000002000',
+        barCode: '34195844000000020000900086171395730714446400',
+        nossoNumero: '08561713',
+      })
     }
 
     const pixQr = /^\/payments\/([^/]+)\/pixQrCode$/.exec(caminho)
@@ -270,5 +290,55 @@ describe('cotacao de tarifa — RNF-003', () => {
       requestedAt: '2026-09-19T12:00:00.000Z',
     })
     expect(r.status).toBe('unavailable')
+  })
+})
+
+describe('boleto no Asaas — NR-044', () => {
+  it('normaliza a linha digitavel formatada que o provedor devolve', async () => {
+    const boleto = await gateway().createBoletoCharge(pedidoDeBoleto())
+
+    /* O provedor manda '34191.09008 61713.957308 …'. Pontuacao e apresentacao:
+       quem compara ou grava quer os 47 digitos. */
+    expect(boleto.digitableLine).toBe('34191090086171395730871444640008584400000002000')
+    expect(boleto.pdfUrl).toBe(`https://www.asaas.com/b/pdf/${boleto.chargeId}`)
+  })
+
+  it('manda o vencimento pedido, e nao a data de hoje', async () => {
+    const { fetchFalso } = asaasFalso()
+    const corpos: Record<string, unknown>[] = []
+    const espiao: typeof globalThis.fetch = async (entrada, init) => {
+      if (init?.method === 'POST' && String(entrada).endsWith('/payments')) {
+        corpos.push(JSON.parse(String(init.body)) as Record<string, unknown>)
+      }
+      return fetchFalso(entrada, init)
+    }
+
+    await gateway({ fetchFalso: espiao }).createBoletoCharge(
+      pedidoDeBoleto({ dueDate: '2026-10-05' }),
+    )
+
+    /* No boleto o vencimento e impresso no documento: errar aqui e o cliente
+       recebendo um titulo com prazo que o lojista nao combinou. */
+    expect(corpos[0]?.billingType).toBe('BOLETO')
+    expect(corpos[0]?.dueDate).toBe('2026-10-05')
+  })
+
+  it('lanca quando o provedor nao devolve linha digitavel', async () => {
+    const { fetchFalso } = asaasFalso()
+    const semLinha: typeof globalThis.fetch = async (entrada, init) => {
+      if (String(entrada).includes('/identificationField')) {
+        return new Response(JSON.stringify({ errors: [{ code: 'x', description: 'fora' }] }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return fetchFalso(entrada, init)
+    }
+
+    /* Boleto pela metade nao e boleto: sem a linha, a tela mostraria um campo
+       vazio no lugar do unico dado que o cliente precisa digitar. */
+    await expect(
+      gateway({ fetchFalso: semLinha }).createBoletoCharge(pedidoDeBoleto()),
+    ).rejects.toThrow(/linha digitavel/i)
   })
 })
