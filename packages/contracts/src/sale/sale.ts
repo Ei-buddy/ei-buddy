@@ -197,3 +197,24 @@ export const saleHistoryOutputSchema = z.object({
 })
 
 export type SaleHistoryOutput = z.infer<typeof saleHistoryOutputSchema>
+
+/**
+ * Cancelamento de venda — RF-043.
+ *
+ * `reason` e OBRIGATORIO aqui, ao contrario do cancelamento de compromisso:
+ * a US-021 pede que fique registrado quem, quando e **por que**, e venda
+ * cancelada sem motivo e a linha que ninguem consegue explicar no fechamento
+ * do mes.
+ */
+export const cancelSaleInputSchema = z
+  .object({
+    saleId: idSchema,
+    reason: z
+      .string()
+      .trim()
+      .min(3, 'Diga o motivo do cancelamento.')
+      .max(280, 'Motivo muito longo.'),
+  })
+  .strict()
+
+export type CancelSaleInput = z.infer<typeof cancelSaleInputSchema>

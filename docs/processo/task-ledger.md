@@ -50,7 +50,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     100 |  250 |
+| Total                         |     101 |  253 |
 | ✅ Concluídas                 |      90 |  218 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
@@ -70,7 +70,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > A **NR-118** entregou US-072, US-073 e US-074 (RF-143/144/145). A US-075
 > (cancelar/devolver venda por mensagem, RF-147) **nao pode ser feita ainda**:
 > ela pede "o mesmo caso de uso do aplicativo", e esse caso de uso nao existe —
-> RF-043 e RF-044 estao ⬜ e **nenhuma tarefa do quadro os cobre**. Fazer isso
+> RF-043 e RF-044 estao ⬜, e a **NR-122** foi aberta para cobri-los. Fazer isso
 > dentro do agente seria implementar cancelamento de venda fora do nucleo,
 > que e o oposto do que o RF-147 pede. Falta abrir a tarefa de `core`/`fiscal`.
 > As somas saem das linhas deste arquivo e fecham com o
@@ -172,25 +172,26 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 
 Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 
-| ID     | Tarefa                                                                  | Trilha | Módulo                     | Est | Dep                                                    | Bloq | US/RF                                                         | Status |
-| ------ | ----------------------------------------------------------------------- | :----: | -------------------------- | --: | ------------------------------------------------------ | ---- | ------------------------------------------------------------- | :----: |
-| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                     |   3 | NR-028                                                 | —    | RF-125–128                                                    |   ✅   |
-| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`          |   2 | NR-005                                                 | —    | RF-015                                                        |   ✅   |
-| NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                    |   5 | NR-005                                                 | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ✅   |
-| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`              |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ✅   |
-| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                    |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ✅   |
-| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                    |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ✅   |
-| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ✅   |
-| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ✅   |
-| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ✅   |
-| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                    |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
-| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                    |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
-| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`               |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web` |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
-| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                 |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                  |   4 | NR-044                                                 | —    | RF-110–118                                                    |   ⬜   |
-| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                       |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
-| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                      |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
+| ID     | Tarefa                                                                  | Trilha | Módulo                        | Est | Dep                                                    | Bloq | US/RF                                                         | Status |
+| ------ | ----------------------------------------------------------------------- | :----: | ----------------------------- | --: | ------------------------------------------------------ | ---- | ------------------------------------------------------------- | :----: |
+| NR-031 | `core`: exportação completa e anonimização (LGPD)                       |   🔵   | `core`                        |   3 | NR-028                                                 | —    | RF-125–128                                                    |   ✅   |
+| NR-045 | `whatsapp`: porta `MessageSender` + adapter falso                       |   🟠   | `whatsapp` `core`             |   2 | NR-005                                                 | —    | RF-015                                                        |   ✅   |
+| NR-060 | `agent`: runtime mínimo + tools base geradas de `contracts`             |   🟠   | `agent`                       |   5 | NR-005                                                 | —    | US-047–049, US-052, US-053, RF-096–102, 107–109, 136, 149–151 |   ✅   |
+| NR-121 | `agent`: harness Mastra Studio → `processMessage` (eng., não lojista)   |   🟠   | `agent` `api`                 |   2 | NR-060                                                 | —    | ADR-0010 (rev.), RNF-006                                      |   ✅   |
+| NR-061 | `agent`: confirmação de ação sensível, com expiração                    |   🟠   | `agent`                       |   2 | NR-060, NR-121                                         | —    | US-050, RF-103, RF-104                                        |   ✅   |
+| NR-062 | `agent`: contexto de conversa isolado por empresa                       |   🟠   | `agent`                       |   3 | NR-060, NR-121                                         | —    | US-051, RF-105, RF-106, ADR-0016                              |   ✅   |
+| NR-115 | `agent`: consultar estoque, a pagar e fiado por mensagem                |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-065–067, RF-133–135                                        |   ✅   |
+| NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ✅   |
+| NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ✅   |
+| NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ⬜   |
+| NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   🟨   |
+| NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                       |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
+| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
+| NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                    |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                     |   4 | NR-044                                                 | —    | RF-110–118                                                    |   ⬜   |
+| NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                          |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
+| NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                         |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
 
 **NR-060 (entregue neste PR):** runtime mínimo Mastra + tools de `contracts`
 (US-047–049, US-052, US-053/RF-108, recusas RF-149–151), harness de fixture
@@ -405,12 +406,12 @@ O retrabalho que resta é visual (tokens), não naming.
 
 | Trilha                          | Tarefas | Dias | Observação                                         |
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
-| 🔵 1 — Núcleo & Dados           |      34 |   85 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
+| 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      36 |   91 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
 | 🟢 3 — Clientes                 |      27 |   68 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **250 dias-desenvolvedor** em 100 tarefas. Com 3 pessoas, isso é cerca
+Somando: **253 dias-desenvolvedor** em 101 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

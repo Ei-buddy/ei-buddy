@@ -97,6 +97,7 @@ import {
   createReconciliationQueries,
   createReconciliationUnitOfWork,
   createSaleHistoryRepository,
+  createSaleCancellationUnitOfWork,
   createSaleUnitOfWork,
   createSupplierDirectory,
   createUserDirectory,
@@ -269,6 +270,9 @@ export function buildSaleDeps(): SaleRouteDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     unitOfWork: createSaleUnitOfWork(sql),
+    /* Cancelamento tem escopo transacional proprio — ver
+       ports/sale-cancellation.ts, em core. */
+    uow: createSaleCancellationUnitOfWork(sql),
     settings: createDefaultSaleSettings(),
     /* O fuso vem da `TZ` pelo mesmo motivo dos relatorios: "vendas de 15 de
        marco" e uma pergunta com fuso embutido, e a venda das 21h30 em Sao
