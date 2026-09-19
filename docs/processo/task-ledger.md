@@ -54,7 +54,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 | ✅ Concluídas                 |      91 |  220 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |       8 |   26 |
+| ⬜ A fazer, pode começar hoje |       7 |   22 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -162,7 +162,7 @@ Objetivo: emitir NFC-e e controlar contas a pagar e receber.
 | NR-041 | `worker`: consumidores de fila (emissão, mensagem, cobrança)          |   🟠   | `worker`          |   3 | NR-040 | —    | RNF-004, RF-130        |   ✅   |
 | NR-042 | `fiscal`: adapter Focus NFe, contingência e guarda de XML             |   🟠   | `fiscal`          |   5 | NR-040 | —    | RF-045–054, RF-146     |   ✅   |
 | NR-043 | `payments`: porta `PaymentGateway` + adapter falso                    |   🟠   | `payments` `core` |   2 | NR-005 | —    | RF-063                 |   ✅   |
-| NR-044 | `payments`: adapter Asaas — Pix, boleto, link, cartão online, webhook |   🟠   | `payments`        |   4 | NR-043 | —    | RF-034, RF-068         |   ⬜   |
+| NR-044 | `payments`: adapter Asaas — Pix, boleto, link, cartão online, webhook |   🟠   | `payments`        |   4 | NR-043 | —    | RF-034, RF-068         |   🟨   |
 | NR-073 | `mobile`: pagamento, resumo com líquido e margem                      |   🟢   | `mobile`          |   3 | NR-071 | —    | US-018–020             |   ✅   |
 | NR-074 | `web`: contas a pagar e a receber                                     |   🟢   | `web`             |   4 | NR-029 | —    | E6, E7                 |   ✅   |
 | NR-081 | Baixa e estorno de título ligados de verdade, no web e no mobile      |   🟢   | `web` `mobile`    |   3 | NR-074 | —    | RF-059, RF-066, RF-067 |   ✅   |
