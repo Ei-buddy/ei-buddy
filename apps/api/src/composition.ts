@@ -88,6 +88,7 @@ import {
   createPartnerApplicationRepository,
   createPaymentCredentials,
   createSubscriptionRepository,
+  createCustomerChargeRepository,
   createWebhookInbox,
   createLegalConsentRepository,
   createFiscalCredentials,
@@ -1028,6 +1029,9 @@ export function buildAgentUseCases(): AgentUseCases {
           /* Com conta de recebimento configurada, a cobranca leva link
              (RF-068). Sem ela, sai so com valor e vencimento. */
           gateway: montarGatewayDePagamento(),
+          /* O caminho de volta do link: sem isto, o cliente paga e nenhum
+             titulo baixa — silenciosamente. */
+          charges: createCustomerChargeRepository(getClient(env.DATABASE_URL)),
           consents: {
             /* Harness: o aceite real (coluna whatsapp_consent_at) entra com
                NR-046. Sem isso no CustomerOutput, o canal de teste trata o

@@ -2,6 +2,7 @@ import type { SendChargeInput, SendRejectionReason, SendTextRequest } from '@na-
 import { sendTextRequestSchema } from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
 import { AppError } from '../app-error.js'
+import type { CustomerChargeRepository } from '../ports/customer-charge-repository.js'
 import type { PaymentGateway } from '../ports/payment-gateway.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
@@ -39,6 +40,16 @@ export type SendCustomerChargeDeps = {
    * nao cobrar.
    */
   readonly gateway?: PaymentGateway | undefined
+  /**
+   * Onde a cobranca fica registrada, para o aviso do provedor achar os titulos
+   * — RF-068.
+   *
+   * Opcional junto com o `gateway`: sem link nao ha o que registrar. Com link
+   * e sem isto, o cliente pagaria e nenhum titulo baixaria — por isso o caso
+   * de uso avisa no retorno quando cai nesse estado, em vez de fingir que
+   * cobrou por completo.
+   */
+  readonly charges?: CustomerChargeRepository | undefined
 }
 
 export type SendCustomerChargeResult =
@@ -62,6 +73,10 @@ export type SendCustomerChargeResult =
     }
 
 type TituloAberto = {
+  /* O id do recebivel, para a cobranca saber a quais titulos ela corresponde
+     quando o aviso do pagamento voltar. Sem ele, o link nao leva a lugar
+     nenhum. */
+  readonly id: string
   readonly amountCents: number
   readonly dueDate: string
   readonly description: string
@@ -106,7 +121,29 @@ export async function sendCustomerCharge(
   }
 
   const amountCents = titulos.reduce((soma, t) => soma + t.amountCents, 0)
-  const linkDePagamento = await criarLink(deps, ctx, { amountCents, titulos })
+  const link = await criarLink(deps, ctx, { amountCents, titulos })
+  const linkDePagamento = link?.url
+
+  /*
+   * O registro acontece ANTES do envio, de proposito.
+   *
+   * Depois, uma falha de escrita deixaria o cliente com um link vivo que nao
+   * leva a titulo nenhum: ele paga e nada baixa. Antes, uma falha de escrita
+   * impede o envio — o lojista tenta de novo, e o `externalReference` e o
+   * mesmo, entao nao nasce cobranca duplicada.
+   */
+  if (link !== undefined && deps.charges !== undefined) {
+    await deps.charges.registrar({
+      companyId: ctx.companyId,
+      customerId: cliente.id,
+      externalReference: ctx.requestId,
+      amountCents,
+      providerLinkId: link.linkId,
+      checkoutUrl: link.url,
+      titulos: titulos.map((t) => ({ receivableId: t.id, amountCents: t.amountCents })),
+      createdAt: ctx.now,
+    })
+  }
 
   const pedido = montarPedido({
     ctx,
@@ -152,7 +189,7 @@ async function criarLink(
   deps: SendCustomerChargeDeps,
   ctx: ExecutionContext,
   dados: { readonly amountCents: number; readonly titulos: readonly TituloAberto[] },
-): Promise<string | undefined> {
+): Promise<{ readonly url: string; readonly linkId: string } | undefined> {
   if (deps.gateway === undefined) return undefined
 
   /* O vencimento do link e o mais PROXIMO em aberto: usar o mais distante
@@ -169,7 +206,7 @@ async function criarLink(
       ...(vencimento === undefined ? {} : { dueDate: vencimento }),
       requestedAt: ctx.now.toISOString(),
     })
-    return link.url
+    return { url: link.url, linkId: link.linkId }
   } catch {
     return undefined
   }
@@ -177,7 +214,9 @@ async function criarLink(
 
 export function textoDaCobrancaAoCliente(input: {
   readonly customerName: string
-  readonly titulos: readonly TituloAberto[]
+  /* So o que a frase usa. Exigir o `id` aqui obrigaria quem quer apenas
+     formatar um texto a carregar um identificador que a frase nunca le. */
+  readonly titulos: readonly Omit<TituloAberto, 'id'>[]
   readonly paymentLinkUrl?: string | undefined
 }): string {
   const partes = input.titulos.map((t) => {
@@ -233,6 +272,7 @@ async function titulosAbertosDoCliente(
   return abertos
     .filter((r) => r.customerId === customerId)
     .map((r) => ({
+      id: r.id,
       amountCents: r.amountCents - r.settledAmountCents,
       dueDate: r.dueDate,
       description: r.description,
