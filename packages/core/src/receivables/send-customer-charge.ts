@@ -3,6 +3,7 @@ import { sendTextRequestSchema } from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
 import { AppError } from '../app-error.js'
 import type { CustomerChargeRepository } from '../ports/customer-charge-repository.js'
+import { referenciaDaCobranca } from './referencia-da-cobranca.js'
 import type { PaymentGateway } from '../ports/payment-gateway.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
@@ -136,7 +137,7 @@ export async function sendCustomerCharge(
     await deps.charges.registrar({
       companyId: ctx.companyId,
       customerId: cliente.id,
-      externalReference: ctx.requestId,
+      externalReference: referenciaDaCobranca(ctx.companyId, ctx.requestId),
       amountCents,
       providerLinkId: link.linkId,
       checkoutUrl: link.url,
@@ -182,8 +183,11 @@ export async function sendCustomerCharge(
  * link e uma facilidade em cima disso, e trocar "mensagem sem link" por
  * "nenhuma mensagem" seria piorar o resultado para proteger um detalhe.
  *
- * `externalReference` e o `requestId`: reenvio do mesmo pedido reaproveita o
- * link em vez de criar um segundo para a mesma divida.
+ * `externalReference` carrega EMPRESA e pedido — ver `referencia-da-cobranca`.
+ * A empresa vai junto porque o aviso de pagamento chega sem contexto de tenant,
+ * e sem ela a baixa nao teria como achar a cobranca. O pedido garante que
+ * reenviar o mesmo pedido reaproveite o link, em vez de criar um segundo para
+ * a mesma divida.
  */
 async function criarLink(
   deps: SendCustomerChargeDeps,
@@ -200,7 +204,7 @@ async function criarLink(
   try {
     const link = await deps.gateway.createPaymentLink({
       companyId: ctx.companyId,
-      externalReference: ctx.requestId,
+      externalReference: referenciaDaCobranca(ctx.companyId, ctx.requestId),
       amountCents: dados.amountCents,
       description: 'Pagamento de valores em aberto',
       ...(vencimento === undefined ? {} : { dueDate: vencimento }),

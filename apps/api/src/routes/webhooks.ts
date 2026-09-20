@@ -1,9 +1,12 @@
 import {
   handleSubscriptionEvent,
+  empresaDaReferencia,
+  settleCustomerCharge,
   type HandleSubscriptionEventDeps,
+  type SettleCustomerChargeDeps,
   type WebhookInbox,
 } from '@na-regua/core'
-import type { SubscriptionWebhookResult } from '@na-regua/contracts'
+import type { SubscriptionWebhookResult, WebhookReadResult } from '@na-regua/contracts'
 import type { FastifyInstance } from 'fastify'
 
 export type WebhookRouteDeps = {
@@ -14,6 +17,20 @@ export type WebhookRouteDeps = {
   readonly assinatura?:
     | (HandleSubscriptionEventDeps & {
         readonly readWebhook: (rawBody: string, signature: string) => SubscriptionWebhookResult
+        readonly inbox: WebhookInbox
+      })
+    | undefined
+
+  /**
+   * A cobranca das LOJAS — RF-068. Outro provedor de leitura, outro token.
+   *
+   * Separado da assinatura de proposito: sao contas diferentes no Asaas (a
+   * subconta da loja e a nossa conta-pai) com tokens diferentes. Um caminho so
+   * faria o token de uma valer para a outra.
+   */
+  readonly cobranca?:
+    | (SettleCustomerChargeDeps & {
+        readonly readWebhook: (rawBody: string, signature: string) => WebhookReadResult
         readonly inbox: WebhookInbox
       })
     | undefined
@@ -126,6 +143,84 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: WebhookRouteDe
         })
 
         return reply.code(200).send({ ok: true })
+      })
+
+      /**
+       * A cobranca das lojas — RF-068.
+       *
+       * Caminho proprio, e nao um `if` dentro do outro: o token da subconta da
+       * loja nao pode autenticar um aviso da conta-pai, nem o contrario. Dois
+       * caminhos e a forma mais simples de isso continuar verdade quando
+       * alguem mexer aqui daqui a um ano.
+       */
+      escopo.post('/asaas/lojas', async (request, reply) => {
+        const cobranca = deps.cobranca
+        if (cobranca === undefined) {
+          return reply
+            .code(503)
+            .send({ error: { code: 'UNAVAILABLE', message: 'Cobranca nao configurada.' } })
+        }
+
+        const token = request.headers[CABECALHO]
+        const leitura = cobranca.readWebhook(
+          typeof request.body === 'string' ? request.body : '',
+          typeof token === 'string' ? token : '',
+        )
+
+        if (leitura.status === 'invalid_signature') {
+          return reply
+            .code(401)
+            .send({ error: { code: 'UNAUTHORIZED', message: 'Nao autorizado.' } })
+        }
+        if (leitura.status === 'malformed') {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: leitura.reason } })
+        }
+        if (leitura.status === 'ignored') {
+          return reply.code(200).send({ ok: true, ignorado: leitura.reason })
+        }
+
+        const evento = leitura.event
+
+        /*
+         * So pagamento AUTORIZADO baixa titulo. Estorno e falha chegam pelo
+         * mesmo cano e pedem tratamento proprio — que ainda nao existe. Tratar
+         * um estorno como baixa seria o titulo sumir justamente quando o
+         * dinheiro voltou.
+         */
+        if (evento.type !== 'payment.authorized') {
+          return reply.code(200).send({ ok: true, ignorado: `Evento ${evento.type} nao baixa.` })
+        }
+
+        /* Sem empresa nao ha tenant, e sem tenant nao ha leitura possivel. */
+        const companyId =
+          evento.externalReference === null
+            ? undefined
+            : empresaDaReferencia(evento.externalReference)
+        if (companyId === undefined) {
+          return reply.code(200).send({ ok: true, ignorado: 'Aviso sem empresa.' })
+        }
+
+        const agora = new Date()
+        const novo = await cobranca.inbox.registrar({
+          provider: 'asaas-lojas',
+          eventId: evento.eventId,
+          companyId,
+          payload: evento,
+          receivedAt: agora,
+        })
+
+        if (!novo) return reply.code(200).send({ ok: true, repetido: true })
+
+        const r = await settleCustomerCharge(cobranca, evento, companyId, agora)
+
+        await cobranca.inbox.marcarProcessado({
+          provider: 'asaas-lojas',
+          eventId: evento.eventId,
+          companyId,
+          processedAt: new Date(),
+        })
+
+        return reply.code(200).send({ ok: true, ...r })
       })
     },
     { prefix: '/webhooks' },

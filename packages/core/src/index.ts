@@ -133,7 +133,10 @@ export { getSubscription } from './subscriptions/get-subscription.js'
 export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-subscription.js'
 export type { CouponRepository } from './ports/coupon-repository.js'
 export type { WebhookInbox } from './ports/webhook-inbox.js'
-export type { CustomerChargeRepository } from './ports/customer-charge-repository.js'
+export type {
+  CobrancaRegistrada,
+  CustomerChargeRepository,
+} from './ports/customer-charge-repository.js'
 export { previewCoupon } from './subscriptions/preview-coupon.js'
 export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
 export { handleSubscriptionEvent } from './subscriptions/handle-subscription-event.js'
@@ -214,6 +217,12 @@ export { listSettlements } from './settlements/list-settlements.js'
 export type { ListSettlementsDeps } from './settlements/list-settlements.js'
 export { reverseSettlement } from './settlements/reverse-settlement.js'
 export { settlePayable, settleReceivable } from './settlements/settle.js'
+export { empresaDaReferencia, referenciaDaCobranca } from './receivables/referencia-da-cobranca.js'
+export { settleCustomerCharge } from './receivables/settle-customer-charge.js'
+export type {
+  ResultadoDaBaixa,
+  SettleCustomerChargeDeps,
+} from './receivables/settle-customer-charge.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export type {
