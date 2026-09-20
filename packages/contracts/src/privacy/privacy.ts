@@ -50,6 +50,14 @@ export const exportCollectionSchema = z.enum([
   'sale_return_items',
   'support_tickets',
   'ticket_messages',
+  /*
+   * Cobranca a distancia (NR-044). Quanto foi cobrado do cliente, quando e por
+   * qual link — e quais titulos aquela cobranca cobriu. Deixar de fora faria a
+   * portabilidade entregar os recebiveis sem as cobrancas que os acompanharam,
+   * que e metade da conversa entre loja e cliente.
+   */
+  'customer_charges',
+  'customer_charge_receivables',
 ])
 
 export type ExportCollection = z.infer<typeof exportCollectionSchema>

@@ -78,6 +78,14 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
   sale_return_items: { tabela: 'sale_return_items', escopo: 'company_id' },
   support_tickets: { tabela: 'support_tickets', escopo: 'company_id' },
   ticket_messages: { tabela: 'ticket_messages', escopo: 'company_id' },
+  /* Cobranca mandada ao cliente e dado DELE: quanto lhe foi cobrado, quando e
+     por qual link. Deixar de fora faria a portabilidade entregar os titulos
+     sem as cobrancas que os acompanharam. */
+  customer_charges: { tabela: 'customer_charges', escopo: 'company_id' },
+  customer_charge_receivables: {
+    tabela: 'customer_charge_receivables',
+    escopo: 'company_id',
+  },
 }
 
 /**

@@ -39,6 +39,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSettlementQueries: vi.fn(vazio),
       /* NR-119: e a agenda, pelo mesmo motivo. */
       createAppointmentRepository: vi.fn(vazio),
+      createCustomerChargeRepository: vi.fn(vazio),
       createInventoryQueries: vi.fn(() => ({ products: {} })),
       createInventoryHistory: vi.fn(vazio),
       createAuditTrail: vi.fn(vazio),
