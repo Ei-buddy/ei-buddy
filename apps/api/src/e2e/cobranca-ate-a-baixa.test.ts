@@ -8,7 +8,7 @@ import {
   migrate,
   withTenant,
 } from '@na-regua/db'
-import { createFakePaymentGateway } from '@na-regua/payments'
+import { criarGatewayAsaas } from '@na-regua/payments'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
@@ -27,16 +27,13 @@ import { registerWebhookRoutes } from '../routes/webhooks.js'
  * de webhooks. O que o teste prova e que o dinheiro que entra vira titulo
  * baixado, e nao que uma funcao foi chamada.
  *
- * ## Por que o leitor de webhook vem do falso
+ * ## Por que o adapter e montado aqui, e nao vem da composicao
  *
  * `buildWebhookDeps()` so monta o gateway com `SECRETS_KEY`, que a CI nao
  * define — pela composicao real, esta suite provaria apenas o 503.
  *
- * O leitor do falso serve porque, desde a correcao do token (o Asaas autentica
- * por `asaas-access-token` e nao por HMAC), os dois fazem a MESMA coisa:
- * comparam um token em tempo constante e traduzem o corpo. Toda a parte que
- * este teste existe para exercitar — caixa de entrada, casamento por
- * referencia, baixa, segunda entrega — e identica.
+ * Entao o adapter REAL e construido no teste. Cabe porque `readWebhook` e
+ * local: compara o token e traduz o corpo, sem tocar a rede.
  *
  * ## A metade que continua de fora
  *
@@ -59,8 +56,27 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
   let tituloDois: string
   let referencia: string
 
-  const gatewayFalso = createFakePaymentGateway()
   const AGORA = '2026-09-20T15:00:00.000Z'
+  const TOKEN = 'token-de-aviso-da-loja'
+
+  /*
+   * O leitor de webhook e o do adapter REAL, e nao o do falso.
+   *
+   * A primeira versao usava o falso e os testes de reentrega passaram a medir
+   * ELE: o falso deduplica por `eventId` por conta propria, coisa que o Asaas
+   * nao faz. O resultado era um teste que aprovava a protecao errada — a do
+   * duble, e nao a caixa de entrada que este arquivo existe para exercitar.
+   *
+   * O adapter real cabe aqui porque `readWebhook` e local: compara o token e
+   * traduz o corpo, sem tocar a rede. `credenciais` e `fetch` existem para os
+   * outros metodos, que este teste nao chama.
+   */
+  const leitor = criarGatewayAsaas({
+    ambiente: 'sandbox',
+    credenciais: { apiKeyDaEmpresa: async () => undefined },
+    webhookSecret: TOKEN,
+    fetch: async () => new Response('{}'),
+  })
 
   async function criarRecebivel(descricao: string, centavos: number): Promise<string> {
     const [linha] = await withTenant(
@@ -142,7 +158,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
         uow: createSettlementUnitOfWork(sql),
         charges: createCustomerChargeRepository(sql),
         inbox: createWebhookInbox(sql),
-        readWebhook: (corpo, assinatura) => gatewayFalso.readWebhook(corpo, assinatura),
+        readWebhook: (corpo, assinatura) => leitor.readWebhook(corpo, assinatura),
       },
     })
     await app.ready()
@@ -152,14 +168,17 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
     await app?.close()
   })
 
+  /* O corpo como o Asaas manda: `event` em caixa alta e valor DECIMAL. */
   const avisoDePagamento = (eventId: string) =>
-    gatewayFalso.corpoDeWebhook({
-      eventId,
-      type: 'payment.authorized',
-      chargeId: 'pay_e2e',
-      externalReference: referencia,
-      amount: '80.00',
-      occurredAt: AGORA,
+    JSON.stringify({
+      id: eventId,
+      event: 'PAYMENT_RECEIVED',
+      dateCreated: AGORA,
+      payment: {
+        id: 'pay_e2e',
+        value: 80,
+        externalReference: referencia,
+      },
     })
 
   const postar = (corpo: string) =>
@@ -168,7 +187,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
       url: '/webhooks/asaas/lojas',
       headers: {
         'content-type': 'application/json',
-        'asaas-access-token': gatewayFalso.tokenDeAviso(),
+        'asaas-access-token': TOKEN,
       },
       payload: corpo,
     })
