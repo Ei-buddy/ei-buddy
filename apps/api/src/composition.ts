@@ -88,6 +88,7 @@ import {
   createPartnerApplicationRepository,
   createPaymentCredentials,
   createSubscriptionRepository,
+  createWebhookInbox,
   createLegalConsentRepository,
   createFiscalCredentials,
   createInvoiceStore,
@@ -111,6 +112,7 @@ import {
 } from '@na-regua/db'
 import { createFileStatementReader } from '@na-regua/banking'
 import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
+import { criarProvedorDeAssinaturaAsaas } from '@na-regua/billing'
 import { criarGatewayAsaas } from '@na-regua/payments'
 import type { InvoiceIssuer } from '@na-regua/core'
 import type { CadastroDeps } from './routes/cadastro.js'
@@ -120,6 +122,7 @@ import type { SaleRouteDeps } from './routes/sales.js'
 import type { ContabilidadeDeps } from './routes/contabilidade.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
+import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
@@ -926,6 +929,42 @@ export function montarGatewayDePagamento() {
       ? {}
       : { webhookSecret: env.ASAAS_WEBHOOK_AUTH_TOKEN }),
   })
+}
+
+/**
+ * O webhook da mensalidade — RNF-028, NR-063.
+ *
+ * `undefined` sem a chave da conta-pai, o token de aviso OU os prazos. Os
+ * tres sao necessarios juntos: sem chave nao ha provedor, sem token nao ha
+ * como autenticar o aviso, e sem prazos a maquina de estados nao sabe decidir.
+ * A rota responde 503 nesse caso — e nao 404, que faria o Asaas desativar o
+ * webhook depois de algumas falhas.
+ */
+export function buildWebhookDeps(): WebhookRouteDeps {
+  const inicio = montarInicioDoTeste()
+
+  if (
+    env.ASAAS_API_KEY === undefined ||
+    env.ASAAS_WEBHOOK_AUTH_TOKEN === undefined ||
+    inicio === undefined
+  ) {
+    return {}
+  }
+
+  const provedor = criarProvedorDeAssinaturaAsaas({
+    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    apiKey: env.ASAAS_API_KEY,
+    webhookAuthToken: env.ASAAS_WEBHOOK_AUTH_TOKEN,
+  })
+
+  return {
+    assinatura: {
+      subscriptions: inicio.subscriptions,
+      politica: inicio.politica,
+      readWebhook: provedor.readWebhook,
+      inbox: createWebhookInbox(getClient(env.DATABASE_URL)),
+    },
+  }
 }
 
 export function buildAgentUseCases(): AgentUseCases {
