@@ -177,7 +177,14 @@ teste:
 | -------------------------------------------- | ----------------------------------------------- |
 | 1 — Onboarding → primeira venda              | o web não tem BFF para `/empresas` nem `/sales` |
 | 2 — Código de barras → pagamento → recebível | idem                                            |
-| 3 — WhatsApp → link de pagamento → webhook   | **nenhuma rota existe** na api                  |
+| 3 — WhatsApp → link de pagamento → webhook   | só o ENVIO: o adapter real é a NR-046           |
+
+O fluxo 3 deixou de estar impedido na metade que importa: a cobrança a
+distância vai do link registrado até o título baixado em
+[`cobranca-ate-a-baixa.test.ts`](../../apps/api/src/e2e/cobranca-ate-a-baixa.test.ts),
+com Postgres de verdade. O que continua de fora é o ENVIO pelo WhatsApp —
+incluí-lo hoje exercitaria o remetente falso, que é o que esta seção manda
+evitar.
 
 Playwright contra as telas de hoje exercitaria mock. Suíte verde que prova nada
 é pior que suíte nenhuma: cria confiança sem lastro, e é justamente o que esta
