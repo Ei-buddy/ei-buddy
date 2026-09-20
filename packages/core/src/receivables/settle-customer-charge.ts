@@ -2,6 +2,7 @@ import type { PaymentEvent } from '@na-regua/contracts'
 import type { ExecutionContext } from '../context.js'
 import type { CustomerChargeRepository } from '../ports/customer-charge-repository.js'
 import { settleReceivable, type SettleDeps } from '../settlements/settle.js'
+import { ATOR_DO_SISTEMA } from '../system-actor.js'
 
 export type SettleCustomerChargeDeps = SettleDeps & {
   readonly charges: CustomerChargeRepository
@@ -48,9 +49,10 @@ export type ResultadoDaBaixa = {
  *
  * ## Sem usuario, com autoria declarada
  *
- * Quem "agiu" foi o cliente pagando, e nao alguem logado. O contexto e de JOB,
- * como no expurgo de conversa: `userId: 'job'`, canal `job`. A auditoria
- * registra isso, e e a verdade — inventar um usuario seria pior.
+ * Quem "agiu" foi o cliente pagando, e nao alguem logado. O contexto usa o
+ * `ATOR_DO_SISTEMA` e o canal `job`: a auditoria registra "sistema", que e a
+ * verdade. Inventar o dono da loja faria a tela de auditoria dizer "Joao deu
+ * baixa" numa baixa que o Joao nao deu.
  */
 export async function settleCustomerCharge(
   deps: SettleCustomerChargeDeps,
@@ -76,7 +78,7 @@ export async function settleCustomerCharge(
 
   const ctx: ExecutionContext = {
     companyId,
-    userId: 'job',
+    userId: ATOR_DO_SISTEMA,
     role: 'owner',
     channel: 'job',
     requestId: `webhook:${evento.eventId}`,

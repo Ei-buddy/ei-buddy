@@ -6,6 +6,7 @@ import type {
   CobrancaRegistrada,
   CustomerChargeRepository,
 } from '../ports/customer-charge-repository.js'
+import { ATOR_DO_SISTEMA, usuarioReal } from '../system-actor.js'
 import { empresaDaReferencia, referenciaDaCobranca } from './referencia-da-cobranca.js'
 import { settleCustomerCharge } from './settle-customer-charge.js'
 
@@ -71,7 +72,7 @@ function cenario(registrada: CobrancaRegistrada | null = cobranca()) {
     },
   }
 
-  return { deps: { uow, charges }, uow, pagas }
+  return { deps: { uow, charges }, uow, audit, pagas }
 }
 
 describe('a referencia carrega a empresa', () => {
@@ -160,5 +161,34 @@ describe('avisos que nao baixam nada', () => {
 
     expect(r.status).toBe('ignored')
     expect(c.uow.totalDeBaixas).toBe(0)
+  })
+})
+
+describe('autoria de uma baixa sem gente', () => {
+  it('a auditoria registra o SISTEMA, e nao o dono da loja', async () => {
+    const c = cenario()
+
+    await settleCustomerCharge(c.deps, evento(), EMPRESA, AGORA)
+
+    /*
+     * `userId: 'job'` derrubou a primeira versao disto com 500: a coluna e
+     * `uuid`. E por o dono da loja no lugar faria a tela de auditoria dizer
+     * "Joao deu baixa" numa baixa que o Joao nao deu.
+     */
+    const entradas = c.audit.daEmpresa(EMPRESA)
+    expect(entradas.length).toBeGreaterThan(0)
+    expect(entradas.every((e) => e.actorId === ATOR_DO_SISTEMA)).toBe(true)
+  })
+
+  it('o usuario da baixa fica NULO — o sistema nao e um usuario', async () => {
+    const c = cenario()
+
+    await settleCustomerCharge(c.deps, evento(), EMPRESA, AGORA)
+
+    /* `settlements.created_by` referencia `users`: gravar ali um id que nao
+       existe viola a FK, e inventar um usuario para satisfaze-la seria criar
+       uma pessoa que nao existe. */
+    expect(usuarioReal({ userId: ATOR_DO_SISTEMA } as never)).toBeNull()
+    expect(usuarioReal({ userId: 'user-1' } as never)).toBe('user-1')
   })
 })

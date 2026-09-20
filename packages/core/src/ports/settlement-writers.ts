@@ -41,7 +41,17 @@ export type NewSettlement = {
   readonly settledOn: string
   readonly notes: string | null
   readonly reversesId: string | null
-  readonly createdBy: UserId
+  /**
+   * O usuario que registrou, ou `null` quando foi o SISTEMA.
+   *
+   * A coluna referencia `users`, e o sistema nao e um usuario — gravar ali um
+   * id inexistente viola a FK, e inventar um usuario para satisfaze-la seria
+   * criar uma pessoa que nao existe. A auditoria, essa, recebe o ator do
+   * sistema: e a coluna dela nao tem FK justamente por isso.
+   *
+   * Ver `system-actor.ts`.
+   */
+  readonly createdBy: UserId | null
   readonly createdAt: Date
 }
 
