@@ -60,8 +60,11 @@ CREATE UNIQUE INDEX customer_charges_referencia_unica
   ON customer_charges (company_id, external_reference)
   WHERE deleted_at IS NULL;
 
+-- Comeca por company_id, como toda tabela de negocio (guarda de schema.test).
+-- A unicidade por EMPRESA basta: o id de evento do provedor vale dentro de uma
+-- conta, e um mesmo aviso nunca chega para duas lojas.
 CREATE UNIQUE INDEX customer_charges_provider_event_idx
-  ON customer_charges (provider_event_id)
+  ON customer_charges (company_id, provider_event_id)
   WHERE provider_event_id IS NOT NULL;
 
 COMMENT ON TABLE customer_charges IS
@@ -70,6 +73,11 @@ COMMENT ON TABLE customer_charges IS
 SELECT enable_tenant_isolation('customer_charges');
 
 CREATE TABLE customer_charge_receivables (
+  -- `id` proprio, e nao so a chave composta: a exportacao LGPD pagina por
+  -- `ORDER BY t.id` em toda tabela de negocio (privacy-repository.ts). Sem
+  -- ele, esta seria a unica tabela com caminho de leitura proprio — e a CI
+  -- avisou exatamente isso.
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id    uuid NOT NULL REFERENCES companies (id) ON DELETE RESTRICT,
   charge_id     uuid NOT NULL REFERENCES customer_charges (id) ON DELETE RESTRICT,
   receivable_id uuid NOT NULL REFERENCES receivables (id) ON DELETE RESTRICT,
@@ -80,10 +88,13 @@ CREATE TABLE customer_charge_receivables (
   -- foi cobrado, nao o que sobrou depois.
   amount_cents  bigint NOT NULL CHECK (amount_cents > 0),
 
-  created_at    timestamptz NOT NULL DEFAULT now(),
-
-  PRIMARY KEY (charge_id, receivable_id)
+  created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- A ligacao continua unica: um titulo entra uma vez por cobranca. O que mudou
+-- foi deixar de ser a CHAVE PRIMARIA, nao deixar de valer.
+CREATE UNIQUE INDEX customer_charge_receivables_unica
+  ON customer_charge_receivables (charge_id, receivable_id);
 
 CREATE INDEX customer_charge_receivables_company_idx
   ON customer_charge_receivables (company_id, receivable_id);
