@@ -32,7 +32,7 @@
 -- vez de apostar, este bloco acha a restricao pela DEFINICAO e derruba a que
 -- existir — uma migration que falha por causa de um nome adivinhado trava o
 -- deploy por nada.
-DO $
+DO $$
 DECLARE
   nome text;
 BEGIN
@@ -47,7 +47,7 @@ BEGIN
     EXECUTE format('ALTER TABLE audit_logs DROP CONSTRAINT %I', nome);
   END IF;
 END
-$;
+$$;
 
 ALTER TABLE audit_logs
   ADD CONSTRAINT audit_logs_channel_check
