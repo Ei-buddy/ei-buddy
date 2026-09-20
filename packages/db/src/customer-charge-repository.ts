@@ -52,7 +52,7 @@ export function createCustomerChargeRepository(sql: Sql): CustomerChargeReposito
             /* Segundo envio do mesmo pedido: a ligacao ja existe, e o valor
                cobrado continua sendo o da PRIMEIRA vez — e o que o cliente viu
                no link. */
-            ON CONFLICT (charge_id, receivable_id) DO NOTHING
+            ON CONFLICT (company_id, charge_id, receivable_id) DO NOTHING
           `
         }
       })

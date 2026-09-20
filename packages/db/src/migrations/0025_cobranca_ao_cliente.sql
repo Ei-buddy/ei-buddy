@@ -93,8 +93,13 @@ CREATE TABLE customer_charge_receivables (
 
 -- A ligacao continua unica: um titulo entra uma vez por cobranca. O que mudou
 -- foi deixar de ser a CHAVE PRIMARIA, nao deixar de valer.
+--
+-- Comeca por company_id porque toda consulta filtra por empresa sob RLS, e um
+-- indice sem ela na frente quase nunca e usado. Aqui a coluna e redundante
+-- para a unicidade (charge_id ja pertence a uma empresa) e necessaria para o
+-- indice servir.
 CREATE UNIQUE INDEX customer_charge_receivables_unica
-  ON customer_charge_receivables (charge_id, receivable_id);
+  ON customer_charge_receivables (company_id, charge_id, receivable_id);
 
 CREATE INDEX customer_charge_receivables_company_idx
   ON customer_charge_receivables (company_id, receivable_id);
