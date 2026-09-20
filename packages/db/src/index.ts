@@ -20,6 +20,7 @@ export type { Migration, MigrationResult } from './migrate.js'
 export { createAppointmentRepository } from './appointment-repository.js'
 export { createSubscriptionRepository } from './subscription-repository.js'
 export { createCouponRepository } from './coupon-repository.js'
+export { createWebhookInbox } from './webhook-inbox-repository.js'
 export { createConfirmationStore } from './confirmation-repository.js'
 export {
   createCompanyRepository,

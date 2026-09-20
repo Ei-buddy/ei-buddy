@@ -161,6 +161,20 @@ export const apiEnvSchema = baseEnvSchema.extend({
   BILLING_TRIAL_PLAN: opcionalNaoVazia,
 
   /**
+   * Chave da CONTA-PAI no Asaas — ADR-0004, NR-063.
+   *
+   * E com ela que a NOSSA mensalidade e cobrada do lojista. Nao confundir com
+   * a chave da subconta de cada loja, que cobra as vendas DELA e mora
+   * cifrada em `company_payment_credentials` — uma e env global, a outra e
+   * segredo por empresa, e trocar as duas faria a mensalidade cair na conta do
+   * proprio lojista.
+   *
+   * Opcional: sem ela a rota de webhook da assinatura responde 503 e o resto
+   * do sistema sobe. Mesmo criterio de `SECRETS_KEY`.
+   */
+  ASAAS_API_KEY: opcionalNaoVazia,
+
+  /**
    * Segredo do webhook do Asaas — RNF-028, NR-044.
    *
    * Da PLATAFORMA e nao da loja: o corpo precisa ser verificado antes de se
