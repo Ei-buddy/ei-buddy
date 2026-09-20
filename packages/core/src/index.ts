@@ -218,6 +218,7 @@ export type { ListSettlementsDeps } from './settlements/list-settlements.js'
 export { reverseSettlement } from './settlements/reverse-settlement.js'
 export { settlePayable, settleReceivable } from './settlements/settle.js'
 export { empresaDaReferencia, referenciaDaCobranca } from './receivables/referencia-da-cobranca.js'
+export { ATOR_DO_SISTEMA, usuarioReal } from './system-actor.js'
 export { settleCustomerCharge } from './receivables/settle-customer-charge.js'
 export type {
   ResultadoDaBaixa,

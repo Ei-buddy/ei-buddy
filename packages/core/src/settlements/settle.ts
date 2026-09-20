@@ -7,6 +7,7 @@ import { aplicarBaixa } from '@na-regua/domain'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import { usuarioReal } from '../system-actor.js'
 import type { SettlementUnitOfWork } from '../ports/settlement-writers.js'
 import { mexeNoSaldoDoCliente } from './customer-balance.js'
 
@@ -55,7 +56,9 @@ export async function settlePayable(
       settledOn: input.settledOn,
       notes: input.notes ?? null,
       reversesId: null,
-      createdBy: ctx.userId,
+      /* `null` quando foi o sistema: a coluna referencia `users`, e o
+         sistema nao e um usuario — ver `system-actor.ts`. */
+      createdBy: usuarioReal(ctx),
       createdAt: ctx.now,
     })
 
@@ -109,7 +112,9 @@ export async function settleReceivable(
       settledOn: input.settledOn,
       notes: input.notes ?? null,
       reversesId: null,
-      createdBy: ctx.userId,
+      /* `null` quando foi o sistema: a coluna referencia `users`, e o
+         sistema nao e um usuario — ver `system-actor.ts`. */
+      createdBy: usuarioReal(ctx),
       createdAt: ctx.now,
     })
 
