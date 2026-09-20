@@ -39,4 +39,44 @@ export type CustomerChargeRepository = {
     }[]
     readonly createdAt: Date
   }): Promise<void>
+
+  /**
+   * A cobranca com esta referencia, e os titulos que ela cobre.
+   *
+   * `undefined` quando nao existe: o provedor avisa sobre cobrancas que nao
+   * sao nossas (uma feita a mao no painel dele, por exemplo), e isso nao e
+   * erro.
+   */
+  porReferencia(
+    companyId: string,
+    externalReference: string,
+  ): Promise<CobrancaRegistrada | undefined>
+
+  /**
+   * Marca a cobranca como paga.
+   *
+   * `providerEventId` entra junto, e nao por acaso: e o indice unico dele que
+   * impede o mesmo aviso do provedor dar baixa duas vezes, mesmo que a caixa
+   * de entrada falhe. Duas protecoes para o mesmo risco, porque o risco aqui e
+   * dinheiro dado como recebido em dobro.
+   */
+  marcarPaga(entrada: {
+    readonly companyId: string
+    readonly chargeId: string
+    readonly providerEventId: string
+    readonly paidAt: Date
+  }): Promise<void>
+}
+
+/** A cobranca como o caminho de volta precisa dela — nada alem disso. */
+export type CobrancaRegistrada = {
+  readonly id: string
+  readonly customerId: string | null
+  readonly amountCents: number
+  /** `pending` e o unico que ainda aceita baixa. */
+  readonly status: 'pending' | 'paid' | 'expired' | 'cancelled'
+  readonly titulos: readonly {
+    readonly receivableId: string
+    readonly amountCents: number
+  }[]
 }

@@ -1,4 +1,4 @@
-import type { CustomerChargeRepository } from '@na-regua/core'
+import type { CobrancaRegistrada, CustomerChargeRepository } from '@na-regua/core'
 import type { Sql } from 'postgres'
 import { withTenant } from './tenant.js'
 
@@ -56,6 +56,60 @@ export function createCustomerChargeRepository(sql: Sql): CustomerChargeReposito
           `
         }
       })
+    },
+
+    porReferencia: async (companyId, externalReference) => {
+      return withTenant(sql, companyId, async (tx) => {
+        const [cobranca] = await tx<
+          { id: string; customer_id: string | null; amount_cents: string; status: string }[]
+        >`
+          SELECT id, customer_id, amount_cents, status
+            FROM customer_charges
+           WHERE external_reference = ${externalReference}
+             AND deleted_at IS NULL
+        `
+
+        if (cobranca === undefined) return undefined
+
+        const titulos = await tx<{ receivable_id: string; amount_cents: string }[]>`
+          SELECT receivable_id, amount_cents
+            FROM customer_charge_receivables
+           WHERE charge_id = ${cobranca.id}
+           ORDER BY created_at
+        `
+
+        return {
+          id: cobranca.id,
+          customerId: cobranca.customer_id,
+          /* `bigint` volta STRING no driver. Sem isto, a baixa mandaria texto
+             para onde se espera centavo. */
+          amountCents: Number(cobranca.amount_cents),
+          status: cobranca.status as CobrancaRegistrada['status'],
+          titulos: titulos.map((t) => ({
+            receivableId: t.receivable_id,
+            amountCents: Number(t.amount_cents),
+          })),
+        }
+      })
+    },
+
+    marcarPaga: async (entrada) => {
+      await withTenant(
+        sql,
+        entrada.companyId,
+        (tx) => tx`
+          UPDATE customer_charges
+             SET status = 'paid',
+                 paid_at = ${entrada.paidAt},
+                 provider_event_id = ${entrada.providerEventId},
+                 updated_at = ${entrada.paidAt}
+           WHERE id = ${entrada.chargeId}
+             /* So sai de pendente. Um UPDATE sem esta condicao deixaria um
+                segundo aviso reescrever a data de pagamento de uma cobranca
+                ja baixada — e o lojista veria a baixa mudar de dia sozinha. */
+             AND status = 'pending'
+        `,
+      )
     },
   }
 }

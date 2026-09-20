@@ -941,15 +941,39 @@ export function montarGatewayDePagamento() {
  * A rota responde 503 nesse caso — e nao 404, que faria o Asaas desativar o
  * webhook depois de algumas falhas.
  */
+/**
+ * A cobranca das LOJAS — RF-068, NR-044.
+ *
+ * `undefined` sem cofre de segredo ou sem o token de aviso. O gateway resolve
+ * a chave por empresa (cada loja e uma subconta), mas o TOKEN do webhook e da
+ * plataforma: o corpo precisa ser conferido antes de se saber de qual loja ele
+ * fala, e nesse ponto nao da para buscar segredo por empresa.
+ */
+function montarCobrancaDasLojas(): WebhookRouteDeps['cobranca'] {
+  const gateway = montarGatewayDePagamento()
+  if (gateway === undefined) return undefined
+
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    uow: createSettlementUnitOfWork(sql),
+    charges: createCustomerChargeRepository(sql),
+    readWebhook: gateway.readWebhook,
+    inbox: createWebhookInbox(sql),
+  }
+}
+
 export function buildWebhookDeps(): WebhookRouteDeps {
   const inicio = montarInicioDoTeste()
+  const cobranca = montarCobrancaDasLojas()
 
   if (
     env.ASAAS_API_KEY === undefined ||
     env.ASAAS_WEBHOOK_AUTH_TOKEN === undefined ||
     inicio === undefined
   ) {
-    return {}
+    /* A cobranca das lojas nao depende da assinatura: uma pode existir sem a
+       outra, e retornar `{}` aqui desligaria as duas por causa de uma. */
+    return cobranca === undefined ? {} : { cobranca }
   }
 
   const provedor = criarProvedorDeAssinaturaAsaas({
@@ -965,6 +989,7 @@ export function buildWebhookDeps(): WebhookRouteDeps {
       readWebhook: provedor.readWebhook,
       inbox: createWebhookInbox(getClient(env.DATABASE_URL)),
     },
+    ...(cobranca === undefined ? {} : { cobranca }),
   }
 }
 
