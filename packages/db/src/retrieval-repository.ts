@@ -20,13 +20,16 @@ import { withTenant } from './tenant.js'
  *
  * Abaixo disto o trigrama casa por acidente: duas palavras curtas com letras
  * em comum. Devolver esse tipo de palpite e pior que devolver nada — o
- * assistente sugeriria um produto que nao tem relacao com o que foi pedido, e
- * o lojista confirmaria sem reler.
+ * assistente sugeriria um produto sem relacao com o que foi pedido, e o
+ * lojista confirmaria sem reler.
  *
- * `0.15` e frouxo de proposito para o portugues de balcao, em que a pessoa
- * escreve um terco do nome. Quem corta de verdade e o `k`.
+ * `0.5` sobre **word_similarity**, e nao sobre `similarity`: aqui a medida ja
+ * e "quanto da consulta aparece no alvo", entao metade e um piso exigente o
+ * bastante para descartar coincidencia e frouxo o bastante para o portugues de
+ * balcao, em que a pessoa escreve um terco do nome. Quem corta de verdade e o
+ * `k`.
  */
-const PISO_DE_SEMELHANCA = 0.15
+const PISO_DE_SEMELHANCA = 0.5
 
 type Linha = { kind: string; ref_id: string | null; conteudo: string; relevancia: number }
 
@@ -74,19 +77,33 @@ export function createRetrievalStore(sql: Sql): RetrievalStore {
         sql,
         entrada.companyId,
         (tx) => tx<Linha[]>`
-          SELECT kind, ref_id, conteudo, similarity(normalizado, ${consulta}) AS relevancia
+          SELECT kind, ref_id, conteudo,
+                 word_similarity(${consulta}, normalizado) AS relevancia
             FROM retrieval_chunks
            WHERE company_id = ${entrada.companyId}
              ${entrada.kind === undefined ? tx`` : tx`AND kind = ${entrada.kind}`}
              /*
-              * O operador "%" usa o indice de trigrama; "similarity() >"
-              * sozinho faria varredura. O piso explicito vem DEPOIS porque o
-              * "%" obedece ao pg_trgm.similarity_threshold da SESSAO, que nao
-              * controlamos — sem ele, o corte mudaria com a configuracao do
-              * banco em vez de com o nosso codigo.
+              * "<%" e word_similarity, e nao "%" e similarity — a diferenca e
+              * o caso da RF-102 inteiro.
+              *
+              * "similarity" compara os dois textos POR INTEIRO e penaliza a
+              * diferenca de tamanho: "coca" contra "coca-cola 2 litros" fica
+              * abaixo de qualquer piso util, porque o alvo e cinco vezes
+              * maior. E quem escreve no balcao digita um pedaco.
+              *
+              * "word_similarity" mede quanto da CONSULTA aparece no alvo, que
+              * e a pergunta certa: "coca" esta inteiro dentro de "coca-cola 2
+              * litros". A ordem dos argumentos importa e nao e simetrica —
+              * invertida, mede quanto do alvo cabe na consulta e o problema
+              * volta.
+              *
+              * O operador usa o mesmo indice GIN. O piso explicito vem DEPOIS
+              * porque "<%" obedece ao pg_trgm.word_similarity_threshold da
+              * SESSAO, que nao controlamos: sem ele, o corte mudaria com a
+              * configuracao do banco em vez de com o nosso codigo.
               */
-             AND normalizado % ${consulta}
-             AND similarity(normalizado, ${consulta}) >= ${PISO_DE_SEMELHANCA}
+             AND ${consulta} <% normalizado
+             AND word_similarity(${consulta}, normalizado) >= ${PISO_DE_SEMELHANCA}
            ORDER BY relevancia DESC, conteudo
            LIMIT ${entrada.k}
         `,

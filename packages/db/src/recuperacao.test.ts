@@ -100,6 +100,13 @@ describe.skipIf(!DATABASE_URL)('recuperacao auxiliar — NR-120', () => {
     expect(r[0]?.refId).toMatch(/^[0-9a-f-]{36}$/)
   })
 
+  it('um pedaco curto do nome ja acha — e por isso e word_similarity', async () => {
+    /* `similarity` compara os textos por inteiro e penaliza a diferenca de
+       tamanho: "coca" contra "coca-cola 2 litros" ficava abaixo de qualquer
+       piso util. Foi a CI que mostrou. */
+    expect((await buscar(empresaA, 'coca')).length).toBeGreaterThanOrEqual(2)
+  })
+
   it('`k` limita de verdade — o teto de tokens depende disso', async () => {
     expect(await buscar(empresaA, 'coca', 1)).toHaveLength(1)
   })
