@@ -99,6 +99,7 @@ import {
   createReceivableRepository,
   createPayableUnitOfWork,
   createProductRepository,
+  createRetrievalStore,
   createReconciliationQueries,
   createReconciliationUnitOfWork,
   createSaleHistoryRepository,
@@ -446,6 +447,9 @@ export function buildCadastroDeps(): CadastroDeps {
     companies: createCompanyRepository(sql),
     customers: createCustomerRepository(sql),
     products: createProductRepository(sql),
+    /* Desambiguacao em portugues de balcao — RF-102, ADR-0017. Indexa no
+       cadastro e serve de plano B quando a busca exata nao acha. */
+    retrieval: createRetrievalStore(sql),
     /* O onboarding semeia o plano de contas padrao — RF-081, NR-077. */
     accounts: createChartOfAccountsRepository(sql),
     /*
@@ -1009,7 +1013,13 @@ export function buildAgentUseCases(): AgentUseCases {
     listReceivables: (ctx) => listReceivables(contas, ctx),
     checkStock: (ctx, input) => checkStock(estoque, ctx, input),
     checkStockByQuery: (ctx, input) =>
-      checkStockByQuery({ products: cadastro.products, inventory: estoque }, ctx, input),
+      checkStockByQuery(
+        /* `retrieval` junto: "tem coca 2l?" precisa achar o produto antes de
+           consultar o saldo dele — RF-102. */
+        { products: cadastro.products, retrieval: cadastro.retrieval, inventory: estoque },
+        ctx,
+        input,
+      ),
     checkCustomerWalletByQuery: (ctx, input) =>
       checkCustomerWalletByQuery({ customers: cadastro.customers }, ctx, input),
     listPayables: (ctx) => listPayables(contas.queries, ctx),
