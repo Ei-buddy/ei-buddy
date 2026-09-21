@@ -51,10 +51,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     101 |  253 |
-| ✅ Concluídas                 |      92 |  224 |
+| ✅ Concluídas                 |      93 |  226 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
-| ⬜ A fazer, pode começar hoje |       7 |   22 |
+| ⬜ A fazer, pode começar hoje |       3 |   10 |
 
 > **Números conferidos contra a `main` em 2026-09-12**, não estimados: cada
 > ✅ tem commit mesclado com `Refs: NR-xxx` no histórico. O NR-012 é a
@@ -67,6 +67,22 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > A **NR-062** já está ✅ na `main` (#228). A **NR-061** entra como ✅ **neste
 > PR** (branch `feat/NR-061-confirmacao-acao-sensivel`); a `main` só passa a
 > contar o squash depois do merge — sem URL de PR ainda.
+> A **NR-120** entra como ✅: store de recuperacao (`retrieval_chunks`,
+> trigrama), indexacao no cadastro de produto e o plano B ligado a busca —
+> #257 e #258. A escolha de trigrama em vez de vetor esta escrita na migration
+> `0027`: a ADR-0017 admite "extensao vetorial **ou equivalente**", e pgvector
+> exigiria mexer na imagem da CI e na VPS antes de a primeira busca funcionar.
+>
+> Tres tarefas passam a 🟨, com o que falta em cada uma:
+>
+> - **NR-113** — a barragem do canal existe (#259). Falta a troca de celular
+>   pelo app (RF-132) e a rota do webhook da Meta, que e a NR-046.
+> - **NR-063** — porta, estado, repositorio, cupom, varredura, adapter real,
+>   evento e rota estao na `main`. O que falta depende do PRECO e dos prazos:
+>   **QST-002**. Sem eles o teste nao comeca e a varredura responde `skipped`.
+> - **NR-049** — o fluxo 3 vai do link ate o titulo baixado (#256). Os fluxos
+>   1 e 2 existem pela api; o navegador continua de fora ate haver BFF.
+>
 > A **NR-044** entra como ✅ **neste PR** (branch
 > `feat/NR-044-cartao-tokenizado`): o adapter passa a cobrir os cinco meios
 > que a linha nomeia — Pix, boleto, link, cartão online e webhook —, e real e
@@ -192,10 +208,10 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ✅   |
 | NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   🟨   |
 | NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                       |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
-| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ⬜   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ⬜   |
+| NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ✅   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   🟨   |
 | NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                    |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |
-| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                     |   4 | NR-044                                                 | —    | RF-110–118                                                    |   ⬜   |
+| NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                     |   4 | NR-044                                                 | —    | RF-110–118                                                    |   🟨   |
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                          |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
 | NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                         |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
 
@@ -258,7 +274,7 @@ HTTP e Studio (`relay-agent` repassa `image` como bytes). Status ✅ nesta branc
 | NR-035 | `db`: schema de agenda (`appointments`)                         |   🔵   | `db`                    |   1 | NR-008 | —    | RF-089, RF-090         |   ✅   |
 | NR-036 | `api`: rotas de agenda                                          |   🟠   | `api`                   |   1 | NR-035 | —    | RF-089–093             |   ✅   |
 | NR-037 | `db`: repositórios da venda e trilha de estoque                 |   🔵   | `db`                    |   2 | NR-020 | —    | RF-024, RNF-046        |   ✅   |
-| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | —    | RNF-068                |   ⬜   |
+| NR-049 | E2E do caminho crítico (3 fluxos)                               |   🟠   | `repo`                  |   3 | NR-071 | —    | RNF-068                |   🟨   |
 | NR-078 | `mobile`: agenda                                                |   🟢   | `mobile`                |   2 | NR-036 | —    | US-043–045             |   ✅   |
 | NR-079 | `web`: conteúdo real da landing                                 |   🟢   | `web`                   |   1 | —      | —    | —                      |   ✅   |
 | NR-080 | Suporte: schema, casos de uso, rotas e web                      |   🔵   | `db` `core` `api` `web` |   3 | NR-008 | —    | US-062                 |   ✅   |
