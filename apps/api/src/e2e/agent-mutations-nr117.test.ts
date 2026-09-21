@@ -60,10 +60,11 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     minStock: 0,
   }
 
-  const PEDIDO_PAGAR_VENCIDA = 'lanca aluguel atrasado 1500 vence dia 1'
+  /** Frase de uma palavra após `lanca` — bate com `reconhecerCreatePayable` e com `script()`. */
+  const PEDIDO_PAGAR_VENCIDA = 'lanca aluguel 1500 vence dia 1'
   const ARGS_PAGAR_VENCIDA = {
-    supplier: 'Imobiliaria',
-    description: 'Aluguel atrasado',
+    supplier: 'Aluguel',
+    description: 'Aluguel',
     amountCents: 150_000,
     dueDate: '2026-09-01',
   }
@@ -157,7 +158,7 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
 
     const antes = await comSessao({ method: 'GET', url: '/produtos?q=camiseta' })
     expect(antes.statusCode).toBe(200)
-    expect(antes.json().total).toBe(0)
+    expect(antes.json().products).toHaveLength(0)
 
     const sim = await comSessao({
       method: 'POST',
@@ -172,14 +173,13 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     const depois = await comSessao({ method: 'GET', url: '/produtos?q=camiseta' })
     expect(depois.statusCode).toBe(200)
     const lista = depois.json() as {
-      total: number
       products: ReadonlyArray<{
         description: string
         costPriceCents: number
         salePriceCents: number
       }>
     }
-    expect(lista.total).toBe(1)
+    expect(lista.products).toHaveLength(1)
     expect(lista.products[0]?.description).toMatch(/camiseta/i)
     expect(lista.products[0]?.costPriceCents).toBe(2_000)
     expect(lista.products[0]?.salePriceCents).toBe(4_990)
