@@ -134,6 +134,13 @@ export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-
 export type { CouponRepository } from './ports/coupon-repository.js'
 export type { WebhookInbox } from './ports/webhook-inbox.js'
 export type {
+  Candidato,
+  RetrievalStore,
+  TipoDeTrecho,
+  TrechoParaIndexar,
+} from './ports/retrieval.js'
+export { normalizarParaBusca } from './agent/normalizar-busca.js'
+export type {
   CobrancaRegistrada,
   CustomerChargeRepository,
 } from './ports/customer-charge-repository.js'

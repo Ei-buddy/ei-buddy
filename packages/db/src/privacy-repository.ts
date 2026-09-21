@@ -103,6 +103,12 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
   /* Mesma razao da linha acima, e o risco aqui e ainda mais direto: a chave da
      subconta de recebimento move dinheiro. Exportar seria entregar a conta
      bancaria da loja dentro de um pacote de portabilidade. */
+  /* Indice DERIVADO, e nao dado novo: cada trecho e uma copia do nome de um
+     produto ou cliente que ja sai na exportacao pela tabela de origem.
+     Exporta-lo entregaria a mesma informacao duas vezes, em formato pior — e
+     apagar a linha de origem reconstroi (ou remove) esta sozinha. */
+  retrieval_chunks:
+    'Copia normalizada do que ja e exportado pela tabela de origem. Indice, nao dado.',
   company_payment_credentials:
     'Chave cifrada da conta de recebimento. Segredo da loja, nao dado do titular.',
   /* Numeracao de nota fiscal. Controle interno, e nao dado de negocio: levar o
