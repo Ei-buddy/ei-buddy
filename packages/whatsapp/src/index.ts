@@ -19,3 +19,6 @@
  */
 export { createFakeMessageSender, FakeMessageSender } from './fake-sender.js'
 export type { FakeMessageSenderOptions, MensagemEnviada } from './fake-sender.js'
+
+export { criarRemetenteMeta, responderVerificacao } from './meta-sender.js'
+export type { MetaOptions } from './meta-sender.js'
