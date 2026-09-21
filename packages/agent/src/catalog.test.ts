@@ -921,6 +921,30 @@ describe('refuse_* — US7 / RF-149–151', () => {
   )
 })
 
+describe('mutations NR-117', () => {
+  const MUTACOES_NR_117 = ['create_product', 'create_payable', 'create_receivable'] as const
+
+  it('as tres mutações desta fatia exigem confirmação (mutatesValue: true)', () => {
+    const tools = createToolCatalog(casos)
+    for (const id of MUTACOES_NR_117) {
+      const tool = tools.find((t) => t.id === id)
+      expect(tool).toBeDefined()
+      expect(tool!.mutatesValue).toBe(true)
+    }
+  })
+
+  it('wire para registerProduct, createPayable e createReceivable com schemas de contracts', () => {
+    const tools = createToolCatalog(casos)
+    const produto = tools.find((t) => t.id === 'create_product')!
+    const pagar = tools.find((t) => t.id === 'create_payable')!
+    const receber = tools.find((t) => t.id === 'create_receivable')!
+
+    expect(produto.inputSchema).toBe(createProductInputSchema)
+    expect(pagar.inputSchema).toBe(createPayableInputSchema)
+    expect(receber.inputSchema).toBe(createReceivableInputSchema)
+  })
+})
+
 describe('create_product — US-069 / RF-140', () => {
   it('usa o schema de contracts e exige confirmacao', () => {
     const tool = createToolCatalog(casos).find((t) => t.id === 'create_product')

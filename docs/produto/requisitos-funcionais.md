@@ -60,7 +60,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-018 | Localizar produto existente pelo código de barras lido                                                   | US-009 | `core`      |  M  | ⬜  |
 | RF-019 | Gerar código interno para produto sem código de barras                                                   | US-009 | `core`      |  M  | ⬜  |
 | RF-020 | Registrar custo e preço de venda e calcular margem em valor e percentual                                 | US-010 | `domain`    |  M  | ⬜  |
-| RF-021 | Alertar, sem bloquear, quando o preço de venda for menor que o custo                                     | US-010 | `domain`    |  M  | ⬜  |
+| RF-021 | Recusar gravação quando o preço de venda for menor que o custo, com mensagem clara para corrigir valores | US-010 | `domain`    |  M  | ⬜  |
 | RF-022 | Consultar saldo, preço e localização de um produto, distinguindo "sem controle de estoque" de saldo zero | US-011 | `core`      |  M  | ⬜  |
 | RF-023 | Ajustar saldo de estoque registrando `InventoryMovement` com autoria, motivo e data                      | US-012 | `core`      |  M  | ⬜  |
 | RF-024 | Baixar estoque automaticamente ao fechar a venda e restaurá-lo no cancelamento ou devolução              | US-012 | `core`      |  M  | ⬜  |

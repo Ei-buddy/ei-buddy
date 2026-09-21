@@ -254,6 +254,15 @@ explícito (não venda); histórico com `[foto do codigo]` sem bytes; harness
 HTTP e Studio (`relay-agent` repassa `image` como bytes). Status ✅ nesta branch
 (`feat/NR-116-foto-codigo-barras`) — sem URL de PR ainda.
 
+**NR-117 (entregue neste PR):** cadastro de produto, conta a pagar e recebível
+avulso pelo laço conversacional — tools `create_product`, `create_payable` e
+`create_receivable` com confirmação (NR-061), mesmos casos de uso do app
+(RF-140–142), handoff com foto da NR-116, isolamento por empresa e matriz em
+[`specs/008-cadastrar-produto-pagar-receber/quickstart.md`](../specs/008-cadastrar-produto-pagar-receber/quickstart.md).
+Status ✅ nesta branch (`feat/NR-117-cadastrar-produto-pagar-receber`) — rodapé
+`Refs: NR-117`. NR-118 (`settle_*`, `adjust_stock`, `cancel_sale`) fica fora
+deste aceite.
+
 ## Sprint 5 — Bancos e relatórios
 
 | ID     | Tarefa                                                         | Trilha | Módulo         | Est | Dep    | Bloq        | US/RF          | Status |

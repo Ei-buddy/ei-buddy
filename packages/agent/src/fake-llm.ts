@@ -1,3 +1,8 @@
+import {
+  createPayableInputSchema,
+  createProductInputSchema,
+  createReceivableInputSchema,
+} from '@na-regua/contracts'
 import { mesDoDia } from './format.js'
 import type { LlmDecision, LlmPort, ToolDescriptor } from './types.js'
 
@@ -14,8 +19,10 @@ function normalizar(texto: string): string {
  * Essas duas leituras sao o caminho de consulta desta fatia. "Resumo do mes"
  * aponta para `period_summary` (DRE / RF-108), nao para `revenue_by_month`.
  *
- * Interpretacao de venda, cadastro e cobranca NAO entra no reconhecedor: sem
- * modelo, o risco e executar a tool errada. Esses caminhos usam `script()`.
+ * Venda, cadastro de cliente e cobranca NAO entram no reconhecedor: sem modelo,
+ * o risco e executar a tool errada. Esses caminhos usam `script()`.
+ * NR-117: `create_product`, `create_payable` e `create_receivable` com frases
+ * minimas do quickstart (args validados pelo schema da tool).
  * Recusas RF-149–151 (certificado, OFX, nota avulsa) entram no reconhecedor:
  * o risco inverso e cair em `unknown` ou, pior, em `create_sale`.
  */
@@ -40,6 +47,9 @@ export class FakeLlm implements LlmPort {
     const ids = new Set(input.tools.map((t) => t.id))
     const porPalavra = reconhecerConsulta(chave, input.today)
     if (porPalavra !== undefined && ids.has(porPalavra.name)) return porPalavra
+
+    const mutacao = reconhecerMutacaoNr117(chave, input.today)
+    if (mutacao !== undefined && ids.has(mutacao.name)) return mutacao
 
     /* Frase fora do reconhecedor de leitura — inclusive nonsense e pedidos
        que ainda nao tem tool. processMessage lista as capacidades atuais. */
@@ -78,6 +88,9 @@ function reconhecerConsulta(
 /** US2 / NR-115: contas a pagar por vencimento — leitura sem argumentos. */
 function reconhecerPayables(texto: string): Extract<LlmDecision, { type: 'tool' }> | undefined {
   const limpo = texto.replace(/\?+$/, '').trim()
+
+  /* "lanca conta a pagar" e pedido de mutacao incompleto (NR-117), nao consulta. */
+  if (/^lanc(?:a|ar)\b/.test(limpo)) return undefined
 
   if (
     /o que vence|quais contas a pagar|contas? a pagar|quanto tenho a pagar|vencimentos?/.test(limpo)
@@ -131,6 +144,156 @@ function reconhecerFiado(texto: string): Extract<LlmDecision, { type: 'tool' }> 
   }
 
   return undefined
+}
+
+/** NR-117 — cadastro de produto, conta a pagar e recebivel avulso (quickstart). */
+function reconhecerMutacaoNr117(
+  texto: string,
+  today: string,
+): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const produto = reconhecerCreateProduct(texto)
+  if (produto !== undefined) return produto
+  const pagar = reconhecerCreatePayable(texto, today)
+  if (pagar !== undefined) return pagar
+  const receber = reconhecerCreateReceivable(texto, today)
+  if (receber !== undefined) return receber
+  return undefined
+}
+
+function reconhecerCreateProduct(
+  texto: string,
+): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const match = texto.match(
+    /^cadastr(?:a|ar)\s+(.+?)\s+custo\s+([\d.,]+)(?:\s+reais?)?\s*,?\s*vend(?:e|a)\s+([\d.,]+)\s*$/,
+  )
+  if (match === null) return undefined
+
+  const description = match[1]!.replace(/,\s*$/, '').trim()
+  const costPriceCents = reaisParaCentavos(match[2]!)
+  const salePriceCents = reaisParaCentavos(match[3]!)
+  if (costPriceCents === undefined || salePriceCents === undefined) return undefined
+
+  const args = {
+    description,
+    unitOfMeasure: 'un' as const,
+    costPriceCents,
+    salePriceCents,
+  }
+  const parsed = createProductInputSchema.safeParse(args)
+  if (!parsed.success) return undefined
+
+  return { type: 'tool', name: 'create_product', args: parsed.data }
+}
+
+function reconhecerCreatePayable(
+  texto: string,
+  today: string,
+): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const match = texto.match(/^lanc(?:a|ar)\s+(\S+)\s+([\d.,]+)\s+vence\s+dia\s+(\d{1,2})\s*$/)
+  if (match === null) return undefined
+
+  const termo = match[1]!.trim()
+  const amountCents = reaisParaCentavos(match[2]!)
+  const dia = Number.parseInt(match[3]!, 10)
+  if (amountCents === undefined || dia < 1 || dia > 31) return undefined
+
+  const dueDate = vencimentoNoDia(dia, today)
+  if (dueDate === undefined) return undefined
+
+  const supplier = capitalizar(termo)
+  const args = {
+    supplier,
+    description: supplier,
+    amountCents,
+    dueDate,
+  }
+  const parsed = createPayableInputSchema.safeParse(args)
+  if (!parsed.success) return undefined
+
+  return { type: 'tool', name: 'create_payable', args: parsed.data }
+}
+
+function reconhecerCreateReceivable(
+  texto: string,
+  today: string,
+): Extract<LlmDecision, { type: 'tool' }> | undefined {
+  const match = texto.match(/^a receber\s+([\d.,]+)\s+do\s+[^,]+,\s*(.+)\s*$/)
+  if (match === null) return undefined
+
+  const amountCents = reaisParaCentavos(match[1]!)
+  const description = match[2]!.trim()
+  if (amountCents === undefined || description.length < 2) return undefined
+
+  const dueDate = /na sexta/.test(texto) ? proximaSextaIso(today) : undefined
+  if (dueDate === undefined) return undefined
+
+  const args = { description, amountCents, dueDate }
+  const parsed = createReceivableInputSchema.safeParse(args)
+  if (!parsed.success) return undefined
+
+  return { type: 'tool', name: 'create_receivable', args: parsed.data }
+}
+
+function reaisParaCentavos(bruto: string): number | undefined {
+  const t = bruto.trim().replace(/\s/g, '')
+  if (!/^[\d.,]+$/.test(t)) return undefined
+
+  if (t.includes(',')) {
+    const [parteInteiraRaw, parteDecimal = '0'] = t.split(',')
+    if (parteInteiraRaw === undefined) return undefined
+    const parteInteira = parteInteiraRaw
+    const dec = parteDecimal.padEnd(2, '0').slice(0, 2)
+    const reais = Number.parseInt(parteInteira.replace(/\./g, ''), 10)
+    const centavos = Number.parseInt(dec, 10)
+    if (Number.isNaN(reais) || Number.isNaN(centavos)) return undefined
+    return reais * 100 + centavos
+  }
+
+  const reais = Number.parseInt(t.replace(/\./g, ''), 10)
+  if (Number.isNaN(reais)) return undefined
+  return reais * 100
+}
+
+/** Proximo vencimento no dia N (mes atual se ainda nao passou, senao mes seguinte). */
+function vencimentoNoDia(dia: number, today: string): string | undefined {
+  const partes = today.split('-').map((p) => Number.parseInt(p, 10))
+  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return undefined
+  const [anoRaw, mesRaw, diaHojeRaw] = partes
+  if (anoRaw === undefined || mesRaw === undefined || diaHojeRaw === undefined) return undefined
+  const ano = anoRaw
+  const mes = mesRaw
+  const diaHoje = diaHojeRaw
+
+  let mesAlvo = mes
+  let anoAlvo = ano
+  if (dia <= diaHoje) {
+    mesAlvo += 1
+    if (mesAlvo > 12) {
+      mesAlvo = 1
+      anoAlvo += 1
+    }
+  }
+
+  const mm = String(mesAlvo).padStart(2, '0')
+  const dd = String(dia).padStart(2, '0')
+  const candidato = `${anoAlvo}-${mm}-${dd}`
+  return createPayableInputSchema.shape.dueDate.safeParse(candidato).success ? candidato : undefined
+}
+
+function proximaSextaIso(today: string): string | undefined {
+  const base = new Date(`${today}T12:00:00.000Z`)
+  if (Number.isNaN(base.getTime())) return undefined
+  const dow = base.getUTCDay()
+  let add = (5 - dow + 7) % 7
+  if (add === 0) add = 7
+  base.setUTCDate(base.getUTCDate() + add)
+  const iso = base.toISOString().slice(0, 10)
+  return createReceivableInputSchema.shape.dueDate.safeParse(iso).success ? iso : undefined
+}
+
+function capitalizar(palavra: string): string {
+  if (palavra.length === 0) return palavra
+  return palavra.charAt(0).toUpperCase() + palavra.slice(1)
 }
 
 /** RF-149–151: certificado, OFX/conciliacao e nota avulsa — zero efeito. */

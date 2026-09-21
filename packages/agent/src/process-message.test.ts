@@ -6,11 +6,12 @@ import type {
   DreInput,
   DreOutput,
   ProductOutput,
+  PayableOutput,
   RevenueByMonthInput,
   SaleHistoryInput,
   SendChargeInput,
 } from '@na-regua/contracts'
-import { AppError, type ExecutionContext } from '@na-regua/core'
+import { AppError, assertCanWrite, type ExecutionContext } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
 import { InMemoryConfirmations } from './confirmations.js'
 import { InMemoryConversationStore } from './conversations.js'
@@ -921,6 +922,608 @@ describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
   })
 })
 
+function produtoSaida(over: Partial<ProductOutput> = {}): ProductOutput {
+  return {
+    id: 'p-novo',
+    description: 'Camiseta M',
+    barcode: null,
+    internalCode: 'PROD-0042',
+    unitOfMeasure: 'un',
+    salePriceCents: 4_990,
+    costPriceCents: 2_000,
+    taxRate: 0,
+    ncm: null,
+    cfop: null,
+    taxSituationCode: null,
+    stock: 0,
+    minStock: 0,
+    category: null,
+    supplier: null,
+    ...over,
+  }
+}
+
+describe('processMessage — cadastrar produto (US1 / US-069 / NR-117)', () => {
+  const pedidoProduto = 'cadastra camiseta M custo 20 vende 49,90'
+  const argsProduto = {
+    description: 'camiseta m',
+    unitOfMeasure: 'un' as const,
+    costPriceCents: 2_000,
+    salePriceCents: 4_990,
+    stock: 0,
+    minStock: 0,
+  }
+
+  it('script create_product pede confirmacao e so grava no sim', async () => {
+    let chamadas = 0
+    let recebido: unknown
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async (_c, i) => {
+          chamadas += 1
+          recebido = i
+          return produtoSaida({
+            description: 'camiseta m',
+            salePriceCents: 4_990,
+            costPriceCents: 2_000,
+          })
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoProduto }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toBe(
+      `Cadastrar produto camiseta m: custo ${formatarCentavos(2_000)}, venda ${formatarCentavos(4_990)}. Confirma?`,
+    )
+    expect(chamadas).toBe(0)
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toBe(
+      `Produto camiseta m cadastrado (PROD-0042) — ${formatarCentavos(4_990)}.`,
+    )
+    expect(chamadas).toBe(1)
+    expect(recebido).toEqual(argsProduto)
+  })
+
+  it('nao e TTL nao chamam registerProduct', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async (_c, i) => {
+          chamadas += 1
+          return casos().registerProduct(_c, i)
+        },
+      }),
+      llm,
+    })
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoProduto }))
+    const cancelado = await processMessage(runtime, msg({ text: 'nao' }))
+    expect(cancelado.kind).toBe('answer')
+    expect(cancelado.text).toMatch(/Nada foi registrado/)
+    expect(chamadas).toBe(0)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'rejected')
+
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const proposta2 = await processMessage(runtime, msg({ text: pedidoProduto }))
+    const depois = new Date(agora.getTime() + CONFIRMATION_TTL_MS)
+    const expirado = await processMessage(runtime, msg({ text: 'sim', now: depois }))
+    expect(expirado.text).toMatch(/expirou/i)
+    expect(chamadas).toBe(0)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta2.confirmationId, 'expired')
+  })
+
+  it('preco abaixo do custo recusa antes da pendencia — sem gravacao', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script('cadastra item', {
+      type: 'tool',
+      name: 'create_product',
+      args: {
+        description: 'Item X',
+        unitOfMeasure: 'un',
+        costPriceCents: 5_000,
+        salePriceCents: 1_000,
+      },
+    })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async (_c, i) => {
+          chamadas += 1
+          return casos().registerProduct(_c, i)
+        },
+      }),
+      llm,
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, msg({ text: 'cadastra item' }))
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toMatch(/entender os dados/i)
+    expect(r.text).toMatch(/Preco de venda menor que o custo/i)
+    expect(r.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(chamadas).toBe(0)
+  })
+
+  it('conflito de EAN no registerProduct avisa e nao duplica — RF-140', async () => {
+    let chamadas = 0
+    const argsComEan = { ...argsProduto, barcode: '7891234567895' }
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsComEan })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async () => {
+          chamadas += 1
+          throw AppError.conflict(
+            'Este codigo de barras ja esta em "Camiseta velha". Edite o produto existente em vez de criar outro.',
+          )
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoProduto }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(chamadas).toBe(0)
+
+    const r = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toContain('codigo de barras ja esta')
+    expect(r.text).toContain('Camiseta velha')
+    expect(r.text).not.toMatch(/cadastrado \(/)
+    expect(chamadas).toBe(1)
+  })
+
+  it('apos foto cadastra este, turno com dados e barcode confirma e grava', async () => {
+    let chamadas = 0
+    let recebido: unknown
+    const pedidoAposFoto = 'camiseta nova custo 15 vende 39,90'
+    const argsAposFoto = {
+      description: 'camiseta nova',
+      unitOfMeasure: 'un' as const,
+      costPriceCents: 1_500,
+      salePriceCents: 3_990,
+      barcode: BARCODE_DESCONHECIDO,
+      stock: 0,
+      minStock: 0,
+    }
+    const llm = new FakeLlm()
+    llm.script(pedidoAposFoto, { type: 'tool', name: 'create_product', args: argsAposFoto })
+    const findProductByBarcode = vi.fn(async () => undefined)
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        findProductByBarcode,
+        registerProduct: async (_c, i) => {
+          chamadas += 1
+          recebido = i
+          return produtoSaida({
+            description: 'camiseta nova',
+            barcode: BARCODE_DESCONHECIDO,
+            salePriceCents: 3_990,
+            costPriceCents: 1_500,
+          })
+        },
+      }),
+      llm,
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const codigo = await processMessage(runtime, fotoRefusalMsg({ text: 'cadastra este' }))
+    expect(codigo.kind).toBe('answer')
+    expect(codigo.text).toBe(TEXTO_FOTO_CADASTRO_CODIGO(BARCODE_DESCONHECIDO))
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoAposFoto }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toContain(BARCODE_DESCONHECIDO)
+    expect(chamadas).toBe(0)
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toMatch(/cadastrado/)
+    expect(chamadas).toBe(1)
+    expect(recebido).toEqual(argsAposFoto)
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+})
+
+function contaPagarSaida(over: Partial<PayableOutput> = {}): PayableOutput {
+  return {
+    id: 'pag-1',
+    supplier: 'Aluguel',
+    description: 'Aluguel',
+    amountCents: 180_000,
+    settledAmountCents: 0,
+    dueDate: '2026-10-10',
+    status: 'open',
+    attachmentKey: null,
+    accountId: null,
+    recurrenceId: null,
+    occurrenceNumber: null,
+    occurrenceCount: null,
+    createdAt: agora.toISOString(),
+    ...over,
+  }
+}
+
+describe('processMessage — lancar conta a pagar (US2 / US-070 / NR-117)', () => {
+  const pedidoAluguel = 'lança aluguel 1800 vence dia 10'
+  const argsAluguel = {
+    supplier: 'Aluguel',
+    description: 'Aluguel',
+    amountCents: 180_000,
+    dueDate: '2026-10-10',
+  }
+
+  it('FakeLlm create_payable pede confirmacao e so grava no sim', async () => {
+    let chamadas = 0
+    let recebido: unknown
+    const llm = new FakeLlm()
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        createPayable: async (_c, i) => {
+          chamadas += 1
+          recebido = i
+          return [contaPagarSaida()]
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoAluguel }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toBe(
+      `Lancar conta a pagar de Aluguel: Aluguel, ${formatarCentavos(180_000)}, vence 2026-10-10. Confirma?`,
+    )
+    expect(chamadas).toBe(0)
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toBe(
+      `Conta de Aluguel lancada: ${formatarCentavos(180_000)}, vence 2026-10-10.`,
+    )
+    expect(chamadas).toBe(1)
+    expect(recebido).toEqual(argsAluguel)
+  })
+
+  it('nao e TTL nao chamam createPayable', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        createPayable: async (_c, i) => {
+          chamadas += 1
+          return casos().createPayable(_c, i)
+        },
+      }),
+      llm,
+    })
+    const resolve = vi.spyOn(runtime.confirmations, 'resolve')
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoAluguel }))
+    const cancelado = await processMessage(runtime, msg({ text: 'nao' }))
+    expect(cancelado.kind).toBe('answer')
+    expect(cancelado.text).toMatch(/Nada foi registrado/)
+    expect(chamadas).toBe(0)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta.confirmationId, 'rejected')
+
+    const proposta2 = await processMessage(runtime, msg({ text: pedidoAluguel }))
+    const depois = new Date(agora.getTime() + CONFIRMATION_TTL_MS)
+    const expirado = await processMessage(runtime, msg({ text: 'sim', now: depois }))
+    expect(expirado.text).toMatch(/expirou/i)
+    expect(chamadas).toBe(0)
+    expect(resolve).toHaveBeenCalledWith('emp-1', proposta2.confirmationId, 'expired')
+  })
+
+  it('vencimento no passado grava open e aparece na faixa vencidas — 2A', async () => {
+    const argsVencida = {
+      supplier: 'Imobiliaria',
+      description: 'Aluguel atrasado',
+      amountCents: 150_000,
+      dueDate: '2026-09-01',
+    }
+    const pedido = 'lanca aluguel atrasado 1500 vence dia 1'
+    let criado = false
+    const llm = new FakeLlm()
+    llm.script(pedido, { type: 'tool', name: 'create_payable', args: argsVencida })
+    const listPayables = vi.fn(async () => {
+      if (!criado) {
+        return {
+          grupos: [
+            { faixa: 'overdue' as const, totalCents: 0, payables: [] },
+            { faixa: 'today' as const, totalCents: 0, payables: [] },
+            { faixa: 'week' as const, totalCents: 0, payables: [] },
+            { faixa: 'month' as const, totalCents: 0, payables: [] },
+            { faixa: 'later' as const, totalCents: 0, payables: [] },
+          ],
+          totalCents: 0,
+          temVencidas: false,
+        }
+      }
+      const conta = contaPagarSaida({
+        supplier: argsVencida.supplier,
+        description: argsVencida.description,
+        amountCents: argsVencida.amountCents,
+        dueDate: argsVencida.dueDate,
+        status: 'open',
+      })
+      return {
+        grupos: [
+          { faixa: 'overdue' as const, totalCents: argsVencida.amountCents, payables: [conta] },
+          { faixa: 'today' as const, totalCents: 0, payables: [] },
+          { faixa: 'week' as const, totalCents: 0, payables: [] },
+          { faixa: 'month' as const, totalCents: 0, payables: [] },
+          { faixa: 'later' as const, totalCents: 0, payables: [] },
+        ],
+        totalCents: argsVencida.amountCents,
+        temVencidas: true,
+      }
+    })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        listPayables,
+        createPayable: async (_c, input) => {
+          expect(input.dueDate).toBe('2026-09-01')
+          criado = true
+          return [
+            contaPagarSaida({
+              supplier: input.supplier,
+              description: input.description,
+              amountCents: input.amountCents,
+              dueDate: input.dueDate,
+              status: 'open',
+            }),
+          ]
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedido }))
+    expect(proposta.kind).toBe('confirmation')
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toContain('2026-09-01')
+
+    const consulta = await processMessage(runtime, msg({ text: 'quanto tenho a pagar?' }))
+    expect(consulta.kind).toBe('answer')
+    expect(consulta.text).toMatch(/vencidas/i)
+    expect(consulta.text).toContain(formatarCentavos(argsVencida.amountCents))
+    expect(listPayables).toHaveBeenCalled()
+  })
+
+  it('recorrencia com N titulos resume quantidade na resposta', async () => {
+    const argsRecorrente = {
+      supplier: 'Imobiliaria',
+      description: 'Aluguel',
+      amountCents: 180_000,
+      dueDate: '2026-10-10',
+      recurrence: { frequency: 'monthly' as const, occurrences: 3 },
+    }
+    const pedido = 'lanca aluguel mensal 1800 vence dia 10 por 3 meses'
+    const llm = new FakeLlm()
+    llm.script(pedido, { type: 'tool', name: 'create_payable', args: argsRecorrente })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        createPayable: async () => [
+          contaPagarSaida({ supplier: 'Imobiliaria' }),
+          contaPagarSaida({ id: 'pag-2', dueDate: '2026-11-10' }),
+          contaPagarSaida({ id: 'pag-3', dueDate: '2026-12-10' }),
+        ],
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedido }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toMatch(/repetindo/)
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toContain('3 contas')
+    expect(feito.text).toContain('2026-10-10')
+  })
+
+  it('pedido sem valor ou vencimento pede dado e nao cria pendencia — T014', async () => {
+    const createPayable = vi.fn(casos().createPayable)
+    const llm = new FakeLlm()
+    llm.script('lança aluguel', {
+      type: 'text',
+      text: 'Qual o valor e o dia do vencimento?',
+    })
+    const runtime = createAgentRuntime({ useCases: casos({ createPayable }), llm })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const incompleto = await processMessage(runtime, msg({ text: 'lança conta a pagar' }))
+    expect(incompleto.kind).toBe('unknown')
+    expect(incompleto.confirmationId).toBeUndefined()
+
+    const clarifica = await processMessage(runtime, msg({ text: 'lança aluguel' }))
+    expect(clarifica.kind).toBe('clarify')
+    expect(clarifica.text).toMatch(/valor/i)
+    expect(clarifica.text).toMatch(/vencimento/i)
+    expect(clarifica.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(createPayable).not.toHaveBeenCalled()
+
+    llm.script('pagar fornecedor sem data', {
+      type: 'tool',
+      name: 'create_payable',
+      args: { supplier: 'Fornecedor X', description: 'Material' },
+    })
+    const zod = await processMessage(runtime, msg({ text: 'pagar fornecedor sem data' }))
+    expect(zod.kind).toBe('clarify')
+    expect(zod.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(createPayable).not.toHaveBeenCalled()
+  })
+})
+
+function recebivelSaida(
+  over: Partial<{
+    id: string
+    description: string
+    amountCents: number
+    dueDate: string
+    customerId: string | null
+    customerName: string | null
+  }> = {},
+) {
+  return {
+    id: 'rec-1',
+    saleId: null,
+    customerId: null,
+    customerName: null,
+    description: 'aluguel vitrine',
+    amountCents: 50_000,
+    netAmountCents: 50_000,
+    settledAmountCents: 0,
+    dueDate: '2026-09-18',
+    installmentNumber: 1,
+    installmentCount: 1,
+    status: 'open' as const,
+    createdAt: agora.toISOString(),
+    ...over,
+  }
+}
+
+describe('processMessage — lancar recebivel avulso (US3 / US-071 / NR-117)', () => {
+  const pedidoRecebivel = 'a receber 500 do João na sexta, aluguel vitrine'
+  const argsRecebivel = {
+    description: 'aluguel vitrine',
+    amountCents: 50_000,
+    dueDate: '2026-09-18',
+  }
+
+  it('FakeLlm create_receivable pede confirmacao e so grava no sim', async () => {
+    let chamadas = 0
+    let recebido: unknown
+    const llm = new FakeLlm()
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        createReceivable: async (_c, i) => {
+          chamadas += 1
+          recebido = i
+          return recebivelSaida()
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoRecebivel }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toBe(
+      `Lancar a receber: aluguel vitrine, ${formatarCentavos(50_000)}, vence 2026-09-18. Confirma?`,
+    )
+    expect(chamadas).toBe(0)
+
+    const feito = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(feito.kind).toBe('answer')
+    expect(feito.text).toBe(
+      `A receber lancado: aluguel vitrine, ${formatarCentavos(50_000)}, vence 2026-09-18.`,
+    )
+    expect(chamadas).toBe(1)
+    expect(recebido).toEqual(argsRecebivel)
+  })
+
+  it('pedido sem valor ou vencimento pede dado e nao cria pendencia — T017', async () => {
+    const createReceivable = vi.fn(casos().createReceivable)
+    const llm = new FakeLlm()
+    llm.script('quero lancar a receber', {
+      type: 'text',
+      text: 'Qual o valor, o vencimento e a descricao?',
+    })
+    const runtime = createAgentRuntime({ useCases: casos({ createReceivable }), llm })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const incompleto = await processMessage(runtime, msg({ text: 'a receber do joao' }))
+    expect(incompleto.kind).toBe('unknown')
+    expect(incompleto.confirmationId).toBeUndefined()
+
+    const clarifica = await processMessage(runtime, msg({ text: 'quero lancar a receber' }))
+    expect(clarifica.kind).toBe('clarify')
+    expect(clarifica.text).toMatch(/valor/i)
+    expect(clarifica.text).toMatch(/vencimento/i)
+    expect(clarifica.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(createReceivable).not.toHaveBeenCalled()
+
+    llm.script('receber sem data', {
+      type: 'tool',
+      name: 'create_receivable',
+      args: { description: 'Servico avulso', amountCents: 10_000 },
+    })
+    const zod = await processMessage(runtime, msg({ text: 'receber sem data' }))
+    expect(zod.kind).toBe('clarify')
+    expect(zod.confirmationId).toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+    expect(createReceivable).not.toHaveBeenCalled()
+  })
+
+  it('frase de venda usa create_sale e nao create_receivable — US-071', async () => {
+    const fraseVenda = 'venda pro Joao: 2 camisetas M a 49,90, pagou no Pix'
+    const argsVenda = {
+      customerId: 'cli-1',
+      items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
+      payments: [{ method: 'pix' as const, amountCents: 9_980 }],
+    }
+    const createReceivable = vi.fn(casos().createReceivable)
+    const registerSale = vi.fn(casos().registerSale)
+    const llm = new FakeLlm()
+    llm.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
+    const runtime = createAgentRuntime({
+      useCases: casos({ createReceivable, registerSale }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: fraseVenda }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toMatch(/Registrar venda/)
+    expect(proposta.text).toMatch(/Confirma\?/)
+    expect(createReceivable).not.toHaveBeenCalled()
+    expect(registerSale).not.toHaveBeenCalled()
+  })
+
+  it('dois clientes homonimos listam opcoes sem create_receivable — T017', async () => {
+    const checkCustomerWalletByQuery = vi.fn(async () => ({
+      status: 'ambiguous' as const,
+      alternatives: [
+        clienteSaida({ id: 'cli-a', name: 'Joao Silva', phone: '41999991111' }),
+        clienteSaida({ id: 'cli-b', name: 'Joao Souza', phone: '41999992222' }),
+      ],
+    }))
+    const createReceivable = vi.fn(casos().createReceivable)
+    const llm = new FakeLlm()
+    llm.script(pedidoRecebivel, {
+      type: 'tool',
+      name: 'check_customer_wallet',
+      args: { query: 'joao' },
+    })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkCustomerWalletByQuery, createReceivable }),
+      llm,
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const r = await processMessage(runtime, msg({ text: pedidoRecebivel }))
+    expect(r.kind).toBe('answer')
+    expect(r.text).toMatch(/mais de um/i)
+    expect(r.text).toContain('cli-a')
+    expect(r.text).toContain('cli-b')
+    expect(checkCustomerWalletByQuery).toHaveBeenCalledOnce()
+    expect(createReceivable).not.toHaveBeenCalled()
+    expect(put).not.toHaveBeenCalled()
+  })
+})
+
 describe('processMessage — lancar venda (US4 / US-049)', () => {
   const fraseVenda = 'venda pro Joao: 2 camisetas M a 49,90, pagou no Pix'
   const argsVenda = {
@@ -1648,6 +2251,81 @@ describe('FakeLlm', () => {
     expect(d).toEqual({ type: 'unknown' })
   })
 
+  const toolsNr117 = [
+    ...tools,
+    { id: 'create_product', description: '', inputSchema: {} as never, mutatesValue: true },
+    { id: 'create_payable', description: '', inputSchema: {} as never, mutatesValue: true },
+    { id: 'create_receivable', description: '', inputSchema: {} as never, mutatesValue: true },
+  ]
+
+  it('reconhece cadastro de produto — NR-117 / quickstart', async () => {
+    const llm = new FakeLlm()
+    const d = await llm.decide({
+      text: 'cadastra camiseta M custo 20 vende 49,90',
+      tools: toolsNr117,
+      today: '2026-09-11',
+    })
+    expect(d).toEqual({
+      type: 'tool',
+      name: 'create_product',
+      args: {
+        description: 'camiseta m',
+        unitOfMeasure: 'un',
+        costPriceCents: 2_000,
+        salePriceCents: 4_990,
+        stock: 0,
+        minStock: 0,
+      },
+    })
+  })
+
+  it('reconhece conta a pagar — NR-117 / quickstart', async () => {
+    const llm = new FakeLlm()
+    const d = await llm.decide({
+      text: 'lança aluguel 1800 vence dia 10',
+      tools: toolsNr117,
+      today: '2026-09-11',
+    })
+    expect(d).toEqual({
+      type: 'tool',
+      name: 'create_payable',
+      args: {
+        supplier: 'Aluguel',
+        description: 'Aluguel',
+        amountCents: 180_000,
+        dueDate: '2026-10-10',
+      },
+    })
+  })
+
+  it('reconhece recebivel avulso — NR-117 / quickstart', async () => {
+    const llm = new FakeLlm()
+    const d = await llm.decide({
+      text: 'a receber 500 do João na sexta, aluguel vitrine',
+      tools: toolsNr117,
+      today: '2026-09-11',
+    })
+    expect(d).toEqual({
+      type: 'tool',
+      name: 'create_receivable',
+      args: {
+        description: 'aluguel vitrine',
+        amountCents: 50_000,
+        dueDate: '2026-09-18',
+      },
+    })
+  })
+
+  it('nao reconhece conta a pagar incompleta — NR-117', async () => {
+    const llm = new FakeLlm()
+    const d = await llm.decide({
+      text: 'lança conta a pagar',
+      tools: toolsNr117,
+      today: '2026-09-11',
+    })
+    expect(d).toEqual({ type: 'unknown' })
+  })
+
   it.each([
     'venda pro joao: 2 camisetas M a 49,90, pagou no Pix',
     'vende no fiado',
@@ -1657,11 +2335,17 @@ describe('FakeLlm', () => {
     const llm = new FakeLlm()
     const d = await llm.decide({
       text,
-      tools: [
-        ...tools,
-        { id: 'create_sale', description: '', inputSchema: {} as never, mutatesValue: true },
-        { id: 'search_products', description: '', inputSchema: {} as never, mutatesValue: false },
-      ],
+      tools: toolsNr117,
+      today: '2026-09-11',
+    })
+    expect(d).toEqual({ type: 'unknown' })
+  })
+
+  it('frase de venda nao cai em create_receivable — NR-117', async () => {
+    const llm = new FakeLlm()
+    const d = await llm.decide({
+      text: 'venda pro joao: 2 camisetas M a 49,90, pagou no Pix',
+      tools: toolsNr117,
       today: '2026-09-11',
     })
     expect(d).toEqual({ type: 'unknown' })
@@ -3048,5 +3732,240 @@ describe('processMessage — privacidade da foto (NR-116 T022)', () => {
     const serializado = JSON.stringify(ativo)
     expect(serializado).not.toContain(dataBase64)
     expect(serializado).not.toMatch(/data:image\//)
+  })
+})
+
+describe('processMessage — NR-117 polish (RF-010 / FR-012)', () => {
+  const pedidoProduto = 'cadastra camiseta M custo 20 vende 49,90'
+  const argsProduto = {
+    description: 'camiseta m',
+    unitOfMeasure: 'un' as const,
+    costPriceCents: 2_000,
+    salePriceCents: 4_990,
+    stock: 0,
+    minStock: 0,
+  }
+  const pedidoAluguel = 'lança aluguel 1800 vence dia 10'
+  const pedidoRecebivel = 'a receber 500 do João na sexta, aluguel vitrine'
+
+  function contextoEmpresa(companyId: string, userId: string): ExecutionContext {
+    return { ...ctx, companyId, userId, requestId: `req-${companyId}` }
+  }
+
+  it('sim da loja B nao chama registerProduct da loja A — T020 / SC-007', async () => {
+    const store = new InMemoryConfirmations()
+    let gravacoesA = 0
+    let gravacoesB = 0
+    const llmA = new FakeLlm()
+    llmA.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const llmB = new FakeLlm()
+    llmB.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const runtimeA = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async () => {
+          gravacoesA += 1
+          return produtoSaida()
+        },
+      }),
+      llm: llmA,
+      confirmations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async () => {
+          gravacoesB += 1
+          return produtoSaida()
+        },
+      }),
+      llm: llmB,
+      confirmations: store,
+    })
+    const ctxA = contextoEmpresa('emp-a', 'user-a')
+    const ctxB = contextoEmpresa('emp-b', 'user-b')
+
+    const propostaA = await processMessage(runtimeA, msg({ text: pedidoProduto, ctx: ctxA }))
+    expect(propostaA.kind).toBe('confirmation')
+    expect(gravacoesA).toBe(0)
+
+    const simB = await processMessage(runtimeB, msg({ text: 'sim', ctx: ctxB }))
+    expect(gravacoesA).toBe(0)
+    expect(gravacoesB).toBe(0)
+    expect(simB.kind).not.toBe('confirmation')
+    expect(simB.text).not.toBe(propostaA.text)
+
+    const feitoA = await processMessage(runtimeA, msg({ text: 'sim', ctx: ctxA }))
+    expect(feitoA.kind).toBe('answer')
+    expect(feitoA.text).toMatch(/cadastrado/)
+    expect(gravacoesA).toBe(1)
+    expect(gravacoesB).toBe(0)
+  })
+
+  it('sim da loja B nao chama createPayable da loja A — T020 / SC-007', async () => {
+    const store = new InMemoryConfirmations()
+    let gravacoesA = 0
+    let gravacoesB = 0
+    const llmA = new FakeLlm()
+    const llmB = new FakeLlm()
+    const runtimeA = createAgentRuntime({
+      useCases: casos({
+        createPayable: async () => {
+          gravacoesA += 1
+          return [contaPagarSaida()]
+        },
+      }),
+      llm: llmA,
+      confirmations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos({
+        createPayable: async () => {
+          gravacoesB += 1
+          return [contaPagarSaida()]
+        },
+      }),
+      llm: llmB,
+      confirmations: store,
+    })
+    const ctxA = contextoEmpresa('emp-a', 'user-a')
+    const ctxB = contextoEmpresa('emp-b', 'user-b')
+
+    await processMessage(runtimeA, msg({ text: pedidoAluguel, ctx: ctxA }))
+    expect(gravacoesA).toBe(0)
+
+    const simB = await processMessage(runtimeB, msg({ text: 'sim', ctx: ctxB }))
+    expect(gravacoesA).toBe(0)
+    expect(gravacoesB).toBe(0)
+    expect(simB.kind).not.toBe('confirmation')
+
+    const feitoA = await processMessage(runtimeA, msg({ text: 'sim', ctx: ctxA }))
+    expect(feitoA.kind).toBe('answer')
+    expect(gravacoesA).toBe(1)
+    expect(gravacoesB).toBe(0)
+  })
+
+  it('sim da loja B nao chama createReceivable da loja A — T020 / SC-007', async () => {
+    const store = new InMemoryConfirmations()
+    let gravacoesA = 0
+    let gravacoesB = 0
+    const llmA = new FakeLlm()
+    const llmB = new FakeLlm()
+    const runtimeA = createAgentRuntime({
+      useCases: casos({
+        createReceivable: async () => {
+          gravacoesA += 1
+          return recebivelSaida()
+        },
+      }),
+      llm: llmA,
+      confirmations: store,
+    })
+    const runtimeB = createAgentRuntime({
+      useCases: casos({
+        createReceivable: async () => {
+          gravacoesB += 1
+          return recebivelSaida()
+        },
+      }),
+      llm: llmB,
+      confirmations: store,
+    })
+    const ctxA = contextoEmpresa('emp-a', 'user-a')
+    const ctxB = contextoEmpresa('emp-b', 'user-b')
+
+    await processMessage(runtimeA, msg({ text: pedidoRecebivel, ctx: ctxA }))
+    expect(gravacoesA).toBe(0)
+
+    const simB = await processMessage(runtimeB, msg({ text: 'sim', ctx: ctxB }))
+    expect(gravacoesA).toBe(0)
+    expect(gravacoesB).toBe(0)
+    expect(simB.kind).not.toBe('confirmation')
+
+    const feitoA = await processMessage(runtimeA, msg({ text: 'sim', ctx: ctxA }))
+    expect(feitoA.kind).toBe('answer')
+    expect(gravacoesA).toBe(1)
+    expect(gravacoesB).toBe(0)
+  })
+
+  it('pendencia create_product + mensagem de pagar + sim nao grava produto nem conta — T020a', async () => {
+    const registerProduct = vi.fn(casos().registerProduct)
+    const createPayable = vi.fn(casos().createPayable)
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const runtime = createAgentRuntime({
+      useCases: casos({ registerProduct, createPayable }),
+      llm,
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoProduto }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.text).toMatch(/Cadastrar produto camiseta m/i)
+
+    const interrupt = await processMessage(runtime, msg({ text: pedidoAluguel }))
+    expect(interrupt.kind).toBe('answer')
+    expect(interrupt.text).toMatch(/Nao entendi como confirmacao|cancelei/i)
+    expect(registerProduct).not.toHaveBeenCalled()
+    expect(createPayable).not.toHaveBeenCalled()
+
+    const sim = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(sim.kind).not.toBe('confirmation')
+    expect(sim.confirmationId).toBeUndefined()
+    expect(registerProduct).not.toHaveBeenCalled()
+    expect(createPayable).not.toHaveBeenCalled()
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(await runtime.confirmations.getOpen('emp-1', 'app:emp-1:user-1', agora)).toBeUndefined()
+  })
+
+  it('perfil somente leitura recusa create_product apos sim — T020b', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const ctxReadOnly: ExecutionContext = { ...ctx, role: 'accountant' }
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async (c) => {
+          assertCanWrite(c)
+          chamadas += 1
+          return produtoSaida()
+        },
+      }),
+      llm,
+    })
+
+    const proposta = await processMessage(runtime, msg({ text: pedidoProduto, ctx: ctxReadOnly }))
+    expect(proposta.kind).toBe('confirmation')
+    expect(chamadas).toBe(0)
+
+    const r = await processMessage(runtime, msg({ text: 'sim', ctx: ctxReadOnly }))
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toMatch(/somente de leitura/i)
+    expect(r.confirmationId).toBeUndefined()
+    expect(chamadas).toBe(0)
+  })
+
+  it('falha do core apos sim nao abre segunda confirmacao — T020c', async () => {
+    let chamadas = 0
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const runtime = createAgentRuntime({
+      useCases: casos({
+        registerProduct: async () => {
+          chamadas += 1
+          throw AppError.conflict('Nao foi possivel gravar o produto agora.')
+        },
+      }),
+      llm,
+    })
+    const put = vi.spyOn(runtime.confirmations, 'put')
+
+    await processMessage(runtime, msg({ text: pedidoProduto }))
+    expect(put).toHaveBeenCalledTimes(1)
+
+    const r = await processMessage(runtime, msg({ text: 'sim' }))
+    expect(r.kind).toBe('clarify')
+    expect(r.text).toContain('Nao foi possivel gravar o produto agora.')
+    expect(r.confirmationId).toBeUndefined()
+    expect(chamadas).toBe(1)
+    expect(put).toHaveBeenCalledTimes(1)
   })
 })

@@ -388,6 +388,143 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
     await app.close()
   })
 
+  it('create_product pede confirmacao para cadastro de produto — NR-117 / US-069', async () => {
+    let chamadas = 0
+    const pedidoProduto = 'cadastra camiseta M custo 20 vende 49,90'
+    const argsProduto = {
+      description: 'camiseta m',
+      unitOfMeasure: 'un' as const,
+      costPriceCents: 2_000,
+      salePriceCents: 4_990,
+      stock: 0,
+      minStock: 0,
+    }
+    const llm = new FakeLlm()
+    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
+    const app = buildAppConfirmacao(
+      {
+        registerProduct: async () => {
+          chamadas += 1
+          return {
+            id: 'p-1',
+            description: 'camiseta m',
+            barcode: null,
+            internalCode: 'PROD-0001',
+            unitOfMeasure: 'un',
+            salePriceCents: 4_990,
+            costPriceCents: 2_000,
+            taxRate: 0,
+            ncm: null,
+            cfop: null,
+            taxSituationCode: null,
+            stock: 0,
+            minStock: 0,
+            category: null,
+            supplier: null,
+          }
+        },
+      },
+      llm,
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: pedidoProduto },
+    })
+    expect(proposta.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
+    expect(corpo.kind).toBe('confirmation')
+    expect(corpo.text).toMatch(/Cadastrar produto camiseta m/i)
+    expect(corpo.text).toMatch(/Confirma\?/)
+    expect(chamadas).toBe(0)
+    await app.close()
+  })
+
+  it('create_payable pede confirmacao para conta a pagar — NR-117 / US-070', async () => {
+    let chamadas = 0
+    const pedidoAluguel = 'lança aluguel 1800 vence dia 10'
+    const app = buildAppConfirmacao(
+      {
+        createPayable: async () => {
+          chamadas += 1
+          return [
+            {
+              id: 'pag-1',
+              supplier: 'Aluguel',
+              description: 'Aluguel',
+              amountCents: 180_000,
+              settledAmountCents: 0,
+              dueDate: '2026-10-10',
+              status: 'open' as const,
+              attachmentKey: null,
+              accountId: null,
+              recurrenceId: null,
+              occurrenceNumber: null,
+              occurrenceCount: null,
+              createdAt: '2026-09-11T15:00:00.000Z',
+            },
+          ]
+        },
+      },
+      new FakeLlm(),
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: pedidoAluguel },
+    })
+    expect(proposta.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
+    expect(corpo.kind).toBe('confirmation')
+    expect(corpo.text).toMatch(/Lancar conta a pagar de Aluguel/i)
+    expect(corpo.text).toMatch(/Confirma\?/)
+    expect(chamadas).toBe(0)
+    await app.close()
+  })
+
+  it('create_receivable pede confirmacao para recebivel avulso — NR-117 / US-071', async () => {
+    let chamadas = 0
+    const pedidoRecebivel = 'a receber 500 do João na sexta, aluguel vitrine'
+    const app = buildAppConfirmacao(
+      {
+        createReceivable: async () => {
+          chamadas += 1
+          return {
+            id: 'rec-1',
+            saleId: null,
+            customerId: null,
+            customerName: null,
+            description: 'aluguel vitrine',
+            amountCents: 50_000,
+            netAmountCents: 50_000,
+            settledAmountCents: 0,
+            dueDate: '2026-09-18',
+            installmentNumber: 1,
+            installmentCount: 1,
+            status: 'open' as const,
+            createdAt: '2026-09-11T15:00:00.000Z',
+          }
+        },
+      },
+      new FakeLlm(),
+    )
+
+    const proposta = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: pedidoRecebivel },
+    })
+    expect(proposta.statusCode).toBe(200)
+    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
+    expect(corpo.kind).toBe('confirmation')
+    expect(corpo.text).toMatch(/Lancar a receber: aluguel vitrine/i)
+    expect(corpo.text).toMatch(/Confirma\?/)
+    expect(chamadas).toBe(0)
+    await app.close()
+  })
+
   it('create_sale pede confirmacao e sem sim nao grava', async () => {
     let chamadas = 0
     const llm = new FakeLlm()
