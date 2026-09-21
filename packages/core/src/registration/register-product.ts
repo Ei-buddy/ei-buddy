@@ -16,9 +16,65 @@ import { adjustStock } from '../inventory/adjust-stock.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { InventoryUnitOfWork } from '../ports/inventory-writers.js'
 import type { ProductRepository } from '../ports/registration-repositories.js'
+import type { RetrievalStore } from '../ports/retrieval.js'
 
 export type RegisterProductDeps = {
   readonly products: ProductRepository
+  /**
+   * Indice de recuperacao — RF-102, ADR-0017, NR-120.
+   *
+   * Opcional: sem ele o cadastro funciona igual, e a busca aproximada
+   * simplesmente nao acha nada. Uma funcionalidade a menos e melhor que um
+   * cadastro que nao conclui — mesmo criterio de `SECRETS_KEY`.
+   */
+  readonly retrieval?: RetrievalStore | undefined
+}
+
+/**
+ * O texto que representa o produto na busca — NR-120.
+ *
+ * Descricao, codigo interno e codigo de barras num campo so. Os dois codigos
+ * entram porque o lojista tambem procura por eles: "o 0042" e um jeito comum
+ * de se referir a um item sem embalagem.
+ *
+ * Preco e saldo NAO entram, e a ausencia e deliberada: o indice pode estar
+ * velho, e dado velho perto de dinheiro e como um numero errado chega a uma
+ * resposta (ADR-0017).
+ */
+function textoDeBusca(produto: ProductOutput): string {
+  return [produto.description, produto.internalCode, produto.barcode]
+    .filter((p): p is string => typeof p === 'string' && p !== '')
+    .join(' ')
+}
+
+/**
+ * Poe (ou atualiza) o produto no indice.
+ *
+ * Falha aqui NAO desfaz o cadastro, pelo mesmo desenho da semeadura do plano
+ * de contas: o produto existe, visivel e utilizavel, e so a busca aproximada
+ * fica sem ele ate a proxima reindexacao. Perder o cadastro por causa do
+ * indice seria trocar o essencial pelo auxiliar.
+ */
+async function indexarProduto(
+  deps: RegisterProductDeps,
+  companyId: string,
+  produto: ProductOutput,
+  agora: Date,
+): Promise<void> {
+  if (deps.retrieval === undefined) return
+
+  try {
+    await deps.retrieval.indexar({
+      companyId,
+      kind: 'product',
+      refId: produto.id,
+      conteudo: textoDeBusca(produto),
+      atualizadoEm: agora,
+    })
+  } catch {
+    /* Silencio de proposito, e so aqui: o chamador pediu para cadastrar um
+       produto, e ele foi cadastrado. */
+  }
 }
 
 /**
@@ -69,7 +125,7 @@ export async function registerProduct(
    */
   const internalCode = generateInternalCode(await deps.products.countAll(ctx.companyId))
 
-  return deps.products.create({
+  const criado = await deps.products.create({
     companyId: ctx.companyId,
     description: input.description,
     barcode: input.barcode,
@@ -87,6 +143,10 @@ export async function registerProduct(
     createdBy: ctx.userId,
     createdAt: ctx.now,
   })
+
+  await indexarProduto(deps, ctx.companyId, criado, ctx.now)
+
+  return criado
 }
 
 /**
@@ -142,7 +202,16 @@ export async function getProduct(
  */
 export const TETO_DO_CATALOGO = 50
 
-export type SearchProductsDeps = { readonly products: ProductRepository }
+export type SearchProductsDeps = {
+  readonly products: ProductRepository
+  /**
+   * Recuperacao auxiliar — RF-102, ADR-0017, NR-120.
+   *
+   * Opcional: sem ela a busca funciona como sempre funcionou. Com ela, o
+   * portugues de balcao passa a achar o produto.
+   */
+  readonly retrieval?: RetrievalStore | undefined
+}
 
 export async function searchProducts(
   deps: SearchProductsDeps,
@@ -151,14 +220,70 @@ export async function searchProducts(
 ): Promise<readonly ProductOutput[]> {
   const limite = Math.min(input.limite ?? TETO_DO_CATALOGO, TETO_DO_CATALOGO)
 
-  return deps.products.search(ctx.companyId, {
+  const termo = input.termo?.trim() ?? ''
+
+  const achados = await deps.products.search(ctx.companyId, {
     /* Termo vazio e "me mostre o catalogo", nao "nao ache nada" — e o estado
        em que a tela do PDV abre. */
-    ...(input.termo === undefined || input.termo.trim() === ''
-      ? {}
-      : { termo: input.termo.trim() }),
+    ...(termo === '' ? {} : { termo }),
     limite: Math.max(1, limite),
   })
+
+  /*
+   * A recuperacao e AUXILIAR, e a palavra e literal: ela so entra quando a
+   * busca normal nao achou nada.
+   *
+   * Nao e timidez. A busca do catalogo e exata e ordenada por criterio do
+   * negocio; a recuperacao e aproximada e ordenada por semelhanca de escrita.
+   * Deixar a segunda competir com a primeira faria "arroz" devolver "arroz
+   * doce" antes do arroz — e o lojista perderia confianca no que ate entao
+   * acertava.
+   *
+   * Termo vazio nao aciona: "me mostre o catalogo" nao e uma pergunta
+   * ambigua.
+   */
+  if (achados.length > 0 || termo === '' || deps.retrieval === undefined) return achados
+
+  return recuperarCandidatos(deps.retrieval, deps.products, ctx.companyId, termo, limite)
+}
+
+/**
+ * Os produtos que a recuperacao sugeriu, carregados do catalogo — ADR-0017.
+ *
+ * O trecho recuperado da o `productId`; quem devolve o PRODUTO e o repositorio,
+ * como sempre. E o ponto 2 da ADR-0017 em codigo: o indice sugere qual id
+ * passar, e o dado sai da fonte de verdade.
+ *
+ * Por isso nada aqui usa o `conteudo` do trecho. Ele pode estar velho — o
+ * nome pode ter mudado depois da ultima indexacao —, e devolver o texto do
+ * indice faria o assistente falar de um produto que nao existe mais com aquele
+ * nome.
+ */
+async function recuperarCandidatos(
+  retrieval: RetrievalStore,
+  products: ProductRepository,
+  companyId: string,
+  termo: string,
+  limite: number,
+): Promise<readonly ProductOutput[]> {
+  const candidatos = await retrieval.buscar({
+    companyId,
+    consulta: termo,
+    k: Math.max(1, limite),
+    kind: 'product',
+  })
+
+  const carregados = await Promise.all(
+    candidatos
+      .map((c) => c.refId)
+      .filter((id): id is string => id !== null)
+      .map((id) => products.findById(companyId, id)),
+  )
+
+  /* Um trecho pode apontar para produto apagado entre a indexacao e agora.
+     Some da lista em vez de virar erro: o lojista perguntou por um produto, e
+     a resposta certa e o que ainda existe. */
+  return carregados.filter((p): p is ProductOutput => p !== undefined)
 }
 
 /**
