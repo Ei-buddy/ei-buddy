@@ -279,6 +279,40 @@ Preço e total da venda por foto continuam vindos do catálogo/`core` — o agen
 Gates:
 [`specs/007-foto-codigo-barras/quickstart.md`](../../specs/007-foto-codigo-barras/quickstart.md).
 
+## Cadastro, pagar e receber por mensagem (NR-117)
+
+Três tools de escrita geradas de `contracts`, com `mutatesValue: true` e o mesmo
+caso de uso das telas (`registerProduct`, `createPayable`, `createReceivable` em
+`core`):
+
+| Tool                | Confirma? | Exemplo de frase (FakeLlm / quickstart)           |
+| ------------------- | :-------: | ------------------------------------------------- |
+| `create_product`    |    ✅     | `cadastra camiseta M custo 20 vende 49,90`        |
+| `create_payable`    |    ✅     | `lança aluguel 1800 vence dia 10`                 |
+| `create_receivable` |    ✅     | `a receber 500 do João na sexta, aluguel vitrine` |
+
+Proposta → `sim` / `não` / TTL segue a máquina de confirmação da NR-061. Valor,
+vencimento, fornecedor e descrição **não** são inventados: pedido incompleto vira
+`clarify` ou `unknown` sem `confirmationId`. Preço de venda abaixo do custo cai
+no schema antes de qualquer pendência; EAN duplicado devolve o conflito do núcleo
+sem atalho de “reutilizar” no chat.
+
+Handoff com foto (NR-116): após `cadastra este` com código lido, o turno seguinte
+com nome, custo e preço (e `barcode` nos args) fecha o cadastro — não é venda.
+
+**Fora do aceite desta fatia:** tools da NR-118 (`settle_*`, `adjust_stock`,
+`cancel_sale`).
+
+Matriz mínima, gates e smoke opcional com Postgres:
+[`specs/008-cadastrar-produto-pagar-receber/quickstart.md`](../../specs/008-cadastrar-produto-pagar-receber/quickstart.md).
+
+```bash
+pnpm --filter @na-regua/agent test -- src/catalog.test.ts src/process-message.test.ts
+pnpm --filter @na-regua/api test -- src/routes/agent.test.ts src/composition.test.ts
+# Com DATABASE_URL: integracao persistida (SC-001 / SC-003)
+pnpm --filter @na-regua/api test -- src/e2e/agent-mutations-nr117.test.ts
+```
+
 O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
 linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
 

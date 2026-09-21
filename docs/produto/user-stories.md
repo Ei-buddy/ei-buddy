@@ -173,7 +173,7 @@ margem de cada produto.
 `MUST` · P1 · `apps/mobile` `apps/web` `packages/domain` `packages/money` · RF-020, RF-021
 
 - **DADO** custo e preço informados **QUANDO** salvo **ENTÃO** vejo a margem em % e em valor
-- **DADO** um preço menor que o custo **QUANDO** salvo **ENTÃO** sou avisado, mas posso confirmar mesmo assim
+- **DADO** um preço de venda menor que o custo **QUANDO** tento salvar **ENTÃO** o sistema recusa com mensagem clara e não grava até eu corrigir custo ou preço
 - **DADO** um valor monetário **QUANDO** é armazenado **ENTÃO** é gravado em centavos, sem ponto flutuante
 
 #### US-011 — Consultar estoque
@@ -712,11 +712,11 @@ balcão.
 
 **Como** lojista, **quero** cadastrar produto pela conversa **para** vender o
 item que acabou de aparecer.
-`SHOULD` · P1 · `packages/agent` `packages/core` `packages/domain` · RF-140, RF-017, RF-018, RF-019, RF-020
+`SHOULD` · P1 · `packages/agent` `packages/core` `packages/domain` · RF-140, RF-017, RF-018, RF-019, RF-020, RF-021
 
 - **DADO** "cadastra camiseta M, custo 20, vende a 49,90" **QUANDO** confirmo **ENTÃO** o produto é criado pelo mesmo caso de uso da [US-009](#us-009--cadastrar-produto-com-código-de-barras) / [US-010](#us-010--definir-preço-e-custo)
 - **DADO** um código já cadastrado **QUANDO** confirmo **ENTÃO** sou avisada do existente e escolho usar ou abortar
-- **DADO** preço menor que o custo **QUANDO** confirmo **ENTÃO** sou avisada e posso seguir, como no app
+- **DADO** preço de venda menor que o custo **QUANDO** envio os valores **ENTÃO** a validação recusa antes de propor confirmação e nada é gravado — mesma regra da [US-010](#us-010--definir-preço-e-custo) (RF-021)
 
 #### US-070 — Lançar conta a pagar por mensagem
 
