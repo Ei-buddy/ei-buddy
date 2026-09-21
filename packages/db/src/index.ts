@@ -23,6 +23,7 @@ export { createCouponRepository } from './coupon-repository.js'
 export { createWebhookInbox } from './webhook-inbox-repository.js'
 export { createCustomerChargeRepository } from './customer-charge-repository.js'
 export { createRetrievalStore } from './retrieval-repository.js'
+export { createPeerDirectory } from './peer-directory-repository.js'
 export { createConfirmationStore } from './confirmation-repository.js'
 export {
   createCompanyRepository,
