@@ -981,9 +981,7 @@ export function buildWhatsAppWebhookDeps(
   agent: AgentComposition | null = null,
 ): WhatsAppWebhookRouteDeps {
   const verificacao =
-    env.WHATSAPP_VERIFY_TOKEN === undefined
-      ? undefined
-      : { verifyToken: env.WHATSAPP_VERIFY_TOKEN }
+    env.WHATSAPP_VERIFY_TOKEN === undefined ? undefined : { verifyToken: env.WHATSAPP_VERIFY_TOKEN }
 
   if (
     env.WHATSAPP_PROVIDER !== 'meta' ||
