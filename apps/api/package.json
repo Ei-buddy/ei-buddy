@@ -18,7 +18,7 @@
   "dependencies": {
     "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",
-    "@mastra/fastify": "1.5.10",
+    "@mastra/fastify": "1.5.11",
     "@na-regua/agent": "workspace:*",
     "@na-regua/banking": "workspace:*",
     "@na-regua/billing": "workspace:*",
@@ -30,13 +30,13 @@
     "@na-regua/money": "workspace:*",
     "@na-regua/payments": "workspace:*",
     "@na-regua/whatsapp": "workspace:*",
-    "better-auth": "^1.7.4",
-    "bullmq": "^6.3.4",
-    "fastify": "^5.12.4",
+    "better-auth": "^1.7.5",
+    "bullmq": "^6.3.8",
+    "fastify": "^5.12.5",
     "ioredis": "^6.0.0",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
-    "zod": "^4.6.2"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
