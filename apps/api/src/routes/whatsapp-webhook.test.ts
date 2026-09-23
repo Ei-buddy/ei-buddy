@@ -46,19 +46,25 @@ type Montagem = {
   sendText: ReturnType<typeof vi.fn>
 }
 
-function inboxDeTeste() {
+function inboxDeTeste(opcoes: { marcar?: boolean } = {}) {
   const vistos = new Set<string>()
+  const processados = new Set<string>()
   const registros: Array<{ eventId: string; payload: unknown }> = []
   const inbox: WebhookInbox & { registros: typeof registros } = {
     registros,
     registrar: async ({ provider, eventId, payload }) => {
       const chave = `${provider}:${eventId}`
-      if (vistos.has(chave)) return false
-      vistos.add(chave)
-      registros.push({ eventId, payload })
-      return true
+      if (!vistos.has(chave)) {
+        vistos.add(chave)
+        registros.push({ eventId, payload })
+        return 'novo'
+      }
+      return processados.has(chave) ? 'processado' : 'pendente'
     },
-    marcarProcessado: async () => {},
+    marcarProcessado: async ({ provider, eventId }) => {
+      if (opcoes.marcar === false) return
+      processados.add(`${provider}:${eventId}`)
+    },
   }
   return inbox
 }
@@ -83,10 +89,15 @@ function montar(
     peers: PeerDirectory
     processMessage: (input: IncomingMessage) => Promise<AgentReply>
     executarTurno: (runtime: AgentRuntime, input: IncomingMessage) => Promise<AgentReply>
+    /**
+     * Simula reentrega da Meta: o adapter real nao lembra POST anterior, e o
+     * inbox nao marca processado (crash depois do INSERT).
+     */
+    reentrega: boolean
   }> = {},
 ): Montagem {
   const remetente = new FakeMessageSender({ webhookSecret: SEGREDO })
-  const inbox = inboxDeTeste()
+  const inbox = inboxDeTeste(ajustes.reentrega === true ? { marcar: false } : {})
   const peers: PeerDirectory =
     ajustes.peers ??
     ({
@@ -104,7 +115,10 @@ function montar(
   const sendText = vi.fn(async (pedido: unknown) => remetente.sendText(pedido as never))
 
   const remetentePorta = {
-    readInbound: (corpo: string, assinatura: string) => remetente.readInbound(corpo, assinatura),
+    readInbound: (corpo: string, assinatura: string) =>
+      ajustes.reentrega === true
+        ? new FakeMessageSender({ webhookSecret: SEGREDO }).readInbound(corpo, assinatura)
+        : remetente.readInbound(corpo, assinatura),
     sendText,
     sendMedia: remetente.sendMedia.bind(remetente),
   }
@@ -361,6 +375,22 @@ describe('POST /webhooks/whatsapp com Meta — US1', () => {
 
     expect(processMessage).toHaveBeenCalledOnce()
     expect(sendText).toHaveBeenCalledOnce()
+  })
+
+  it('reentrega com processed_at nulo chama processMessage de novo', async () => {
+    const { deps, remetente, processMessage, sendText } = montar({ reentrega: true })
+    app = await buildApp(deps)
+    const corpo = corpoTexto('oi de novo')
+
+    const assinatura = assinar(remetente, corpo)
+    expect((await postar(app, corpo, assinatura)).statusCode).toBe(200)
+    expect((await postar(app, corpo, assinatura)).statusCode).toBe(200)
+
+    /* A primeira entrega morreu depois do INSERT; a reentrega e a chance de
+       terminar o turno. Duplicar a resposta e melhor do que a dona nunca
+       receber. */
+    expect(processMessage).toHaveBeenCalledTimes(2)
+    expect(sendText).toHaveBeenCalledTimes(2)
   })
 
   it('texto vazio autorizado manda frase fixa e nao chama o modelo', async () => {

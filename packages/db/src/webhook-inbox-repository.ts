@@ -1,4 +1,4 @@
-import type { WebhookInbox } from '@na-regua/core'
+import type { WebhookInbox, WebhookInboxSituacao } from '@na-regua/core'
 import type { Sql } from 'postgres'
 import { withTenant } from './tenant.js'
 
@@ -24,11 +24,9 @@ import { withTenant } from './tenant.js'
  */
 export function createWebhookInbox(sql: Sql): WebhookInbox {
   return {
-    registrar: async (entrada) => {
-      const linhas = await withTenant(
-        sql,
-        entrada.companyId,
-        (tx) => tx<{ id: string }[]>`
+    registrar: async (entrada): Promise<WebhookInboxSituacao> => {
+      return withTenant(sql, entrada.companyId, async (tx) => {
+        const linhas = await tx<{ id: string }[]>`
           INSERT INTO webhook_events (provider, event_id, company_id, payload, received_at)
           VALUES (
             ${entrada.provider},
@@ -42,12 +40,22 @@ export function createWebhookInbox(sql: Sql): WebhookInbox {
              quando a primeira resposta demora. */
           ON CONFLICT (provider, event_id) DO NOTHING
           RETURNING id
-        `,
-      )
+        `
 
-      /* Linha devolvida = insercao nova. Nenhuma = o conflito venceu, ou seja,
-         o aviso ja tinha chegado. */
-      return linhas.length > 0
+        if (linhas.length > 0) return 'novo'
+
+        /* Conflito: o aviso ja chegou. Se processed_at ainda e nulo, a primeira
+           entrega morreu no meio — a reentrega e a chance de terminar. Linha
+           invisivel (RLS de outro tenant) trata-se como ja processada: nao
+           reprocessamos o que nao enxergamos. */
+        const [linha] = await tx<{ processed_at: Date | null }[]>`
+          SELECT processed_at FROM webhook_events
+           WHERE provider = ${entrada.provider}
+             AND event_id = ${entrada.eventId}
+        `
+        if (linha === undefined || linha.processed_at !== null) return 'processado'
+        return 'pendente'
+      })
     },
 
     marcarProcessado: async (entrada) => {

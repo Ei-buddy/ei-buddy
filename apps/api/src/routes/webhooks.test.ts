@@ -31,17 +31,20 @@ const assinatura = (over: Partial<Subscription> = {}): Subscription => ({
 })
 
 /** Caixa de entrada em memoria, com a mesma promessa da real. */
-function inboxDeMentira() {
+function inboxDeMentira(opcoes: { marcar?: boolean } = {}) {
   const vistos = new Set<string>()
   const processados = new Set<string>()
   const inbox: WebhookInbox = {
     registrar: async ({ provider, eventId }) => {
       const chave = `${provider}:${eventId}`
-      if (vistos.has(chave)) return false
-      vistos.add(chave)
-      return true
+      if (!vistos.has(chave)) {
+        vistos.add(chave)
+        return 'novo'
+      }
+      return processados.has(chave) ? 'processado' : 'pendente'
     },
     marcarProcessado: async ({ provider, eventId }) => {
+      if (opcoes.marcar === false) return
       processados.add(`${provider}:${eventId}`)
     },
   }
@@ -51,10 +54,11 @@ function inboxDeMentira() {
 function montar(
   leitura: SubscriptionWebhookResult,
   inicial: Subscription | undefined = assinatura(),
+  inboxOpcoes: { marcar?: boolean } = {},
 ) {
   const subscriptions = new InMemorySubscriptionRepository()
   if (inicial) subscriptions.semear(inicial)
-  const { inbox, processados } = inboxDeMentira()
+  const { inbox, processados } = inboxDeMentira(inboxOpcoes)
 
   const deps: WebhookRouteDeps = {
     assinatura: {
@@ -166,6 +170,18 @@ describe('reentrega', () => {
 
     expect([primeira.statusCode, segunda.statusCode]).toEqual([200, 200])
     expect(JSON.parse(segunda.body)).toMatchObject({ repetido: true })
+    expect((await subscriptions.findByCompany(EMPRESA))?.status).toBe('active')
+  })
+
+  it('reentrega com aviso nao processado processa de novo', async () => {
+    const { deps, subscriptions } = montar(aceito(), assinatura(), { marcar: false })
+    app = await buildApp(deps)
+
+    const primeira = await postar(app)
+    const segunda = await postar(app)
+
+    expect([primeira.statusCode, segunda.statusCode]).toEqual([200, 200])
+    expect(JSON.parse(segunda.body)).not.toMatchObject({ repetido: true })
     expect((await subscriptions.findByCompany(EMPRESA))?.status).toBe('active')
   })
 })

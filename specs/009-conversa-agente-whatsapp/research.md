@@ -39,16 +39,14 @@
 
 ## 4. Reentrega sem gravar duas vezes
 
-**Decision**: depois que `abrirCanal` autoriza, registrar em `webhook_events` com `provider = meta` e `event_id` igual ao id da mensagem na Meta, antes de `processMessage`. `registrar` falso → 200 sem segundo turno. Número sem vínculo não grava linha. O `payload` guarda só o id e o tipo (`text` ou vazio), sem o texto e sem o telefone inteiro.
+**Decision**: depois que `abrirCanal` autoriza, registrar em `webhook_events` com `provider = meta` e `event_id` igual ao id da mensagem na Meta, antes de `processMessage`. `registrar` devolve `'processado'` → 200 sem segundo turno; `'novo'` e `'pendente'` processam. Número sem vínculo não grava linha. O `payload` guarda só o id e o tipo (`text` ou vazio), sem o texto e sem o telefone inteiro.
 
-**Rationale**: a tabela e a porta `WebhookInbox` já deduplicam `(provider, event_id)` com `ON CONFLICT DO NOTHING`. Gravar antes do turno evita venda ou título duplicado se a Meta reentregar. Não gravar no silêncio evita encher a caixa com sondagem e evita empresa inventada. O texto da conversa, quando a pessoa é autorizada, já segue para o store de conversa; copiá-lo de novo no inbox aumentaria dado pessoal sem ajudar a dedup.
+**Rationale**: a tabela e a porta `WebhookInbox` já deduplicam `(provider, event_id)` com `ON CONFLICT DO NOTHING`. Gravar antes do turno evita venda ou título duplicado se a Meta reentregar **e o turno tiver terminado**. Não gravar no silêncio evita encher a caixa com sondagem e evita empresa inventada. O texto da conversa, quando a pessoa é autorizada, já segue para o store de conversa; copiá-lo de novo no inbox aumentaria dado pessoal sem ajudar a dedup. O que acontece quando o processo cai no meio está na seção 8.
 
 **Alternatives considered**:
 
 - Deduplicar só na memória: rejeitado; duas instâncias ou um restart perdem o controle.
 - Exigir `company_id` no corpo: rejeitado; a Meta não manda a empresa, e a constitution proíbe aceitar `companyId` do cliente.
-
-**Risco aceito**: se o processo cair depois do `registrar` e antes do `marcarProcessado`, a reentrega vê repetido e não responde. É o mesmo recorte do webhook de pagamento. Pior do que uma resposta perdida seria aplicar o turno duas vezes.
 
 ## 5. Destino da resposta e consentimento
 
@@ -92,3 +90,16 @@ O id da conta WhatsApp Business não é lido pelo adapter atual. A versão do Gr
 
 - Responder "não entendi" também a número desconhecido: rejeitado; confirma que o canal existe e ajuda sondagem (RF-095).
 - Baixar mídia da Meta nesta fatia: rejeitado pela spec.
+
+## 8. Reentrega após falha
+
+**Decision**: `WebhookInbox.registrar` devolve tri-estado — `'novo'`, `'pendente'`, `'processado'`. Conflito na unicidade `(provider, event_id)` com `processed_at` nulo é `'pendente'` e a rota processa de novo. Só `'processado'` responde 200 sem trabalho. Vale para WhatsApp e Asaas: a porta é compartilhada.
+
+**Rationale**: a Meta (e o Asaas) reentrega quando a resposta é 5xx. O INSERT da primeira entrega já venceu; sem distinguir `processed_at` nulo de preenchido, a reentrega era descartada como duplicada e a dona nunca recebia resposta — caso observado no aceite do chip, quando `sendText` falhou depois do turno. A própria porta já prometia que a diferença entre "recebido" e "processado" permitiria reprocessar o que ficou pelo caminho; o boolean não cumpria.
+
+**Trade-off aceito**: reentrega **paralela** (duas entregas em voo antes de `marcarProcessado`) pode processar duas vezes — duas respostas no WhatsApp. Mitigação real: as reentregas da Meta são espaçadas/sequenciais, e os casos de uso Asaas são idempotentes pela máquina de estados. Duplicar o trabalho é melhor do que perder o aviso.
+
+**Alternatives considered**:
+
+- Claim atômico (`UPDATE ... WHERE processed_at IS NULL` ao pegar o aviso): rejeitado; crash depois do claim e antes de terminar reintroduziria perda definitiva — o mesmo gap que esta seção fecha.
+- Boolean `true`/`false` com `false` sempre 200: rejeitado; é o comportamento que deixou mensagens com `processed_at` nulo para sempre.

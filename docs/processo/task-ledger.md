@@ -223,6 +223,13 @@ Aceite no chip: matriz e passos em
 (seção 3 manual). Status ⬜ até essa seção rodar — a suíte sem rede da seção 2
 não fecha o ledger.
 
+`WebhookInbox.registrar` devolve tri-estado (`novo` / `pendente` /
+`processado`): reentrega com `processed_at` nulo processa de novo, em vez de
+responder 200 em silêncio. Vale para Asaas também — a porta é compartilhada.
+Decisão e trade-off (reentrega paralela) em
+[`specs/009-conversa-agente-whatsapp/research.md`](../specs/009-conversa-agente-whatsapp/research.md)
+(seção 8).
+
 **NR-060 (entregue neste PR):** runtime mínimo Mastra + tools de `contracts`
 (US-047–049, US-052, US-053/RF-108, recusas RF-149–151), harness de fixture
 com FakeLlm. Status ✅ nesta branch — sem URL de PR ainda. O resumo de

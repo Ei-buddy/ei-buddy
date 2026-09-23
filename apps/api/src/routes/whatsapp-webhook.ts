@@ -141,7 +141,7 @@ export function registerWhatsAppWebhookRoutes(
         const agora = new Date()
         const requestId = request.id
 
-        const novo = await meta.inbox.registrar({
+        const situacao = await meta.inbox.registrar({
           provider: PROVEDOR,
           eventId: inbound.providerMessageId,
           companyId: vinculo.companyId,
@@ -149,7 +149,7 @@ export function registerWhatsAppWebhookRoutes(
           receivedAt: agora,
         })
 
-        if (!novo) {
+        if (situacao === 'processado') {
           return reply.code(200).send()
         }
 

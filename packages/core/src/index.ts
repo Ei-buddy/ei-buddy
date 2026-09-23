@@ -132,7 +132,7 @@ export type { StartTrialDeps } from './subscriptions/start-trial.js'
 export { getSubscription } from './subscriptions/get-subscription.js'
 export type { GetSubscriptionDeps, SubscriptionView } from './subscriptions/get-subscription.js'
 export type { CouponRepository } from './ports/coupon-repository.js'
-export type { WebhookInbox } from './ports/webhook-inbox.js'
+export type { WebhookInbox, WebhookInboxSituacao } from './ports/webhook-inbox.js'
 export type { PeerDirectory, VinculoDoCanal } from './ports/peer-directory.js'
 export type {
   Candidato,

@@ -72,36 +72,55 @@ describe.skipIf(!DATABASE_URL)('caixa de entrada de webhooks — NR-063', () => 
     receivedAt: new Date(),
   })
 
-  it('o primeiro registro devolve TRUE — o RETURNING sobrevive a politica', async () => {
+  it('o primeiro registro devolve novo — o RETURNING sobrevive a politica', async () => {
     const inbox = createWebhookInbox(sql)
 
-    /* Se o `RETURNING` fosse filtrado pela politica, isto seria `false` e
+    /* Se o `RETURNING` fosse filtrado pela politica, isto seria `processado` e
        nenhum aviso do sistema seria processado. */
-    expect(await inbox.registrar(evento(`evt_${Date.now()}_a`, empresaA))).toBe(true)
+    expect(await inbox.registrar(evento(`evt_${Date.now()}_a`, empresaA))).toBe('novo')
   })
 
-  it('o mesmo aviso de novo devolve FALSE', async () => {
+  it('o mesmo aviso sem marcar processado devolve pendente', async () => {
     const inbox = createWebhookInbox(sql)
     const id = `evt_${Date.now()}_b`
 
     const primeira = await inbox.registrar(evento(id, empresaA))
     const segunda = await inbox.registrar(evento(id, empresaA))
 
-    expect([primeira, segunda]).toEqual([true, false])
+    expect([primeira, segunda]).toEqual(['novo', 'pendente'])
   })
 
-  it('avisos SIMULTANEOS: so um passa', async () => {
+  it('o mesmo aviso depois de marcar processado devolve processado', async () => {
+    const inbox = createWebhookInbox(sql)
+    const id = `evt_${Date.now()}_b2`
+
+    expect(await inbox.registrar(evento(id, empresaA))).toBe('novo')
+    await inbox.marcarProcessado({
+      provider: 'asaas',
+      eventId: id,
+      companyId: empresaA,
+      processedAt: new Date(),
+    })
+
+    expect(await inbox.registrar(evento(id, empresaA))).toBe('processado')
+  })
+
+  it('avisos SIMULTANEOS: so um e novo', async () => {
     const inbox = createWebhookInbox(sql)
     const id = `evt_${Date.now()}_c`
 
     /* O provedor reentrega em paralelo quando a primeira resposta demora. Um
-       SELECT antes do INSERT deixaria os dois passarem. */
+       SELECT antes do INSERT deixaria os dois serem `novo`. O perdedor do
+       INSERT e `pendente` — processed_at ainda e nulo — e a rota reprocessa.
+       E o trade-off aceito: duplicar o trabalho e melhor do que perder o
+       aviso. */
     const [uma, outra] = await Promise.all([
       inbox.registrar(evento(id, empresaA)),
       inbox.registrar(evento(id, empresaA)),
     ])
 
-    expect([uma, outra].filter(Boolean)).toHaveLength(1)
+    expect([uma, outra].filter((s) => s === 'novo')).toHaveLength(1)
+    expect([uma, outra].every((s) => s === 'novo' || s === 'pendente')).toBe(true)
   })
 
   it('a unicidade e por PROVEDOR, e nao so por id', async () => {
@@ -113,7 +132,7 @@ describe.skipIf(!DATABASE_URL)('caixa de entrada de webhooks — NR-063', () => 
 
     /* Dois provedores podem numerar eventos do mesmo jeito; colidi-los faria
        um aviso legitimo ser descartado como repetido. */
-    expect([asaas, outro]).toEqual([true, true])
+    expect([asaas, outro]).toEqual(['novo', 'novo'])
   })
 
   it('marcar processado so alcanca a propria empresa', async () => {
