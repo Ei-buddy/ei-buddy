@@ -2,9 +2,9 @@ name: Seguranca
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
   schedule:
     # Segunda, 09:00 BRT — dependencia vulneravel nao espera alguem abrir PR
     - cron: '0 12 * * 1'

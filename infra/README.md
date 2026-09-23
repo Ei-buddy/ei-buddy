@@ -134,6 +134,30 @@ e `VPS_DEPLOY_PATH` (padrão `/opt/na-regua`).
 O clone na VM precisa conseguir `git fetch` sozinho — deploy key de leitura no
 repositório, ou credencial já configurada na máquina.
 
+### O ambiente de teste (`dev`)
+
+Outra VM, outro Environment, **mesmos nomes de segredo**. Quem cria o Environment
+`dev` no GitHub preenche `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` e
+`VPS_KNOWN_HOSTS` apontando para a máquina de teste — o workflow é o mesmo, e é
+o Environment que decide para onde ele vai.
+
+A diferença de comportamento é só o gatilho:
+
+|             | `dev`                   | `main` / tag `v*`             |
+| ----------- | ----------------------- | ----------------------------- |
+| Quando roda | **todo push** na branch | à mão, ou ao publicar a tag   |
+| Aprovação   | nenhuma                 | a do Environment `production` |
+
+**Sem o Environment `dev` configurado, o deploy automático falha — e falha
+alto, o que é o certo.** Ele não cai em produção por engano: a expressão de
+`environment` no workflow trata `dev` explicitamente, antes do `|| 'production'`.
+Essa ordem é uma trava, não arrumação.
+
+> **Proteção da branch é passo manual no GitHub**, como a de `main`. Sem ela,
+> um push direto em `dev` vai para a VM sem passar por CI nem por revisão — que
+> é exatamente o risco que a branch existe para conter. Ver
+> [ci-cd.md](../docs/engenharia/ci-cd.md#branch-protection).
+
 ### Backup e recuperação
 
 `archive_mode=on` no compose arquiva o WAL, e `archive_timeout=900` força a

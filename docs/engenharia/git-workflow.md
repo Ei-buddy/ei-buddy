@@ -10,15 +10,32 @@ depende de você.
 
 ## Branching
 
-### Modelo: trunk-based
+### Modelo: duas branches longas, `dev` e `main`
 
-`main` está **sempre pronta para deploy**. Não existe `develop`. Branches são
-curtas: **até 2 dias de vida, até ~400 linhas de diff.**
+| Branch | O que é                        | Deploy                         |
+| ------ | ------------------------------ | ------------------------------ |
+| `dev`  | onde o trabalho chega primeiro | **automático**, na VM de teste |
+| `main` | o que está em produção         | **manual**, por tag ou disparo |
 
-**Por que não GitFlow.** Com 3 desenvolvedores e nenhuma versão em produção,
-`develop` só adiciona um merge permanente e conflitos de monorepo. GitFlow se
-paga quando você mantém várias versões em produção ao mesmo tempo — não é o
-nosso caso, e provavelmente não será tão cedo.
+Branches de trabalho continuam curtas: **até 2 dias de vida, até ~400 linhas de
+diff.** Elas saem de `dev` e voltam para `dev`. De `dev` para `main` vai um PR
+de promoção, quando o que está lá foi testado.
+
+**O que mudou, e por quê.** Este documento dizia "não existe `develop`", e a
+razão era honesta na época: "nenhuma versão em produção". Agora há — e com ela
+três motivos concretos para separar:
+
+1. **produção pede consciência.** Atualizar o que está no ar é uma decisão, não
+   um efeito colateral de um merge;
+2. **teste precisa de lugar.** Sem um ambiente onde quebrar é barato, todo
+   experimento vira risco de produção;
+3. **a VM tem disco.** Build a cada commit na mesma máquina que serve o
+   lojista é a forma mais previsível de encher o disco dela.
+
+Note que `dev` **não é o `develop` do GitFlow**: não há branch de release nem
+várias versões vivas. É uma branch de destino de deploy — o espelho do que está
+na VM de teste. A crítica ao GitFlow no parágrafo acima continua valendo para o
+que ela criticava.
 
 ### Nomenclatura
 
@@ -46,21 +63,27 @@ nada duas vezes. Validado por regex na CI.
 ### Ciclo de uma branch
 
 ```bash
-git switch main && git pull --rebase          # sempre parta da main atualizada
+git switch dev && git pull --rebase           # sempre parta da dev atualizada
 git switch -c feat/NR-042-carrinho-codigo-barras
 # ... commits ...
 git push -u origin feat/NR-042-carrinho-codigo-barras
 gh pr create --draft                          # draft desde o primeiro push
 ```
 
-Para atualizar a branch com o que entrou na `main`:
+Para atualizar a branch com o que entrou na `dev`:
 
 ```bash
-git pull --rebase origin main
+git pull --rebase origin dev
 ```
 
-**Sempre rebase, nunca merge de `main` para dentro da branch.** Merge da main
-polui o histórico da branch e torna a revisão mais difícil.
+**Sempre rebase, nunca merge de `dev` para dentro da branch.** Merge polui o
+histórico da branch e torna a revisão mais difícil.
+
+### Promover `dev` para `main`
+
+Um PR de `dev` para `main`, como qualquer outro — com a diferença de que ele
+não introduz código novo: tudo ali já passou pela CI e já rodou na VM de teste.
+O deploy de produção continua sendo um passo à parte, e manual.
 
 ### Hotfix
 
