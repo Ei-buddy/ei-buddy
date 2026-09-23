@@ -563,6 +563,11 @@ export function createProductRepository(sql: Sql): ProductRepository {
      *
      * Ordena por descricao para a lista nao dancar entre buscas iguais — sem
      * `ORDER BY`, o Postgres pode devolver em qualquer ordem e a tela pisca.
+     *
+     * `company_id` entra no WHERE de proposito, nao so na RLS. A CI conecta
+     * com o `POSTGRES_USER` (superusuario), que ignora politica; turbo ainda
+     * roda `db` e `api` no mesmo Postgres. Sem o filtro, `q=camiseta` via a
+     * "Camiseta exclusiva" do teste de estoque da outra loja.
      */
     search: async (companyId, criterio) => {
       const linhas = await withTenant(
@@ -570,7 +575,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
         companyId,
         (tx) => tx<LinhaProduto[]>`
           SELECT * FROM products
-          WHERE deleted_at IS NULL
+          WHERE company_id = ${companyId} AND deleted_at IS NULL
           ${
             criterio.termo === undefined
               ? tx``
@@ -611,7 +616,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
         companyId,
         (tx) => tx<(LinhaProduto & { total_geral: string })[]>`
           SELECT *, count(*) OVER () AS total_geral FROM products
-          WHERE deleted_at IS NULL
+          WHERE company_id = ${companyId} AND deleted_at IS NULL
           ${
             criterio.termo === undefined
               ? tx``
@@ -666,7 +671,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
                  count(*) FILTER (WHERE stock <= 0)           AS out_of_stock,
                  COALESCE(SUM(stock * cost_price_cents), 0)   AS stock_value_cents
           FROM products
-          WHERE deleted_at IS NULL
+          WHERE company_id = ${companyId} AND deleted_at IS NULL
         `,
       )
 
@@ -684,7 +689,11 @@ export function createProductRepository(sql: Sql): ProductRepository {
         companyId,
         /* Conta os apagados tambem: o codigo interno nao pode ser reusado, e
            contar so os vivos faria o proximo colidir com um que ja existiu. */
-        (tx) => tx<{ total: string }[]>`SELECT count(*)::text AS total FROM products`,
+        (tx) =>
+          tx<{ total: string }[]>`
+            SELECT count(*)::text AS total FROM products
+            WHERE company_id = ${companyId}
+          `,
       )
       return numero(linha?.total ?? 0)
     },

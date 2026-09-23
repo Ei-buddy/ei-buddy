@@ -215,6 +215,21 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                          |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
 | NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                         |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
 
+**NR-046 (branch `feat/NR-046-whatsapp-meta-cloud-api`):** rota
+`GET`/`POST /webhooks/whatsapp` com `WHATSAPP_PROVIDER=meta`; local e CI
+permanecem `fake`. Cobrança ao cliente e templates ficam fora desta fatia.
+Aceite no chip: matriz e passos em
+[`specs/009-conversa-agente-whatsapp/quickstart.md`](../specs/009-conversa-agente-whatsapp/quickstart.md)
+(seção 3 manual). Status ⬜ até essa seção rodar — a suíte sem rede da seção 2
+não fecha o ledger.
+
+`WebhookInbox.registrar` devolve tri-estado (`novo` / `pendente` /
+`processado`): reentrega com `processed_at` nulo processa de novo, em vez de
+responder 200 em silêncio. Vale para Asaas também — a porta é compartilhada.
+Decisão e trade-off (reentrega paralela) em
+[`specs/009-conversa-agente-whatsapp/research.md`](../specs/009-conversa-agente-whatsapp/research.md)
+(seção 8).
+
 **NR-060 (entregue neste PR):** runtime mínimo Mastra + tools de `contracts`
 (US-047–049, US-052, US-053/RF-108, recusas RF-149–151), harness de fixture
 com FakeLlm. Status ✅ nesta branch — sem URL de PR ainda. O resumo de

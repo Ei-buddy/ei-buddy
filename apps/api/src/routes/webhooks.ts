@@ -119,7 +119,7 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: WebhookRouteDe
         }
 
         const agora = new Date()
-        const novo = await assinatura.inbox.registrar({
+        const situacao = await assinatura.inbox.registrar({
           provider: PROVEDOR,
           eventId: evento.eventId,
           companyId,
@@ -127,9 +127,10 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: WebhookRouteDe
           receivedAt: agora,
         })
 
-        if (!novo) {
-          /* Reentrega. 200 sem trabalho nenhum — e sem 4xx, que faria o
-             provedor insistir para sempre num aviso ja tratado. */
+        if (situacao === 'processado') {
+          /* Reentrega de aviso ja tratado. 200 sem trabalho — e sem 4xx, que
+             faria o provedor insistir para sempre. Pendente processa de novo:
+             a primeira entrega pode ter morrido depois do INSERT. */
           return reply.code(200).send({ ok: true, repetido: true })
         }
 
@@ -201,7 +202,7 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: WebhookRouteDe
         }
 
         const agora = new Date()
-        const novo = await cobranca.inbox.registrar({
+        const situacao = await cobranca.inbox.registrar({
           provider: 'asaas-lojas',
           eventId: evento.eventId,
           companyId,
@@ -209,7 +210,9 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: WebhookRouteDe
           receivedAt: agora,
         })
 
-        if (!novo) return reply.code(200).send({ ok: true, repetido: true })
+        if (situacao === 'processado') {
+          return reply.code(200).send({ ok: true, repetido: true })
+        }
 
         const r = await settleCustomerCharge(cobranca, evento, companyId, agora)
 

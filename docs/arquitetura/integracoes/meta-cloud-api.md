@@ -24,30 +24,34 @@ por loja.
 ```mermaid
 flowchart LR
   L["Celular do owner"] -->|"mensagem"| M["Meta Cloud API"]
-  M -->|"webhook"| API["apps/api"]
+  M -->|"GET/POST /webhooks/whatsapp"| API["apps/api"]
   API --> AG["agent + core"]
   AG -->|"sendText / sendMedia"| W["packages/whatsapp"]
   W -->|"Graph /messages"| M
   M --> L
 ```
 
-Local continua `WHATSAPP_PROVIDER=fake` e `POST /agent/messages`. Chip de
-verdade é `meta`, na NR-046.
+**Caminho ao vivo:** com `WHATSAPP_PROVIDER=meta` e credenciais completas, a Meta
+bate em `GET`/`POST /webhooks/whatsapp` (verificação, mensagem, recibo ignorado).
+**Local e CI** ficam em `fake`: `POST /agent/messages` no harness e o worker de
+envio não trocam de adapter nesta entrega. Cobrança ao cliente final e templates
+aprovados **não** entram na NR-046 — a janela de 24 h continua recusando sem
+modelo na rota. Aceite no chip de teste: [quickstart seção 3](../../../specs/009-conversa-agente-whatsapp/quickstart.md#3-aceite-no-número-de-teste-manual).
 
 ---
 
 ## Termos em uma linha
 
-| Falamos…              | Quer dizer                                                                                      |
-| --------------------- | ----------------------------------------------------------------------------------------------- |
-| **WABA**              | WhatsApp Business Account da **plataforma**. Uma só.                                            |
-| **Phone number ID**   | Identificador Graph do nosso número. É `WHATSAPP_PHONE_NUMBER_ID`.                              |
-| **System user token** | Bearer permanente. É `WHATSAPP_API_TOKEN`.                                                      |
-| **App secret**        | HMAC do webhook (`X-Hub-Signature-256`). Cabe em `WHATSAPP_WEBHOOK_SECRET`.                     |
-| **Verify token**      | String nossa no handshake `GET` do webhook. A NR-046 adiciona a variável se ainda faltar.       |
-| **Janela de 24 h**    | Depois da última mensagem **do lojista**, texto livre não sai; só modelo aprovado.              |
-| **Modelo**            | Template na Meta. A porta ainda recusa com `outside_service_window` até a NR-046 expor o envio. |
-| **Peer**              | O número de quem mandou. Liga em `users.phone` do owner — não no WABA.                          |
+| Falamos…              | Quer dizer                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| **WABA**              | WhatsApp Business Account da **plataforma**. Uma só.                                              |
+| **Phone number ID**   | Identificador Graph do nosso número. É `WHATSAPP_PHONE_NUMBER_ID`.                                |
+| **System user token** | Bearer permanente. É `WHATSAPP_API_TOKEN`.                                                        |
+| **App secret**        | HMAC do webhook (`X-Hub-Signature-256`). Cabe em `WHATSAPP_WEBHOOK_SECRET`.                       |
+| **Verify token**      | String nossa no handshake `GET` do webhook. A NR-046 adiciona a variável se ainda faltar.         |
+| **Janela de 24 h**    | Depois da última mensagem **do lojista**, texto livre não sai; só modelo aprovado.                |
+| **Modelo**            | Template na Meta. Fora da fatia NR-046; a rota devolve 200 e não envia modelo se a janela fechou. |
+| **Peer**              | O número de quem mandou. Liga em `users.phone` do owner — não no WABA.                            |
 
 ---
 
@@ -55,11 +59,12 @@ verdade é `meta`, na NR-046.
 
 | Entra                                            | Não entra                                              |
 | ------------------------------------------------ | ------------------------------------------------------ |
-| `POST /{phone-number-id}/messages` texto e mídia | BSP, Baileys, whatsapp-web.js                          |
+| `GET`/`POST /webhooks/whatsapp` quando `meta`    | BSP, Baileys, whatsapp-web.js                          |
+| `POST /{phone-number-id}/messages` texto e mídia | Cobrança ao cliente (`sendCustomerCharge`) nesta fatia |
 | Webhook `POST` com corpo bruto + HMAC            | Decidir se o número está vinculado (isso é `core`)     |
 | Handshake `GET` de verificação                   | WABA ou embedded signup por lojista                    |
-| Recusa `outside_service_window` sem retentar     | Envio em massa                                         |
-| `WHATSAPP_PROVIDER=fake` no local                | Interpretar opt-out ou comando (isso é `core` / agent) |
+| Recusa `outside_service_window` sem template     | Envio em massa, modelos aprovados nesta fatia          |
+| `WHATSAPP_PROVIDER=fake` no local e na CI        | Interpretar opt-out ou comando (isso é `core` / agent) |
 
 Consentimento continua declarado em todo `send*` — a Meta não substitui
 [RF-016](../../produto/requisitos-funcionais.md).

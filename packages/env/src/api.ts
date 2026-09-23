@@ -10,8 +10,8 @@ export const DEFAULT_AGENT_STUDIO_PRESETS = 'packages/agent/studio/presets.json'
  *
  * So entram aqui variaveis que o processo realmente le hoje, mais as
  * marcadas Obr. na matriz que ja tem consumidor no codigo (AUTH_PROVIDER e
- * JWT_SECRET, por DEC-008). As de PagMaxx, fiscal, WhatsApp e Open Finance
- * ficam de fora ate os adapters existirem — colocar aqui uma lista de campos
+ * JWT_SECRET, por DEC-008). As de PagMaxx, fiscal e Open Finance ficam de
+ * fora ate os adapters existirem — colocar aqui uma lista de campos
  * obrigatorios que nada consome ainda so far barrar o boot local sem
  * necessidade.
  */
@@ -182,6 +182,23 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * vez de aceitar sem conferir.
    */
   ASAAS_WEBHOOK_AUTH_TOKEN: opcionalNaoVazia,
+
+  /**
+   * WhatsApp — Meta Cloud API — ADR-0014, NR-046.
+   *
+   * `fake` e o padrao (CI e local). Com `meta`, a rota do webhook exige token,
+   * phone number id, App Secret e verify token; ausentes aqui, a api SOBE e a
+   * rota responde 503 — mesmo criterio de `ASAAS_WEBHOOK_AUTH_TOKEN`.
+   *
+   * `WHATSAPP_WEBHOOK_SECRET` e o App Secret do HMAC `X-Hub-Signature-256`,
+   * nao o Bearer de envio (`WHATSAPP_API_TOKEN`). O id da conta WhatsApp
+   * Business nao e variavel de ambiente: o adapter usa o Phone Number ID.
+   */
+  WHATSAPP_PROVIDER: z.enum(['fake', 'meta']).default('fake'),
+  WHATSAPP_API_TOKEN: opcionalNaoVazia,
+  WHATSAPP_PHONE_NUMBER_ID: opcionalNaoVazia,
+  WHATSAPP_WEBHOOK_SECRET: opcionalNaoVazia,
+  WHATSAPP_VERIFY_TOKEN: opcionalNaoVazia,
 })
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>

@@ -12,6 +12,7 @@ import {
   buildCustosFixosDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
+  buildWhatsAppWebhookDeps,
   buildEmissaoDeps,
   buildFiscalDeps,
   buildContasDeps,
@@ -46,6 +47,7 @@ import { registerContabilidadeRoutes } from './routes/contabilidade.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
+import { registerWhatsAppWebhookRoutes } from './routes/whatsapp-webhook.js'
 import { registerBaixasRoutes } from './routes/baixas.js'
 import { registerContasRoutes } from './routes/contas.js'
 import { registerCrmRoutes } from './routes/crm.js'
@@ -149,6 +151,7 @@ async function registrarRotas(): Promise<void> {
   }
   const agentDeps = await buildAgentDeps()
   registerAgentRoutes(app, agentDeps, motivoDoAgente)
+  registerWhatsAppWebhookRoutes(app, buildWhatsAppWebhookDeps(agentDeps))
   await montarStudio(app, {
     motivo: motivoDoAgente,
     runtime: agentDeps?.runtime ?? null,

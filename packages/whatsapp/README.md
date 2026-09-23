@@ -2,7 +2,7 @@
 
 Adapter do provedor de WhatsApp.
 
-**Estado:** 🟡 porta e adapter falso prontos (`NR-045`) · ⬜ adapter Meta Cloud API ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md), `NR-046`)
+**Estado:** 🟡 porta e adapter falso prontos (`NR-045`) · 🟡 adapter Meta e rota de webhook na API (`NR-046`, aceite no chip ainda ⬜ — ver [quickstart](../../specs/009-conversa-agente-whatsapp/quickstart.md))
 
 ## Responsabilidade
 
@@ -91,11 +91,28 @@ no cadastro faz esse papel
 com todas as consequências, inclusive a fragilidade a SIM swap. Ver
 [`seguranca.md`](../../docs/arquitetura/seguranca.md#autenticação-do-canal-whatsapp).
 
+## Caminho ao vivo (Meta)
+
+Com `WHATSAPP_PROVIDER=meta` e as cinco variáveis preenchidas, a conversa da
+dona entra e sai por `GET` e `POST /webhooks/whatsapp` em `apps/api` — handshake
+de verificação, `POST` com corpo bruto e HMAC, `readInbound` e envio via
+`criarRemetenteMeta`. Quem interpreta vínculo, silêncio e turno do assistente é
+`core` + `agent`; este pacote só traduz Graph e webhook.
+
+**Fora desta fatia da NR-046:** cobrança ao cliente final (`sendCustomerCharge`,
+fila `whatsapp-send`) e envio de modelo aprovado — continuam no remetente falso
+até tarefa própria. A recusa `outside_service_window` não ganha retentativa com
+template aqui.
+
+Detalhe de arquitetura: [`meta-cloud-api.md`](../../docs/arquitetura/integracoes/meta-cloud-api.md).
+Aceite manual no número de teste: [quickstart seção 3](../../specs/009-conversa-agente-whatsapp/quickstart.md#3-aceite-no-número-de-teste-manual).
+
 ## Modo falso
 
 `WHATSAPP_PROVIDER=fake` responde de forma determinística, sem rede. O sistema
-sobe local sem credencial. Staging/produção usam `meta`
-([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)).
+sobe local e na CI sem credencial Meta; o harness `POST /agent/messages` e o
+worker de envio seguem no falso. Ambiente com chip de verdade usa `meta` na rota
+acima ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)).
 
 **O adapter falso implementa a mesma porta, inclusive os caminhos de erro.**
 Falso que só devolve sucesso esconde exatamente o que precisa ser testado.
