@@ -34,10 +34,78 @@ export type ResultadoDaBarragem =
  * que entrar um segundo canal, ele traz o proprio formato e esta funcao ganha
  * um irmao — em vez de a porta ganhar um `if`.
  */
-export function normalizarTelefoneDoCanal(bruto: string): string {
-  const digitos = bruto.replace(/\D/g, '')
-  /* 55 + DDD (2) + numero (8 ou 9). Menos que isso nao tem DDI na frente. */
+function digitosDoCanal(bruto: string): string {
+  return bruto.replace(/\D/g, '')
+}
+
+/** Nacional sem DDI `55` — so quando sobram 12+ digitos (nao confundir DDD 55). */
+function nacionalSemDdi(digitos: string): string {
   return digitos.length >= 12 && digitos.startsWith('55') ? digitos.slice(2) : digitos
+}
+
+/** O 9 entra depois do DDD so no nacional de 10 digitos cujo primeiro digito do assinante e 6, 7, 8 ou 9. */
+function movelNacionalDe10(nacional: string): boolean {
+  return nacional.length === 10 && '6789'.includes(nacional[2] ?? '')
+}
+
+function celularCanonicoDe10(nacional10: string): string {
+  const ddd = nacional10.slice(0, 2)
+  const primeiroAssinante = nacional10[2] ?? ''
+  /* Assinante ja comeca em 9: o nono digito entra depois desse 9 (ex. DDD 55). */
+  if (primeiroAssinante === '9') {
+    return `${nacional10.slice(0, 3)}9${nacional10.slice(3)}`
+  }
+  return `${ddd}9${nacional10.slice(2)}`
+}
+
+function celularLegadoDe11(canonico11: string): string | undefined {
+  if (canonico11.length !== 11 || canonico11[2] !== '9') {
+    return undefined
+  }
+  if (canonico11[3] === '9' && '6789'.includes(canonico11[4] ?? '')) {
+    return `${canonico11.slice(0, 3)}${canonico11.slice(4)}`
+  }
+  if ('6789'.includes(canonico11[3] ?? '')) {
+    return `${canonico11.slice(0, 2)}${canonico11.slice(3)}`
+  }
+  return undefined
+}
+
+export function normalizarTelefoneDoCanal(bruto: string): string {
+  const nacional = nacionalSemDdi(digitosDoCanal(bruto))
+  if (nacional === '') {
+    return ''
+  }
+  if (nacional.length === 11) {
+    return nacional
+  }
+  if (movelNacionalDe10(nacional)) {
+    return celularCanonicoDe10(nacional)
+  }
+  return nacional
+}
+
+/**
+ * Chaves para `porTelefone`, canônica primeiro e legada depois (só móvel).
+ * Valor calculado — ver data-model NR-046, seção Celular canônico.
+ */
+export function chavesConsultaTelefoneDoCanal(bruto: string): readonly string[] {
+  const nacional = nacionalSemDdi(digitosDoCanal(bruto))
+  if (nacional === '') {
+    return []
+  }
+
+  if (nacional.length === 11) {
+    const legado = celularLegadoDe11(nacional)
+    return legado === undefined ? [nacional] : [nacional, legado]
+  }
+
+  if (movelNacionalDe10(nacional)) {
+    const canonico = celularCanonicoDe10(nacional)
+    return [canonico, nacional]
+  }
+
+  return [nacional]
 }
 
 /**
@@ -70,13 +138,19 @@ export async function abrirCanal(
     readonly agora: Date
   },
 ): Promise<ResultadoDaBarragem> {
-  const telefone = normalizarTelefoneDoCanal(entrada.telefone)
+  const chaves = chavesConsultaTelefoneDoCanal(entrada.telefone)
 
-  if (telefone === '') {
+  if (chaves.length === 0) {
     return { status: 'silencio', motivo: 'Mensagem sem telefone de origem.' }
   }
 
-  const vinculo = await deps.peers.porTelefone(telefone)
+  let vinculo: Awaited<ReturnType<PeerDirectory['porTelefone']>> = undefined
+  for (const chave of chaves) {
+    vinculo = await deps.peers.porTelefone(chave)
+    if (vinculo !== undefined) {
+      break
+    }
+  }
 
   if (vinculo === undefined) {
     return { status: 'silencio', motivo: 'Numero sem vinculo com loja nenhuma.' }

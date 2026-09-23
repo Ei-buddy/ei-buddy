@@ -141,7 +141,11 @@ export type {
   TrechoParaIndexar,
 } from './ports/retrieval.js'
 export { normalizarParaBusca } from './agent/normalizar-busca.js'
-export { abrirCanal, normalizarTelefoneDoCanal } from './agent/abrir-canal.js'
+export {
+  abrirCanal,
+  chavesConsultaTelefoneDoCanal,
+  normalizarTelefoneDoCanal,
+} from './agent/abrir-canal.js'
 export type { AbrirCanalDeps, ResultadoDaBarragem } from './agent/abrir-canal.js'
 export type {
   CobrancaRegistrada,

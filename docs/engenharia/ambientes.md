@@ -100,15 +100,16 @@ vão ao cofre, referenciados pelo satélite de integração da empresa.
 
 Detalhes em [`integracoes/meta-cloud-api.md`](../arquitetura/integracoes/meta-cloud-api.md).
 
-| Variável                   | Obr. | Seg. | local  | Descrição                                             |
-| -------------------------- | :--: | :--: | ------ | ----------------------------------------------------- |
-| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| `meta`                                      |
-| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | Bearer do system user. Obrigatório se `provider=meta` |
-| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | ID Graph do número da plataforma                      |
-| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | HMAC `X-Hub-Signature-256` (App Secret)               |
+| Variável                   | Obr. | Seg. | local  | Descrição                                                               |
+| -------------------------- | :--: | :--: | ------ | ----------------------------------------------------------------------- |
+| `WHATSAPP_PROVIDER`        |  ✅  |      | `fake` | `fake` \| `meta`                                                        |
+| `WHATSAPP_API_TOKEN`       |      |  🔒  | vazio  | Bearer de envio. Obrigatório se `provider=meta`. Não confere o webhook  |
+| `WHATSAPP_PHONE_NUMBER_ID` |      |      | vazio  | ID Graph do número da plataforma                                        |
+| `WHATSAPP_WEBHOOK_SECRET`  |      |  🔒  | vazio  | App Secret do HMAC `X-Hub-Signature-256` — não é o `WHATSAPP_API_TOKEN` |
+| `WHATSAPP_VERIFY_TOKEN`    |      |  🔒  | vazio  | String do handshake `GET` do webhook (cadastrada no painel)             |
 
-A NR-046 pode acrescentar `WHATSAPP_VERIFY_TOKEN` (handshake `GET` do webhook)
-quando o adapter real passar a lê-lo.
+O **ID da conta WhatsApp Business** não é variável de ambiente: o adapter usa
+só o Phone Number ID.
 
 ### Fiscal — [DEC-004](../decisoes/README.md#dec-004)
 

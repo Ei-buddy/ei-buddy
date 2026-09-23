@@ -26,6 +26,7 @@ import {
   cancelSale,
   createAppointment,
   listDayAppointments,
+  abrirCanal,
   registerCustomer,
   registerProduct,
   registerSale,
@@ -34,7 +35,8 @@ import {
   settlePayable,
   settleReceivable,
 } from '@na-regua/core'
-import { createFakeMessageSender } from '@na-regua/whatsapp'
+import { processMessage, type PeerDirectory as AgentPeerDirectory } from '@na-regua/agent'
+import { createFakeMessageSender, criarRemetenteMeta } from '@na-regua/whatsapp'
 import {
   createAgentRuntime,
   createToolCatalog,
@@ -86,6 +88,7 @@ import {
   createConversationStore,
   createCustomerRepository,
   createPartnerApplicationRepository,
+  createPeerDirectory,
   createPaymentCredentials,
   createSubscriptionRepository,
   createCustomerChargeRepository,
@@ -125,6 +128,7 @@ import type { ContabilidadeDeps } from './routes/contabilidade.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
+import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
@@ -963,6 +967,64 @@ function montarCobrancaDasLojas(): WebhookRouteDeps['cobranca'] {
     charges: createCustomerChargeRepository(sql),
     readWebhook: gateway.readWebhook,
     inbox: createWebhookInbox(sql),
+  }
+}
+
+/**
+ * Webhook do WhatsApp — NR-046.
+ *
+ * O remetente Meta e o `PeerDirectory` do agente vivem SOMENTE aqui: o harness
+ * (`buildAgentUseCases`) e o worker continuam no `createFakeMessageSender`.
+ * O diretorio chama `abrirCanal` com o repositorio real; nao vai para o Studio.
+ */
+export function buildWhatsAppWebhookDeps(
+  agent: AgentComposition | null = null,
+): WhatsAppWebhookRouteDeps {
+  const verificacao =
+    env.WHATSAPP_VERIFY_TOKEN === undefined
+      ? undefined
+      : { verifyToken: env.WHATSAPP_VERIFY_TOKEN }
+
+  if (
+    env.WHATSAPP_PROVIDER !== 'meta' ||
+    env.WHATSAPP_API_TOKEN === undefined ||
+    env.WHATSAPP_PHONE_NUMBER_ID === undefined ||
+    env.WHATSAPP_WEBHOOK_SECRET === undefined
+  ) {
+    return verificacao === undefined ? {} : { verificacao }
+  }
+
+  const sql = getClient(env.DATABASE_URL)
+  const vinculos = createPeerDirectory(sql)
+
+  const peers: AgentPeerDirectory = {
+    resolve: async (peer) => {
+      const resultado = await abrirCanal(
+        { peers: vinculos },
+        { telefone: peer, requestId: 'whatsapp-webhook', agora: new Date() },
+      )
+      if (resultado.status === 'silencio') return null
+      const { companyId, userId } = resultado.ctx
+      return { companyId, userId, role: 'owner' }
+    },
+  }
+
+  const runtime =
+    agent === null ? undefined : ({ ...agent.runtime, peers } satisfies AgentComposition['runtime'])
+
+  return {
+    ...(verificacao === undefined ? {} : { verificacao }),
+    meta: {
+      remetente: criarRemetenteMeta({
+        phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+        apiToken: env.WHATSAPP_API_TOKEN,
+        webhookSecret: env.WHATSAPP_WEBHOOK_SECRET,
+      }),
+      peers,
+      inbox: createWebhookInbox(sql),
+      ...(runtime === undefined ? {} : { runtime }),
+      ...(runtime === undefined ? {} : { executarTurno: (rt, input) => processMessage(rt, input) }),
+    },
   }
 }
 
