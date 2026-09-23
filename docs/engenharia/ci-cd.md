@@ -10,7 +10,7 @@ Os pipelines do GitHub Actions, o que cada um barra, e o que ainda não existe.
 | ---------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | [`ci.yml`](../../.github/workflows/ci.yml)                       | PR e push na `main`  | formatação, fronteiras, tipos, lint, testes, build                                                                     | ✅                   |
 | [`pr-checks.yml`](../../.github/workflows/pr-checks.yml)         | PR aberto ou editado | título, nome da branch, referência à tarefa                                                                            | ✅                   |
-| [`security.yml`](../../.github/workflows/security.yml)           | PR, push, semanal    | vulnerabilidades, segredos vazados, CodeQL                                                                             | ✅ (severidade alta) |
+| [`security.yml`](../../.github/workflows/security.yml)           | PR, push, semanal    | vulnerabilidades, segredos vazados (dependency review e CodeQL desativados — exigem GHAS pago em repo privado)         | ✅ (severidade alta) |
 | [`deploy.yml`](../../.github/workflows/deploy.yml)               | tag `v*` / manual    | build na VPS, migrations, `up -d`, `/health` e reversão ([ADR-0015](../decisoes/adr/0015-vps-docker-compose.md))       | —                    |
 | [`deploy-api.yml`](../../.github/workflows/deploy-api.yml)       | manual               | atalho — chama `deploy.yml`                                                                                            | —                    |
 | [`deploy-web.yml`](../../.github/workflows/deploy-web.yml)       | manual               | atalho — chama `deploy.yml` (mesmo compose da VM)                                                                      | —                    |
@@ -73,12 +73,12 @@ aceita `feat(core): registrar venda com cálculo de líquido`.
 
 ## `security.yml`
 
-| Job                       | O quê                           | Requisito                                          |
-| ------------------------- | ------------------------------- | -------------------------------------------------- |
-| Auditoria de dependências | `pnpm audit --audit-level high` | [RNF-029](../produto/requisitos-nao-funcionais.md) |
-| Revisão de dependência    | analisa o que o PR adiciona     | idem                                               |
-| Varredura de segredos     | gitleaks no histórico           | [RNF-022](../produto/requisitos-nao-funcionais.md) |
-| CodeQL                    | análise estática de segurança   | —                                                  |
+| Job                        | O quê                                                                                                                                    | Requisito                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Auditoria de dependências  | `pnpm audit --audit-level high`                                                                                                          | [RNF-029](../produto/requisitos-nao-funcionais.md) |
+| ~~Revisão de dependência~~ | ⬜ desativado — exige GitHub Advanced Security, pago pra repo privado de organização (desde que o repo virou privado sob a org Ei-buddy) | idem                                               |
+| Varredura de segredos      | gitleaks (binário direto, não a action — v3 dela passou a exigir licença paga) no histórico                                              | [RNF-022](../produto/requisitos-nao-funcionais.md) |
+| ~~CodeQL~~                 | ⬜ desativado — mesma exigência de GitHub Advanced Security                                                                              | —                                                  |
 
 Roda também **toda segunda de manhã**: dependência vulnerável não espera alguém
 abrir PR.
@@ -107,19 +107,26 @@ pnpm format:check && pnpm boundaries && pnpm typecheck && pnpm lint && pnpm test
 Configuração **manual** no GitHub, em _Settings → Branches → Add rule_ para
 `main`. Não dá para versionar; este é o passo a passo.
 
-| Opção                                    | Valor                                                                                     |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Require a pull request before merging    | ✅                                                                                        |
-| — Required approvals                     | **1**                                                                                     |
-| — Dismiss stale approvals on new commits | ✅                                                                                        |
-| — Require review from Code Owners        | ✅                                                                                        |
-| Require status checks to pass            | ✅                                                                                        |
-| — Require branches to be up to date      | ✅                                                                                        |
-| — Checks obrigatórios                    | `Verificar`, `Convencoes`, `Auditoria de dependencias`, `Varredura de segredos`, `CodeQL` |
-| Require linear history                   | ✅                                                                                        |
-| Do not allow bypassing                   | ✅ (inclusive para administradores)                                                       |
-| Allow force pushes                       | ❌                                                                                        |
-| Allow deletions                          | ❌                                                                                        |
+> **Indisponível no plano atual.** Desde que o repo virou privado sob a
+> organização Ei-buddy, `Settings → Branches` retorna "Upgrade to GitHub Pro
+> or make this repository public to enable this feature" — branch protection
+> exige plano pago pra repo privado de organização. Hoje nenhum check bloqueia
+> merge de fato, apesar da tabela abaixo. Configurar assim que o plano
+> permitir.
+
+| Opção                                    | Valor                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Require a pull request before merging    | ✅                                                                              |
+| — Required approvals                     | **1**                                                                           |
+| — Dismiss stale approvals on new commits | ✅                                                                              |
+| — Require review from Code Owners        | ✅                                                                              |
+| Require status checks to pass            | ✅                                                                              |
+| — Require branches to be up to date      | ✅                                                                              |
+| — Checks obrigatórios                    | `Verificar`, `Convencoes`, `Auditoria de dependencias`, `Varredura de segredos` |
+| Require linear history                   | ✅                                                                              |
+| Do not allow bypassing                   | ✅ (inclusive para administradores)                                             |
+| Allow force pushes                       | ❌                                                                              |
+| Allow deletions                          | ❌                                                                              |
 
 E em _Settings → General → Pull Requests_:
 
@@ -183,14 +190,14 @@ E os requisitos que o deploy precisa atender:
 
 ## Segredos da CI
 
-| Segredo           | Usado por        | Estado                         |
-| ----------------- | ---------------- | ------------------------------ |
-| `GITHUB_TOKEN`    | gitleaks, CodeQL | automático                     |
-| `EXPO_TOKEN`      | build mobile     | ⏳ falta conta EAS             |
-| `VPS_HOST`        | deploy           | endereço da VPS                |
-| `VPS_USER`        | deploy           | usuário do SSH                 |
-| `VPS_SSH_KEY`     | deploy           | chave privada do deploy        |
-| `VPS_KNOWN_HOSTS` | deploy           | opcional — fingerprint do host |
+| Segredo           | Usado por    | Estado                         |
+| ----------------- | ------------ | ------------------------------ |
+| `GITHUB_TOKEN`    | CI em geral  | automático                     |
+| `EXPO_TOKEN`      | build mobile | ⏳ falta conta EAS             |
+| `VPS_HOST`        | deploy       | endereço da VPS                |
+| `VPS_USER`        | deploy       | usuário do SSH                 |
+| `VPS_SSH_KEY`     | deploy       | chave privada do deploy        |
+| `VPS_KNOWN_HOSTS` | deploy       | opcional — fingerprint do host |
 
 Segredos de produção ficam em _Environments_ com **aprovação obrigatória**, não
 em _Repository secrets_: assim um workflow de PR de fork não os alcança.

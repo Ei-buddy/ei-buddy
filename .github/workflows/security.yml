@@ -36,15 +36,21 @@ jobs:
         # aparecer na primeira linha do log. Ver scripts/audit.mjs.
         run: node scripts/audit.mjs
 
-  revisao-de-dependencia:
-    name: Revisao de dependencia
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v5
-        with:
-          fail-on-severity: high
+  # Desativado: dependency-review-action exige GitHub Advanced Security
+  # habilitado, que so existe pago para repositorio privado de organizacao
+  # (desde que o repo virou privado sob a org Ei-buddy). "Auditoria de
+  # dependencias" acima (pnpm audit, gratis) continua cobrindo RNF-029.
+  # Reativar se/quando a org habilitar GHAS.
+  #
+  # revisao-de-dependencia:
+  #   name: Revisao de dependencia
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: actions/dependency-review-action@v5
+  #       with:
+  #         fail-on-severity: high
 
   segredos:
     name: Varredura de segredos
@@ -55,18 +61,36 @@ jobs:
         with:
           fetch-depth: 0
       - name: gitleaks
-        # RNF-022: nenhum segredo em codigo, log ou variavel versionada
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # RNF-022: nenhum segredo em codigo, log ou variavel versionada.
+        #
+        # Binario direto (Apache 2.0), nao a gitleaks/gitleaks-action: a
+        # partir da v3 ela exige GITLEAKS_LICENSE pago pra rodar em
+        # repositorio de organizacao — so passou a barrar quando o repo virou
+        # privado sob a org Ei-buddy. O `detect` sem `--no-git` varre o
+        # historico inteiro, igual a action fazia (por isso o `fetch-depth: 0`
+        # acima).
+        run: |
+          set -euo pipefail
+          VERSAO=8.30.1
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v${VERSAO}/gitleaks_${VERSAO}_linux_x64.tar.gz"
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v${VERSAO}/gitleaks_${VERSAO}_checksums.txt"
+          sha256sum -c <(grep "linux_x64.tar.gz" "gitleaks_${VERSAO}_checksums.txt")
+          tar -xzf "gitleaks_${VERSAO}_linux_x64.tar.gz" gitleaks
+          ./gitleaks detect --source . --redact -v
 
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v4
+  # Desativado: o upload dos resultados do code scanning tambem exige GitHub
+  # Advanced Security ("Advanced Security must be enabled for this
+  # repository to use code scanning") — mesma parede do dependency review
+  # acima, so que so aparece no fim (init passa, analyze builda e escaneia,
+  # so o upload final falha). Reativar se/quando a org habilitar GHAS.
+  #
+  # codeql:
+  #   name: CodeQL
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 20
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: github/codeql-action/init@v4
+  #       with:
+  #         languages: javascript-typescript
+  #     - uses: github/codeql-action/analyze@v4
