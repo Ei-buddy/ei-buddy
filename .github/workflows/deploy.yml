@@ -88,6 +88,20 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
+          # `docker compose build` fica minutos sem imprimir nada em fases
+          # como "exporting layers" — so I/O de disco, sem trafego na conexao.
+          # Sem isto, um NAT/firewall no meio do caminho (ou o proprio sshd da
+          # VM) considera a sessao ociosa e derruba com "Broken pipe" mesmo
+          # com o processo remoto ainda rodando (visto ao vivo: build de
+          # ~180s completo, SSH caiu no export das imagens). Manda um pacote
+          # a cada 30s e tolera 10 sem resposta antes de desistir — 5 min de
+          # folga, mais que qualquer fase muda do deploy.
+          cat >> ~/.ssh/config <<'EOF'
+          Host *
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          EOF
+
       - name: Commit que esta no ar (alvo da reversao)
         id: anterior
         run: |
