@@ -73,12 +73,12 @@ aceita `feat(core): registrar venda com cálculo de líquido`.
 
 ## `security.yml`
 
-| Job                       | O quê                           | Requisito                                          |
-| ------------------------- | ------------------------------- | -------------------------------------------------- |
-| Auditoria de dependências | `pnpm audit --audit-level high` | [RNF-029](../produto/requisitos-nao-funcionais.md) |
-| ~~Revisão de dependência~~ | ⬜ desativado — exige GitHub Advanced Security, pago pra repo privado de organização (desde que o repo virou privado sob a org Ei-buddy) | idem |
-| Varredura de segredos     | gitleaks (binário direto, não a action — v3 dela passou a exigir licença paga) no histórico | [RNF-022](../produto/requisitos-nao-funcionais.md) |
-| ~~CodeQL~~                | ⬜ desativado — mesma exigência de GitHub Advanced Security | —                                                  |
+| Job                        | O quê                                                                                                                                    | Requisito                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Auditoria de dependências  | `pnpm audit --audit-level high`                                                                                                          | [RNF-029](../produto/requisitos-nao-funcionais.md) |
+| ~~Revisão de dependência~~ | ⬜ desativado — exige GitHub Advanced Security, pago pra repo privado de organização (desde que o repo virou privado sob a org Ei-buddy) | idem                                               |
+| Varredura de segredos      | gitleaks (binário direto, não a action — v3 dela passou a exigir licença paga) no histórico                                              | [RNF-022](../produto/requisitos-nao-funcionais.md) |
+| ~~CodeQL~~                 | ⬜ desativado — mesma exigência de GitHub Advanced Security                                                                              | —                                                  |
 
 Roda também **toda segunda de manhã**: dependência vulnerável não espera alguém
 abrir PR.
@@ -114,19 +114,19 @@ Configuração **manual** no GitHub, em _Settings → Branches → Add rule_ par
 > merge de fato, apesar da tabela abaixo. Configurar assim que o plano
 > permitir.
 
-| Opção                                    | Valor                                                                     |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| Require a pull request before merging    | ✅                                                                        |
-| — Required approvals                     | **1**                                                                     |
-| — Dismiss stale approvals on new commits | ✅                                                                        |
-| — Require review from Code Owners        | ✅                                                                        |
-| Require status checks to pass            | ✅                                                                        |
-| — Require branches to be up to date      | ✅                                                                        |
+| Opção                                    | Valor                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Require a pull request before merging    | ✅                                                                              |
+| — Required approvals                     | **1**                                                                           |
+| — Dismiss stale approvals on new commits | ✅                                                                              |
+| — Require review from Code Owners        | ✅                                                                              |
+| Require status checks to pass            | ✅                                                                              |
+| — Require branches to be up to date      | ✅                                                                              |
 | — Checks obrigatórios                    | `Verificar`, `Convencoes`, `Auditoria de dependencias`, `Varredura de segredos` |
-| Require linear history                   | ✅                                                                                        |
-| Do not allow bypassing                   | ✅ (inclusive para administradores)                                                       |
-| Allow force pushes                       | ❌                                                                                        |
-| Allow deletions                          | ❌                                                                                        |
+| Require linear history                   | ✅                                                                              |
+| Do not allow bypassing                   | ✅ (inclusive para administradores)                                             |
+| Allow force pushes                       | ❌                                                                              |
+| Allow deletions                          | ❌                                                                              |
 
 E em _Settings → General → Pull Requests_:
 
@@ -190,14 +190,14 @@ E os requisitos que o deploy precisa atender:
 
 ## Segredos da CI
 
-| Segredo           | Usado por        | Estado                         |
-| ----------------- | ---------------- | ------------------------------ |
-| `GITHUB_TOKEN`    | CI em geral      | automático                     |
-| `EXPO_TOKEN`      | build mobile     | ⏳ falta conta EAS             |
-| `VPS_HOST`        | deploy           | endereço da VPS                |
-| `VPS_USER`        | deploy           | usuário do SSH                 |
-| `VPS_SSH_KEY`     | deploy           | chave privada do deploy        |
-| `VPS_KNOWN_HOSTS` | deploy           | opcional — fingerprint do host |
+| Segredo           | Usado por    | Estado                         |
+| ----------------- | ------------ | ------------------------------ |
+| `GITHUB_TOKEN`    | CI em geral  | automático                     |
+| `EXPO_TOKEN`      | build mobile | ⏳ falta conta EAS             |
+| `VPS_HOST`        | deploy       | endereço da VPS                |
+| `VPS_USER`        | deploy       | usuário do SSH                 |
+| `VPS_SSH_KEY`     | deploy       | chave privada do deploy        |
+| `VPS_KNOWN_HOSTS` | deploy       | opcional — fingerprint do host |
 
 Segredos de produção ficam em _Environments_ com **aprovação obrigatória**, não
 em _Repository secrets_: assim um workflow de PR de fork não os alcança.
