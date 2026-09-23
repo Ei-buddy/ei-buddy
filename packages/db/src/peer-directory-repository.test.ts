@@ -196,8 +196,8 @@ describe.skipIf(!DATABASE_URL)('peer-directory-repository — NR-046 US4', () =>
   it('duas empresas owner ativas: devolve o vinculo com created_at mais antigo', async () => {
     const telefone = `4193${String(Date.now()).slice(-7)}`
     const dona = await criarUsuario(telefone, 'Dona duas lojas')
-    const lojaAntiga = await criarEmpresa('Loja US4 antiga', '4a')
-    const lojaNova = await criarEmpresa('Loja US4 nova', '4b')
+    const lojaAntiga = await criarEmpresa('Loja US4 antiga', '5')
+    const lojaNova = await criarEmpresa('Loja US4 nova', '6')
 
     await vincular(lojaAntiga, dona, 'owner', '2026-05-01T10:00:00.000Z')
     await vincular(lojaNova, dona, 'owner', '2026-08-01T10:00:00.000Z')
@@ -217,8 +217,8 @@ describe.skipIf(!DATABASE_URL)('peer-directory-repository — NR-046 US4', () =>
     const empresaMaior = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
     const instante = '2026-07-15T12:00:00.000Z'
 
-    await criarEmpresaComId(empresaMenor, 'US4 menor id', '4c')
-    await criarEmpresaComId(empresaMaior, 'US4 maior id', '4d')
+    await criarEmpresaComId(empresaMenor, 'US4 menor id', '7')
+    await criarEmpresaComId(empresaMaior, 'US4 maior id', '8')
     await vincular(empresaMaior, dona, 'owner', instante)
     await vincular(empresaMenor, dona, 'owner', instante)
 
