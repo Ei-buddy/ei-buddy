@@ -14,16 +14,20 @@ name: Deploy — VPS
 # O gatilho de tag mora AQUI, e so aqui. Ele estava nos dois esqueletos, e
 # manter os dois faria um `v*` rodar o mesmo deploy duas vezes na mesma
 # maquina — em serie pelo `concurrency`, mas duas.
+# Producao continua MANUAL, de proposito: cada atualizacao la e uma decisao.
+# O automatico e so `dev`, que existe justamente para poder quebrar sem
+# consequencia — e por isso o push nela deploya sozinho.
 on:
   push:
     tags: ['v*']
+    branches: [dev]
   workflow_dispatch:
     inputs:
       ambiente:
         description: Ambiente de destino
         required: true
         type: choice
-        options: [staging, production]
+        options: [dev, staging, production]
   workflow_call:
     inputs:
       ambiente:
@@ -47,7 +51,10 @@ on:
 concurrency:
   # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
   # compose, na mesma VM. Dois deploys simultaneos se atropelariam no `up -d`.
-  group: deploy-${{ inputs.ambiente || 'production' }}
+  #
+  # O grupo inclui o AMBIENTE: dev e producao sao maquinas diferentes, e um
+  # deploy de teste nao deve esperar (nem cancelar) um de producao.
+  group: deploy-${{ inputs.ambiente || (github.ref_name == 'dev' && 'dev') || 'production' }}
   cancel-in-progress: false
 
 jobs:
@@ -56,9 +63,17 @@ jobs:
     runs-on: ubuntu-latest
     # Segredo de producao vive em Environment com aprovacao obrigatoria, nao em
     # Repository secret: assim um PR de fork nao o alcanca (ci-cd.md).
-    # `push` de tag nao tem `inputs`: cai em producao, que e o unico ambiente
-    # que uma tag `v*` deveria significar.
-    environment: ${{ inputs.ambiente || 'production' }}
+    #
+    # A ordem desta expressao e uma trava de seguranca, e nao arrumacao:
+    #
+    # 1. `inputs.ambiente` — quem disparou a mao escolheu, e a escolha manda;
+    # 2. `ref_name == 'dev'` — push na branch de teste vai para a VM de teste;
+    # 3. producao — o que sobra, que e a tag `v*`.
+    #
+    # Sem o passo 2, um push em `dev` cairia no `|| 'production'` e deployaria
+    # A PRODUCAO a cada commit de teste. E o oposto exato do que a branch
+    # existe para fazer.
+    environment: ${{ inputs.ambiente || (github.ref_name == 'dev' && 'dev') || 'production' }}
 
     env:
       HOST: ${{ secrets.VPS_HOST }}

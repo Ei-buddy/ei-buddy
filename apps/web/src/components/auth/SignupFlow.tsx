@@ -273,7 +273,7 @@ export default function SignupFlow() {
                     checked={tipoDeConta === 'lojista'}
                     onChange={() => setTipoDeConta('lojista')}
                   />
-                  Criar conta normal
+                  Criar conta como usuário
                 </label>
                 <label className={styles.tipoDeContaOpcao}>
                   <input
