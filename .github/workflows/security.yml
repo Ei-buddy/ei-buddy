@@ -12,10 +12,6 @@ on:
 permissions:
   contents: read
   security-events: write
-  # codeql-action/init consulta a run atual via API pra checar o setup — sem
-  # isto ele falha com "Resource not accessible by integration" em repo
-  # privado. So apareceu depois que o repo virou privado numa organizacao.
-  actions: read
 
 jobs:
   dependencias:
@@ -82,13 +78,19 @@ jobs:
           tar -xzf "gitleaks_${VERSAO}_linux_x64.tar.gz" gitleaks
           ./gitleaks detect --source . --redact -v
 
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v4
+  # Desativado: o upload dos resultados do code scanning tambem exige GitHub
+  # Advanced Security ("Advanced Security must be enabled for this
+  # repository to use code scanning") — mesma parede do dependency review
+  # acima, so que so aparece no fim (init passa, analyze builda e escaneia,
+  # so o upload final falha). Reativar se/quando a org habilitar GHAS.
+  #
+  # codeql:
+  #   name: CodeQL
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 20
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: github/codeql-action/init@v4
+  #       with:
+  #         languages: javascript-typescript
+  #     - uses: github/codeql-action/analyze@v4
