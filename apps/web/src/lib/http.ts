@@ -25,11 +25,15 @@ export async function pedir<T>(caminho: string, init?: RequestInit): Promise<Res
   }
 
   const corpo = (await resposta.json().catch(() => ({}))) as {
-    error?: { message?: string }
+    error?: { message?: string; fields?: { message?: string }[] }
   }
 
   if (!resposta.ok) {
-    return { ok: false, erro: corpo.error?.message ?? 'Nao foi possivel carregar.' }
+    /* Quando o servidor diz QUAL campo recusou, e essa a mensagem util: so
+       "Confira os campos indicados", num formulario que nao indica campo
+       nenhum, deixava o lojista sem saber o que corrigir. */
+    const doCampo = corpo.error?.fields?.find((f) => f.message)?.message
+    return { ok: false, erro: doCampo ?? corpo.error?.message ?? 'Nao foi possivel carregar.' }
   }
 
   return { ok: true, dados: corpo as unknown as T }

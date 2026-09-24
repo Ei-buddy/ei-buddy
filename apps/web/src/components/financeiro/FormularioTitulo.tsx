@@ -9,12 +9,7 @@ import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './financeiro.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 /**
  * Lancamento de titulo, a pagar ou a receber — NR-074, RF-055, RF-065.
@@ -118,7 +113,7 @@ export default function FormularioTitulo({
       if (!plano) novos.plano = 'Escolha o plano de conta.'
     }
     if (!vencimento) novos.vencimento = 'Informe a data de vencimento.'
-    if (paraNumero(valor) <= 0) novos.valor = 'Informe um valor maior que zero.'
+    if (reaisDoTexto(valor) <= 0) novos.valor = 'Informe um valor maior que zero.'
     if (!descricao.trim()) {
       novos.descricao = tipo === 'pagar' ? 'Descreva o que é.' : 'Informe a que se refere.'
     }
@@ -139,7 +134,7 @@ export default function FormularioTitulo({
       const r = await lancarContaAPagar({
         supplier: fornecedor.trim(),
         description: descricao.trim(),
-        amountCents: Math.round(paraNumero(valor) * 100),
+        amountCents: Math.round(reaisDoTexto(valor) * 100),
         dueDate: vencimento,
         accountId: conta.id,
       })
@@ -156,7 +151,7 @@ export default function FormularioTitulo({
 
     const r = await lancarContaAReceber({
       description: descricao.trim(),
-      amountCents: Math.round(paraNumero(valor) * 100),
+      amountCents: Math.round(reaisDoTexto(valor) * 100),
       dueDate: vencimento,
       ...(clienteId === '' ? {} : { customerId: clienteId }),
     })

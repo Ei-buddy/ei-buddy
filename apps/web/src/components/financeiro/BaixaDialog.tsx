@@ -12,20 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import styles from './financeiro.module.css'
-
-/**
- * Converte "1.234,56" em CENTAVOS.
- *
- * Centavos, e nao reais: o valor vai para a api como inteiro, e converter uma
- * vez aqui evita `Math.round(x * 100)` espalhado pela tela. Em ponto flutuante
- * `19.99 * 100` da `1998.9999999999998` — arredondar uma vez, na borda, e o que
- * impede um centavo de sumir.
- */
-function paraCentavos(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? Math.round(n * 100) : 0
-}
+import { centavosDoTexto } from '@/lib/valor'
 
 /**
  * Baixa de titulo — total ou parcial.
@@ -93,7 +80,7 @@ export default function BaixaDialog({
   const pagar = verbo === 'pagar'
 
   /* Na baixa TOTAL o valor e o saldo exato — nao passa por reais e volta. */
-  const valorCents = modo === 'total' ? saldoCents : paraCentavos(valorParcial)
+  const valorCents = modo === 'total' ? saldoCents : (centavosDoTexto(valorParcial) ?? 0)
   const restanteCents = saldoCents - valorCents
   /* Sem a tolerancia de um centavo que existia aqui: em inteiros ela nao e
      necessaria, e era ela que deixava passar uma baixa maior que o saldo — que

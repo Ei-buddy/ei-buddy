@@ -29,12 +29,7 @@ import { COMANDOS_PLANO_CONTAS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ConfirmarDialog from '@/components/app/ConfirmarDialog'
 import styles from './financeiro.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function PlanoDeContasView() {
   const [contas, setContas] = useState<ContaContabil[]>([])
@@ -486,7 +481,7 @@ function FormCustoFixo({
     const dados: DadosCustoFixo = {
       nome,
       diaVencimento: Number(dia),
-      valorCents: Math.round(paraNumero(valor) * 100),
+      valorCents: Math.round(reaisDoTexto(valor) * 100),
       planoContasId: contaId === '' ? null : contaId,
     }
 

@@ -22,12 +22,7 @@ import ConfirmarDialog from '@/components/app/ConfirmarDialog'
 import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import { IconBarcode, IconBox, IconClose, IconSearch, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function EtapaCatalogo({
   itens,
@@ -566,7 +561,7 @@ function DialogoDesconto({
   const [tipo, setTipo] = useState<'percentual' | 'valor'>(atual?.tipo ?? 'percentual')
   const [quantia, setQuantia] = useState(atual ? String(atual.quantia).replace('.', ',') : '')
 
-  const numero = paraNumero(quantia)
+  const numero = reaisDoTexto(quantia)
   const abatimento = valorDesconto(subtotal, { tipo, quantia: numero })
   const novoTotal = subtotal - abatimento
 

@@ -3,12 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import {
-  calcularMargem,
-  carregarSugestoes,
-  centavosDaPlanilha,
-  salvarProduto,
-} from '@/lib/produtos-api'
+import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -19,17 +14,7 @@ import { IconBarcode, IconTrash } from '@/components/Icons'
 import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './produtoForm.module.css'
-
-/**
- * Converte "12,90", "12.90" ou "1.234,56" em reais.
- *
- * A versao anterior apagava TODO ponto antes de ler: "8.50" virava 850 reais,
- * e o servidor recusava o produto com "venda menor que o custo" sem que o
- * lojista entendesse por que. A regra agora e a mesma da planilha.
- */
-function paraNumero(valor: string): number {
-  return (centavosDaPlanilha(valor) ?? 0) / 100
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function ProdutoForm() {
   const router = useRouter()
@@ -78,8 +63,8 @@ export default function ProdutoForm() {
   const [salvando, setSalvando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
-  const custo = paraNumero(precoCusto)
-  const venda = paraNumero(precoVenda)
+  const custo = reaisDoTexto(precoCusto)
+  const venda = reaisDoTexto(precoVenda)
   const margem = calcularMargem(custo, venda)
   const lucro = venda - custo
 
