@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { buscarCep, salvarEmpresa } from '@/lib/empresa-api'
-import { empresa as empresaMock } from '@/lib/mock-data'
-import { maskCelular, maskCEP, maskCNPJ, validateCNPJ } from '@/lib/validation'
+import { buscarCep, carregarEmpresa, salvarEmpresa, type DadosEmpresa } from '@/lib/empresa-api'
+import { maskCelular, maskCEP, maskCNPJ } from '@/lib/validation'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Campo from '@/components/ui/Campo'
@@ -21,70 +20,83 @@ import { cores, espaco, fonte } from '@/theme/tokens'
  * e trabalhoso e a senha nao deveria ser digitada em teclado de toque.
  */
 export default function Empresa() {
-  const [campos, setCampos] = useState({
-    cnpj: empresaMock.cnpj,
-    razaoSocial: empresaMock.razaoSocial,
-    nomeFantasia: empresaMock.nomeFantasia,
-    inscricaoEstadual: empresaMock.inscricaoEstadual,
-    inscricaoMunicipal: empresaMock.inscricaoMunicipal,
-    ramoAtividade: empresaMock.ramoAtividade,
-    cep: empresaMock.endereco.cep,
-    logradouro: empresaMock.endereco.logradouro,
-    numero: empresaMock.endereco.numero,
-    complemento: empresaMock.endereco.complemento ?? '',
-    bairro: empresaMock.endereco.bairro,
-    cidade: empresaMock.endereco.cidade,
-    uf: empresaMock.endereco.uf as string,
-    ddd: empresaMock.ddd,
-    celular: empresaMock.celular,
-  })
+  const [campos, setCampos] = useState<DadosEmpresa | null>(null)
+  const [erroAoCarregar, setErroAoCarregar] = useState<string | null>(null)
 
-  const [erroCnpj, setErroCnpj] = useState<string | null>(null)
+  /* Abre com o que a loja TEM gravado — antes abria com a mercearia de
+     exemplo, e quem salvasse sem reparar gravaria os dados de outra empresa. */
+  useEffect(() => {
+    let cancelado = false
+    void carregarEmpresa().then((r) => {
+      if (cancelado) return
+      if (r.ok) setCampos({ ...r.dados, cnpj: maskCNPJ(r.dados.cnpj), cep: maskCEP(r.dados.cep) })
+      else setErroAoCarregar(r.erro)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [salvando, setSalvando] = useState(false)
 
-  function set<K extends keyof typeof campos>(chave: K, valor: string) {
-    setCampos((c) => ({ ...c, [chave]: valor }))
+  function set<K extends keyof DadosEmpresa>(chave: K, valor: string) {
+    setCampos((c) => (c === null ? c : { ...c, [chave]: valor }))
   }
 
   async function preencherPorCep(cep: string) {
     if (cep.replace(/\D/g, '').length !== 8) return
 
     setBuscandoCep(true)
-    /* SUBSTITUIR POR: GET /enderecos/cep/:cep */
     const r = await buscarCep(cep)
     setBuscandoCep(false)
 
     if (!r.ok) {
-      Alert.alert('CEP', r.error)
+      Alert.alert('CEP', r.erro)
       return
     }
 
     /* Numero e complemento continuam com quem preencheu — o CEP nao os
        conhece, e sobrescrever apagaria o que ja foi digitado. */
-    setCampos((c) => ({
-      ...c,
-      logradouro: r.endereco.logradouro,
-      bairro: r.endereco.bairro,
-      cidade: r.endereco.cidade,
-      uf: r.endereco.uf,
-    }))
+    setCampos((c) =>
+      c === null
+        ? c
+        : {
+            ...c,
+            logradouro: r.dados.logradouro,
+            bairro: r.dados.bairro,
+            cidade: r.dados.cidade,
+            uf: r.dados.uf,
+          },
+    )
   }
 
   async function salvar() {
-    const erro = validateCNPJ(campos.cnpj)
-    setErroCnpj(erro)
-    if (erro) {
-      Alert.alert('Confira o CNPJ', erro)
-      return
-    }
+    if (campos === null) return
 
     setSalvando(true)
-    /* SUBSTITUIR POR: PUT /empresa */
-    const r = await salvarEmpresa({ ...campos, conexoesHabilitadas: false } as never)
+    const r = await salvarEmpresa(campos)
     setSalvando(false)
 
-    Alert.alert(r.ok ? 'Salvo' : 'Não deu certo', r.ok ? 'Dados da empresa atualizados.' : r.error)
+    if (!r.ok) {
+      Alert.alert('Não deu certo', r.erro)
+      return
+    }
+    setCampos({ ...r.dados, cnpj: maskCNPJ(r.dados.cnpj), cep: maskCEP(r.dados.cep) })
+    Alert.alert('Salvo', 'Dados da empresa atualizados.')
+  }
+
+  if (campos === null) {
+    return (
+      <SafeAreaView style={estilos.tela} edges={['top']}>
+        <Cabecalho titulo="Empresa" />
+        {erroAoCarregar ? (
+          <Text style={estilos.erroAoCarregar}>{erroAoCarregar}</Text>
+        ) : (
+          <ActivityIndicator style={estilos.carregando} color={cores.acento} />
+        )}
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -93,15 +105,13 @@ export default function Empresa() {
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
         <Sanfona titulo="Identificação" resumo={campos.cnpj} inicialAberta>
+          {/* Somente leitura: trocar CNPJ e outra empresa, e a api nem aceita. */}
           <Campo
             rotulo="CNPJ"
             valor={campos.cnpj}
-            onChange={(v) => {
-              set('cnpj', maskCNPJ(v))
-              if (erroCnpj) setErroCnpj(null)
-            }}
-            erro={erroCnpj}
-            tipoTeclado="numeric"
+            onChange={() => undefined}
+            editavel={false}
+            dica="Para trocar o CNPJ, fale com o suporte."
           />
           <Campo
             rotulo="Razão social"
@@ -203,6 +213,8 @@ export default function Empresa() {
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
+  carregando: { marginTop: espaco.xl },
+  erroAoCarregar: { padding: espaco.lg, fontSize: fonte.corpo, color: cores.texto },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   aviso: { gap: espaco.sm },
   avisoTexto: {
