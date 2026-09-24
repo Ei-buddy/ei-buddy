@@ -7,10 +7,13 @@ import {
   importCustomersInputSchema,
   importProductsInputSchema,
   updateCompanyInputSchema,
+  createCustomerContactInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
+  addCustomerContact,
   catalogSummary,
+  type CustomerContactDeps,
   deleteCustomer,
   getCompany,
   getCustomer,
@@ -19,6 +22,7 @@ import {
   importProducts,
   type ImportProductsDeps,
   listCatalog,
+  listCustomerContacts,
   listCustomers,
   type ManageCompanyDeps,
   productSuggestions,
@@ -46,7 +50,8 @@ import { validate } from '../plugins/validate.js'
  * caminho, com outras regras.
  */
 
-export type CadastroDeps = ImportProductsDeps &
+export type CadastroDeps = CustomerContactDeps &
+  ImportProductsDeps &
   ManageCompanyDeps &
   RegisterCompanyDeps &
   RegisterCustomerDeps &
@@ -194,6 +199,34 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
 
     return reply.code(200).send(cliente)
   })
+
+  /**
+   * O historico de contatos da ficha — RF-011, NR-072.
+   *
+   * Sob `/clientes/:id` e nao numa colecao propria (`/contatos?cliente=`):
+   * contato sem cliente nao existe, e a rota aninhada diz isso na URL.
+   *
+   * Nao exige que o cliente esteja na lista: da para ler o historico de quem
+   * ja foi excluido — e e justamente ali que ele explica o porque.
+   */
+  app.get('/clientes/:id/contatos', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+
+    return reply.code(200).send({ contacts: await listCustomerContacts(deps, ctx, id) })
+  })
+
+  app.post(
+    '/clientes/:id/contatos',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(createCustomerContactInputSchema, request.body)
+
+      return reply.code(201).send(await addCustomerContact(deps, ctx, id, input))
+    },
+  )
 
   /**
    * Excluir o cliente da lista — RF-009.

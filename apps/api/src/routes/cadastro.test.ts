@@ -313,8 +313,64 @@ function cadastroEmMemoria() {
   const uow = inventario
   const audit = new InMemoryAuditTrail()
 
+  /*
+   * Contatos da ficha — RF-011.
+   *
+   * Fake proprio e nao `InMemoryCustomerContacts` de `core`: aquele recebe um
+   * `InMemoryCustomerRepository`, e o `customers` daqui e um objeto montado a
+   * mao. Ele confere o cliente pelo mesmo array, que e o que importa para a
+   * rota: id desconhecido tem de virar 404.
+   */
+  const contatos: {
+    id: string
+    companyId: string
+    customerId: string
+    kind: string
+    description: string
+    happenedOn: string
+  }[] = []
+
+  const contacts = {
+    create: async (c: {
+      companyId: string
+      customerId: string
+      kind: string
+      description: string
+      happenedOn: string
+    }) => {
+      const existe = clientes.some((x) => x.id === c.customerId && x.companyId === c.companyId)
+      if (!existe) return undefined
+
+      seq += 1
+      const gravado = { ...c, id: `ctt-${seq}` }
+      contatos.push(gravado)
+
+      return {
+        id: gravado.id,
+        kind: gravado.kind,
+        description: gravado.description,
+        happenedOn: gravado.happenedOn,
+        createdAt: new Date(0).toISOString(),
+      }
+    },
+
+    listByCustomer: async (companyId: string, customerId: string, limite: number) =>
+      contatos
+        .filter((c) => c.companyId === companyId && c.customerId === customerId)
+        .sort((a, b) => b.happenedOn.localeCompare(a.happenedOn))
+        .slice(0, limite)
+        .map((c) => ({
+          id: c.id,
+          kind: c.kind,
+          description: c.description,
+          happenedOn: c.happenedOn,
+          createdAt: new Date(0).toISOString(),
+        })),
+  }
+
   return {
     companies,
+    contacts,
     customers,
     products,
     accounts,
@@ -559,6 +615,48 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
 
     expect(r.statusCode).toBe(200)
     expect(r.json().imported).toBe(1)
+  })
+})
+
+describe('contatos da ficha — RF-011', () => {
+  async function comCliente() {
+    const c = await buildApp()
+    app = c.app
+
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { name: 'Seu Antonio', phone: '41977776666' },
+    })
+
+    return { id: criado.json().id as string }
+  }
+
+  it('lanca e a ficha devolve o historico', async () => {
+    const { id } = await comCliente()
+
+    const posto = await app.inject({
+      method: 'POST',
+      url: `/clientes/${id}/contatos`,
+      payload: { kind: 'call', description: 'Confirmou o pedido 8891.' },
+    })
+    expect(posto.statusCode).toBe(201)
+
+    const r = await app.inject({ method: 'GET', url: `/clientes/${id}/contatos` })
+    expect(r.json().contacts).toHaveLength(1)
+  })
+
+  it('cliente desconhecido responde 404', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/clientes/cli-999/contatos',
+      payload: { kind: 'call', description: 'Nao deveria gravar.' },
+    })
+
+    expect(r.statusCode).toBe(404)
   })
 })
 

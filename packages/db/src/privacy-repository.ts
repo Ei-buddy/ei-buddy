@@ -81,6 +81,7 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
   /* Cobranca mandada ao cliente e dado DELE: quanto lhe foi cobrado, quando e
      por qual link. Deixar de fora faria a portabilidade entregar os titulos
      sem as cobrancas que os acompanharam. */
+  customer_contacts: { tabela: 'customer_contacts', escopo: 'company_id' },
   customer_charges: { tabela: 'customer_charges', escopo: 'company_id' },
   customer_charge_receivables: {
     tabela: 'customer_charge_receivables',
@@ -457,6 +458,29 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
             `Cliente ${pedido.customerId} nao foi anonimizado: ja estava anonimizado ou desapareceu.`,
           )
         }
+
+        /*
+         * O DIARIO DE CONTATOS tambem carrega dado pessoal — NR-072.
+         *
+         * Cada linha e texto livre que o lojista escreveu sobre esta pessoa:
+         * "ligou reclamando", "pediu para cobrar no numero novo". Deixar isso
+         * de pe responderia ao titular que os dados dele foram removidos com o
+         * relato dos contatos dele intacto na mesma ficha.
+         *
+         * A DESCRICAO some; a linha fica. Que houve uma ligacao no dia 12 nao
+         * identifica ninguem depois que o cliente virou "Cliente anonimizado",
+         * e apagar as linhas faria a loja perder a contagem de atendimentos
+         * sem ganho nenhum para o titular.
+         *
+         * O CHECK da coluna exige tres caracteres, entao o substituto e um
+         * texto e nao vazio — e ele diz o que aconteceu, para quem abrir a
+         * ficha depois nao achar que o registro se perdeu.
+         */
+        await tx`
+          UPDATE customer_contacts
+             SET description = 'Conteudo removido a pedido do titular.'
+           WHERE customer_id = ${pedido.customerId}
+        `
 
         const [contagens] = await tx<{ vendas: string; recebiveis: string; notas: string }[]>`
           SELECT

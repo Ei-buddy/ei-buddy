@@ -86,6 +86,7 @@ import {
   createCompanyRepository,
   createConfirmationStore,
   createConversationStore,
+  createCustomerContactRepository,
   createCustomerRepository,
   createPartnerApplicationRepository,
   createPeerDirectory,
@@ -452,6 +453,9 @@ export function buildCadastroDeps(): CadastroDeps {
   return {
     companies: createCompanyRepository(sql),
     customers: createCustomerRepository(sql),
+    /* O diario de contatos da ficha — RF-011, NR-072. Porta propria: a de
+       clientes responde "quem e este", esta responde "o que ja falamos". */
+    contacts: createCustomerContactRepository(sql),
     products: createProductRepository(sql),
     /* Desambiguacao em portugues de balcao — RF-102, ADR-0017. Indexa no
        cadastro e serve de plano B quando a busca exata nao acha. */

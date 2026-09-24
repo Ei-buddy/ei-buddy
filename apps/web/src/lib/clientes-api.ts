@@ -207,11 +207,84 @@ export type PendenciaCliente = {
   status: 'aberto' | 'vencido' | 'parcial'
 }
 
+export type TipoDeContato = 'ligacao' | 'whatsapp' | 'visita' | 'observacao'
+
 export type ContatoCliente = {
   id: string
+  /** O dia do FATO, em AAAA-MM-DD. Nao e o dia do registro. */
   data: string
-  tipo: 'ligacao' | 'whatsapp' | 'visita' | 'observacao'
+  tipo: TipoDeContato
   descricao: string
+}
+
+/**
+ * O vocabulario da api e ingles; o da tela, portugues — NR-072.
+ *
+ * A traducao mora aqui e nao no componente porque ela e ida E volta: a lista
+ * chega em ingles e o lancamento sai em ingles, e duas tabelas em lugares
+ * diferentes divergiriam na primeira chave nova.
+ */
+const TIPO_DA_API: Record<string, TipoDeContato> = {
+  call: 'ligacao',
+  whatsapp: 'whatsapp',
+  visit: 'visita',
+  note: 'observacao',
+}
+
+const TIPO_PARA_API: Record<TipoDeContato, string> = {
+  ligacao: 'call',
+  whatsapp: 'whatsapp',
+  visita: 'visit',
+  observacao: 'note',
+}
+
+type ContatoDaApi = {
+  id: string
+  kind: string
+  description: string
+  happenedOn: string
+}
+
+const paraContato = (c: ContatoDaApi): ContatoCliente => ({
+  id: c.id,
+  data: c.happenedOn,
+  /* Chave desconhecida vira "observacao" em vez de quebrar a ficha: a api pode
+     ganhar um tipo novo (e-mail, balcao) antes de a tela aprender a desenha-lo,
+     e uma lista que nao abre e pior que um rotulo generico. */
+  tipo: TIPO_DA_API[c.kind] ?? 'observacao',
+  descricao: c.description,
+})
+
+/** O historico da ficha — RF-011. */
+export async function contatosDoCliente(clienteId: string): Promise<Resultado<ContatoCliente[]>> {
+  const r = await pedir<{ contacts: ContatoDaApi[] }>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/contatos`,
+  )
+
+  return r.ok ? { ok: true, dados: r.dados.contacts.map(paraContato) } : r
+}
+
+/**
+ * Lanca um contato — RF-011.
+ *
+ * `data` opcional: ausente, a api usa o dia de hoje pelo relogio DELA. A tela
+ * poderia mandar o do navegador, mas o relogio do navegador e do usuario — e
+ * um cliente com a data errada gravaria o contato no ano que vem.
+ */
+export async function lancarContato(
+  clienteId: string,
+  contato: { tipo: TipoDeContato; descricao: string; data?: string },
+): Promise<Resultado<ContatoCliente>> {
+  const r = await pedir<ContatoDaApi>(`/api/clientes/${encodeURIComponent(clienteId)}/contatos`, {
+    method: 'POST',
+    body: JSON.stringify({
+      kind: TIPO_PARA_API[contato.tipo],
+      description: contato.descricao,
+      ...(contato.data === undefined ? {} : { happenedOn: contato.data }),
+    }),
+  })
+
+  return r.ok ? { ok: true, dados: paraContato(r.dados) } : r
 }
 
 /* -------------------------------------------------------------------------- */
@@ -484,44 +557,6 @@ export function pendenciasDoCliente(clienteId: string): PendenciaCliente[] {
         vencimento: '2026-09-19',
         valor: 412.5,
         status: 'aberto',
-      },
-    ],
-  }
-  return base[clienteId] ?? []
-}
-
-/** SUBSTITUIR POR: GET /clientes/:id/contatos (CRM) */
-export function contatosDoCliente(clienteId: string): ContatoCliente[] {
-  const base: Record<string, ContatoCliente[]> = {
-    'cli-2': [
-      { id: 'c1', data: '2026-08-20', tipo: 'whatsapp', descricao: 'Enviado catalogo de agosto.' },
-      {
-        id: 'c2',
-        data: '2026-08-14',
-        tipo: 'ligacao',
-        descricao: 'Confirmou pedido 8891 para o dia 25.',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'c3',
-        data: '2026-08-18',
-        tipo: 'ligacao',
-        descricao: 'Cobranca do pedido 8874. Prometeu pagar dia 22.',
-      },
-      {
-        id: 'c4',
-        data: '2026-06-02',
-        tipo: 'visita',
-        descricao: 'Visita ao restaurante, apresentada linha de azeites.',
-      },
-    ],
-    'cli-5': [
-      {
-        id: 'c5',
-        data: '2026-03-11',
-        tipo: 'observacao',
-        descricao: 'Compra pontual, sem recorrencia ate agora.',
       },
     ],
   }
