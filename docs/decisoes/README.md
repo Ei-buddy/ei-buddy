@@ -399,6 +399,11 @@ Quando fechar: ADR nova e o mesmo PR atualiza o adapter.
 
 ## Perguntas em aberto
 
+> **`pnpm pendencias`** mostra, lendo o ambiente de verdade, quais destas já
+> foram respondidas na configuração e quais continuam vazias — com o que cada
+> uma destrava e o que exatamente fazer. Esta tabela diz o _porquê_; o comando
+> diz o _estado_.
+
 Resolvem-se com informação, não com escolha. Uma pergunta respondida vira
 atualização de documento — e às vezes abre uma `DEC`.
 
