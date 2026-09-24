@@ -469,8 +469,12 @@ export type VendaHistorico = {
  * parece certo e o pior tipo de errado.
  */
 export type ItemDaVenda = {
+  /** Nulo no item avulso: esse nao se devolve por produto. */
+  produtoId: string | null
   descricao: string
   quantidade: number
+  /** Ja devolvido em devolucoes anteriores — RF-044. */
+  devolvido: number
   precoUnitario: number
   total: number
 }
@@ -494,6 +498,8 @@ export type VendaDoHistorico = {
   total: number
   imposto: number
   taxaCartao: number
+  /** Ja devolvido ao cliente, somando as devolucoes — RF-044. */
+  devolvidoValor: number
   itens: ItemDaVenda[]
   pagamentos: PagamentoDaVenda[]
   notaNumero: number | null
@@ -528,7 +534,15 @@ type VendaDaApi = {
   netAmountCents: number
   taxAmountCents: number
   cardFeeAmountCents: number
-  items: { description: string; quantity: number; unitPriceCents: number; totalCents: number }[]
+  returnedAmountCents: number
+  items: {
+    productId: string | null
+    description: string
+    quantity: number
+    returnedQuantity: number
+    unitPriceCents: number
+    totalCents: number
+  }[]
   payments: { method: FormaPagamento; amountCents: number; installments: number | null }[]
   invoiceNumber: number | null
   invoiceAccessKey: string | null
@@ -548,9 +562,12 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
   total: reais(v.netAmountCents),
   imposto: reais(v.taxAmountCents),
   taxaCartao: reais(v.cardFeeAmountCents),
+  devolvidoValor: reais(v.returnedAmountCents),
   itens: v.items.map((i) => ({
+    produtoId: i.productId,
     descricao: i.description,
     quantidade: i.quantity,
+    devolvido: i.returnedQuantity,
     precoUnitario: reais(i.unitPriceCents),
     total: reais(i.totalCents),
   })),
@@ -652,6 +669,49 @@ export async function estornarVenda(
     body: JSON.stringify({ reason: motivo.trim() }),
   })
   return r.ok ? { ok: true } : { ok: false, error: r.erro }
+}
+
+/** O que a devolucao fez com o dinheiro, em reais. */
+export type ResultadoDaDevolucao = {
+  devolvido: number
+  /** Sai do caixa: entregar ao cliente. */
+  entregarAoCliente: number
+  /** Estava em aberto (fiado, parcelas): so deixa de ser recebido. */
+  deixaDeReceber: number
+  venda: 'open' | 'settled' | 'returned'
+}
+
+/**
+ * Devolve parte da venda — RF-044. A tela diz produtos e quantidades; o valor
+ * quem calcula e o servidor, proporcional ao que foi cobrado por item.
+ */
+export async function devolverItens(
+  id: string,
+  motivo: string,
+  itens: { produtoId: string; quantidade: number }[],
+): Promise<{ ok: true; dados: ResultadoDaDevolucao } | { ok: false; error: string }> {
+  const r = await pedir<{
+    refundCents: number
+    paidBackCents: number
+    uncollectedCents: number
+    status: ResultadoDaDevolucao['venda']
+  }>(`/api/vendas/${encodeURIComponent(id)}/devolucao`, {
+    method: 'POST',
+    body: JSON.stringify({
+      reason: motivo.trim(),
+      items: itens.map((i) => ({ productId: i.produtoId, quantity: i.quantidade })),
+    }),
+  })
+  if (!r.ok) return { ok: false, error: r.erro }
+  return {
+    ok: true,
+    dados: {
+      devolvido: reais(r.dados.refundCents),
+      entregarAoCliente: reais(r.dados.paidBackCents),
+      deixaDeReceber: reais(r.dados.uncollectedCents),
+      venda: r.dados.status,
+    },
+  }
 }
 
 /* -------------------------------------------------------------------------- */

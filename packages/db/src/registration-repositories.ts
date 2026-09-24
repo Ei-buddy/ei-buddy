@@ -386,9 +386,12 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
                compara. Formatar aqui obrigaria a comparar string com data. */
             SELECT max(s.created_at)                    AS last_sale_at,
                    count(*)                             AS sales_count,
-                   COALESCE(sum(s.net_amount_cents), 0) AS total_spent_cents
+                   COALESCE(sum(s.net_amount_cents - COALESCE(ROUND(s.net_amount_cents
+                     * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0)), 0)
+                                                        AS total_spent_cents
             FROM sales s
-            WHERE s.customer_id = c.id AND s.status <> 'cancelled'
+            /* Devolvida inteira nao conta; a parcial entra sem a parte devolvida (RF-044). */
+            WHERE s.customer_id = c.id AND s.status NOT IN ('cancelled', 'returned')
           ) h ON true
           /* O excluido sai da lista — e so dela. O LATERAL acima continua
              somando as vendas dele para quem abrir a ficha pelo historico. */

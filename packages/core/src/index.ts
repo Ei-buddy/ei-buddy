@@ -251,6 +251,15 @@ export type {
 } from './receivables/settle-customer-charge.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
+export { returnSaleItems } from './sales/return-sale-items.js'
+export type { ReturnSaleItemsDeps } from './sales/return-sale-items.js'
+export type {
+  LinhaDevolvivel,
+  RecebivelDaVenda,
+  SaleReturnTransaction,
+  SaleReturnUnitOfWork,
+  SaleToReturn,
+} from './ports/sale-return.js'
 export type {
   SaleCancellationTransaction,
   SaleCancellationUnitOfWork,

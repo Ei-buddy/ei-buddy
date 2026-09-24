@@ -1,6 +1,6 @@
 import type { CustomerRank, ProductRank } from '@na-regua/contracts'
 import type { MesFaturado, Ranking, ReportRepository } from '@na-regua/core'
-import type { Sql } from 'postgres'
+import type { Sql, TransactionSql } from 'postgres'
 import { withTenant } from './tenant.js'
 
 /**
@@ -26,13 +26,21 @@ import { withTenant } from './tenant.js'
  * Formatando no banco, ja no fuso certo, nao ha `Date` intermediario para
  * errar.
  *
- * ## Venda cancelada nao entra; devolucao ainda nao existe
+ * ## Venda cancelada ou devolvida inteira nao entra; a parcial e abatida
  *
- * Ver a nota da porta em `core`: `status <> 'cancelled'` e o unico filtro, e
- * `returned_quantity` fica de fora ate a RF-044 decidir como a devolucao se
- * lanca. Abater por conta propria daria um ranking que nao fecha com o
- * faturamento.
+ * Devolucao parcial (RF-044): o bruto perde `returned_amount_cents`, o liquido
+ * perde a mesma PROPORCAO (o imposto e a tarifa da parte devolvida tambem nao
+ * ficam), e o ranking de produto conta `quantity - returned_quantity`. Os tres
+ * saem da mesma devolucao, entao fecham entre si.
  */
+
+/**
+ * O liquido da venda sem a parte devolvida, na mesma proporcao do bruto.
+ * Fragmento aninhado do postgres.js (e nao texto interpolado, que viraria
+ * parametro). Bruto zero nao divide: devolve o liquido inteiro.
+ */
+const liquidoSemDevolucao = (tx: TransactionSql) =>
+  tx`(s.net_amount_cents - COALESCE(ROUND(s.net_amount_cents * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
 
 /** bigint volta como texto no driver; `count` tambem. */
 const numero = (v: unknown): number => Number(v)
@@ -83,12 +91,12 @@ export function createReportRepository(sql: Sql, timeZone: string): ReportReposi
         companyId,
         (tx) => tx<LinhaDeMes[]>`
           SELECT to_char(s.created_at AT TIME ZONE ${timeZone}, 'YYYY-MM') AS month,
-                 SUM(s.gross_amount_cents) AS gross_cents,
+                 SUM(s.gross_amount_cents - s.returned_amount_cents) AS gross_cents,
                  SUM(s.discount_cents)     AS discounts_cents,
-                 SUM(s.net_amount_cents)   AS net_cents,
+                 SUM(${liquidoSemDevolucao(tx)}) AS net_cents,
                  COUNT(*)                  AS sales_count
           FROM sales s
-          WHERE s.status <> 'cancelled'
+          WHERE s.status NOT IN ('cancelled', 'returned')
             AND s.created_at >= (${from}::date)::timestamp AT TIME ZONE ${timeZone}
             AND s.created_at <  (${to}::date + 1)::timestamp AT TIME ZONE ${timeZone}
           GROUP BY 1
@@ -111,9 +119,9 @@ export function createReportRepository(sql: Sql, timeZone: string): ReportReposi
         companyId,
         (tx) => tx<LinhaDeCliente[]>`
           WITH vendas AS (
-            SELECT s.customer_id, s.net_amount_cents, s.created_at
+            SELECT s.customer_id, ${liquidoSemDevolucao(tx)} AS net_amount_cents, s.created_at
             FROM sales s
-            WHERE s.status <> 'cancelled'
+            WHERE s.status NOT IN ('cancelled', 'returned')
               AND s.created_at >= (${from}::date)::timestamp AT TIME ZONE ${timeZone}
               AND s.created_at <  (${to}::date + 1)::timestamp AT TIME ZONE ${timeZone}
           ),
@@ -161,10 +169,12 @@ export function createReportRepository(sql: Sql, timeZone: string): ReportReposi
         companyId,
         (tx) => tx<LinhaDeProduto[]>`
           WITH itens AS (
-            SELECT i.product_id, i.quantity, i.total_cents
+            SELECT i.product_id,
+                   i.quantity - i.returned_quantity AS quantity,
+                   i.total_cents - ROUND(i.total_cents * i.returned_quantity::numeric / i.quantity) AS total_cents
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
-            WHERE s.status <> 'cancelled'
+            WHERE s.status NOT IN ('cancelled', 'returned')
               AND s.created_at >= (${from}::date)::timestamp AT TIME ZONE ${timeZone}
               AND s.created_at <  (${to}::date + 1)::timestamp AT TIME ZONE ${timeZone}
           ),
