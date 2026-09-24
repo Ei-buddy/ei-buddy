@@ -135,7 +135,10 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
               return (
                 <li key={idx} className={styles.pagamentoDetalhe}>
                   <span>
-                    <strong>{f?.rotulo ?? p.forma}</strong>
+                    <strong>
+                      {f?.rotulo ?? p.forma}
+                      {p.parcelas !== null && p.parcelas > 1 ? ` · ${p.parcelas}x` : ''}
+                    </strong>
                     {f && f.taxa > 0 ? (
                       <span>taxa {f.taxa.toFixed(2).replace('.', ',')}%</span>
                     ) : null}

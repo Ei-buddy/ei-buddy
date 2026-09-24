@@ -31,9 +31,18 @@ const ALIQUOTA_PADRAO: TaxRules = { regime: 'simples_nacional', defaultRate: 6 }
  * que nao vai receber.
  */
 const TARIFAS_PADRAO: CardFeeTable = {
+  /* De 1x a 12x, que e o que o PDV oferece. Sem a linha de um numero de
+     parcelas, o dominio recusa a venda (`CARD_FEE_NOT_FOUND`) — e o balcao
+     so descobria no 2x. Ponto e meio a mais por parcela alem da 3x, o mesmo
+     degrau da 1x para a 3x. */
   rates: [
     { brand: 'unknown', installments: 1, feeRatePercent: 3 },
-    { brand: 'unknown', installments: 3, feeRatePercent: 6 },
+    { brand: 'unknown', installments: 2, feeRatePercent: 5 },
+    ...Array.from({ length: 10 }, (_, i) => ({
+      brand: 'unknown' as const,
+      installments: i + 3,
+      feeRatePercent: 6 + i * 1.5,
+    })),
   ],
   settlementDays: 30,
 }

@@ -4,7 +4,9 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   criarCobrancaVenda,
   FORMAS,
+  PARCELAS_MAXIMAS,
   statusCobrancaVenda,
+  taxaDoCredito,
   taxaDoPagamento,
   valorLiquido,
   type Pagamento,
@@ -37,6 +39,7 @@ export default function EtapaPagamento({
 }) {
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
   const [valorParcial, setValorParcial] = useState('')
+  const [parcelas, setParcelas] = useState(1)
   const [cobrando, setCobrando] = useState<Pagamento | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
@@ -77,10 +80,12 @@ export default function EtapaPagamento({
       forma,
       valor,
       status: formaAtual.online ? 'pendente' : 'confirmado',
+      ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
     }
 
     onPagamentos([...pagamentos, novo])
     setValorParcial('')
+    setParcelas(1)
 
     /* Dinheiro, cartao (na maquininha) e carteira sao confirmados na hora.
        So o Pix abre a cobranca para o cliente pagar. */
@@ -88,7 +93,7 @@ export default function EtapaPagamento({
       setCobrando(novo)
     } else {
       setToast({
-        msg: `${formaAtual.rotulo}: ${formatMoney(valor)} recebido.`,
+        msg: `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
         tone: 'success',
       })
     }
@@ -142,6 +147,24 @@ export default function EtapaPagamento({
                 />
               </label>
 
+              {forma === 'credito' ? (
+                <label className={styles.campo}>
+                  <span>Parcelas</span>
+                  <select
+                    className={styles.input}
+                    value={parcelas}
+                    onChange={(e) => setParcelas(Number(e.target.value))}
+                  >
+                    {Array.from({ length: PARCELAS_MAXIMAS }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n === 1 ? 'À vista (1x)' : `${n}x`} — taxa{' '}
+                        {taxaDoCredito(n).toFixed(2).replace('.', ',')}%
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
               <Button block onClick={lancar}>
                 {formaAtual.online
                   ? `Gerar cobranca em ${formaAtual.rotulo}`
@@ -190,7 +213,10 @@ export default function EtapaPagamento({
                 return (
                   <li key={p.id} className={styles.pagamento}>
                     <span className={styles.pagamentoPrincipal}>
-                      <strong>{f.rotulo}</strong>
+                      <strong>
+                        {f.rotulo}
+                        {p.parcelas ? ` · ${p.parcelas}x` : ''}
+                      </strong>
                       {taxaDoPagamento(p) > 0 ? (
                         <span>taxa {formatMoney(taxaDoPagamento(p))}</span>
                       ) : null}
