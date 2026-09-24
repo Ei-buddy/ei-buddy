@@ -1,5 +1,6 @@
 #!/bin/bash
-# Prepara a sessao do Claude Code na nuvem com o mesmo banco da CI.
+# Prepara a sessao do Claude Code na nuvem com o mesmo banco da CI, e com o
+# banco de desenvolvimento para subir web + api (`pnpm dev`).
 #
 # Sem Postgres, as suites de `db` usam `describe.skipIf(!DATABASE_URL)` e
 # somem em silencio — e e justamente ali que ja moraram varias falhas de CI.
@@ -45,6 +46,20 @@ fi
 if [ "$(psql_su "SELECT 1 FROM pg_database WHERE datname = 'naregua_test'")" != "1" ]; then
   psql_su "CREATE DATABASE naregua_test OWNER naregua"
 fi
+
+# --- banco de desenvolvimento (para subir web + api e ver a tela) -------------
+# O `naregua_test` acima e o da CI. Este e o do `.env.example`: roda com o papel
+# de APLICACAO (`naregua_app`, sujeito a RLS) — com o superusuario, o
+# `checkIsolation` da api recusa subir. Os papeis saem do mesmo script que o
+# compose roda na criacao do volume.
+if [ "$(psql_su "SELECT 1 FROM pg_database WHERE datname = 'naregua'")" != "1" ]; then
+  psql_su "CREATE DATABASE naregua OWNER naregua"
+  PGPASSWORD=naregua psql -h localhost -U naregua -d naregua -v ON_ERROR_STOP=1 -q \
+    -f infra/postgres/init/01-extensions.sql
+fi
+
+[ -f .env ] || cp .env.example .env
+pnpm db:migrate >/dev/null
 
 # --- Redis --------------------------------------------------------------------
 if ! redis-cli ping >/dev/null 2>&1; then
