@@ -16,6 +16,7 @@ import { adjustStock } from '../inventory/adjust-stock.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { InventoryUnitOfWork } from '../ports/inventory-writers.js'
 import type { ProductRepository } from '../ports/registration-repositories.js'
+import type { NcmLookup } from '../ports/ncm-lookup.js'
 import type { RetrievalStore } from '../ports/retrieval.js'
 
 export type RegisterProductDeps = {
@@ -28,6 +29,11 @@ export type RegisterProductDeps = {
    * cadastro que nao conclui — mesmo criterio de `SECRETS_KEY`.
    */
   readonly retrieval?: RetrievalStore | undefined
+  /**
+   * Tabela oficial de NCM. Opcional pelo mesmo criterio: sem ela o cadastro so
+   * confere o formato (8 digitos), como antes.
+   */
+  readonly ncmLookup?: NcmLookup | undefined
 }
 
 /**
@@ -115,6 +121,20 @@ export async function registerProduct(
         `Este codigo de barras ja esta em "${existente.description}". ` +
           'Edite o produto existente em vez de criar outro.',
       )
+    }
+  }
+
+  /*
+   * NCM que a tabela oficial diz que NAO existe e recusado aqui, no campo — e
+   * nao na emissao, dias depois, quando o lojista ja esqueceu de onde tirou o
+   * numero. Provedor fora do ar deixa passar (ver `NcmConsulta`).
+   */
+  if (input.ncm !== undefined && deps.ncmLookup !== undefined) {
+    const consulta = await deps.ncmLookup.consultar(input.ncm)
+    if (consulta.status === 'inexistente') {
+      throw AppError.validation('NCM nao encontrado na tabela oficial.', [
+        { path: 'ncm', message: 'Este NCM nao existe na tabela oficial. Confira os numeros.' },
+      ])
     }
   }
 
