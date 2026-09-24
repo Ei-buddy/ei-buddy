@@ -88,7 +88,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-041 | Calcular imposto conforme o regime tributário configurado para a empresa                                   | US-020 | `domain`    |  M  | ⬜  |
 | RF-042 | Ocultar custo, imposto e margem do resumo da venda para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
 | RF-043 | Cancelar venda estornando estoque, contas a receber e saldo de carteira                                    | US-021 | `core`      |  M  | ✅  |
-| RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  | ⬜  |
+| RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  |     | ✅  |
 
 ## E5 — Emissão Fiscal
 
