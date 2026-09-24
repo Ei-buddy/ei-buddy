@@ -8,6 +8,7 @@ import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
+import CancelarVendaModal from '@/components/CancelarVendaModal'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /**
@@ -26,6 +27,7 @@ export default function Vendas() {
   const [vendas, setVendas] = useState<VendaHistorico[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [estornando, setEstornando] = useState<VendaHistorico | null>(null)
 
   const buscar = useCallback(async () => {
     const r = await listarHistoricoDeVendas()
@@ -48,15 +50,14 @@ export default function Vendas() {
     })()
   }, [buscar])
 
-  function pedirEstorno() {
-    /* AINDA NAO EXISTE no backend — ver o comentario em `estornarVenda`,
-       em `vendas-api.ts`. Avisar e melhor que um botao que nao faz nada
-       quando tocado. */
-    Alert.alert(
-      'Estorno ainda não disponível',
-      'O estorno precisa desfazer estoque, título e nota fiscal juntos, e essa parte ainda não ' +
-        'foi construída — nem no computador. Por enquanto não há como estornar por aqui.',
-    )
+  /* Estorno de verdade — RF-043: o servidor devolve o estoque e cancela os
+     recebiveis numa transacao so. A lista recarrega depois, porque o status
+     quem decide e o servidor. */
+  function aoCancelar() {
+    const numero = estornando?.numero
+    setEstornando(null)
+    void buscar()
+    Alert.alert('Venda estornada', `A venda #${numero ?? ''} foi estornada.`)
   }
 
   const resumo = useMemo(() => {
@@ -165,7 +166,7 @@ export default function Vendas() {
                   <Pressable
                     style={estilos.estornar}
                     accessibilityRole="button"
-                    onPress={pedirEstorno}
+                    onPress={() => setEstornando(v)}
                   >
                     <Text style={estilos.estornarTexto}>Estornar venda</Text>
                   </Pressable>
@@ -175,6 +176,14 @@ export default function Vendas() {
           </>
         )}
       </ScrollView>
+
+      {estornando !== null ? (
+        <CancelarVendaModal
+          venda={estornando}
+          onCancelada={aoCancelar}
+          onFechar={() => setEstornando(null)}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
