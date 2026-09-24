@@ -18,8 +18,11 @@ import { getCompany, updateCompany } from './manage-company.js'
 import {
   assertIdentifiable,
   checkCustomerWalletByQuery,
+  deleteCustomer,
   getCustomer,
+  listCustomers,
   registerCustomer,
+  restoreCustomer,
 } from './register-customer.js'
 import {
   catalogSummary,
@@ -330,6 +333,122 @@ describe('getCustomer — RF-011', () => {
     )
 
     expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+})
+
+describe('excluir e reativar cliente — RF-009', () => {
+  async function comCliente(sobrescreve: Record<string, unknown> = {}) {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+      ...sobrescreve,
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    return { customers, id: r.customer.id }
+  }
+
+  const PAGINA = { filter: 'todos' as const, page: 1, pageSize: 24 }
+
+  it('cliente nasce ativo', async () => {
+    const { customers, id } = await comCliente()
+
+    const ficha = await getCustomer({ customers }, contexto(), id)
+
+    expect(ficha.deletedAt).toBeNull()
+  })
+
+  it('excluido sai da lista', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    const lista = await listCustomers({ customers }, contexto(), PAGINA)
+
+    expect(lista.total).toBe(0)
+    expect(lista.customers).toHaveLength(0)
+  })
+
+  /*
+   * A ficha continua abrindo, e e isso que torna a exclusao reversivel: e nela
+   * que mora o botao de trazer de volta. Se `findById` escondesse o excluido,
+   * "desfazer" so existiria por SQL a mao.
+   */
+  it('a ficha do excluido continua abrindo, com a data', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    const ficha = await getCustomer({ customers }, contexto(), id)
+
+    expect(ficha.deletedAt).toBe(AGORA.toISOString())
+  })
+
+  it('reativar traz de volta para a lista', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    await restoreCustomer({ customers }, contexto(), id)
+
+    const lista = await listCustomers({ customers }, contexto(), PAGINA)
+    expect(lista.total).toBe(1)
+
+    const ficha = await getCustomer({ customers }, contexto(), id)
+    expect(ficha.deletedAt).toBeNull()
+  })
+
+  /*
+   * Sumir da lista um cliente que deve e esconder a divida de quem precisa
+   * cobra-la: o saldo continuaria somando no relatorio, sem ninguem para
+   * associar a ele.
+   */
+  it('recusa excluir quem tem fiado em aberto', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), { name: 'Devedor' })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    /* O falso nao movimenta fiado; o saldo entra direto, que e o estado que o
+       caso de uso le. */
+    customers.definirSaldoCarteira(r.customer.id, 5000)
+
+    const erro = await deleteCustomer({ customers }, contexto(), r.customer.id).catch(
+      (e: unknown) => e,
+    )
+
+    expect(isAppError(erro) && erro.code).toBe('CONFLICT')
+  })
+
+  /* Dois cliques no botao nao viram erro na tela: o estado pedido ja e o atual. */
+  it('excluir duas vezes e sucesso, nao conflito', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    await expect(deleteCustomer({ customers }, contexto(), id)).resolves.toBeUndefined()
+  })
+
+  it('cliente de outra empresa responde NOT_FOUND', async () => {
+    const { customers, id } = await comCliente()
+
+    const erro = await deleteCustomer({ customers }, contexto({ companyId: 'emp-2' }), id).catch(
+      (e: unknown) => e,
+    )
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+
+  /*
+   * Excluido nao conta como parecido: cadastrar de novo alguem que saiu da
+   * lista e o caminho normal, e oferecer "ja existe" ali confundiria.
+   */
+  it('excluido nao aparece como duplicado num cadastro novo', async () => {
+    const { customers, id } = await comCliente()
+    await deleteCustomer({ customers }, contexto(), id)
+
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+    })
+
+    expect(r.status).toBe('created')
   })
 })
 

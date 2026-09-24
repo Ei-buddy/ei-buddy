@@ -259,6 +259,16 @@ export type ClienteDaFicha = {
    * 409, e o lojista poderia achar que o pedido anterior nao valeu.
    */
   anonimizadoEm: string | null
+  /**
+   * Quando o lojista tirou este cliente da lista — RF-009.
+   *
+   * Nulo = ativo. A ficha CONTINUA abrindo depois de excluido, e e por isso
+   * que este campo existe: e ela que mostra o aviso e o botao de reativar.
+   *
+   * Nao confundir com o filtro "inativos" da lista, que quer dizer outra
+   * coisa — cliente que nao compra ha sessenta dias.
+   */
+  excluidoEm: string | null
 }
 
 type FichaDaApi = {
@@ -280,6 +290,7 @@ type FichaDaApi = {
     state: string | null
   }
   anonymizedAt: string | null
+  deletedAt: string | null
 }
 
 /**
@@ -332,8 +343,39 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
         uf: c.address.state,
       },
       anonimizadoEm: c.anonymizedAt,
+      excluidoEm: c.deletedAt,
     },
   }
+}
+
+/**
+ * Tira o cliente da lista — RF-009.
+ *
+ * Nada e apagado: a linha fica, e o historico de vendas continua apontando
+ * para ela. Por isso ha volta, logo abaixo.
+ *
+ * Recusa com fiado em aberto, e a api e quem diz isso — a mensagem dela chega
+ * pronta para a tela ("baixe o saldo antes de excluir").
+ */
+export async function excluirCliente(
+  id: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await pedir<unknown>(`/api/clientes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+
+  return r.ok ? { ok: true } : { ok: false, erro: r.erro }
+}
+
+/** Traz o cliente de volta para a lista — RF-009. */
+export async function reativarCliente(
+  id: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await pedir<unknown>(`/api/clientes/${encodeURIComponent(id)}/reativacao`, {
+    method: 'POST',
+  })
+
+  return r.ok ? { ok: true } : { ok: false, erro: r.erro }
 }
 
 /** SUBSTITUIR POR: GET /clientes/:id/compras */

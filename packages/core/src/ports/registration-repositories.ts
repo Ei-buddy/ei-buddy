@@ -182,6 +182,23 @@ export type CustomerRepository = {
     companyId: CompanyId,
     criterio: { readonly termo?: string; readonly limite: number },
   ): Promise<readonly CustomerOutput[]>
+
+  /**
+   * Exclui (data) ou reativa (`null`) — RF-009.
+   *
+   * Um metodo para os dois sentidos, e nao `softDelete` mais `restore`: e o
+   * mesmo UPDATE numa coluna so, e dois metodos dariam duas chances de um
+   * esquecer o `updated_by` que o outro escreve.
+   *
+   * `false` quando nao ha o que atualizar — cliente inexistente ou de outra
+   * empresa, que sao indistinguiveis daqui por causa da RLS.
+   */
+  setDeletedAt(
+    companyId: CompanyId,
+    customerId: string,
+    deletedAt: Date | null,
+    updatedBy: UserId,
+  ): Promise<boolean>
 }
 
 export type NewProduct = {

@@ -458,7 +458,12 @@ export type {
   SaleHistoryRepository,
   VendaDoHistorico,
 } from './ports/sale-history.js'
-export { getCustomer, listCustomers } from './registration/register-customer.js'
+export {
+  deleteCustomer,
+  getCustomer,
+  listCustomers,
+  restoreCustomer,
+} from './registration/register-customer.js'
 
 /* Chamados de suporte — NR-080, US-062. */
 export { getTicket, listTickets, openTicket, readTicket, replyToTicket } from './support/tickets.js'

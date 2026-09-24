@@ -323,6 +323,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
       },
       createdAt: agora.toISOString(),
       anonymizedAt: null,
+      deletedAt: null,
     }
   }
 

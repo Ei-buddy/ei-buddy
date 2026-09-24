@@ -269,6 +269,7 @@ type LinhaCliente = {
   state: string | null
   created_at: Date
   anonymized_at: Date | null
+  deleted_at: Date | null
 }
 
 const paraCliente = (l: LinhaCliente): CustomerOutput => ({
@@ -286,6 +287,9 @@ const paraCliente = (l: LinhaCliente): CustomerOutput => ({
   /* A ficha precisa disto para nao oferecer "atender pedido de exclusao" a um
      cliente ja anonimizado — RF-127. */
   anonymizedAt: l.anonymized_at?.toISOString() ?? null,
+  /* Sai da lista sem sair do historico de vendas — RF-009, dados.md#exclusão.
+     A ficha continua abrindo, e e ela que oferece reativar. */
+  deletedAt: l.deleted_at?.toISOString() ?? null,
 })
 
 export function createCustomerRepository(sql: Sql): CustomerRepository {
@@ -386,7 +390,9 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
             FROM sales s
             WHERE s.customer_id = c.id AND s.status <> 'cancelled'
           ) h ON true
-          WHERE true
+          /* O excluido sai da lista — e so dela. O LATERAL acima continua
+             somando as vendas dele para quem abrir a ficha pelo historico. */
+          WHERE c.deleted_at IS NULL
           ${
             criterio.termo === undefined
               ? tx``
@@ -462,6 +468,33 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
         `,
       )
       return linhas.map(paraCliente)
+    },
+
+    /**
+     * Exclui ou reativa — RF-009.
+     *
+     * Um UPDATE para os dois sentidos: `deleted_at` recebe a data ou
+     * `null`. Sem `WHERE deleted_at IS NULL`, de proposito — o caso de uso ja
+     * conferiu o estado atual, e filtrar aqui tornaria a reativacao impossivel.
+     *
+     * `RETURNING id` e nao `count`: a RLS ja escondeu o cliente de outra
+     * empresa, entao "nao atualizou nada" e exatamente a resposta certa para
+     * inexistente e para de outro tenant.
+     */
+    setDeletedAt: async (companyId, customerId, deletedAt, updatedBy) => {
+      const linhas = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ id: string }[]>`
+          UPDATE customers
+             SET deleted_at = ${deletedAt},
+                 updated_by = ${updatedBy},
+                 updated_at = now()
+           WHERE id = ${customerId}
+          RETURNING id
+        `,
+      )
+      return linhas.length > 0
     },
   }
 }

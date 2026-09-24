@@ -70,6 +70,7 @@ function clienteSaida(over: Partial<CustomerOutput> = {}): CustomerOutput {
     },
     createdAt: agora.toISOString(),
     anonymizedAt: null,
+    deletedAt: null,
     ...over,
   }
 }

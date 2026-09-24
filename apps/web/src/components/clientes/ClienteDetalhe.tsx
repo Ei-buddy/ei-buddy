@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
+import ExcluirCliente from './ExcluirCliente'
 import styles from './detalhe.module.css'
 
 const TIPO_CONTATO: Record<ContatoCliente['tipo'], string> = {
@@ -170,6 +171,18 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
           </>
         }
       />
+
+      {/*
+        O aviso vem ANTES dos numeros. Quem abre a ficha de um cliente que saiu
+        da lista precisa saber disso antes de ler o saldo de fiado — senao le a
+        ficha inteira achando que e um cliente ativo qualquer.
+      */}
+      {cliente.excluidoEm === null ? null : (
+        <p className={styles.privacidadeAviso}>
+          Cliente excluído da lista. Ele não aparece mais no cadastro nem nas buscas; o histórico de
+          vendas continua intacto. A opção de trazer de volta está no fim desta ficha.
+        </p>
+      )}
 
       <div className="statRow">
         <Stat
@@ -352,6 +365,22 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
             </ul>
           )}
         </Card>
+      </div>
+
+      {/*
+        Tirar da lista — RF-009. Reversivel, decisao do lojista.
+
+        Fica ACIMA da anonimizacao de proposito: as duas se parecem pelo nome e
+        nao sao a mesma coisa, e quem procura "excluir" encontra primeiro a que
+        da para desfazer.
+      */}
+      <div className={styles.privacidade}>
+        <ExcluirCliente
+          clienteId={cliente.id}
+          nome={cliente.nome}
+          excluidoEm={cliente.excluidoEm}
+          onMudou={() => void carregar()}
+        />
       </div>
 
       {/*

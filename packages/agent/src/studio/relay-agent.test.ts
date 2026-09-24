@@ -382,6 +382,7 @@ describe('studio-harness — US2 identidade forjada', () => {
             },
             createdAt: agora.toISOString(),
             anonymizedAt: null,
+            deletedAt: null,
           },
         }
       },
@@ -520,6 +521,7 @@ describe('studio-harness — US3 durationMs', () => {
           },
           createdAt: agora.toISOString(),
           anonymizedAt: null,
+          deletedAt: null,
         },
       }),
     })

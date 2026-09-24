@@ -5,7 +5,7 @@ import type {
   CustomerOutput,
   ProductOutput,
 } from '@na-regua/contracts'
-import type { CompanyId } from '../context.js'
+import type { CompanyId, UserId } from '../context.js'
 import type { CepAddress, CepLookup } from '../ports/cep-lookup.js'
 import type { CnpjCompany, CnpjLookup } from '../ports/cnpj-lookup.js'
 import type {
@@ -192,6 +192,8 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       createdAt: customer.createdAt.toISOString(),
       /* Cliente nasce sem pedido de exclusao atendido — RF-127. */
       anonymizedAt: null,
+      /* E nasce na lista. */
+      deletedAt: null,
     }
     this.registros.set(gravado.id, gravado)
     return this.semTenant(gravado)
@@ -210,8 +212,10 @@ export class InMemoryCustomerRepository implements CustomerRepository {
   ): Promise<readonly CustomerOutput[]> {
     if (criteria.phone === undefined && criteria.document === undefined) return []
 
+    /* Excluido nao conta como parecido: cadastrar de novo alguem que saiu da
+       lista e o caminho normal, e oferecer "ja existe" ali confundiria. */
     return [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           (criteria.phone !== undefined && c.phone === criteria.phone) ||
@@ -245,7 +249,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     const casam = [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           termo === '' ||
@@ -275,7 +279,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           termo === '' ||
@@ -286,6 +290,28 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, criterio.limite)
       .map((c) => this.semTenant(c))
+  }
+
+  /**
+   * Exclui ou reativa — RF-009.
+   *
+   * `findById` continua achando o excluido de proposito, como no banco: e a
+   * ficha dele que carrega o botao de reativar.
+   */
+  async setDeletedAt(
+    companyId: CompanyId,
+    customerId: string,
+    deletedAt: Date | null,
+    _updatedBy: UserId,
+  ): Promise<boolean> {
+    const achado = this.registros.get(customerId)
+    if (achado === undefined || achado.companyId !== companyId) return false
+
+    this.registros.set(customerId, {
+      ...achado,
+      deletedAt: deletedAt === null ? null : deletedAt.toISOString(),
+    })
+    return true
   }
 
   /** Ajusta saldo em carteira nos testes — o cadastro nasce zerado de proposito. */

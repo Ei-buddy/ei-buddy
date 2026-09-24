@@ -181,6 +181,82 @@ export async function getCustomer(
   return cliente
 }
 
+/**
+ * Exclui o cliente da lista — RF-009.
+ *
+ * "Excluir" aqui e reversivel, e e de proposito. A coluna `deleted_at` existe
+ * desde a migration 0002 com o comentario que explica por que: "cliente sai da
+ * lista sem sair do historico de vendas". Apagar a linha de verdade levaria
+ * junto o nome de quem comprou em toda venda passada — o lojista perderia o
+ * relatorio para limpar o cadastro.
+ *
+ * ## Por que recusa com fiado em aberto
+ *
+ * Sumir da lista um cliente que deve e esconder a divida de quem precisa
+ * cobra-la. O saldo continuaria no banco, somando no relatorio, sem ninguem
+ * para associar a ele. Quem quer mesmo assim baixa o fiado primeiro — que e a
+ * ordem certa das duas coisas.
+ *
+ * ## "Excluido" NAO e "inativo"
+ *
+ * O filtro `inativos` da lista significa "nao compra ha sessenta dias", que e
+ * observacao sobre o comportamento de compra. Este aqui e decisao do lojista.
+ * As duas palavras convivem na mesma tela e nao querem dizer a mesma coisa.
+ */
+export async function deleteCustomer(
+  deps: { readonly customers: CustomerRepository },
+  ctx: ExecutionContext,
+  customerId: string,
+): Promise<void> {
+  assertCanWrite(ctx)
+
+  const cliente = await deps.customers.findById(ctx.companyId, customerId)
+
+  if (cliente === undefined) {
+    throw AppError.notFound('Cliente nao encontrado.')
+  }
+
+  /* Ja excluido responde sucesso, e nao conflito: o estado pedido e o estado
+     atual. Dois cliques no botao nao viram erro na tela. */
+  if (cliente.deletedAt !== null) return
+
+  if (cliente.walletBalanceCents > 0) {
+    throw AppError.conflict(
+      'Este cliente tem fiado em aberto. Baixe o saldo antes de excluir da lista.',
+    )
+  }
+
+  await deps.customers.setDeletedAt(ctx.companyId, customerId, ctx.now, ctx.userId)
+}
+
+/**
+ * Traz o cliente de volta para a lista — RF-009.
+ *
+ * Existe porque a exclusao e um clique e o arrependimento tambem: sem isto, o
+ * lojista que excluiu o cliente errado nao teria como desfazer por dentro do
+ * sistema, e o "excluir" viraria um botao que ninguem aperta.
+ *
+ * A ficha do cliente excluido continua abrindo justamente para caber este
+ * botao — quem some da lista e ele, nao o registro.
+ */
+export async function restoreCustomer(
+  deps: { readonly customers: CustomerRepository },
+  ctx: ExecutionContext,
+  customerId: string,
+): Promise<void> {
+  assertCanWrite(ctx)
+
+  const cliente = await deps.customers.findById(ctx.companyId, customerId)
+
+  if (cliente === undefined) {
+    throw AppError.notFound('Cliente nao encontrado.')
+  }
+
+  if (cliente.deletedAt === null) return
+
+  await deps.customers.setDeletedAt(ctx.companyId, customerId, null, ctx.userId)
+}
+
 export async function listCustomers(
   deps: { readonly customers: CustomerRepository },
   ctx: ExecutionContext,
