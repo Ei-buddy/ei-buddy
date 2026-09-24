@@ -17,6 +17,7 @@ import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
 import ExcluirCliente from './ExcluirCliente'
+import NovoContato from './NovoContato'
 import styles from './detalhe.module.css'
 
 const TIPO_CONTATO: Record<ContatoCliente['tipo'], string> = {
@@ -70,6 +71,20 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
   const [cliente, setCliente] = useState<ClienteDaFicha | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  /*
+   * Os contatos vem da api e nao de um `useMemo` sobre dados de exemplo, e por
+   * isso tem estado proprio: a ficha e o historico sao duas leituras, e o
+   * lancamento de um contato recarrega so o segundo.
+   */
+  const [contatos, setContatos] = useState<ContatoCliente[]>([])
+  const [lancandoContato, setLancandoContato] = useState(false)
+
+  const carregarContatos = useCallback(async () => {
+    const r = await contatosDoCliente(clienteId)
+    /* Falha aqui NAO derruba a ficha: o historico e uma secao, e o cadastro, o
+       endereco e o fiado continuam legiveis sem ele. */
+    if (r.ok) setContatos(r.dados)
+  }, [clienteId])
 
   const carregar = useCallback(async () => {
     const r = await buscarCliente(clienteId)
@@ -89,8 +104,9 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
        await, nunca sincronos no corpo do efeito. */
     void (async () => {
       await carregar()
+      await carregarContatos()
     })()
-  }, [carregar])
+  }, [carregar, carregarContatos])
 
   if (carregando) {
     return <PageHeader title="Carregando…" subtitle="Buscando a ficha do cliente" />
@@ -118,7 +134,6 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
 
   const compras = comprasDoCliente(cliente.id)
   const pendencias = pendenciasDoCliente(cliente.id)
-  const contatos = contatosDoCliente(cliente.id)
 
   const totalComprado = compras.reduce((acc, c) => acc + c.valor, 0)
   const documento = formatarDocumento(cliente.documento)
@@ -145,10 +160,10 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
               <IconReceipt size={16} />
               Lançar pendência
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setToast('Lançamento de contato entra com o módulo de CRM.')}
-            >
+            {/* Leva ao formulario da secao de historico, mais abaixo: um
+                segundo formulario aqui em cima significaria dois lugares para
+                escrever a mesma coisa. */}
+            <Button variant="secondary" onClick={() => setLancandoContato(true)}>
               <IconCalendar size={16} />
               Lançar contato
             </Button>
@@ -335,17 +350,27 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
           title="Histórico de contatos"
           className={styles.largo}
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setToast('Lançamento de contato entra com o módulo de CRM.')}
-            >
-              <IconPlus size={14} />
-              Novo contato
-            </Button>
+            lancandoContato ? null : (
+              <Button variant="ghost" size="sm" onClick={() => setLancandoContato(true)}>
+                <IconPlus size={14} />
+                Novo contato
+              </Button>
+            )
           }
         >
-          {contatos.length === 0 ? (
+          {lancandoContato ? (
+            <NovoContato
+              clienteId={cliente.id}
+              onLancado={() => {
+                setLancandoContato(false)
+                setToast('Contato registrado.')
+                void carregarContatos()
+              }}
+              onCancelar={() => setLancandoContato(false)}
+            />
+          ) : null}
+
+          {contatos.length === 0 && !lancandoContato ? (
             <EmptyState
               title="Nenhum contato registrado"
               description="Registre ligações, visitas e combinados para não depender da memória."

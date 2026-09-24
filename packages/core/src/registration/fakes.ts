@@ -1,6 +1,7 @@
 import type {
   Address,
   CompanyOutput,
+  CustomerContactOutput,
   CustomerListItem,
   CustomerOutput,
   ProductOutput,
@@ -8,6 +9,7 @@ import type {
 import type { CompanyId, UserId } from '../context.js'
 import type { CepAddress, CepLookup } from '../ports/cep-lookup.js'
 import type { CnpjCompany, CnpjLookup } from '../ports/cnpj-lookup.js'
+import type { CustomerContactRepository, NewCustomerContact } from '../ports/customer-contacts.js'
 import type {
   CompanyChanges,
   CompanyRepository,
@@ -499,5 +501,63 @@ export class InMemoryProductRepository implements ProductRepository {
   private semTenant(registro: ProductOutput & { companyId: CompanyId }): ProductOutput {
     const { companyId: _omitido, ...resto } = registro
     return resto
+  }
+}
+
+/**
+ * Contatos do cliente em memoria — RF-011.
+ *
+ * Recebe o repositorio de clientes para poder recusar id de outra empresa, que
+ * e exatamente o que o adapter de verdade faz antes de inserir: a RLS nao
+ * pegaria isso sozinha, porque a linha nova levaria o `company_id` do
+ * contexto ainda que o cliente fosse de outra loja.
+ */
+export class InMemoryCustomerContacts implements CustomerContactRepository {
+  private readonly registros: (NewCustomerContact & { id: string; createdAt: string })[] = []
+  private sequencia = 0
+
+  constructor(private readonly customers: InMemoryCustomerRepository) {}
+
+  async create(contact: NewCustomerContact): Promise<CustomerContactOutput | undefined> {
+    const cliente = await this.customers.findById(contact.companyId, contact.customerId)
+    if (cliente === undefined) return undefined
+
+    this.sequencia += 1
+    const gravado = {
+      ...contact,
+      id: `ctt-${this.sequencia}`,
+      createdAt: new Date(0).toISOString(),
+    }
+    this.registros.push(gravado)
+
+    return this.paraSaida(gravado)
+  }
+
+  async listByCustomer(
+    companyId: string,
+    customerId: string,
+    limite: number,
+  ): Promise<readonly CustomerContactOutput[]> {
+    return (
+      this.registros
+        .filter((c) => c.companyId === companyId && c.customerId === customerId)
+        /* Mais recente primeiro, como a ficha mostra — e por `happenedOn`, que e
+         o dia do FATO, nao o do registro. */
+        .sort((a, b) => b.happenedOn.localeCompare(a.happenedOn))
+        .slice(0, limite)
+        .map((c) => this.paraSaida(c))
+    )
+  }
+
+  private paraSaida(
+    c: NewCustomerContact & { id: string; createdAt: string },
+  ): CustomerContactOutput {
+    return {
+      id: c.id,
+      kind: c.kind,
+      description: c.description,
+      happenedOn: c.happenedOn,
+      createdAt: c.createdAt,
+    }
   }
 }

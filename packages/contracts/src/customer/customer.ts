@@ -170,6 +170,62 @@ export const customerOutputSchema = z.object({
 export type CustomerOutput = z.infer<typeof customerOutputSchema>
 
 /**
+ * O historico de contatos da ficha — RF-011, NR-072.
+ *
+ * A ficha mostrava esta lista desde que a tela existe, vinda de dados de
+ * exemplo, e o botao de lancar abria um aviso ("entra com o modulo de CRM").
+ * O CRM que existe e um quadro de oportunidades da loja — outra pergunta.
+ *
+ * As chaves sao em ingles, como o resto do vocabulario; o texto que o lojista
+ * le mora na tela. Gravar a prosa faria a primeira mudanca de redacao virar
+ * migration.
+ */
+export const customerContactKindSchema = z.enum(['call', 'whatsapp', 'visit', 'note'])
+
+export type CustomerContactKind = z.infer<typeof customerContactKindSchema>
+
+export const createCustomerContactInputSchema = z
+  .object({
+    kind: customerContactKindSchema,
+    description: z
+      .string()
+      .trim()
+      .min(3, 'Descreva o contato em pelo menos tres caracteres.')
+      .max(500, 'Descricao muito longa.'),
+    /**
+     * O dia do FATO, e nao o do registro — o lojista lanca hoje a ligacao de
+     * ontem, e a ficha ordena pelo que aconteceu.
+     *
+     * Ausente = hoje, resolvido pelo caso de uso com `ctx.now`. O schema nao
+     * usa `.default()` porque a data de hoje NAO e conhecida por um schema:
+     * um default aqui seria o relogio do processo que carregou o modulo.
+     */
+    happenedOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe a data no formato AAAA-MM-DD.')
+      .optional(),
+  })
+  .strict()
+
+export type CreateCustomerContactInput = z.infer<typeof createCustomerContactInputSchema>
+
+export const customerContactOutputSchema = z.object({
+  id: idSchema,
+  kind: customerContactKindSchema,
+  description: z.string(),
+  happenedOn: z.string(),
+  createdAt: z.string(),
+})
+
+export type CustomerContactOutput = z.infer<typeof customerContactOutputSchema>
+
+export const customerContactListOutputSchema = z.object({
+  contacts: z.array(customerContactOutputSchema),
+})
+
+export type CustomerContactListOutput = z.infer<typeof customerContactListOutputSchema>
+
+/**
  * Importacao de clientes em lote — NR-072, US-008.
  *
  * Mesma forma da importacao de produtos, e de proposito: as duas telas usam o

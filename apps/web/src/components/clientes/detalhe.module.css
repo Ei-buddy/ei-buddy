@@ -251,3 +251,16 @@
   margin-bottom: 18px;
   border-bottom: 1px solid var(--app-border);
 }
+
+/*
+ * O formulario de lancar contato, dentro do card do historico — RF-011.
+ *
+ * Separado por uma borda de baixo porque ele ocupa o topo do card e a lista
+ * continua logo abaixo: sem a linha, o campo de texto e a primeira linha do
+ * historico pareceriam a mesma coisa.
+ */
+.novoContato {
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--app-border);
+}

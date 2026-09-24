@@ -64,6 +64,7 @@ export type {
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
+export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
   ConnectionContact,
   ConnectionDirection,
@@ -108,6 +109,12 @@ export {
 } from './connections/manage-connections.js'
 export type { ManageConnectionsDeps } from './connections/manage-connections.js'
 export { resolveCoordinates } from './registration/geocoding.js'
+export {
+  addCustomerContact,
+  type CustomerContactDeps,
+  listCustomerContacts,
+  TETO_DE_CONTATOS_NA_FICHA,
+} from './registration/customer-contacts.js'
 export { lookupAddressByCep, lookupCompanyByCnpj } from './registration/lookups.js'
 export type { LookupCepDeps, LookupCnpjDeps } from './registration/lookups.js'
 export {
@@ -420,6 +427,7 @@ export {
   InMemoryCepLookup,
   InMemoryCnpjLookup,
   InMemoryCompanyRepository,
+  InMemoryCustomerContacts,
 } from './registration/fakes.js'
 
 /* O gatilho da emissao — NR-042, RF-045, RF-046. */

@@ -56,6 +56,12 @@ export const exportCollectionSchema = z.enum([
    * portabilidade entregar os recebiveis sem as cobrancas que os acompanharam,
    * que e metade da conversa entre loja e cliente.
    */
+  /*
+   * O diario de contatos da ficha (NR-072). E dado do titular na acepcao mais
+   * direta: cada linha e um registro do que a loja falou com ele. Deixar de
+   * fora entregaria o cadastro e as vendas sem a conversa que as cercou.
+   */
+  'customer_contacts',
   'customer_charges',
   'customer_charge_receivables',
 ])
