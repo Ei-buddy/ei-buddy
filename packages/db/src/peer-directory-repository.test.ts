@@ -213,8 +213,20 @@ describe.skipIf(!DATABASE_URL)('peer-directory-repository — NR-046 US4', () =>
   it('empate em created_at: devolve o menor company_id', async () => {
     const telefone = `4192${String(Date.now()).slice(-7)}`
     const dona = await criarUsuario(telefone, 'Dona empate')
-    const empresaMenor = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-    const empresaMaior = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    /*
+     * Dois ids SORTEADOS e ordenados, e nao dois fixos.
+     *
+     * Eram `aaaa…` e `bbbb…`. O teste nao os apaga no fim, entao numa
+     * rodada abortada eles ficam para tras — e a rodada seguinte contra o mesmo
+     * banco morre com "duplicate key value violates unique constraint
+     * companies_pkey", num teste que nao tem nada a ver com chave duplicada.
+     * Na CI isso nao aparece (contêiner novo a cada job); localmente, contra um
+     * Postgres persistente, aparece sempre.
+     *
+     * O que o teste precisa e de dois ids com ordem CONHECIDA, nao de dois ids
+     * conhecidos.
+     */
+    const [empresaMenor, empresaMaior] = [randomUUID(), randomUUID()].sort()
     const instante = '2026-07-15T12:00:00.000Z'
 
     await criarEmpresaComId(empresaMenor, 'US4 menor id', '7')
