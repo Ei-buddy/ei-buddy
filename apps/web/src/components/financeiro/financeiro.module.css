@@ -757,3 +757,37 @@
   grid-template-columns: 1fr auto auto;
   grid-template-areas: 'principal valor acoes';
 }
+
+/* Contas bancarias — RF-073 */
+.contasBancarias {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.contaBancaria {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+}
+.contaBancaria span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.contaBancaria small {
+  color: var(--text-muted, inherit);
+  opacity: 0.8;
+}
+.contaAcoes {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .contaBancaria {
+    grid-template-columns: 1fr auto;
+  }
+}

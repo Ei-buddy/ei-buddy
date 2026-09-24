@@ -138,7 +138,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 
 | ID     | Requisito                                                                                        | US     | Módulo dono | Pri | St  |
 | ------ | ------------------------------------------------------------------------------------------------ | ------ | ----------- | :-: | :-: |
-| RF-073 | Cadastrar conta bancária com saldo inicial                                                       | US-035 | `core`      |  S  | ⬜  |
+| RF-073 | Cadastrar conta bancária com saldo inicial                                                       | US-035 | `core`      |  S  | ✅  |
 | RF-074 | Conectar conta bancária via Open Finance e importar transações periodicamente                    | US-036 | `banking`   |  S  | ⬜  |
 | RF-075 | Detectar consentimento expirado, avisar o lojista e preservar conciliações anteriores            | US-036 | `banking`   |  S  | ⬜  |
 | RF-076 | Importar extrato em OFX ou CSV, informando quantas transações entraram e quantas foram ignoradas | US-037 | `banking`   |  S  | ✅  |

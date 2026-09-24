@@ -33,6 +33,15 @@ export const NOMES_BANCOS = [
   'Sicoob',
 ]
 
+/**
+ * As contas da LOJA — RF-073 (`GET /contas-bancarias`). A baixa as oferece no
+ * lugar das sugestoes genericas quando existe ao menos uma.
+ */
+export async function nomesDasContasDaLoja(): Promise<string[]> {
+  const r = await chamarApi<{ accounts: { name: string }[] }>('/contas-bancarias')
+  return r.ok ? r.dados.accounts.map((c) => c.name) : []
+}
+
 /* -------------------------------------------------------------------------- */
 /* Estado das listas                                                          */
 /* -------------------------------------------------------------------------- */

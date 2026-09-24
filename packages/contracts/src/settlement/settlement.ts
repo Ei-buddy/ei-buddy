@@ -33,6 +33,12 @@ export const settleReceivableInputSchema = z
     /** Como o dinheiro entrou. Nao e o metodo da venda — e o do recebimento. */
     method: paymentMethodSchema,
     settledOn: dateSchema,
+    /**
+     * Onde o dinheiro entrou — RF-073. Opcional: o dinheiro na gaveta nao tem
+     * conta, mas o Pix que caiu no banco tem, e sem ela o saldo da conta so
+     * desceria (os pagamentos ja dizem de onde sairam).
+     */
+    bankAccount: z.string().trim().min(1).max(140).optional(),
     notes: z.string().trim().max(280).optional(),
   })
   .strict()

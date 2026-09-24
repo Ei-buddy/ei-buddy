@@ -140,6 +140,8 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
     'Previsao de gasto recorrente (NR-110), nao movimento — o gasto de verdade e a conta a pagar gerada, essa sim incluida na exportacao.',
   variable_costs:
     'Configuracao da loja (percentuais de tarifa, imposto, comissao), nao dado de pessoa nem movimento.',
+  bank_accounts:
+    'Cadastro das contas da loja (nome, banco, saldo inicial), nao dado de pessoa. O movimento sai nas baixas, que sao exportadas.',
   conversations:
     'NR-062 ligou o historico do assistente (turnos do fio vigente, RLS). Exportacao LGPD ainda nao serializa o body (RNF-034 / sem PII no pacote).',
   messages:

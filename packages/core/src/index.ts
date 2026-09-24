@@ -249,6 +249,13 @@ export type {
   ResultadoDaBaixa,
   SettleCustomerChargeDeps,
 } from './receivables/settle-customer-charge.js'
+export {
+  createBankAccount,
+  deleteBankAccount,
+  listBankAccounts,
+} from './banking/manage-bank-accounts.js'
+export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
+export type { BankAccountRepository, NewBankAccount } from './ports/bank-account-repository.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export { returnSaleItems } from './sales/return-sale-items.js'
