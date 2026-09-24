@@ -64,6 +64,7 @@ export type {
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
+export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
   ConnectionContact,

@@ -1101,6 +1101,30 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     expect(movimento?.reason).toMatch(/inicial/i)
   })
 
+  it('recusa NCM que a tabela oficial diz que nao existe, no campo ncm', async () => {
+    const c = cenario()
+    const deps = {
+      ...c.deps,
+      ncmLookup: { consultar: async () => ({ status: 'inexistente' as const }) },
+    }
+
+    await expect(
+      registerProduct(deps, contexto(), linha('Cafe', { ncm: '99999999' })),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', fields: [{ path: 'ncm' }] })
+  })
+
+  it('provedor de NCM fora do ar nao trava o cadastro', async () => {
+    const c = cenario()
+    const deps = {
+      ...c.deps,
+      ncmLookup: { consultar: async () => ({ status: 'indisponivel' as const }) },
+    }
+
+    const produto = await registerProduct(deps, contexto(), linha('Cafe', { ncm: '09011110' }))
+
+    expect(produto.ncm).toBe('09011110')
+  })
+
   it('estoque zero nao gera movimento de zero unidade', async () => {
     const c = cenario()
 

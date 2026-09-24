@@ -142,6 +142,7 @@ import { createInvoiceQueue } from './invoice-queue.js'
 import { createConnectionNotifier } from './connection-notifier.js'
 import { createBrasilApiCepLookup } from './cep-lookup.js'
 import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
+import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
 import { loadApiEnv } from '@na-regua/env'
 import { Redis } from 'ioredis'
@@ -460,6 +461,8 @@ export function buildCadastroDeps(): CadastroDeps {
     /* Desambiguacao em portugues de balcao — RF-102, ADR-0017. Indexa no
        cadastro e serve de plano B quando a busca exata nao acha. */
     retrieval: createRetrievalStore(sql),
+    /* NCM que nao existe na tabela oficial e recusado no cadastro. */
+    ncmLookup: createBrasilApiNcmLookup(),
     /* O onboarding semeia o plano de contas padrao — RF-081, NR-077. */
     accounts: createChartOfAccountsRepository(sql),
     /*
