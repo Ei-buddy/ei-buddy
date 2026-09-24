@@ -26,6 +26,7 @@ import SignupStepper from './SignupStepper'
 import TermsCheckbox from './TermsCheckbox'
 import formStyles from './auth-form.module.css'
 import styles from './signup.module.css'
+import { BRAND } from '@/content/site'
 
 /**
  * Mensagem minima do pedido de Parceiro — mesma regra de
@@ -460,7 +461,9 @@ export default function SignupFlow() {
         <>
           <FormHeader
             title="Pagamento via Pix"
-            subtitle="Assim que o pagamento cair, seu painel abre automaticamente."
+            /* O nome vem de `BRAND`, e nao escrito a mao: e o mesmo nome que a
+               aba, o rodape e os Termos usam, e um dia ele muda num lugar so. */
+            subtitle={`Assim que o pagamento for confirmado, o ${BRAND} estará disponível para você.`}
           />
 
           <CobrancaPix
