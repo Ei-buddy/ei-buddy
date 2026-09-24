@@ -91,16 +91,28 @@
 }
 
 /* Clientes parecidos — RF-010. A decisao de reusar e de quem esta no balcao. */
+/*
+ * A caixa de "clientes parecidos" — RF-010.
+ *
+ * Ela usava `--nr-surface` e `--nr-border`, que NAO EXISTEM em lugar nenhum
+ * do sistema: o app inteiro define `--app-*`. Todo uso caia no fallback claro
+ * escrito ao lado, e no tema escuro a caixa ficava branca com o texto claro
+ * herdado — ilegivel, que foi exatamente o relato.
+ *
+ * A cor do texto vai explicita pelo mesmo motivo: caixa que flutua por cima
+ * nao pode herdar a cor de quem esta atras.
+ */
 .duplicados {
+  color: var(--app-text);
   position: fixed;
   inset-inline: 1rem;
   bottom: 1rem;
   max-width: 30rem;
   margin-inline: auto;
   padding: 1rem 1.25rem;
-  border: 1px solid var(--nr-border, #d8dee9);
+  border: 1px solid var(--app-border);
   border-radius: 0.75rem;
-  background: var(--nr-surface, #fff);
+  background: var(--app-surface);
   box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
   z-index: 20;
 }
@@ -127,7 +139,7 @@
 .duplicadosAcoes button {
   padding: 0.5rem 0.875rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--nr-border, #d8dee9);
+  border: 1px solid var(--app-border);
   background: transparent;
   cursor: pointer;
   font: inherit;
@@ -135,6 +147,6 @@
 
 .duplicadosAcoes button:last-child {
   border-color: transparent;
-  background: var(--nr-accent, #2f6fed);
+  background: var(--app-accent);
   color: #fff;
 }

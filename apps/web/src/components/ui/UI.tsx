@@ -108,11 +108,23 @@ export function Field({
 }) {
   return (
     <div className={styles.field} data-span={span}>
-      <label className={styles.label} htmlFor={htmlFor}>
-        {label}
-      </label>
+      {/*
+        O texto de ajuda fica AO LADO do rotulo, e nao abaixo do campo.
+
+        Abaixo, ele criava duas desordens de uma vez. A visivel: cada campo com
+        ajuda ficava mais alto que os vizinhos, e a tela perdia o alinhamento.
+        A invisivel: `.field` e um grid, e quando a linha estica por causa de
+        um vizinho mais alto, as linhas automaticas crescem junto — ou seja, o
+        INPUT dos outros campos ficava mais alto. Era esse o sintoma relatado
+        em "a altura do DDD e do Celular esta fora do padrao".
+      */}
+      <span className={styles.labelRow}>
+        <label className={styles.label} htmlFor={htmlFor}>
+          {label}
+        </label>
+        {hint ? <span className={styles.hint}>{hint}</span> : null}
+      </span>
       {children}
-      {hint ? <span className={styles.hint}>{hint}</span> : null}
     </div>
   )
 }

@@ -35,9 +35,9 @@
   gap: 1rem;
   width: 100%;
   padding: 0.875rem 1rem;
-  border: 1px solid var(--nr-border, #d8dee9);
+  border: 1px solid var(--app-border);
   border-radius: 0.625rem;
-  background: var(--nr-surface, #fff);
+  background: var(--app-surface);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -48,8 +48,8 @@
 
 .loja:hover:not(:disabled),
 .loja:focus-visible {
-  border-color: var(--nr-accent, #2f6fed);
-  background: var(--nr-surface-hover, #f6f8fc);
+  border-color: var(--app-accent);
+  background: var(--app-surface-hover, var(--app-surface));
 }
 
 .loja:disabled {
@@ -63,5 +63,5 @@
 
 .lojaPapel {
   font-size: 0.8125rem;
-  color: var(--nr-text-muted, #5b6478);
+  color: var(--app-muted);
 }
