@@ -66,6 +66,7 @@ import { registerSuporteRoutes } from './routes/suporte.js'
 import { registerSaleRoutes } from './routes/sales.js'
 import { registerAgentRoutes } from './routes/agent.js'
 import { montarStudio } from './studio.js'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 // RNF-058: log estruturado (JSON) com requestId, companyId e userId.
 const app = Fastify({
@@ -249,9 +250,6 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
  * O log estruturado aqui e o que transforma "morreu" em "morreu por isto".
  */
 main().catch((erro: unknown) => {
-  app.log.fatal(
-    { motivo: erro instanceof Error ? erro.message : String(erro) },
-    'a api nao conseguiu subir',
-  )
+  app.log.fatal({ motivo: motivoDoErro(erro) }, 'a api nao conseguiu subir')
   process.exit(1)
 })

@@ -162,6 +162,7 @@ import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
 import { loadApiEnv } from '@na-regua/env'
 import { Redis } from 'ioredis'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Validado aqui, na raiz de composicao, antes de qualquer I/O — NR-006. Se
@@ -214,7 +215,7 @@ export function getRedis(url = env.REDIS_URL): Redis {
       JSON.stringify({
         level: 40,
         msg: 'redis indisponivel — limite de requisicao cai para memoria; ver /health',
-        motivo: erro.message,
+        motivo: motivoDoErro(erro),
       }),
     )
   })
@@ -1029,7 +1030,7 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
       JSON.stringify({
         level: 40,
         msg: 'studio presets nao carregados — adapter nao monta; HTTP do assistente segue',
-        motivo: erro instanceof Error ? erro.message : String(erro),
+        motivo: motivoDoErro(erro),
       }),
     )
     return undefined

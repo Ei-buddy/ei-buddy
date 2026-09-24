@@ -1,4 +1,5 @@
 import type { CepAddress, CepLookup } from '@na-regua/core'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Busca de CEP via BrasilAPI — ADR-0008.
@@ -44,7 +45,7 @@ export function createBrasilApiCepLookup(): CepLookup {
           JSON.stringify({
             level: 40,
             msg: 'busca de CEP indisponivel — endereco/coordenada nao resolvidos desta vez',
-            motivo: erro instanceof Error ? erro.message : String(erro),
+            motivo: motivoDoErro(erro),
           }),
         )
         return undefined

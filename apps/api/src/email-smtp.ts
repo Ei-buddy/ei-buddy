@@ -1,5 +1,6 @@
 import type { EmailSender } from '@na-regua/core'
 import nodemailer from 'nodemailer'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * E-mail por SMTP — NR-014.
@@ -69,7 +70,7 @@ export function criarEmailSmtp(config: ConfiguracaoSmtp): EmailSender {
             level: 40,
             msg: 'envio de e-mail falhou — o token expira sozinho',
             assunto: mensagem.subject,
-            motivo: erro instanceof Error ? erro.message : String(erro),
+            motivo: motivoDoErro(erro),
           }),
         )
       }

@@ -2,6 +2,7 @@ import type { IssueInvoiceRequest } from '@na-regua/contracts'
 import type { InvoiceQueue } from '@na-regua/core'
 import { Queue } from 'bullmq'
 import type { Redis } from 'ioredis'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Produtor da fila de emissao — NR-042, RNF-004.
@@ -50,7 +51,7 @@ export function createInvoiceQueue(connection: Redis): InvoiceQueue {
       JSON.stringify({
         level: 40,
         msg: 'fila de emissao indisponivel — a nota nao sera enfileirada; ver /health',
-        motivo: erro.message,
+        motivo: motivoDoErro(erro),
       }),
     )
   })
