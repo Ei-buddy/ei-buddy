@@ -3,6 +3,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import type { Credential } from '@na-regua/contracts'
 import type {
+  IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
   PasswordSetter,
@@ -112,7 +113,9 @@ function confere(secret: string, verificador: string): boolean {
   return esperado.length === obtido.length && timingSafeEqual(esperado, obtido)
 }
 
-export class IdentidadeEmArquivo implements IdentityProvider, IdentityRegistrar, PasswordSetter {
+export class IdentidadeEmArquivo
+  implements IdentityProvider, IdentityRegistrar, PasswordSetter, IdentityPhoneChanger
+{
   private readonly registros = new Map<string, Registro>()
 
   constructor(private readonly caminho: string = CAMINHO_PADRAO) {
@@ -224,6 +227,24 @@ export class IdentidadeEmArquivo implements IdentityProvider, IdentityRegistrar,
       if (r.subject === achado.subject) {
         this.registros.set(r.identifier, { ...r, verificador: criarVerificador(secret) })
       }
+    }
+    this.gravar()
+    return true
+  }
+
+  /**
+   * Troca o celular — RF-132. A credencial cujo IDENTIFICADOR era o celular
+   * antigo passa a ter o novo: e por ele que o login por telefone procura.
+   */
+  async setPhone(subject: string, novo: string): Promise<boolean> {
+    const da = [...this.registros.values()].filter((r) => r.subject === subject)
+    if (da.length === 0) return false
+
+    for (const r of da) {
+      const eraOTelefone = r.phone !== null && r.identifier === r.phone
+      if (eraOTelefone) this.registros.delete(r.identifier)
+      const atualizado = { ...r, phone: novo, ...(eraOTelefone ? { identifier: novo } : {}) }
+      this.registros.set(atualizado.identifier, atualizado)
     }
     this.gravar()
     return true

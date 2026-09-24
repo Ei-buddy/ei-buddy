@@ -1,4 +1,5 @@
 import {
+  changePhoneInputSchema,
   couponCodeInputSchema,
   loginInputSchema,
   passwordResetInputSchema,
@@ -9,6 +10,9 @@ import {
 import {
   AppError,
   type AuthDeps,
+  changePhone,
+  type ChangePhoneDeps,
+  currentPhone,
   checkCoupon,
   type LoginMeta,
   login,
@@ -66,7 +70,8 @@ function meta(request: FastifyRequest, channel: 'app' | 'whatsapp' = 'app'): Log
 export type AuthRouteDeps = AuthDeps &
   SignupDeps &
   Omit<RequestPasswordResetDeps, 'users'> &
-  ResetPasswordDeps
+  ResetPasswordDeps &
+  Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'>
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**
@@ -254,6 +259,37 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
 
     return reply.code(200).send(await loadProfile(deps, claims))
   })
+
+  /**
+   * O celular da pessoa logada, e a troca — RF-132, ADR-0012.
+   *
+   * O celular do dono e quem opera a loja pelo WhatsApp: trocar aqui tira o
+   * numero antigo do canal. Pede a senha, e tem o limite de autenticacao — a
+   * rota confere senha, e sem limite viraria um jeito de testar senhas.
+   */
+  app.get('/auth/telefone', async (request, reply) => {
+    const claims = request.sessionClaims
+    if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+    return reply.code(200).send(await currentPhone(deps, claims.userId))
+  })
+
+  app.put(
+    '/auth/telefone',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const claims = request.sessionClaims
+      if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+      const input = validate(changePhoneInputSchema, request.body)
+      const r = await changePhone(
+        deps,
+        { userId: claims.userId, companyId: claims.companyId, now: new Date() },
+        input,
+      )
+      return reply.code(200).send(r)
+    },
+  )
 
   app.get('/auth/me', async (request, reply) => {
     const claims = request.sessionClaims

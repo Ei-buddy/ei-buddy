@@ -345,3 +345,19 @@ export const passwordResetInputSchema = z
   .strict()
 
 export type PasswordResetInput = z.infer<typeof passwordResetInputSchema>
+
+/**
+ * Trocar o celular — RF-132, ADR-0012.
+ *
+ * Pede a SENHA atual: o celular do dono e quem opera a loja pelo WhatsApp, e
+ * uma sessao esquecida aberta num computador nao pode bastar para entregar o
+ * canal a outro numero.
+ */
+export const changePhoneInputSchema = z
+  .object({
+    phone: phoneSchema,
+    secret: z.string().min(1, 'Informe a sua senha atual.').max(200),
+  })
+  .strict()
+
+export type ChangePhoneInput = z.infer<typeof changePhoneInputSchema>

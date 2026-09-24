@@ -51,7 +51,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     101 |  253 |
-| ✅ Concluídas                 |      94 |  229 |
+| ✅ Concluídas                 |      95 |  232 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -75,8 +75,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 >
 > Tres tarefas passam a 🟨, com o que falta em cada uma:
 >
-> - **NR-113** — a barragem do canal existe (#259). Falta a troca de celular
->   pelo app (RF-132) e a rota do webhook da Meta, que e a NR-046.
+> - **NR-113** — fechou: a barragem do canal (#259) e a troca de celular pelo
+>   app (RF-132, `PUT /auth/telefone`). O webhook da Meta e a NR-046.
 > - **NR-063** — porta, estado, repositorio, cupom, varredura, adapter real,
 >   evento e rota estao na `main`. O que falta depende do PRECO e dos prazos:
 >   **QST-002**. Sem eles o teste nao comeca e a varredura responde `skipped`.
@@ -209,7 +209,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   ✅   |
 | NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                       |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
 | NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ✅   |
-| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   🟨   |
+| NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   ✅   |
 | NR-046 | `whatsapp`: adapter Meta Cloud API, webhook e consentimento             |   🟠   | `whatsapp`                    |   4 | NR-045, NR-113                                         | —    | RF-016, ADR-0014                                              |   ⬜   |
 | NR-063 | `billing`: assinatura, trial, inadimplência e estado restrito           |   🟠   | `billing`                     |   4 | NR-044                                                 | —    | RF-110–118                                                    |   🟨   |
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                          |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |

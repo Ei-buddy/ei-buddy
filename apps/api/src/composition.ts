@@ -50,7 +50,12 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
-import type { IdentityProvider, IdentityRegistrar, PasswordSetter } from '@na-regua/core'
+import type {
+  IdentityPhoneChanger,
+  IdentityProvider,
+  IdentityRegistrar,
+  PasswordSetter,
+} from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
 import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
@@ -99,6 +104,7 @@ import {
   createLegalConsentRepository,
   createCouponRepository,
   createPasswordResetTokens,
+  createUserContacts,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -382,6 +388,10 @@ export function buildAuthDeps(): AuthRouteDeps {
     passwords: identidade,
     email: criarEmailEmLog(env.NODE_ENV === 'production'),
     webUrl: env.WEB_URL,
+
+    /* Trocar o celular — RF-132: o contato no banco e o mesmo provedor do login. */
+    contacts: createUserContacts(sql),
+    phoneChanger: identidade,
   }
 }
 
@@ -408,7 +418,10 @@ const MINIMO_DE_SENHA = 8
  * `fake` segue sendo o modo local, e `assertAuthUsavelEmProducao` recusa subir
  * com ele em producao.
  */
-export function criarIdentidade(): IdentityProvider & IdentityRegistrar & PasswordSetter {
+export function criarIdentidade(): IdentityProvider &
+  IdentityRegistrar &
+  PasswordSetter &
+  IdentityPhoneChanger {
   if (env.AUTH_PROVIDER === 'better-auth') {
     if (env.BETTER_AUTH_SECRET === undefined) {
       /*
