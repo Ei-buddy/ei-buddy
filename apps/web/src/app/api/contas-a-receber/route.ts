@@ -8,8 +8,12 @@ import { corpoDe, encaminhar } from '@/lib/bff'
  * que ja era real. Duas telas irmas, uma verdadeira e outra nao, sem nada
  * dizendo qual era qual.
  */
-export async function GET() {
-  return encaminhar('/contas-a-receber')
+export async function GET(request: Request) {
+  /* `?cliente=` so viaja quando veio: a ficha do cliente pede as pendencias dele. */
+  const cliente = new URL(request.url).searchParams.get('cliente')
+  return encaminhar(
+    cliente ? `/contas-a-receber?cliente=${encodeURIComponent(cliente)}` : '/contas-a-receber',
+  )
 }
 
 /** Lancar recebivel avulso, que nao vem de venda — RF-065. */

@@ -49,12 +49,13 @@ export class InMemoryReceivables implements ReceivableQueries {
 
   async list(
     companyId: CompanyId,
-    criterio: { readonly status: readonly ReceivableStatus[] },
+    criterio: { readonly status: readonly ReceivableStatus[]; readonly customerId?: string },
   ): Promise<readonly ReceivableOutput[]> {
     return (
       this.registros
         .filter((r) => r.companyId === companyId)
         .filter((r) => criterio.status.length === 0 || criterio.status.includes(r.status))
+        .filter((r) => criterio.customerId === undefined || r.customerId === criterio.customerId)
         /* Ordena como o SQL (`ORDER BY due_date`): um falso sem isso deixaria
          passar uma consulta sem ordenacao. */
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))

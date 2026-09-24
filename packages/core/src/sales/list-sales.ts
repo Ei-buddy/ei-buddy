@@ -26,6 +26,7 @@ export async function listSales(
     ...(input.from === undefined ? {} : { from: input.from }),
     ...(input.to === undefined ? {} : { to: input.to }),
     ...(input.q === undefined || input.q === '' ? {} : { termo: input.q }),
+    ...(input.customerId === undefined ? {} : { customerId: input.customerId }),
     offset: (input.page - 1) * input.pageSize,
     limite: input.pageSize,
   })

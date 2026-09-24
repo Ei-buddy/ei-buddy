@@ -8,7 +8,9 @@ import {
   contatosDoCliente,
   pendenciasDoCliente,
   type ClienteDaFicha,
+  type CompraCliente,
   type ContatoCliente,
+  type PendenciaCliente,
 } from '@/lib/clientes-api'
 import { describeDueDate, formatDate, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
@@ -78,6 +80,10 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
    */
   const [contatos, setContatos] = useState<ContatoCliente[]>([])
   const [lancandoContato, setLancandoContato] = useState(false)
+  /* Compras e pendencias vem da api. Falha em uma delas deixa a secao vazia,
+     e nao derruba a ficha — mesmo criterio dos contatos. */
+  const [compras, setCompras] = useState<CompraCliente[]>([])
+  const [pendencias, setPendencias] = useState<PendenciaCliente[]>([])
 
   const carregarContatos = useCallback(async () => {
     const r = await contatosDoCliente(clienteId)
@@ -105,8 +111,14 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
     void (async () => {
       await carregar()
       await carregarContatos()
+      const [c, p] = await Promise.all([
+        comprasDoCliente(clienteId),
+        pendenciasDoCliente(clienteId),
+      ])
+      if (c.ok) setCompras(c.dados)
+      if (p.ok) setPendencias(p.dados)
     })()
-  }, [carregar, carregarContatos])
+  }, [carregar, carregarContatos, clienteId])
 
   if (carregando) {
     return <PageHeader title="Carregando…" subtitle="Buscando a ficha do cliente" />
@@ -131,9 +143,6 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
       </>
     )
   }
-
-  const compras = comprasDoCliente(cliente.id)
-  const pendencias = pendenciasDoCliente(cliente.id)
 
   const totalComprado = compras.reduce((acc, c) => acc + c.valor, 0)
   const documento = formatarDocumento(cliente.documento)

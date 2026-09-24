@@ -440,126 +440,84 @@ export async function reativarCliente(
   return r.ok ? { ok: true } : { ok: false, erro: r.erro }
 }
 
-/** SUBSTITUIR POR: GET /clientes/:id/compras */
-export function comprasDoCliente(clienteId: string): CompraCliente[] {
-  const base: Record<string, CompraCliente[]> = {
-    'cli-1': [
-      {
-        id: 'v1',
-        numero: '1842',
-        data: '2026-08-24',
-        valor: 86.9,
-        itens: 6,
-        formaPagamento: 'Pix',
-      },
-      {
-        id: 'v2',
-        numero: '1798',
-        data: '2026-08-11',
-        valor: 214.4,
-        itens: 12,
-        formaPagamento: 'Credito',
-      },
-      {
-        id: 'v3',
-        numero: '1755',
-        data: '2026-07-29',
-        valor: 132.0,
-        itens: 8,
-        formaPagamento: 'Dinheiro',
-      },
-    ],
-    'cli-2': [
-      {
-        id: 'v4',
-        numero: '1839',
-        data: '2026-08-23',
-        valor: 156.2,
-        itens: 4,
-        formaPagamento: 'Debito',
-      },
-      {
-        id: 'v5',
-        numero: '1801',
-        data: '2026-08-12',
-        valor: 4820.0,
-        itens: 96,
-        formaPagamento: 'Credito',
-      },
-    ],
-    'cli-3': [
-      {
-        id: 'v6',
-        numero: '1840',
-        data: '2026-08-24',
-        valor: 412.5,
-        itens: 18,
-        formaPagamento: 'Dinheiro',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'v7',
-        numero: '1702',
-        data: '2026-06-02',
-        valor: 2310.5,
-        itens: 44,
-        formaPagamento: 'Credito',
-      },
-    ],
+/**
+ * As ultimas compras do cliente — RF-011.
+ *
+ * Do historico de vendas, filtrado pelo cliente no servidor. Antes era uma
+ * lista fixa com ids de exemplo ('cli-1'): para cliente de verdade a ficha
+ * mostrava "nunca comprou" mesmo com vendas.
+ */
+export async function comprasDoCliente(clienteId: string): Promise<Resultado<CompraCliente[]>> {
+  const r = await pedir<{
+    sales: {
+      id: string
+      number: number
+      soldAt: string
+      status: string
+      grossAmountCents: number
+      discountCents: number
+      items: { quantity: number }[]
+      payments: { method: string }[]
+    }[]
+  }>(`/api/vendas/historico?customerId=${encodeURIComponent(clienteId)}&pageSize=20`)
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.sales
+      .filter((v) => v.status !== 'cancelled' && v.status !== 'returned')
+      .map((v) => ({
+        id: v.id,
+        numero: String(v.number),
+        data: v.soldAt.slice(0, 10),
+        valor: (v.grossAmountCents - v.discountCents) / 100,
+        itens: v.items.reduce((acc, i) => acc + i.quantity, 0),
+        formaPagamento: v.payments.map((p) => ROTULO_DO_METODO[p.method] ?? p.method).join(' + '),
+      })),
   }
-  return base[clienteId] ?? []
 }
 
-/** SUBSTITUIR POR: GET /clientes/:id/titulos (Contas a Receber) */
-export function pendenciasDoCliente(clienteId: string): PendenciaCliente[] {
-  const base: Record<string, PendenciaCliente[]> = {
-    'cli-2': [
-      {
-        id: 'p1',
-        referente: 'Pedido 8891',
-        vencimento: '2026-08-25',
-        valor: 4820.0,
-        status: 'aberto',
-      },
-      {
-        id: 'p2',
-        referente: 'Pedido 8880',
-        vencimento: '2026-09-05',
-        valor: 3740.0,
-        status: 'parcial',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'p3',
-        referente: 'Pedido 8874',
-        vencimento: '2026-08-16',
-        valor: 2310.5,
-        status: 'vencido',
-      },
-    ],
-    'cli-3': [
-      {
-        id: 'p4',
-        referente: 'Venda 1840',
-        vencimento: '2026-09-19',
-        valor: 412.5,
-        status: 'aberto',
-      },
-    ],
+const ROTULO_DO_METODO: Record<string, string> = {
+  cash: 'Dinheiro',
+  pix: 'Pix',
+  debit: 'Débito',
+  credit: 'Crédito',
+  wallet: 'Carteira',
+}
+
+/**
+ * O que o cliente ainda deve — RF-072.
+ *
+ * Contas a receber em aberto, filtradas pelo cliente no servidor. Antes era
+ * uma lista fixa com ids de exemplo: a ficha nunca mostrava divida de verdade.
+ */
+export async function pendenciasDoCliente(
+  clienteId: string,
+): Promise<Resultado<PendenciaCliente[]>> {
+  const r = await pedir<{
+    grupos: {
+      faixa: string
+      receivables: {
+        id: string
+        description: string
+        dueDate: string
+        amountCents: number
+        settledAmountCents: number
+      }[]
+    }[]
+  }>(`/api/contas-a-receber?cliente=${encodeURIComponent(clienteId)}`)
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.grupos.flatMap((g) =>
+      g.receivables.map((t) => ({
+        id: t.id,
+        referente: t.description,
+        vencimento: t.dueDate,
+        valor: (t.amountCents - t.settledAmountCents) / 100,
+        status: g.faixa === 'overdue' ? 'vencido' : t.settledAmountCents > 0 ? 'parcial' : 'aberto',
+      })),
+    ),
   }
-  return base[clienteId] ?? []
-}
-
-/** Total em aberto do cliente — usado como indicador na listagem. */
-export function pendenciaTotal(clienteId: string): number {
-  return pendenciasDoCliente(clienteId).reduce((acc, p) => acc + p.valor, 0)
-}
-
-/** True quando ha titulo vencido — pinta o indicador em tom de alerta. */
-export function temVencido(clienteId: string): boolean {
-  return pendenciasDoCliente(clienteId).some((p) => p.status === 'vencido')
 }
 
 export type { Cliente }

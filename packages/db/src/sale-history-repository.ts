@@ -177,6 +177,7 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
                     )
                   )`
           }
+          ${filtro.customerId === undefined ? tx`` : tx`AND s.customer_id = ${filtro.customerId}`}
           ORDER BY s.created_at DESC, s.number DESC
           LIMIT ${filtro.limite} OFFSET ${filtro.offset}
         `,

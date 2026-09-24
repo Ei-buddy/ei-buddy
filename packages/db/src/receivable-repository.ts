@@ -96,11 +96,13 @@ export function createReceivableRepository(sql: Sql): ReceivableQueries {
                  r.created_at
           FROM receivables r
           LEFT JOIN customers c ON c.id = r.customer_id
+          WHERE TRUE
           ${
             criterio.status.length === 0
               ? tx``
-              : tx`WHERE r.status = ANY(${criterio.status as string[]})`
+              : tx`AND r.status = ANY(${criterio.status as string[]})`
           }
+          ${criterio.customerId === undefined ? tx`` : tx`AND r.customer_id = ${criterio.customerId}`}
           ORDER BY r.due_date
         `,
       )
