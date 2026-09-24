@@ -152,16 +152,19 @@ export const FORMAS: {
   /** Taxa da operadora, em % — descontada do valor liquido. */
   taxa: number
   /**
-   * Precisa de QR para o cliente pagar — so o Pix.
+   * Abre cobranca com QR para o cliente pagar — nenhuma forma, por enquanto.
    *
-   * Cartao passa na MAQUININHA do balcao, e o operador confirma quando ela
-   * aprova. Antes debito e credito eram `online` e abriam a cobranca Pix: o
-   * cliente de cartao recebia um QR code de Pix para pagar.
+   * No balcao o pagamento e REGISTRADO (ADR-0004: o Asaas nao tem captura
+   * presencial). Cartao passa na maquininha; Pix cai na chave do lojista; o
+   * operador confirma quando ve o dinheiro. A cobranca Pix com QR dinamico
+   * do PDV ainda e simulada (`criarCobrancaVenda`), e sem o botao de
+   * demonstracao, que nao existe em producao, uma venda em Pix nunca
+   * fechava. Volta a ser `true` quando a cobranca real existir.
    */
   online: boolean
 }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
-  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: true },
+  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: false },
   { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
   { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
   { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },

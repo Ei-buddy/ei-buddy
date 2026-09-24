@@ -124,11 +124,15 @@ export const FORMAS: {
   rotulo: string
   /** Taxa da operadora, em % — descontada do valor liquido. */
   taxa: number
-  /** Precisa de QR para o cliente pagar — so o Pix. Cartao passa na maquininha. */
+  /**
+   * Abre cobranca com QR — nenhuma, por enquanto. No balcao o pagamento e
+   * registrado (ADR-0004): Pix na chave do lojista, cartao na maquininha.
+   * Volta a ser `true` quando a cobranca Pix real do PDV existir.
+   */
   online: boolean
 }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
-  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: true },
+  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: false },
   { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
   { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
   { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },
