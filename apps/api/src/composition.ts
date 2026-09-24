@@ -96,6 +96,7 @@ import {
   createCustomerChargeRepository,
   createWebhookInbox,
   createLegalConsentRepository,
+  createCouponRepository,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -362,6 +363,10 @@ export function buildAuthDeps(): AuthRouteDeps {
      * que cuida do reaceite quando sai versao nova).
      */
     legalConsents: createLegalConsentRepository(sql),
+
+    /* Cupom de indicacao — RF-114. `signup()` grava o vinculo, e
+       `GET /cupons/:codigo` confere o codigo enquanto a pessoa digita. */
+    coupons: createCouponRepository(sql),
   }
 }
 

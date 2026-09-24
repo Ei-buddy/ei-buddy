@@ -162,7 +162,7 @@ export type {
   CobrancaRegistrada,
   CustomerChargeRepository,
 } from './ports/customer-charge-repository.js'
-export { previewCoupon } from './subscriptions/preview-coupon.js'
+export { checkCoupon, previewCoupon } from './subscriptions/preview-coupon.js'
 export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
 export { handleSubscriptionEvent } from './subscriptions/handle-subscription-event.js'
 export type {

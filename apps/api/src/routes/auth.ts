@@ -1,7 +1,13 @@
-import { loginInputSchema, selectCompanyInputSchema, signupInputSchema } from '@na-regua/contracts'
+import {
+  couponCodeInputSchema,
+  loginInputSchema,
+  selectCompanyInputSchema,
+  signupInputSchema,
+} from '@na-regua/contracts'
 import {
   AppError,
   type AuthDeps,
+  checkCoupon,
   type LoginMeta,
   login,
   selectCompany,
@@ -95,6 +101,22 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
       /* 201: criou pessoa, loja e vinculo. E ja devolve a sessao aberta — quem
          acabou de cadastrar quer usar o sistema, nao digitar tudo de novo. */
       return reply.code(201).send(sessao)
+    },
+  )
+
+  /**
+   * Conferir o cupom de quem indicou — RF-114, RF-115.
+   *
+   * PUBLICA pelo mesmo motivo do cadastro, e com o mesmo limite apertado: sem
+   * ele, a rota vira um jeito de varrer quais codigos existem. A tela so
+   * chama depois de a pessoa parar de digitar.
+   */
+  app.get<{ Params: { codigo: string } }>(
+    '/cupons/:codigo',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request) => {
+      const codigo = validate(couponCodeInputSchema, request.params.codigo)
+      return checkCoupon(deps, { code: codigo })
     },
   )
 

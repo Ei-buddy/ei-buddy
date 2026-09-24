@@ -121,4 +121,24 @@ describe.skipIf(!DATABASE_URL)('cupons — NR-063', () => {
       ['active', 'coupon_id', 'discount_percent', 'kind', 'reason', 'referrer_label'].sort(),
     )
   })
+
+  it('o resgate grava o vinculo pelo papel da aplicacao, e so uma vez por empresa', async () => {
+    const cnpj = cnpjDeTeste('7')
+    const indicada = randomUUID()
+    await withTenant(
+      sql,
+      indicada,
+      (tx) => tx`
+        INSERT INTO companies (id, legal_name, cnpj, email, phone)
+        VALUES (${indicada}, ${'Loja Indicada'}, ${cnpj},
+                ${'contato@' + cnpj + '.local'}, ${'41999990001'})
+      `,
+    )
+    const cupons = createCouponRepository(sql)
+
+    /* Pelo cadastro — RF-114. A funcao e SECURITY DEFINER: `coupon_redemptions`
+       tambem nao aceita INSERT direto do papel da aplicacao. */
+    await expect(cupons.recordRedemption(codigoDoLojista, indicada)).resolves.toBeUndefined()
+    await expect(cupons.recordRedemption(codigoDoLojista, indicada)).rejects.toThrow(/ja resgatou/)
+  })
 })
