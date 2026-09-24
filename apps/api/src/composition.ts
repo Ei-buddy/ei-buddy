@@ -125,6 +125,7 @@ import type { ConnectionsRouteDeps } from './routes/connections.js'
 import type { ConciliacaoDeps } from './routes/conciliacao.js'
 import type { SaleRouteDeps } from './routes/sales.js'
 import type { ContabilidadeDeps } from './routes/contabilidade.js'
+import type { ConsultasDeps } from './routes/consultas.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
@@ -139,6 +140,7 @@ import type { CrmRouteDeps } from './routes/crm.js'
 import { createInvoiceQueue } from './invoice-queue.js'
 import { createConnectionNotifier } from './connection-notifier.js'
 import { createBrasilApiCepLookup } from './cep-lookup.js'
+import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
 import { loadApiEnv } from '@na-regua/env'
 import { Redis } from 'ioredis'
@@ -464,8 +466,8 @@ export function buildCadastroDeps(): CadastroDeps {
      */
     uow: createInventoryUnitOfWork(sql),
     audit: createAuditTrail(sql),
-    /* Geocodifica o endereco ao salvar — ADR-0008. Fecha o TODO de
-       `GET /enderecos/cep/:cep` que so existia como mock no front. */
+    /* Geocodifica o endereco ao salvar — ADR-0008. A mesma porta atende
+       `GET /enderecos/cep/:cep`, em `buildConsultasDeps`. */
     cepLookup: createBrasilApiCepLookup(),
     /* Periodo de teste junto com a empresa — RF-110. `undefined` sem os
        prazos configurados, e o cadastro segue funcionando. */
@@ -701,6 +703,23 @@ export function buildContabilidadeDeps(): ContabilidadeDeps {
 }
 
 /** Custos fixos — NR-110. */
+/**
+ * As duas consultas que preenchem formulario — NR-072.
+ *
+ * Nao toca no banco: sao dois adapters de provedor publico e nada mais. Por
+ * isso e a unica `build*` deste arquivo sem `getClient` — nao ha tenant, nao
+ * ha linha, nao ha auditoria a escrever.
+ *
+ * `cepLookup` e o MESMO adapter que o cadastro de empresa ja usa para
+ * geocodificar. Um provedor, uma configuracao, um lugar para trocar.
+ */
+export function buildConsultasDeps(): ConsultasDeps {
+  return {
+    cepLookup: createBrasilApiCepLookup(),
+    cnpjLookup: createBrasilApiCnpjLookup(),
+  }
+}
+
 export function buildCustosFixosDeps(): CustosFixosDeps {
   const sql = getClient(env.DATABASE_URL)
   return {

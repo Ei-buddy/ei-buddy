@@ -102,7 +102,6 @@ export default function ClienteForm() {
     setBuscandoCep(true)
     setAvisoCep(null)
 
-    /* SUBSTITUIR POR: GET /enderecos/cep/:cep */
     const resultado = await buscarCep(cepFormatado)
     setBuscandoCep(false)
 
