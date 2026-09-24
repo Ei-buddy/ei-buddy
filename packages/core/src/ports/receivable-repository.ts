@@ -30,7 +30,11 @@ export type ReceivableQueries = {
    */
   list(
     companyId: CompanyId,
-    criterio: { readonly status: readonly ReceivableStatus[] },
+    criterio: {
+      readonly status: readonly ReceivableStatus[]
+      /** So os deste cliente — a ficha do cliente (RF-072). */
+      readonly customerId?: string
+    },
   ): Promise<readonly ReceivableOutput[]>
 }
 

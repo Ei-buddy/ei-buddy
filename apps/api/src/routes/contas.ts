@@ -3,6 +3,7 @@ import {
   createReceivableInputSchema,
   endRecurrenceInputSchema,
   exportarTitulosQuerySchema,
+  receivablesFilterSchema,
 } from '@na-regua/contracts'
 import {
   type ChartOfAccountsRepository,
@@ -168,8 +169,12 @@ export function registerContasRoutes(app: FastifyInstance, deps: ContasDeps): vo
    */
   app.get('/contas-a-receber', async (request, reply) => {
     const ctx = requireContext(request)
+    /* `?cliente=` — so as pendencias de um cliente, para a ficha dele. */
+    const { cliente } = validate(receivablesFilterSchema, request.query ?? {})
 
-    return reply.code(200).send(await listReceivables(deps, ctx))
+    return reply
+      .code(200)
+      .send(await listReceivables(deps, ctx, cliente === undefined ? {} : { customerId: cliente }))
   })
 
   /** Exportar em CSV ou PDF — mesma ideia de `/contas-a-pagar/exportar`. */

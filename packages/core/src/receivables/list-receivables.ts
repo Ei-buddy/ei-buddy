@@ -1,3 +1,4 @@
+import { PREFIXO_RECEBIVEL_DE_CARTAO } from '../sales/register-sale.js'
 import type { ReceivableOutput } from '@na-regua/contracts'
 import { type FaixaDeVencimento, faixaDeVencimento } from '@na-regua/domain'
 import type { ExecutionContext } from '../context.js'
@@ -45,10 +46,20 @@ const ORDEM: readonly FaixaDeVencimento[] = ['overdue', 'today', 'week', 'month'
 export async function listReceivables(
   deps: ListReceivablesDeps,
   ctx: ExecutionContext,
+  /** So os do cliente — a ficha do cliente mostra as pendencias dele (RF-072). */
+  filtro: { readonly customerId?: string } = {},
 ): Promise<ReceivablesAgrupadas> {
-  const abertos = await deps.receivables.list(ctx.companyId, {
+  const lidos = await deps.receivables.list(ctx.companyId, {
     status: ['open', 'partially_settled'],
+    ...(filtro.customerId === undefined ? {} : { customerId: filtro.customerId }),
   })
+
+  /* Na visao do CLIENTE, parcela de cartao nao e divida dele: quem paga e a
+     operadora. Na lista geral da loja ela continua, porque e dinheiro a entrar. */
+  const abertos =
+    filtro.customerId === undefined
+      ? lidos
+      : lidos.filter((r) => !r.description.startsWith(PREFIXO_RECEBIVEL_DE_CARTAO))
 
   /*
    * O dia de hoje sai de `ctx.now`, que e UTC. O fuso da empresa ainda nao

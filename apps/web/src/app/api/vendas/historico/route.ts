@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
 
   const query = new URLSearchParams()
-  for (const chave of ['from', 'to', 'q', 'page', 'pageSize']) {
+  for (const chave of ['from', 'to', 'q', 'customerId', 'page', 'pageSize']) {
     const valor = searchParams.get(chave)
     if (valor !== null && valor !== '') query.set(chave, valor)
   }

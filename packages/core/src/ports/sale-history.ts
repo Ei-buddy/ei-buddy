@@ -58,6 +58,8 @@ export type FiltroDoHistorico = {
   readonly to?: string
   /** Numero da venda, nome do cliente ou descricao de item. */
   readonly termo?: string
+  /** So as vendas deste cliente — RF-011. */
+  readonly customerId?: string
   readonly offset: number
   readonly limite: number
 }

@@ -50,3 +50,12 @@ export const receivableOutputSchema = z.object({
 })
 
 export type ReceivableOutput = z.infer<typeof receivableOutputSchema>
+
+/** Filtro da lista de contas a receber: `?cliente=` traz so as pendencias dele. */
+export const receivablesFilterSchema = z
+  .object({
+    cliente: idSchema.optional(),
+  })
+  .strict()
+
+export type ReceivablesFilter = z.infer<typeof receivablesFilterSchema>

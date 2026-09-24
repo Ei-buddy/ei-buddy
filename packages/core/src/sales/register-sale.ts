@@ -23,6 +23,13 @@ import type {
   UnitOfWork,
 } from '../ports/sale-writers.js'
 
+/**
+ * Todo recebivel de cartao comeca assim. Quem deve esse dinheiro e a
+ * OPERADORA, e nao o cliente, que ja pagou no balcao — a ficha do cliente usa
+ * este prefixo para nao listar parcela de cartao como divida dele.
+ */
+export const PREFIXO_RECEBIVEL_DE_CARTAO = 'Cartao de '
+
 export type RegisterSaleDeps = {
   readonly unitOfWork: UnitOfWork
   readonly settings: CompanySettingsRepository
@@ -348,7 +355,7 @@ function recebiveisDoPagamento(
         cardFeeCents: Number(plano.cardFeeAmount.cents),
       },
       gerados: plano.installments.map((parcela) => ({
-        description: `Cartao de credito ${parcela.number}/${plano.installments.length}`,
+        description: `${PREFIXO_RECEBIVEL_DE_CARTAO}credito ${parcela.number}/${plano.installments.length}`,
         customerId,
         amountCents: Number(parcela.grossAmount.cents),
         netAmountCents: Number(parcela.netAmount.cents),
@@ -372,7 +379,7 @@ function recebiveisDoPagamento(
       },
       gerados: [
         {
-          description: 'Cartao de debito',
+          description: `${PREFIXO_RECEBIVEL_DE_CARTAO}debito`,
           customerId,
           amountCents: valor,
           netAmountCents: Number(pagamento.amount.subtract(tarifa).cents),

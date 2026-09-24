@@ -115,6 +115,8 @@ export const saleHistoryInputSchema = z
     to: dateSchema.optional(),
     /** Numero da venda, nome do cliente ou descricao de item. */
     q: z.string().trim().max(120).optional(),
+    /** So as vendas deste cliente — a ficha do cliente (RF-011). */
+    customerId: idSchema.optional(),
     page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
     pageSize: z.coerce
       .number()

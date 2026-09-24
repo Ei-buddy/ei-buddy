@@ -35,6 +35,40 @@ function contexto(sobrescreve: Partial<ExecutionContext> = {}): ExecutionContext
 const doGrupo = (r: Awaited<ReturnType<typeof listReceivables>>, faixa: string) =>
   r.grupos.find((g) => g.faixa === faixa)!
 
+describe('pendencias de UM cliente — RF-072', () => {
+  it('traz so as dele, e deixa de fora parcela de cartao, que quem deve e a operadora', async () => {
+    const receivables = new InMemoryReceivables()
+    receivables.adicionar('emp-1', {
+      dueDate: '2026-09-20',
+      customerId: 'cli-1',
+      description: 'Fiado',
+    })
+    receivables.adicionar('emp-1', {
+      dueDate: '2026-10-09',
+      customerId: 'cli-1',
+      description: 'Cartao de credito 1/3',
+    })
+    receivables.adicionar('emp-1', {
+      dueDate: '2026-09-20',
+      customerId: 'cli-2',
+      description: 'Fiado',
+    })
+
+    const r = await listReceivables({ receivables }, contexto(), { customerId: 'cli-1' })
+
+    expect(r.grupos.flatMap((g) => g.receivables.map((x) => x.description))).toEqual(['Fiado'])
+  })
+
+  it('a lista geral da loja continua com o cartao: e dinheiro a entrar', async () => {
+    const receivables = new InMemoryReceivables()
+    receivables.adicionar('emp-1', { dueDate: '2026-10-09', description: 'Cartao de credito 1/3' })
+
+    const r = await listReceivables({ receivables }, contexto())
+
+    expect(r.totalCents).toBe(10_000)
+  })
+})
+
 describe('agrupar por vencimento — RF-064, RF-066', () => {
   it('separa vencido, hoje e futuro', async () => {
     const receivables = new InMemoryReceivables()

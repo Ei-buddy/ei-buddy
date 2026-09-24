@@ -7,7 +7,6 @@ import {
   confirmarImportacaoClientes,
   type FiltroDeCliente,
   listarClientes,
-  temVencido,
 } from '@/lib/clientes-api'
 import { isValidCNPJ, isValidCPF } from '@/lib/validation'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -261,7 +260,9 @@ export default function ClientesLista() {
               /* O saldo devedor vem do CLIENTE, que a api ja trouxe. Antes
                  saia de `pendenciaTotal(id)`, que varria uma lista de mentira. */
               const pendente = cliente.saldoFiado
-              const vencido = temVencido(cliente.id)
+              /* Sem "Vencido" na lista: saber se ha titulo vencido pede uma
+                 consulta por cliente, e antes vinha de uma lista de mentira que
+                 nunca acendia. A ficha do cliente mostra as pendencias. */
 
               return (
                 <li key={cliente.id}>
@@ -287,9 +288,7 @@ export default function ClientesLista() {
 
                     <span className={styles.itemStatus}>
                       {pendente > 0 ? (
-                        <Badge tone={vencido ? 'warning' : 'info'}>
-                          {vencido ? 'Vencido' : 'Em aberto'} · {formatMoney(pendente)}
-                        </Badge>
+                        <Badge tone="info">Em aberto · {formatMoney(pendente)}</Badge>
                       ) : (
                         <Badge tone="success">Em dia</Badge>
                       )}
