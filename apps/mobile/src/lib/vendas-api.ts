@@ -143,13 +143,30 @@ export type Pagamento = {
   forma: FormaPagamento
   valor: number
   status: 'pendente' | 'confirmado' | 'falhou'
+  /** So no credito. Ausente = a vista. */
+  parcelas?: number
+}
+
+/** Ate quantas vezes o balcao parcela no credito — a tabela da api cobre 1x a 12x. */
+export const PARCELAS_MAXIMAS = 12
+
+/**
+ * Taxa estimada do credito por numero de parcelas, em %. A mesma escada da
+ * tabela padrao da api (`default-settings`); quem calcula o liquido de
+ * verdade e o servidor.
+ */
+export function taxaDoCredito(parcelas: number): number {
+  if (parcelas <= 1) return FORMAS.find((f) => f.valor === 'credito')?.taxa ?? 0
+  if (parcelas === 2) return 5
+  return 6 + (parcelas - 3) * 1.5
 }
 
 /** Taxa cobrada pela operadora sobre um pagamento. */
 export function taxaDoPagamento(pagamento: Pagamento): number {
   const forma = FORMAS.find((f) => f.valor === pagamento.forma)
   if (!forma) return 0
-  return (pagamento.valor * forma.taxa) / 100
+  const taxa = pagamento.forma === 'credito' ? taxaDoCredito(pagamento.parcelas ?? 1) : forma.taxa
+  return (pagamento.valor * taxa) / 100
 }
 
 /**
@@ -606,6 +623,8 @@ export async function fecharVenda(
       payments: pagamentos.map((p) => ({
         method: METODO[p.forma],
         amountCents: Math.round(p.valor * 100),
+        /* 1x vai sem o campo: a vista e a ausencia de parcelamento no contrato. */
+        ...(p.forma === 'credito' && (p.parcelas ?? 1) > 1 ? { installments: p.parcelas } : {}),
       })),
       ...(opcoes.descontoCentavos === undefined ? {} : { discountCents: opcoes.descontoCentavos }),
     },

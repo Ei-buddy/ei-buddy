@@ -16,6 +16,7 @@ import {
   type SituacaoCertificado,
   type VendaRegistrada,
   FORMAS,
+  PARCELAS_MAXIMAS,
   paraItemCarrinho,
   produtoPorEan,
   subtotalCarrinho,
@@ -42,6 +43,8 @@ export default function Pdv() {
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [lendo, setLendo] = useState(false)
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
+  /* So vale no credito; 1 = a vista. */
+  const [parcelas, setParcelas] = useState(1)
   const [fechando, setFechando] = useState(false)
   /** A ultima venda fechada, com a decomposicao — US-020. */
   const [resumo, setResumo] = useState<VendaRegistrada | null>(null)
@@ -161,7 +164,15 @@ export default function Pdv() {
 
     const r = await fecharVenda(
       itens,
-      [{ id: 'p1', forma, valor: total, status: 'confirmado' }],
+      [
+        {
+          id: 'p1',
+          forma,
+          valor: total,
+          status: 'confirmado',
+          ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+        },
+      ],
       chaveDoFechamento.current,
       {},
     )
@@ -181,6 +192,7 @@ O carrinho continua aqui. Tente de novo.`,
 
     chaveDoFechamento.current = null
     setItens([])
+    setParcelas(1)
     /*
      * Mostra o resumo, e nao mais um Alert de sucesso.
      *
@@ -193,7 +205,9 @@ O carrinho continua aqui. Tente de novo.`,
   }
 
   function fechar() {
-    const rotulo = FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
+    const rotulo =
+      (FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma) +
+      (forma === 'credito' && parcelas > 1 ? ` em ${parcelas}x` : '')
 
     Alert.alert(
       'Fechar a venda',
@@ -281,6 +295,31 @@ Pagamento em ${rotulo}.`,
               </Pressable>
             ))}
           </View>
+
+          {forma === 'credito' ? (
+            <View style={estilos.parcelas}>
+              <Text style={estilos.totalRotulo}>Parcelas</Text>
+              <View style={estilos.parcelasControle}>
+                <Pressable
+                  onPress={() => setParcelas((n) => Math.max(1, n - 1))}
+                  style={estilos.parcelasBotao}
+                  accessibilityLabel="Menos parcelas"
+                >
+                  <Text style={estilos.formaTexto}>−</Text>
+                </Pressable>
+                <Text style={estilos.parcelasValor}>
+                  {parcelas === 1 ? 'À vista' : `${parcelas}x`}
+                </Text>
+                <Pressable
+                  onPress={() => setParcelas((n) => Math.min(PARCELAS_MAXIMAS, n + 1))}
+                  style={estilos.parcelasBotao}
+                  accessibilityLabel="Mais parcelas"
+                >
+                  <Text style={estilos.formaTexto}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           <View style={estilos.totalLinha}>
             <Text style={estilos.totalRotulo}>Total</Text>
@@ -418,6 +457,22 @@ const estilos = StyleSheet.create({
   formaAtiva: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   formaTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
   formaTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+
+  parcelas: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  parcelasControle: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },
+  parcelasBotao: {
+    paddingVertical: espaco.sm,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+  },
+  parcelasValor: {
+    fontSize: fonte.pequeno,
+    fontWeight: peso.forte,
+    minWidth: 56,
+    textAlign: 'center',
+  },
 
   totalLinha: {
     flexDirection: 'row',
