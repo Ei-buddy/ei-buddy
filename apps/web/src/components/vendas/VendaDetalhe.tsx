@@ -21,14 +21,10 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
   const estornada = status === 'cancelled' || status === 'returned'
   const totalItens = venda.itens.reduce((acc, i) => acc + i.quantidade, 0)
 
-  /*
-   * Subtotal e liquido saem do que o servidor ja mandou, e nao de campos
-   * proprios: sao `bruto` e `total - taxaCartao`. Guardar os quatro no contrato
-   * abriria caminho para eles discordarem, e o unico jeito de descobrir seria o
-   * lojista somando na mao.
-   */
+  /* O liquido vem do servidor ja sem imposto e sem tarifa de cartao. Tirar a
+     tarifa de novo aqui a contava duas vezes. */
   const subtotal = venda.bruto
-  const valorLiquido = venda.total - venda.taxaCartao
+  const valorLiquido = venda.liquido
 
   async function confirmarEstorno() {
     /* O servidor exige o motivo (fica no historico da venda). Recusar aqui
@@ -87,7 +83,7 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
         <Stat
           label="Valor liquido"
           value={formatMoney(valorLiquido)}
-          hint="sem taxa de cartao"
+          hint="sem imposto e taxa de cartão"
           tone={estornada ? 'warning' : 'positive'}
         />
         <Stat label="Imposto" value={formatMoney(venda.imposto)} />

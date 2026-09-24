@@ -44,6 +44,8 @@ type Perfil = { userName: string; companyName: string | null }
 
 type ResumoDeVendas = {
   salesCount: number
+  /** O que os clientes pagaram. E o "faturamento" do painel. */
+  grossCents: number
   netCents: number
   averageTicketCents: number | null
 }
@@ -55,7 +57,8 @@ type PaginaDeVendas = {
     soldAt: string
     customerName: string | null
     status: 'open' | 'settled' | 'cancelled' | 'returned'
-    netAmountCents: number
+    grossAmountCents: number
+    discountCents: number
     payments: { method: string }[]
   }[]
   summary: ResumoDeVendas
@@ -87,7 +90,8 @@ export type DiaDoGrafico = {
   readonly dia: string
   /** Rotulo curto: "seg", "ter". */
   readonly rotulo: string
-  readonly netCents: number
+  /** Faturamento do dia: o bruto, e nao o liquido. */
+  readonly grossCents: number
   readonly salesCount: number
 }
 
@@ -232,7 +236,7 @@ export async function carregarPainel(agora: Date = new Date()): Promise<Painel> 
     ? porDia.map((r, i) => ({
         dia: diaLocal(dias[i]!),
         rotulo: DIAS_CURTOS[dias[i]!.getDay()]!,
-        netCents: r.ok ? r.dados.summary.netCents : 0,
+        grossCents: r.ok ? r.dados.summary.grossCents : 0,
         salesCount: r.ok ? r.dados.summary.salesCount : 0,
       }))
     : null

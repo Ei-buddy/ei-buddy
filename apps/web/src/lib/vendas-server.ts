@@ -69,7 +69,9 @@ export async function buscarVenda(id: string): Promise<VendaDoHistorico | null> 
     status: v.status,
     bruto: reais(v.grossAmountCents),
     desconto: reais(v.discountCents),
-    total: reais(v.netAmountCents),
+    /* Total e o que o cliente pagou; `netAmountCents` e o liquido da loja. */
+    total: reais(v.grossAmountCents - v.discountCents),
+    liquido: reais(v.netAmountCents),
     imposto: reais(v.taxAmountCents),
     taxaCartao: reais(v.cardFeeAmountCents),
     itens: v.items.map((i) => ({
