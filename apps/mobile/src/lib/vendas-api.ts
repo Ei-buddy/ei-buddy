@@ -26,7 +26,6 @@
  * alterar preco por fora.
  */
 
-import { produtos } from './mock-data'
 /* Tipos da cobranca Pix. No web eles moravam no auth-api por causa da
    assinatura; aqui, como o mobile nao cobra mensalidade, o unico uso e a
    venda — entao vivem junto dela. */
@@ -93,7 +92,9 @@ export function totalCarrinho(itens: ItemCarrinho[], desconto: Desconto | null):
   return sub - valorDesconto(sub, desconto)
 }
 
-export function paraItemCarrinho(produto: Produto): ItemCarrinho {
+export function paraItemCarrinho(
+  produto: Pick<Produto, 'id' | 'codigo' | 'descricao' | 'precoVenda' | 'precoCusto' | 'estoque'>,
+): ItemCarrinho {
   return {
     produtoId: produto.id,
     codigo: produto.codigo,
@@ -103,16 +104,6 @@ export function paraItemCarrinho(produto: Produto): ItemCarrinho {
     quantidade: 1,
     estoqueDisponivel: produto.estoque,
   }
-}
-
-/** Busca produto pelo EAN lido na camera. */
-export function produtoPorEan(ean: string): Produto | null {
-  const limpo = ean.replace(/\D/g, '')
-  return (
-    produtos.find((p) => p.ean === limpo) ??
-    produtos.find((p) => p.codigo.toUpperCase() === ean.trim().toUpperCase()) ??
-    null
-  )
 }
 
 /* -------------------------------------------------------------------------- */

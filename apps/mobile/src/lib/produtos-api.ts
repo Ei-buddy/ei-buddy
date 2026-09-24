@@ -49,7 +49,13 @@ export type EanResult = { ok: true; dados: DadosEan } | { ok: false; error: stri
  * mostrar mensagem de erro para o caso mais comum e mais util do balcao.
  */
 export type LeituraDeCodigo =
-  | { readonly situacao: 'cadastrado'; readonly produtoId: string; readonly descricao: string }
+  | {
+      readonly situacao: 'cadastrado'
+      readonly produtoId: string
+      readonly descricao: string
+      /** O produto como a api o conhece: e dele que o carrinho tira preco e saldo. */
+      readonly produto: ProdutoLido
+    }
   | { readonly situacao: 'novo'; readonly ean: string }
   | { readonly situacao: 'erro'; readonly mensagem: string }
 
@@ -65,7 +71,19 @@ export async function buscarEan(ean: string): Promise<LeituraDeCodigo> {
   const r = await chamarApi<ProdutoDaApi>(`/produtos/codigo-de-barras/${limpo}`)
 
   if (r.ok) {
-    return { situacao: 'cadastrado', produtoId: r.dados.id, descricao: r.dados.description }
+    return {
+      situacao: 'cadastrado',
+      produtoId: r.dados.id,
+      descricao: r.dados.description,
+      produto: {
+        id: r.dados.id,
+        codigo: r.dados.internalCode,
+        descricao: r.dados.description,
+        precoVenda: r.dados.salePriceCents / 100,
+        precoCusto: r.dados.costPriceCents / 100,
+        estoque: r.dados.stock,
+      },
+    }
   }
 
   /* 404 aqui e resposta, nao falha: o codigo lido e de produto que a loja ainda
@@ -94,7 +112,24 @@ export type DadosProduto = {
   imagem: string | null
 }
 
-type ProdutoDaApi = { id: string; internalCode: string; description: string }
+type ProdutoDaApi = {
+  id: string
+  internalCode: string
+  description: string
+  salePriceCents: number
+  costPriceCents: number
+  stock: number
+}
+
+/** O minimo do produto que o balcao usa: preco, custo e saldo, em reais. */
+export type ProdutoLido = {
+  readonly id: string
+  readonly codigo: string
+  readonly descricao: string
+  readonly precoVenda: number
+  readonly precoCusto: number
+  readonly estoque: number
+}
 
 /**
  * Cadastra o produto — RF-017, RF-019.
@@ -248,7 +283,7 @@ export async function ajustarEstoque(
 
 export type NivelEstoque = 'normal' | 'baixo' | 'esgotado'
 
-export function nivelEstoque(produto: Produto): NivelEstoque {
+export function nivelEstoque(produto: Pick<Produto, 'estoque' | 'estoqueMinimo'>): NivelEstoque {
   if (produto.estoque <= 0) return 'esgotado'
   if (produto.estoque < produto.estoqueMinimo) return 'baixo'
   return 'normal'
@@ -258,4 +293,63 @@ export function nivelEstoque(produto: Produto): NivelEstoque {
 export function calcularMargem(custo: number, venda: number): number | null {
   if (!venda || venda <= 0) return null
   return ((venda - custo) / venda) * 100
+}
+
+/* -------------------------------------------------------------------------- */
+/* Catalogo                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type ProdutoDoCatalogo = {
+  id: string
+  codigo: string
+  descricao: string
+  categoria: string | null
+  precoVenda: number
+  estoque: number
+  estoqueMinimo: number
+}
+
+export type FiltroDeEstoque = 'todos' | 'baixo' | 'esgotado'
+
+/** Mais que a pagina da web: no celular a lista rola, e paginar por botao atrapalha. */
+const ITENS_DO_CATALOGO = 100
+
+/**
+ * O catalogo da loja — RF-019, `GET /produtos/catalogo`.
+ *
+ * Busca e filtro de estoque no SERVIDOR. A lista vinha de `mock-data`, e o
+ * lojista via produtos que a loja nao tem.
+ */
+export async function listarCatalogo(opcoes: {
+  termo?: string
+  estoque?: FiltroDeEstoque
+}): Promise<
+  | { ok: true; dados: { produtos: ProdutoDoCatalogo[]; total: number } }
+  | { ok: false; erro: string }
+> {
+  const query = new URLSearchParams({ pageSize: String(ITENS_DO_CATALOGO) })
+  if (opcoes.termo) query.set('q', opcoes.termo)
+  if (opcoes.estoque && opcoes.estoque !== 'todos') query.set('stock', opcoes.estoque)
+
+  const r = await chamarApi<{
+    products: (ProdutoDaApi & { minStock: number; category: string | null })[]
+    total: number
+  }>(`/produtos/catalogo?${query.toString()}`)
+  if (!r.ok) return { ok: false, erro: r.message }
+
+  return {
+    ok: true,
+    dados: {
+      total: r.dados.total,
+      produtos: r.dados.products.map((p) => ({
+        id: p.id,
+        codigo: p.internalCode,
+        descricao: p.description,
+        categoria: p.category,
+        precoVenda: p.salePriceCents / 100,
+        estoque: p.stock,
+        estoqueMinimo: p.minStock,
+      })),
+    },
+  }
 }
