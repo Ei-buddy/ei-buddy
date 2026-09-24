@@ -61,6 +61,7 @@ import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
 import { IdentidadeBetterAuth } from './identidade-better-auth.js'
 import { criarEmailEmLog } from './email-em-log.js'
+import { criarEmailSmtp } from './email-smtp.js'
 import { IdentidadeEmArquivo } from './identidade-em-arquivo.js'
 import { createReminderScheduler } from './reminder-scheduler.js'
 import {
@@ -389,7 +390,7 @@ export function buildAuthDeps(): AuthRouteDeps {
      */
     resetTokens: createPasswordResetTokens(sql),
     passwords: identidade,
-    email: criarEmailEmLog(env.NODE_ENV === 'production'),
+    email: montarEnvioDeEmail(),
     webUrl: env.WEB_URL,
 
     /* Trocar o celular — RF-132: o contato no banco e o mesmo provedor do login. */
@@ -521,6 +522,43 @@ export function buildCadastroDeps(): CadastroDeps {
        prazos configurados, e o cadastro segue funcionando. */
     assinatura: montarInicioDoTeste(),
   }
+}
+
+/**
+ * Como o e-mail sai — NR-014.
+ *
+ * SMTP so quando `EMAIL_PROVIDER=smtp` E ha host e remetente. Meia
+ * configuracao cai no adapter de log em vez de estourar na subida: o e-mail
+ * hoje serve a UM fluxo (redefinir senha), e derrubar a api inteira por causa
+ * dele tiraria do ar cadastro, venda e financeiro.
+ *
+ * Mas nao cai em silencio — o aviso diz o que faltou, e o adapter de log em
+ * producao repete a cada tentativa que nada foi enviado.
+ */
+function montarEnvioDeEmail() {
+  const producao = env.NODE_ENV === 'production'
+
+  if (env.EMAIL_PROVIDER !== 'smtp') return criarEmailEmLog(producao)
+
+  if (env.SMTP_HOST === undefined || env.SMTP_FROM === undefined) {
+    console.warn(
+      JSON.stringify({
+        level: 40,
+        msg: 'EMAIL_PROVIDER=smtp sem SMTP_HOST ou SMTP_FROM — nenhum e-mail sera enviado',
+      }),
+    )
+    return criarEmailEmLog(producao)
+  }
+
+  return criarEmailSmtp({
+    host: env.SMTP_HOST,
+    /* 587 e a porta de submissao com STARTTLS, que e o caso comum. */
+    port: env.SMTP_PORT ?? 587,
+    secure: env.SMTP_SECURE,
+    from: env.SMTP_FROM,
+    user: env.SMTP_USER,
+    password: env.SMTP_PASSWORD,
+  })
 }
 
 /**

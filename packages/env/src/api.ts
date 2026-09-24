@@ -15,11 +15,21 @@ export const DEFAULT_AGENT_STUDIO_PRESETS = 'packages/agent/studio/presets.json'
  * obrigatorios que nada consome ainda so far barrar o boot local sem
  * necessidade.
  */
-/** Dias inteiros e positivos, ou ausente. Vazio conta como ausente. */
-const diasOpcionais = z.preprocess((v) => {
+/**
+ * Numero inteiro positivo, ou ausente.
+ *
+ * O `preprocess` existe por causa da STRING VAZIA: `.env` escreve
+ * `SMTP_PORT=` para dizer "nao configurado", e `z.coerce.number()` converte
+ * `''` em `0` — que reprova em `.positive()` e derruba a api na subida, com
+ * uma mensagem sobre um numero que ninguem escreveu.
+ */
+const numeroPositivoOpcional = z.preprocess((v) => {
   if (v === undefined || v === '') return undefined
   return v
 }, z.coerce.number().int().positive().optional())
+
+/** Dias inteiros e positivos, ou ausente — o mesmo formato. */
+const diasOpcionais = numeroPositivoOpcional
 
 export const apiEnvSchema = baseEnvSchema.extend({
   API_PORT: z.coerce
@@ -206,6 +216,41 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * nao o Bearer de envio (`WHATSAPP_API_TOKEN`). O id da conta WhatsApp
    * Business nao e variavel de ambiente: o adapter usa o Phone Number ID.
    */
+  /**
+   * Como o e-mail sai — NR-014.
+   *
+   * `log` escreve no console (e em producao nem isso: o corpo carrega o link
+   * de redefinir senha, e link em log e senha trocavel por quem le log).
+   * `smtp` envia de verdade.
+   *
+   * SMTP e nao um SDK de provedor de proposito: SES, Resend, Mailgun, Postmark
+   * e ate o Gmail falam SMTP. Escolher um SDK amarraria a escolha do provedor
+   * ao codigo, e essa escolha ainda nao foi feita — com SMTP ela vira cinco
+   * variaveis, e trocar de provedor depois nao mexe em nada aqui.
+   */
+  EMAIL_PROVIDER: z.enum(['log', 'smtp']).default('log'),
+  SMTP_HOST: opcionalNaoVazia,
+  SMTP_PORT: numeroPositivoOpcional,
+  SMTP_USER: opcionalNaoVazia,
+  SMTP_PASSWORD: opcionalNaoVazia,
+  /**
+   * O remetente, no formato que o servidor aceita — `EiBuddy <nao-responda@...>`
+   * ou so o endereco.
+   *
+   * Obrigatorio junto com o resto: servidor nenhum aceita mensagem sem
+   * remetente, e descobrir isso em producao seria descobrir pelo e-mail que
+   * nao chegou.
+   */
+  SMTP_FROM: opcionalNaoVazia,
+  /**
+   * TLS na conexao (porta 465). Na 587 o padrao e STARTTLS, que o cliente
+   * negocia sozinho — por isso o default e falso.
+   */
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   WHATSAPP_PROVIDER: z.enum(['fake', 'meta']).default('fake'),
   WHATSAPP_API_TOKEN: opcionalNaoVazia,
   WHATSAPP_PHONE_NUMBER_ID: opcionalNaoVazia,
