@@ -15,11 +15,21 @@ export const DEFAULT_AGENT_STUDIO_PRESETS = 'packages/agent/studio/presets.json'
  * obrigatorios que nada consome ainda so far barrar o boot local sem
  * necessidade.
  */
-/** Dias inteiros e positivos, ou ausente. Vazio conta como ausente. */
-const diasOpcionais = z.preprocess((v) => {
+/**
+ * Numero inteiro positivo, ou ausente.
+ *
+ * O `preprocess` existe por causa da STRING VAZIA: `.env` escreve
+ * `SMTP_PORT=` para dizer "nao configurado", e `z.coerce.number()` converte
+ * `''` em `0` — que reprova em `.positive()` e derruba a api na subida, com
+ * uma mensagem sobre um numero que ninguem escreveu.
+ */
+const numeroPositivoOpcional = z.preprocess((v) => {
   if (v === undefined || v === '') return undefined
   return v
 }, z.coerce.number().int().positive().optional())
+
+/** Dias inteiros e positivos, ou ausente — o mesmo formato. */
+const diasOpcionais = numeroPositivoOpcional
 
 export const apiEnvSchema = baseEnvSchema.extend({
   API_PORT: z.coerce
@@ -220,7 +230,7 @@ export const apiEnvSchema = baseEnvSchema.extend({
    */
   EMAIL_PROVIDER: z.enum(['log', 'smtp']).default('log'),
   SMTP_HOST: opcionalNaoVazia,
-  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_PORT: numeroPositivoOpcional,
   SMTP_USER: opcionalNaoVazia,
   SMTP_PASSWORD: opcionalNaoVazia,
   /**
