@@ -1,6 +1,8 @@
 import {
   couponCodeInputSchema,
   loginInputSchema,
+  passwordResetInputSchema,
+  passwordResetRequestSchema,
   selectCompanyInputSchema,
   signupInputSchema,
 } from '@na-regua/contracts'
@@ -15,6 +17,10 @@ import {
   type SignupDeps,
   loadProfile,
   logout,
+  requestPasswordReset,
+  type RequestPasswordResetDeps,
+  resetPassword,
+  type ResetPasswordDeps,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { LIMITE_DE_AUTENTICACAO } from '../plugins/rate-limit.js'
@@ -57,7 +63,10 @@ function meta(request: FastifyRequest, channel: 'app' | 'whatsapp' = 'app'): Log
  * fica visivel que o cadastro toca mais coisa, e que o login continua nao
  * tocando nenhuma delas.
  */
-export type AuthRouteDeps = AuthDeps & SignupDeps
+export type AuthRouteDeps = AuthDeps &
+  SignupDeps &
+  Omit<RequestPasswordResetDeps, 'users'> &
+  ResetPasswordDeps
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**
@@ -117,6 +126,34 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
     async (request) => {
       const codigo = validate(couponCodeInputSchema, request.params.codigo)
       return checkCoupon(deps, { code: codigo })
+    },
+  )
+
+  /**
+   * Pedir o link de redefinir senha — NR-014, RF-119.
+   *
+   * Responde 204 SEMPRE, com ou sem conta: a resposta nao pode dizer se o
+   * e-mail tem cadastro (RF-120). Limite de autenticacao, para nao virar
+   * disparador de e-mail na caixa de quem nao pediu.
+   */
+  app.post(
+    '/auth/recuperar-senha',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const input = validate(passwordResetRequestSchema, request.body)
+      await requestPasswordReset(deps, input, new Date())
+      return reply.code(204).send()
+    },
+  )
+
+  /** Trocar a senha pelo link — NR-014. Encerra as sessoes abertas da pessoa. */
+  app.post(
+    '/auth/redefinir-senha',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const input = validate(passwordResetInputSchema, request.body)
+      await resetPassword(deps, input)
+      return reply.code(204).send()
     },
   )
 

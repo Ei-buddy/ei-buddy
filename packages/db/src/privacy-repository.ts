@@ -124,6 +124,10 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
   /* Contagem de tentativa de login por chave. Nao pertence a empresa nenhuma —
      a chave pode ser um IP compartilhado. */
   login_throttle: 'Controle de forca bruta, sem vinculo com empresa.',
+  /* Link de redefinir senha: credencial de uso unico que vence em uma hora,
+     como a sessao. Exportar seria entregar uma senha trocavel. */
+  password_reset_tokens:
+    'Link de redefinicao de senha (credencial temporaria). Nao e dado do titular.',
   /* Controle das migrations. */
   schema_migrations: 'Controle de versao do schema.',
   /* Satelite 1:0..1: metadata de provedor, nao dado do titular. Segredo fica no cofre. */

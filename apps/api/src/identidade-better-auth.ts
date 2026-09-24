@@ -1,5 +1,10 @@
 import type { Credential } from '@na-regua/contracts'
-import type { IdentityProvider, IdentityRegistrar, VerifiedIdentity } from '@na-regua/core'
+import type {
+  IdentityProvider,
+  IdentityRegistrar,
+  PasswordSetter,
+  VerifiedIdentity,
+} from '@na-regua/core'
 import { betterAuth } from 'better-auth'
 import { phoneNumber } from 'better-auth/plugins'
 import { Pool } from 'pg'
@@ -150,7 +155,7 @@ function criarAuth(pool: Pool, config: IdentidadeBetterAuthConfig) {
   })
 }
 
-export class IdentidadeBetterAuth implements IdentityProvider, IdentityRegistrar {
+export class IdentidadeBetterAuth implements IdentityProvider, IdentityRegistrar, PasswordSetter {
   private readonly pool: Pool
   private readonly auth: ReturnType<typeof criarAuth>
 
@@ -386,6 +391,23 @@ export class IdentidadeBetterAuth implements IdentityProvider, IdentityRegistrar
     }
 
     return { subject: criado.user.id }
+  }
+
+  /**
+   * Troca a senha pelo link de redefinicao — NR-014.
+   *
+   * Pelo adapter interno, e nao pelo `resetPassword` da biblioteca: o link e o
+   * nosso (`password_reset_tokens`), porque nenhuma rota dele e montada — ver
+   * `criarAuth`. O hash sai do proprio Better Auth, para o `signInEmail`
+   * seguinte conferir com o mesmo algoritmo.
+   */
+  async setSecret(email: string, secret: string): Promise<boolean> {
+    const ctx = await this.auth.$context
+    const achado = await ctx.internalAdapter.findUserByEmail(email)
+    if (achado === null) return false
+
+    await ctx.internalAdapter.updatePassword(achado.user.id, await ctx.password.hash(secret))
+    return true
   }
 
   /**
