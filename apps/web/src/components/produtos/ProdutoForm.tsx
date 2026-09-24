@@ -3,7 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
+import {
+  calcularMargem,
+  carregarSugestoes,
+  centavosDaPlanilha,
+  salvarProduto,
+} from '@/lib/produtos-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -15,17 +20,20 @@ import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './produtoForm.module.css'
 
-/** Converte "12,90" ou "12.90" em numero. */
+/**
+ * Converte "12,90", "12.90" ou "1.234,56" em reais.
+ *
+ * A versao anterior apagava TODO ponto antes de ler: "8.50" virava 850 reais,
+ * e o servidor recusava o produto com "venda menor que o custo" sem que o
+ * lojista entendesse por que. A regra agora e a mesma da planilha.
+ */
 function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
+  return (centavosDaPlanilha(valor) ?? 0) / 100
 }
 
 export default function ProdutoForm() {
   const router = useRouter()
 
-  const [codigo, setCodigo] = useState('')
   const [descricao, setDescricao] = useState('')
   const [ean, setEan] = useState('')
   const [ncm, setNcm] = useState('')
@@ -100,7 +108,6 @@ export default function ProdutoForm() {
     event.preventDefault()
 
     const novos: Record<string, FieldError> = {
-      codigo: validateRequired(codigo, 'o codigo'),
       descricao: validateRequired(descricao, 'a descrição'),
       categoria: validateRequired(categoria, 'a categoria'),
       precoVenda: venda > 0 ? null : 'Informe um preço de venda maior que zero.',
@@ -116,7 +123,6 @@ export default function ProdutoForm() {
 
     /* SUBSTITUIR POR: POST /produtos */
     const r = await salvarProduto({
-      codigo,
       descricao,
       ean,
       ncm,
@@ -133,6 +139,7 @@ export default function ProdutoForm() {
     setSalvando(false)
 
     if (!r.ok) {
+      setErros(r.campos)
       setToast({ msg: r.error, tone: 'error' })
       return
     }
@@ -164,7 +171,7 @@ export default function ProdutoForm() {
         {/* ---------------- Identificacao ---------------- */}
         <Card title="Identificacao">
           <FormGrid>
-            <Field label="Código de barras (EAN)" span={6}>
+            <Field label="Código de barras (EAN)" span={12}>
               <div className={styles.inline}>
                 <Input
                   value={ean}
@@ -183,15 +190,10 @@ export default function ProdutoForm() {
               </div>
             </Field>
 
-            <Field label="Código interno" span={6}>
-              <Input
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                placeholder="CAF500"
-                aria-invalid={Boolean(erros.codigo)}
-              />
-              {erroDe('codigo')}
-            </Field>
+            {/* Sem campo de codigo interno: o servidor gera PROD-0001,
+                PROD-0002... para todo produto (RF-019). O campo que havia aqui
+                era obrigatorio e nunca enviado — quem digitava "CAF500"
+                recebia PROD-0001. O codigo gerado aparece na lista e na ficha. */}
 
             <Field label="Descrição" span={12}>
               <Input
@@ -211,6 +213,7 @@ export default function ProdutoForm() {
                 onCriar={(nova) => setCategorias((c) => [...c, nova])}
                 placeholder="Buscar ou criar categoria"
                 ariaLabel="Categoria"
+                invalido={Boolean(erros.categoria)}
               />
               {erroDe('categoria')}
             </Field>
@@ -237,6 +240,7 @@ export default function ProdutoForm() {
                 onChange={(e) => setNcm(e.target.value)}
                 placeholder="0000.00.00"
               />
+              {erroDe('ncm')}
             </Field>
 
             <Field
@@ -250,6 +254,7 @@ export default function ProdutoForm() {
                 placeholder="5102"
                 inputMode="numeric"
               />
+              {erroDe('cfop')}
             </Field>
 
             <Field
@@ -267,6 +272,7 @@ export default function ProdutoForm() {
                 placeholder="102"
                 inputMode="numeric"
               />
+              {erroDe('situacaoTributaria')}
             </Field>
           </FormGrid>
         </Card>
@@ -281,6 +287,7 @@ export default function ProdutoForm() {
                 placeholder="0,00"
                 inputMode="decimal"
               />
+              {erroDe('precoCusto')}
             </Field>
 
             <Field label="Preço de venda" span={4}>

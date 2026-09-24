@@ -297,6 +297,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  registerProductWithStock,
   searchProducts,
   TETO_DO_CATALOGO,
 } from './registration/register-product.js'

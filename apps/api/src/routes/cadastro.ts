@@ -32,7 +32,7 @@ import {
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
-  registerProduct,
+  registerProductWithStock,
   type RegisterProductDeps,
   searchProducts,
 } from '@na-regua/core'
@@ -275,7 +275,7 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     const ctx = requireContext(request)
     const input = validate(createProductInputSchema, request.body)
 
-    const produto = await registerProduct(deps, ctx, input)
+    const produto = await registerProductWithStock(deps, ctx, input)
 
     return reply.code(201).send(produto)
   })

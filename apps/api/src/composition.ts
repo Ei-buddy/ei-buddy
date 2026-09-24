@@ -28,7 +28,7 @@ import {
   listDayAppointments,
   abrirCanal,
   registerCustomer,
-  registerProduct,
+  registerProductWithStock,
   registerSale,
   searchProducts,
   sendCustomerCharge,
@@ -1127,7 +1127,7 @@ export function buildAgentUseCases(): AgentUseCases {
        todas as letras. Reimplementar aqui seria ter duas regras de cadastro
        divergindo em silencio, que e o que a promessa "app e WhatsApp acionam as
        mesmas regras" existe para impedir. */
-    registerProduct: (ctx, input) => registerProduct(cadastro, ctx, input),
+    registerProduct: (ctx, input) => registerProductWithStock(cadastro, ctx, input),
     createPayable: (ctx, input) => createPayable(contas, ctx, input),
     createReceivable: (ctx, input) => createReceivable({ uow: contas.receivablesUow }, ctx, input),
     /* NR-118: baixa e ajuste tambem saem dos casos de uso das telas. */

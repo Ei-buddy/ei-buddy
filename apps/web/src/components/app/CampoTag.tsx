@@ -89,9 +89,21 @@ export default function CampoTag({
   }
 
   /* Fecha ao sair do campo, mas so depois do clique na lista ser
-     processado — por isso o atraso curto. */
+     processado — por isso o atraso curto.
+
+     O que foi digitado FICA. Antes, digitar "Mercearia" e passar para o
+     proximo campo com Tab apagava o texto em silencio — so valia quem clicava
+     em "Criar" ou apertava Enter. Na primeira categoria da loja, a lista esta
+     vazia e o campo e obrigatorio: o cadastro de produto travava em "Informe a
+     categoria" com a categoria escrita na tela. Esc continua descartando. */
   function aoSairDoFoco(e: React.FocusEvent) {
     if (wrapRef.current?.contains(e.relatedTarget as Node)) return
+    const limpo = termo.trim()
+    if (aberto && limpo !== '') {
+      const existente = opcoes.find((o) => o.toLowerCase() === limpo.toLowerCase())
+      if (existente === undefined) onCriar(limpo)
+      onChange(existente ?? limpo)
+    }
     setAberto(false)
     setTermo('')
   }

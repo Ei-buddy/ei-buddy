@@ -347,6 +347,39 @@ export type ImportProductsDeps = RegisterProductDeps & {
 }
 
 /**
+ * Cadastra o produto E grava o saldo inicial — RF-017, RF-124.
+ *
+ * `registerProduct` sozinho descarta o `stock` do contrato: o lojista digitava
+ * 40 na tela e o produto nascia zerado, sem erro nenhum. So a importacao de
+ * planilha lancava o saldo. Agora a tela, a planilha e o assistente passam
+ * todos por aqui, e a regra e uma so.
+ *
+ * O saldo vira MOVIMENTO, e nao coluna — mesmo motivo de `ImportProductsDeps`.
+ * Devolve o produto relido para que o `stock` da resposta seja o que ficou
+ * gravado, e nao o zero de antes do movimento.
+ */
+export async function registerProductWithStock(
+  deps: ImportProductsDeps,
+  ctx: ExecutionContext,
+  input: CreateProductInput,
+  motivo = 'Saldo inicial do cadastro',
+): Promise<ProductOutput> {
+  const produto = await registerProduct(deps, ctx, input)
+
+  /* Saldo inicial so quando ha saldo: movimento de zero unidade e ruido na
+     trilha, e o CHECK do schema o recusa de qualquer jeito. */
+  if (input.stock <= 0) return produto
+
+  await adjustStock(deps, ctx, {
+    productId: produto.id,
+    countedQuantity: input.stock,
+    reason: motivo,
+  })
+
+  return (await deps.products.findById(ctx.companyId, produto.id)) ?? produto
+}
+
+/**
  * Importacao de catalogo em lote — NR-072, US-008.
  *
  * ## Parcial, e uma linha por vez
@@ -385,17 +418,7 @@ export async function importProducts(
 
   for (const [index, linha] of input.products.entries()) {
     try {
-      const produto = await registerProduct(deps, ctx, linha)
-
-      /* Saldo inicial so quando ha saldo: movimento de zero unidade e ruido na
-         trilha, e o CHECK do schema o recusa de qualquer jeito. */
-      if (linha.stock > 0) {
-        await adjustStock(deps, ctx, {
-          productId: produto.id,
-          countedQuantity: linha.stock,
-          reason: 'Saldo inicial da importacao de planilha',
-        })
-      }
+      await registerProductWithStock(deps, ctx, linha, 'Saldo inicial da importacao de planilha')
 
       imported += 1
     } catch (erro) {
