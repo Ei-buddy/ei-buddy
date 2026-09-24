@@ -61,6 +61,9 @@ describe.skipIf(!DATABASE_URL)('catalogo do backoffice — NR-072', () => {
   ): Promise<string> {
     const id = randomUUID()
     sequencia += 1
+    /* O codigo interno so com DIGITOS: a busca tambem casa pelo codigo, e um
+       pedaco hexadecimal do uuid podia conter "caf" — foi assim que a busca
+       por "caf" devolveu "Erva-mate" na CI. */
 
     await withTenant(
       sql,
@@ -69,7 +72,7 @@ describe.skipIf(!DATABASE_URL)('catalogo do backoffice — NR-072', () => {
         INSERT INTO products
           (id, company_id, description, internal_code, unit_of_measure,
            sale_price_cents, cost_price_cents, stock, min_stock, deleted_at)
-        VALUES (${id}, ${empresa}, ${dados.description}, ${`P-${sequencia}-${id.slice(0, 6)}`},
+        VALUES (${id}, ${empresa}, ${dados.description}, ${`P-${sequencia}-${Date.now()}`},
                 'un', 1000, ${dados.costPriceCents ?? 400}, ${dados.stock},
                 ${dados.minStock ?? 5}, ${dados.apagado === true ? new Date() : null})
       `,
