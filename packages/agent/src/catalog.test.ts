@@ -530,6 +530,7 @@ function cliente(over: Partial<CustomerOutput> = {}): CustomerOutput {
   return {
     id: 'cli-1',
     name: 'Joao',
+    tradeName: null,
     document: null,
     phone: '11988887777',
     email: null,

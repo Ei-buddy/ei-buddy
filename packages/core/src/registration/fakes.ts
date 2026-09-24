@@ -158,6 +158,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       walletLimitCents: customer.walletLimitCents ?? 0,
       /* Nao deve nada e zero, nao nulo: nulo obrigaria todo calculo de fiado
          a tratar ausencia. */
+      tradeName: customer.tradeName ?? null,
       walletBalanceCents: 0,
       /* O endereco do que veio, campo a campo: `undefined` na entrada vira
          `null` na saida, porque "nao informou" e um valor e nao um buraco. */

@@ -253,6 +253,7 @@ export function createCompanyRepository(sql: Sql): CompanyRepository {
 type LinhaCliente = {
   id: string
   name: string
+  trade_name: string | null
   document: string | null
   phone: string | null
   email: string | null
@@ -273,6 +274,7 @@ type LinhaCliente = {
 const paraCliente = (l: LinhaCliente): CustomerOutput => ({
   id: l.id,
   name: l.name,
+  tradeName: l.trade_name,
   document: l.document,
   phone: l.phone,
   email: l.email,
@@ -294,10 +296,10 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
         c.companyId,
         (tx) => tx<LinhaCliente[]>`
           INSERT INTO customers
-            (company_id, name, document, phone, email, notes, wallet_limit_cents,
+            (company_id, name, trade_name, document, phone, email, notes, wallet_limit_cents,
              postal_code, street, street_number, complement, neighborhood, city, state,
              created_by, created_at)
-          VALUES (${c.companyId}, ${c.name}, ${c.document ?? null}, ${c.phone ?? null},
+          VALUES (${c.companyId}, ${c.name}, ${c.tradeName ?? null}, ${c.document ?? null}, ${c.phone ?? null},
                   ${c.email ?? null}, ${c.notes ?? null}, ${c.walletLimitCents ?? 0},
                   ${c.address?.zipCode ?? null}, ${c.address?.street ?? null},
                   ${c.address?.number ?? null}, ${c.address?.complement ?? null},

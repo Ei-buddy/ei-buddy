@@ -114,6 +114,7 @@ function cadastroEmMemoria() {
         id: `cli-${seq}`,
         companyId: c.companyId,
         name: c.name,
+        tradeName: c.tradeName ?? null,
         document: c.document ?? null,
         phone: c.phone ?? null,
         email: c.email ?? null,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCustomerInputSchema } from '../customer/customer.js'
+import { createCustomerInputSchema, updateCustomerInputSchema } from '../customer/customer.js'
 import {
   createCompanyInputSchema,
   createUserInputSchema,
@@ -62,8 +62,61 @@ describe('cadastro de cliente', () => {
       createCustomerInputSchema.parse({ name: 'Joana R', document: '529.982.247-25' }).document,
     ).toBe('52998224725')
     expect(
-      createCustomerInputSchema.parse({ name: 'Padaria Sol', document: '11222333000181' }).document,
+      /* PJ leva o fantasia junto — regra logo abaixo. */
+      createCustomerInputSchema.parse({
+        name: 'Padaria Sol LTDA',
+        tradeName: 'Padaria Sol',
+        document: '11222333000181',
+      }).document,
     ).toBe('11222333000181')
+  })
+
+  describe('nome fantasia — RF-009', () => {
+    it('PJ sem fantasia e recusada, no campo certo', () => {
+      const r = createCustomerInputSchema.safeParse({
+        name: 'Padaria Sol LTDA',
+        document: '11222333000181',
+      })
+
+      expect(r.success).toBe(false)
+      /*
+       * O `path` importa: sem ele o erro aparece no topo do formulario e a
+       * pessoa procura qual campo esta errado numa tela de treze.
+       */
+      expect(r.success === false && r.error.issues[0]?.path).toEqual(['tradeName'])
+    })
+
+    it('pessoa fisica NAO precisa de fantasia', () => {
+      /* Pessoa fisica nao tem nome fantasia. Exigir seria pedir um dado que
+         nao existe. */
+      expect(
+        createCustomerInputSchema.safeParse({ name: 'Joana R', document: '52998224725' }).success,
+      ).toBe(true)
+    })
+
+    it('sem documento a regra nao se aplica', () => {
+      /* O balcao cadastra com nome e telefone e completa depois (RF-009).
+         Sem documento nao ha PJ conhecida. */
+      expect(createCustomerInputSchema.safeParse({ name: 'Padaria Sol' }).success).toBe(true)
+    })
+
+    it('a edicao que introduz um CNPJ tambem exige o fantasia', () => {
+      expect(updateCustomerInputSchema.safeParse({ document: '11222333000181' }).success).toBe(
+        false,
+      )
+      expect(
+        updateCustomerInputSchema.safeParse({
+          document: '11222333000181',
+          tradeName: 'Padaria Sol',
+        }).success,
+      ).toBe(true)
+    })
+
+    it('a edicao de outro campo passa sem mexer no fantasia', () => {
+      /* Schema nao le banco: uma atualizacao que nao toca o documento nao tem
+         como saber se o cliente guardado e PJ. */
+      expect(updateCustomerInputSchema.safeParse({ email: 'novo@email.com' }).success).toBe(true)
+    })
   })
 
   it.each([

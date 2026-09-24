@@ -28,6 +28,7 @@ type TipoPessoa = 'fisica' | 'juridica'
 type Campos = {
   documento: string
   nome: string
+  nomeFantasia: string
   email: string
   ddd: string
   celular: string
@@ -43,6 +44,7 @@ type Campos = {
 const VAZIO: Campos = {
   documento: '',
   nome: '',
+  nomeFantasia: '',
   email: '',
   ddd: '',
   celular: '',
@@ -147,6 +149,9 @@ export default function ClienteForm() {
       setCampos((c) => ({
         ...c,
         nome: r.dados.razaoSocial,
+        /* A consulta ja devolvia o fantasia, e o formulario descartava por nao
+           ter onde por. */
+        nomeFantasia: r.dados.nomeFantasia,
         cep: r.dados.cep,
         logradouro: r.dados.logradouro,
         numero: r.dados.numero,
@@ -181,6 +186,11 @@ export default function ClienteForm() {
     const novos: Erros = {
       documento: validateDocumento(campos.documento, tipo),
       nome: validateRequired(campos.nome, tipo === 'fisica' ? 'o nome' : 'a razão social'),
+      /* Fantasia so e exigido de PJ: pessoa fisica nao tem. A mesma regra
+         existe no contrato, e a daqui serve para a pessoa ver o erro NO
+         CAMPO em vez de receber um 400 depois de preencher a tela inteira. */
+      nomeFantasia:
+        tipo === 'juridica' ? validateRequired(campos.nomeFantasia, 'o nome fantasia') : null,
       ddd: validateDDD(campos.ddd),
       celular: validateCelular(campos.celular),
       cep: validateCEP(campos.cep),
@@ -334,6 +344,23 @@ export default function ClienteForm() {
               />
               {erroDe('nome')}
             </Field>
+
+            {/*
+              So para PJ, e nao um campo sempre visivel e desabilitado: pessoa
+              fisica nao tem nome fantasia, e mostrar o campo apagado convida a
+              pergunta "por que nao posso preencher?".
+            */}
+            {tipo === 'juridica' ? (
+              <Field label="Nome fantasia" span={12}>
+                <Input
+                  value={campos.nomeFantasia}
+                  onChange={(e) => set('nomeFantasia', e.target.value)}
+                  placeholder="Como a loja conhece este cliente"
+                  aria-invalid={Boolean(erros.nomeFantasia)}
+                />
+                {erroDe('nomeFantasia')}
+              </Field>
+            ) : null}
 
             <Field label="DDD" span={2}>
               <Input

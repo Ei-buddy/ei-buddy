@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { addressOutputSchema, addressSchema, documentSchema } from '../common/document.js'
+import {
+  addressOutputSchema,
+  addressSchema,
+  documentSchema,
+  tipoDePessoa,
+} from '../common/document.js'
 import {
   emailSchema,
   idSchema,
@@ -13,7 +18,34 @@ import {
  * para cliente HTTP.
  */
 
-export const createCustomerInputSchema = z
+/**
+ * A regra de PJ, escrita uma vez e aplicada nos dois schemas.
+ *
+ * `.partial()` do zod recusa um schema que ja tenha `.refine`, entao a
+ * alternativa era duplicar o predicado — e predicado duplicado e predicado que
+ * diverge. Aqui ele e uma funcao, e cada schema a aplica depois de decidir
+ * quais campos sao obrigatorios.
+ */
+function pjTemFantasia(c: {
+  readonly document?: string | undefined
+  readonly tradeName?: string | undefined
+}): boolean {
+  return tipoDePessoa(c.document ?? null) !== 'juridica' || Boolean(c.tradeName?.trim())
+}
+
+const EXIGE_FANTASIA = {
+  message: 'Informe o nome fantasia do cliente pessoa juridica.',
+  path: ['tradeName'],
+}
+
+/**
+ * Os campos, sem regra composta.
+ *
+ * Existe separado porque `.partial()` do zod recusa qualquer schema que
+ * carregue `.refine` — inclusive indiretamente. Os dois schemas de verdade
+ * saem daqui e aplicam a regra DEPOIS de decidir o que e obrigatorio.
+ */
+const camposDoCliente = z
   .object({
     name: nameSchema,
     /**
@@ -22,6 +54,14 @@ export const createCustomerInputSchema = z
      * o lojista de volta para o caderno.
      */
     document: documentSchema.optional(),
+    /**
+     * Nome fantasia — obrigatorio quando o cliente e PJ (regra logo abaixo).
+     *
+     * `name` guarda a RAZAO SOCIAL, que e o que sai na nota. O fantasia e como
+     * a loja conhece o cliente, e e por ele que o lojista procura no balcao:
+     * "a padaria do Ze", nao "ZE SILVA COMERCIO DE ALIMENTOS LTDA".
+     */
+    tradeName: nameSchema.optional(),
     phone: phoneSchema.optional(),
     email: emailSchema.optional(),
     notes: z.string().trim().max(500, 'Observacao muito longa.').optional(),
@@ -39,9 +79,36 @@ export const createCustomerInputSchema = z
   })
   .strict()
 
+/**
+ * Cadastro — RF-009.
+ *
+ * PJ precisa de nome fantasia.
+ *
+ * A regra mora no CONTRATO, e nao num CHECK no banco, porque ela depende de
+ * saber que o documento e um CNPJ. Essa leitura ja existe em `tipoDePessoa`;
+ * reimplementa-la em SQL criaria duas respostas para a mesma pergunta, e a
+ * primeira mudanca deixaria uma das duas para tras.
+ *
+ * Sem documento nao ha PJ conhecida, e a regra nao se aplica: o balcao cadastra
+ * com nome e telefone e completa depois (RF-009).
+ */
+export const createCustomerInputSchema = camposDoCliente.refine(pjTemFantasia, EXIGE_FANTASIA)
+
 export type CreateCustomerInput = z.infer<typeof createCustomerInputSchema>
 
-export const updateCustomerInputSchema = createCustomerInputSchema.partial().strict()
+/**
+ * Edicao — os mesmos campos, todos opcionais, e a MESMA regra de PJ.
+ *
+ * Ela vale aqui pelo payload que chega: quem manda um CNPJ nesta atualizacao
+ * precisa mandar o fantasia junto. O que ela NAO alcanca e a atualizacao que
+ * so mexe noutro campo de um cliente que ja esta PJ sem fantasia — para isso
+ * seria preciso ler o valor guardado, e schema nao le banco. Esse caso nao
+ * existe hoje: a regra entrou junto com a coluna, e todo PJ nasce com
+ * fantasia.
+ */
+export const updateCustomerInputSchema = camposDoCliente
+  .partial()
+  .refine(pjTemFantasia, EXIGE_FANTASIA)
 export type UpdateCustomerInput = z.infer<typeof updateCustomerInputSchema>
 
 /** Busca textual de cliente para a consulta conversacional de fiado — NR-115. */
@@ -56,6 +123,8 @@ export type CheckCustomerWalletInput = z.infer<typeof checkCustomerWalletInputSc
 export const customerOutputSchema = z.object({
   id: idSchema,
   name: z.string(),
+  /** Nulo em pessoa fisica, que nao tem fantasia. */
+  tradeName: z.string().nullable(),
   document: z.string().nullable(),
   phone: z.string().nullable(),
   email: z.string().nullable(),

@@ -66,6 +66,8 @@ export type DadosCliente = {
   tipoPessoa: 'fisica' | 'juridica'
   documento: string
   nome: string
+  /** Obrigatorio quando `tipoPessoa` e `juridica` — o contrato recusa sem. */
+  nomeFantasia: string
   ddd: string
   celular: string
   email: string
@@ -156,6 +158,7 @@ export async function salvarCliente(
       credentials: 'same-origin',
       body: JSON.stringify({
         name: dados.nome,
+        ...(dados.nomeFantasia ? { tradeName: dados.nomeFantasia } : {}),
         ...(dados.documento ? { document: dados.documento } : {}),
         ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
         ...(dados.email ? { email: dados.email } : {}),
