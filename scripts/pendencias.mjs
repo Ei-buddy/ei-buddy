@@ -190,6 +190,28 @@ const PENDENCIAS = [
     ],
   },
   {
+    id: 'NR-014',
+    titulo: 'Provedor de e-mail (SMTP)',
+    chaves: ['SMTP_HOST', 'SMTP_FROM'],
+    pronto: () =>
+      valor('EMAIL_PROVIDER') === 'smtp' && todasPreenchidas(['SMTP_HOST', 'SMTP_FROM']),
+    destrava: 'o "esqueci minha senha" entregar o link — hoje ele nao envia nada em producao',
+    oQueFazer: [
+      'Com EMAIL_PROVIDER=smtp:',
+      '  SMTP_HOST      servidor',
+      '  SMTP_PORT      587 (STARTTLS) ou 465 (com SMTP_SECURE=true)',
+      '  SMTP_USER      opcional — sem ele o cliente nao tenta autenticar',
+      '  SMTP_PASSWORD  opcional, junto com o usuario',
+      '  SMTP_FROM      remetente, ex.: EiBuddy <nao-responda@eibuddy.com.br>',
+      '',
+      'SMTP serve qualquer provedor (SES, Resend, Mailgun, Gmail) — escolher um',
+      'nao muda codigo nenhum.',
+      '',
+      'Sem isto, o lojista que esquece a senha ve "enviamos um link" e nada',
+      'chega: o adapter de log em producao so registra que nao enviou.',
+    ],
+  },
+  {
     id: 'ADR-0010',
     titulo: 'Chave da OpenAI para o assistente',
     chaves: ['OPENAI_API_KEY'],
