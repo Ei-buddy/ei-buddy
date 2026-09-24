@@ -73,6 +73,7 @@ import {
   createFixedCostPayableGenerator,
   createFixedCostRepository,
   createVariableCostRepository,
+  createBankAccountRepository,
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
@@ -140,6 +141,7 @@ import type { ContabilidadeDeps } from './routes/contabilidade.js'
 import type { ConsultasDeps } from './routes/consultas.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
 import type { CustosVariaveisDeps } from './routes/custos-variaveis.js'
+import type { ContasBancariasDeps } from './routes/contas-bancarias.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
@@ -777,6 +779,15 @@ export function buildCustosVariaveisDeps(): CustosVariaveisDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     variableCosts: createVariableCostRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Contas bancarias da loja — RF-073. */
+export function buildContasBancariasDeps(): ContasBancariasDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    bankAccounts: createBankAccountRepository(sql),
     audit: createAuditTrail(sql),
   }
 }

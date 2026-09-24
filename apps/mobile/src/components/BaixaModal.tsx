@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
   type DadosDaBaixa,
   FORMAS_DE_RECEBIMENTO,
   type FormaDeRecebimento,
   NOMES_BANCOS,
+  nomesDasContasDaLoja,
   type TipoDeTitulo,
 } from '@/lib/financeiro-api'
 import { diaLocal, formatMoney, hoje } from '@/lib/format'
@@ -105,6 +106,20 @@ export default function BaixaModal({
   const [valorParcial, setValorParcial] = useState('')
   const [dataBr, setDataBr] = useState(() => paraBr(hoje()))
   const [conta, setConta] = useState('')
+  /* As contas da loja (RF-073); sem nenhuma, as sugestoes genericas. */
+  const [contasDaLoja, setContasDaLoja] = useState<string[]>([])
+  useEffect(() => {
+    let cancelado = false
+    void nomesDasContasDaLoja().then((nomes) => {
+      if (cancelado) return
+      setContasDaLoja(nomes)
+      if (nomes.length === 1 && pagar) setConta(nomes[0]!)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [pagar])
+  const sugestoes = contasDaLoja.length > 0 ? contasDaLoja : NOMES_BANCOS
   const [forma, setForma] = useState<FormaDeRecebimento>('pix')
 
   /* Na baixa TOTAL o valor e o saldo exato — nao passa por reais e volta. */
@@ -241,7 +256,7 @@ export default function BaixaModal({
                     inteiro no celular e o tipo de atrito que faz a pessoa
                     desistir e deixar a baixa para depois — e depois nao vem. */}
                 <View style={estilos.chips}>
-                  {NOMES_BANCOS.map((b) => (
+                  {sugestoes.map((b) => (
                     <Pressable
                       key={b}
                       onPress={() => setConta(b)}
