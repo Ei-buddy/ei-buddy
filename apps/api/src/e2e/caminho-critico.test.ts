@@ -503,6 +503,10 @@ describe.skipIf(!DATABASE_URL)('caminho critico — NR-049', () => {
        * NCM chegou a ser digitado na tela do web e descartado em silencio.
        */
       expect(r.json()).toMatchObject({ ncm: '09011110', cfop: '5102', taxSituationCode: '102' })
+
+      /* O saldo inicial tambem chega — era aceito pelo contrato e descartado
+         pelo cadastro avulso: o produto nascia zerado. */
+      expect(r.json().stock).toBe(PRODUTO.stock)
     })
 
     it('registra a primeira venda', async () => {

@@ -33,6 +33,7 @@ import {
   listCatalog,
   productSuggestions,
   registerProduct,
+  registerProductWithStock,
 } from './register-product.js'
 
 const AGORA = new Date('2026-09-02T13:00:00.000Z')
@@ -1107,6 +1108,30 @@ describe('importacao de catalogo — NR-072, US-008', () => {
 
     /* Movimento que nao move nada e ruido na trilha, e o CHECK do schema o
        recusa de qualquer jeito. */
+    expect(c.inventario.movimentos).toHaveLength(0)
+  })
+
+  it('o cadastro avulso tambem grava o saldo inicial, e nao o descarta', async () => {
+    const c = cenario()
+
+    /*
+     * A tela pedia "Quantidade atual" e o produto nascia zerado: so a
+     * importacao lancava o saldo. Tela, planilha e assistente passam agora pela
+     * mesma funcao.
+     */
+    const produto = await registerProductWithStock(c.deps, contexto(), linha('Cafe', { stock: 12 }))
+
+    const [movimento] = c.inventario.movimentos
+    expect(movimento?.productId).toBe(produto.id)
+    expect(movimento?.quantityDelta).toBe(12)
+    expect(movimento?.reason).toBe('Saldo inicial do cadastro')
+  })
+
+  it('cadastro avulso sem estoque nao gera movimento', async () => {
+    const c = cenario()
+
+    await registerProductWithStock(c.deps, contexto(), linha('Cafe', { stock: 0 }))
+
     expect(c.inventario.movimentos).toHaveLength(0)
   })
 
