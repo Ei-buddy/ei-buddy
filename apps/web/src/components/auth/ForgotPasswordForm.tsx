@@ -10,6 +10,7 @@ export default function ForgotPasswordForm() {
   const [error, setError] = useState<FieldError>(null)
   const [loading, setLoading] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [falha, setFalha] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -19,9 +20,25 @@ export default function ForgotPasswordForm() {
     if (err) return
 
     setLoading(true)
-    /* SUBSTITUIR POR: POST /auth/password-reset */
-    await new Promise((r) => setTimeout(r, 900))
+    setFalha(null)
+    /*
+     * A api responde igual com ou sem conta (RF-120), entao sucesso aqui e so
+     * "o pedido chegou". O que pode falhar e a rede e o limite de tentativas —
+     * e esses a pessoa precisa saber, ou esperaria um e-mail que nao vem.
+     */
+    const r = await fetch('/api/auth/recuperar-senha', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+    }).catch(() => null)
     setLoading(false)
+
+    if (r === null) return setFalha('Sem conexão. Verifique sua internet e tente de novo.')
+    if (r.status === 429) return setFalha('Muitas tentativas. Espere um minuto e tente de novo.')
+    if (!r.ok) {
+      const corpo = (await r.json().catch(() => ({}))) as { error?: { message?: string } }
+      return setFalha(corpo.error?.message ?? 'Não foi possível enviar agora. Tente de novo.')
+    }
     setEnviado(true)
   }
 
@@ -46,6 +63,8 @@ export default function ForgotPasswordForm() {
         title="Recuperar senha"
         subtitle="Informe seu e-mail e enviaremos um link para criar uma nova senha."
       />
+
+      {falha ? <Alert>{falha}</Alert> : null}
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField

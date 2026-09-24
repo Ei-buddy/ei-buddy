@@ -45,14 +45,15 @@ Legenda: **Obr.** obrigatória · **Seg.** é segredo (nunca em log, nunca versi
 
 ### Aplicação
 
-| Variável    | Obr. | Seg. | local                   | Descrição                                    |
-| ----------- | :--: | :--: | ----------------------- | -------------------------------------------- |
-| `NODE_ENV`  |  ✅  |      | `development`           | `development` \| `production` \| `test`      |
-| `LOG_LEVEL` |      |      | `debug`                 | `debug` \| `info` \| `warn` \| `error`       |
-| `TZ`        |      |      | `America/Sao_Paulo`     | fuso de exibição. Armazenamento é sempre UTC |
-| `API_PORT`  |      |      | `3333`                  | porta da api                                 |
-| `API_URL`   |  ✅  |      | `http://localhost:3333` | URL base da api, usada por web e mobile      |
-| `WEB_PORT`  |      |      | `3000`                  | porta da web                                 |
+| Variável    | Obr. | Seg. | local                   | Descrição                                                          |
+| ----------- | :--: | :--: | ----------------------- | ------------------------------------------------------------------ |
+| `NODE_ENV`  |  ✅  |      | `development`           | `development` \| `production` \| `test`                            |
+| `LOG_LEVEL` |      |      | `debug`                 | `debug` \| `info` \| `warn` \| `error`                             |
+| `TZ`        |      |      | `America/Sao_Paulo`     | fuso de exibição. Armazenamento é sempre UTC                       |
+| `API_PORT`  |      |      | `3333`                  | porta da api                                                       |
+| `API_URL`   |  ✅  |      | `http://localhost:3333` | URL base da api, usada por web e mobile                            |
+| `WEB_URL`   |      |      | `http://localhost:3000` | Onde a web mora; vai no link do e-mail de redefinir senha (NR-014) |
+| `WEB_PORT`  |      |      | `3000`                  | porta da web                                                       |
 
 ### Dados
 

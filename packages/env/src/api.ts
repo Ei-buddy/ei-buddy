@@ -31,6 +31,18 @@ export const apiEnvSchema = baseEnvSchema.extend({
 
   API_URL: z.string().url('API_URL precisa ser uma URL valida, ex.: http://localhost:3333'),
 
+  /**
+   * Onde a web mora — vai no link do e-mail de redefinir senha (NR-014).
+   *
+   * Da configuracao, e nunca do `Host` da requisicao: com o cabecalho de quem
+   * pediu, um atacante faria a vitima receber um e-mail legitimo com link para
+   * o dominio dele, e o token iria junto no clique.
+   */
+  WEB_URL: z
+    .string()
+    .url('WEB_URL precisa ser uma URL valida, ex.: http://localhost:3000')
+    .default('http://localhost:3000'),
+
   DATABASE_URL: z
     .string()
     .min(1, 'DATABASE_URL e obrigatoria. Copie .env.example para .env ou rode `pnpm setup`.')

@@ -425,6 +425,9 @@ export type { ListAppointmentRangeDeps, RangeAgenda } from './schedule/list-appo
 export { signup } from './auth/signup.js'
 export type { SignupDeps } from './auth/signup.js'
 export type { IdentityRegistrar } from './ports/identity.js'
+export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
+export type { RequestPasswordResetDeps, ResetPasswordDeps } from './auth/password-reset.js'
+export type { EmailSender, PasswordResetTokens, PasswordSetter } from './ports/password-reset.js'
 export {
   InMemoryCepLookup,
   InMemoryCnpjLookup,

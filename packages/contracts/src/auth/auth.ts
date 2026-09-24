@@ -325,3 +325,23 @@ export const platformUsersOutputSchema = z.object({
 })
 
 export type PlatformUsersOutput = z.infer<typeof platformUsersOutputSchema>
+
+/**
+ * Pedir o link de redefinicao de senha — NR-014, RF-119.
+ *
+ * So e-mail: o link viaja por e-mail. Quem so tem telefone depende do canal de
+ * WhatsApp (NR-046) para receber um codigo, e isso entra com ele.
+ */
+export const passwordResetRequestSchema = z.object({ email: emailSchema }).strict()
+
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>
+
+/** Trocar a senha pelo link. O minimo e o mesmo do cadastro. */
+export const passwordResetInputSchema = z
+  .object({
+    token: z.string().min(20, 'Link inválido.').max(200, 'Link inválido.'),
+    secret: z.string().min(8, 'A senha precisa de ao menos 8 caracteres.').max(200),
+  })
+  .strict()
+
+export type PasswordResetInput = z.infer<typeof passwordResetInputSchema>

@@ -2,7 +2,12 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import type { Credential } from '@na-regua/contracts'
-import type { IdentityProvider, IdentityRegistrar, VerifiedIdentity } from '@na-regua/core'
+import type {
+  IdentityProvider,
+  IdentityRegistrar,
+  PasswordSetter,
+  VerifiedIdentity,
+} from '@na-regua/core'
 
 /**
  * Credencial de DESENVOLVIMENTO que sobrevive a reinicio — NR-014, ADR-0002.
@@ -107,7 +112,7 @@ function confere(secret: string, verificador: string): boolean {
   return esperado.length === obtido.length && timingSafeEqual(esperado, obtido)
 }
 
-export class IdentidadeEmArquivo implements IdentityProvider, IdentityRegistrar {
+export class IdentidadeEmArquivo implements IdentityProvider, IdentityRegistrar, PasswordSetter {
   private readonly registros = new Map<string, Registro>()
 
   constructor(private readonly caminho: string = CAMINHO_PADRAO) {
@@ -200,5 +205,27 @@ export class IdentidadeEmArquivo implements IdentityProvider, IdentityRegistrar 
     this.gravar()
 
     return { subject }
+  }
+  /**
+   * Troca a senha pelo link de redefinicao — NR-014.
+   *
+   * Pelo e-mail, que e o que o link carrega. A pessoa pode ter credencial com o
+   * e-mail como identificador E outra com o telefone (o mesmo `subject`): as
+   * duas passam a aceitar a senha nova, como no provedor de verdade.
+   */
+  async setSecret(email: string, secret: string): Promise<boolean> {
+    const alvo = email.toLowerCase()
+    const achado = [...this.registros.values()].find(
+      (r) => r.email?.toLowerCase() === alvo || r.identifier.toLowerCase() === alvo,
+    )
+    if (achado === undefined) return false
+
+    for (const r of [...this.registros.values()]) {
+      if (r.subject === achado.subject) {
+        this.registros.set(r.identifier, { ...r, verificador: criarVerificador(secret) })
+      }
+    }
+    this.gravar()
+    return true
   }
 }

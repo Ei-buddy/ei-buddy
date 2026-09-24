@@ -50,11 +50,12 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
-import type { IdentityProvider, IdentityRegistrar } from '@na-regua/core'
+import type { IdentityProvider, IdentityRegistrar, PasswordSetter } from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
 import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
 import { IdentidadeBetterAuth } from './identidade-better-auth.js'
+import { criarEmailEmLog } from './email-em-log.js'
 import { IdentidadeEmArquivo } from './identidade-em-arquivo.js'
 import { createReminderScheduler } from './reminder-scheduler.js'
 import {
@@ -97,6 +98,7 @@ import {
   createWebhookInbox,
   createLegalConsentRepository,
   createCouponRepository,
+  createPasswordResetTokens,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -367,6 +369,16 @@ export function buildAuthDeps(): AuthRouteDeps {
     /* Cupom de indicacao — RF-114. `signup()` grava o vinculo, e
        `GET /cupons/:codigo` confere o codigo enquanto a pessoa digita. */
     coupons: createCouponRepository(sql),
+
+    /*
+     * Recuperar senha — NR-014. O link no banco, a senha no provedor de
+     * identidade (a mesma instancia do login), e o e-mail no log ate o
+     * provedor de e-mail ser escolhido.
+     */
+    resetTokens: createPasswordResetTokens(sql),
+    passwords: identidade,
+    email: criarEmailEmLog(env.NODE_ENV === 'production'),
+    webUrl: env.WEB_URL,
   }
 }
 
@@ -393,7 +405,7 @@ const MINIMO_DE_SENHA = 8
  * `fake` segue sendo o modo local, e `assertAuthUsavelEmProducao` recusa subir
  * com ele em producao.
  */
-export function criarIdentidade(): IdentityProvider & IdentityRegistrar {
+export function criarIdentidade(): IdentityProvider & IdentityRegistrar & PasswordSetter {
   if (env.AUTH_PROVIDER === 'better-auth') {
     if (env.BETTER_AUTH_SECRET === undefined) {
       /*
