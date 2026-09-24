@@ -226,7 +226,10 @@ describe.skipIf(!DATABASE_URL)('peer-directory-repository — NR-046 US4', () =>
      * O que o teste precisa e de dois ids com ordem CONHECIDA, nao de dois ids
      * conhecidos.
      */
-    const [empresaMenor, empresaMaior] = [randomUUID(), randomUUID()].sort()
+    const um = randomUUID()
+    const outro = randomUUID()
+    const empresaMenor = um < outro ? um : outro
+    const empresaMaior = um < outro ? outro : um
     const instante = '2026-07-15T12:00:00.000Z'
 
     await criarEmpresaComId(empresaMenor, 'US4 menor id', '7')
