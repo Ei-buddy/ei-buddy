@@ -63,7 +63,10 @@ pnpm db:migrate >/dev/null
 
 # --- Redis --------------------------------------------------------------------
 if ! redis-cli ping >/dev/null 2>&1; then
-  redis-server --daemonize yes --port 6379 >/dev/null
+  # Sem snapshot, e fora do repositorio: o Redis grava `dump.rdb` na pasta de
+  # onde subiu — a raiz do repositorio — e o arquivo aparecia como nao
+  # versionado. Fila de teste nao precisa sobreviver a sessao.
+  redis-server --daemonize yes --port 6379 --dir /tmp --save '' --appendonly no >/dev/null
 fi
 
 # --- variaveis da sessao (as mesmas do job de testes da CI) ------------------
