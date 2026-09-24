@@ -14,11 +14,8 @@
  *  | estadoDaNota           | GET  /vendas/:id/nota      | polling da nota    |
  *  | reconciliarContingencia| POST /vendas/notas/reconciliar | abrir a etapa |
  *
- * O que AINDA NAO existe no backend, de proposito documentado (nao e so falta
- * de wiring): cobranca Pix avulsa (`criarCobrancaVenda`/`statusCobrancaVenda`,
- * depende do adapter Asaas da NR-044) e estorno de venda
- * (`estornarVenda` — precisa ser transacional em tres tabelas de uma vez, e
- * essa unidade de trabalho ainda nao foi escrita nem no web).
+ * A cobranca Pix com QR no balcao ainda nao existe: no app, o Pix e
+ * REGISTRADO, como o cartao (ADR-0004). Volta quando a conta Asaas existir.
  *
  * O SERVIDOR E QUEM FECHA A VENDA. O carrinho vive no aparelho so ate o
  * fechamento; a partir dai, preco, imposto, taxa e estoque sao calculados
@@ -26,26 +23,8 @@
  * alterar preco por fora.
  */
 
-/* Tipos da cobranca Pix. No web eles moravam no auth-api por causa da
-   assinatura; aqui, como o mobile nao cobra mensalidade, o unico uso e a
-   venda — entao vivem junto dela. */
-export type PixCharge = {
-  chargeId: string
-  /** Payload "copia e cola" — vira o QR Code. */
-  payload: string
-  /** Timestamp (ms) em que o codigo expira. */
-  expiresAt: number
-  amount: number
-}
-
-export type PixChargeStatus = 'pending' | 'paid' | 'expired'
 import { chamarApi } from './api'
 import type { FormaPagamento, Produto } from './types'
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/** Data de referencia do app. */
-export const HOJE = '2026-08-24'
 
 /* -------------------------------------------------------------------------- */
 /* Carrinho                                                                   */
@@ -169,34 +148,6 @@ export function valorLiquido(pagamentos: Pagamento[]): number {
   return pagamentos
     .filter((p) => p.status === 'confirmado')
     .reduce((acc, p) => acc + p.valor - taxaDoPagamento(p), 0)
-}
-
-/** SUBSTITUIR POR: POST /vendas/:id/cobrancas */
-export async function criarCobrancaVenda(valor: number): Promise<PixCharge> {
-  await delay(800)
-
-  const chargeId = `vch-${Math.random().toString(36).slice(2, 10)}`
-  const payload = [
-    '00020126580014BR.GOV.BCB.PIX0136',
-    chargeId.padEnd(36, '0'),
-    '52040000530398654',
-    valor.toFixed(2).padStart(6, '0'),
-    '5802BR5913EI BUDDY LTDA6008CURITIBA62070503***6304',
-  ].join('')
-
-  return {
-    chargeId,
-    payload,
-    expiresAt: Date.now() + 15 * 60_000,
-    amount: valor,
-  }
-}
-
-/** SUBSTITUIR POR: GET /vendas/:id/cobrancas/:cid */
-export async function statusCobrancaVenda(chargeId: string): Promise<PixChargeStatus> {
-  await delay(400)
-  void chargeId
-  return 'pending'
 }
 
 /* -------------------------------------------------------------------------- */
