@@ -190,7 +190,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-107 | Disparar cobrança pelo assistente e confirmar o envio ao lojista                                                      | US-052 | `agent`     |  M  | ⬜  |
 | RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado                                  | US-053 | `agent`     |  S  | ⬜  |
 | RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                                               | US-053 | `agent`     |  S  | ⬜  |
-| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ⬜  |
+| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ✅  |
 | RF-133 | Consultar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-065 | `agent`     |  M  | ⬜  |
 | RF-134 | Consultar contas a pagar por vencimento por mensagem usando o mesmo caso de uso do aplicativo                         | US-066 | `agent`     |  M  | ⬜  |
 | RF-135 | Consultar saldo em carteira do cliente por mensagem usando o mesmo caso de uso do aplicativo                          | US-067 | `agent`     |  M  | ⬜  |

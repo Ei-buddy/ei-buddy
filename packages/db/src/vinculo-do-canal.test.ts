@@ -5,6 +5,7 @@ import { migrate } from './migrate.js'
 import { createPeerDirectory } from './peer-directory-repository.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
 import { withTenant } from './tenant.js'
+import { createUserContacts } from './user-contacts.js'
 
 /**
  * Vinculo do canal WhatsApp — NR-113, RF-094, RF-095, ADR-0012.
@@ -152,5 +153,21 @@ describe.skipIf(!DATABASE_URL)('vinculo do canal — NR-113', () => {
     /* Retorno minimo: nome, e-mail e telefone fora. Devolver o cadastro
        transformaria isto num consultor de usuario por telefone. */
     expect(Object.keys(linhas[0] ?? {}).sort()).toEqual(['company_id', 'user_id'])
+  })
+
+  it('trocar o celular tira o numero antigo do canal — RF-132', async () => {
+    const antigo = `4196${String(Date.now()).slice(-7)}`
+    const novo = `4195${String(Date.now()).slice(-7)}`
+    const donaNova = await criarUsuario(antigo, 'Dona Troca')
+    await vincular(primeiraLoja, donaNova, 'owner', '2026-02-01T10:00:00.000Z')
+
+    const contatos = createUserContacts(sql)
+    expect((await contatos.contactOf(donaNova))?.phone).toBe(antigo)
+
+    /* Pelo papel da APLICACAO, sem tenant: a funcao e SECURITY DEFINER. */
+    await contatos.changePhone(donaNova, novo)
+
+    expect(await createPeerDirectory(sql).porTelefone(antigo)).toBeUndefined()
+    expect((await createPeerDirectory(sql).porTelefone(novo))?.userId).toBe(donaNova)
   })
 })

@@ -1,5 +1,6 @@
 import type { Credential } from '@na-regua/contracts'
 import type {
+  IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
   PasswordSetter,
@@ -155,7 +156,9 @@ function criarAuth(pool: Pool, config: IdentidadeBetterAuthConfig) {
   })
 }
 
-export class IdentidadeBetterAuth implements IdentityProvider, IdentityRegistrar, PasswordSetter {
+export class IdentidadeBetterAuth
+  implements IdentityProvider, IdentityRegistrar, PasswordSetter, IdentityPhoneChanger
+{
   private readonly pool: Pool
   private readonly auth: ReturnType<typeof criarAuth>
 
@@ -407,6 +410,21 @@ export class IdentidadeBetterAuth implements IdentityProvider, IdentityRegistrar
     if (achado === null) return false
 
     await ctx.internalAdapter.updatePassword(achado.user.id, await ctx.password.hash(secret))
+    return true
+  }
+
+  /**
+   * Troca o celular — RF-132. Pelo adapter interno, como no cadastro:
+   * `phoneNumberVerified: false`, porque ninguem confirmou o numero novo.
+   */
+  async setPhone(subject: string, novo: string): Promise<boolean> {
+    const ctx = await this.auth.$context
+    if ((await ctx.internalAdapter.findUserById(subject)) === null) return false
+
+    await ctx.internalAdapter.updateUser(subject, {
+      phoneNumber: novo,
+      phoneNumberVerified: false,
+    })
     return true
   }
 

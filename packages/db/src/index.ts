@@ -113,6 +113,7 @@ export {
 /* Sessao persistente e desaceleracao de login — NR-083, ADR-0002. */
 export { createLoginThrottle, createSessionIssuer } from './session-repository.js'
 export { createPasswordResetTokens } from './password-reset-repository.js'
+export { createUserContacts } from './user-contacts.js'
 export { createPlatformAdminAccess } from './platform-admin-repository.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
 /* Conta de Parceiro — NR-115, ADR-0013. */
