@@ -202,3 +202,50 @@ export function maskPhone(value: string): string {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
+
+/* -------------------------------------------------------------------------- */
+/* Conta de Parceiro — chave PIX e nome do cupom                              */
+/* -------------------------------------------------------------------------- */
+
+export type TipoDeChavePix = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'
+
+/**
+ * A chave PIX combina com o tipo escolhido — a mesma regra de `pixKeyError`
+ * em contracts (validation.test.ts compara as duas). E por ela que a comissao
+ * do Parceiro e paga: "abc" como e-mail so seria descoberto no repasse.
+ */
+export function validatePixKey(value: string, tipo: TipoDeChavePix): FieldError {
+  const v = value.trim()
+  if (!v) return 'Informe a chave PIX.'
+  const d = v.replace(/\D/g, '')
+  const ok =
+    tipo === 'CPF'
+      ? isValidCPF(v)
+      : tipo === 'CNPJ'
+        ? isValidCNPJ(v)
+        : tipo === 'EMAIL'
+          ? /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
+          : tipo === 'PHONE'
+            ? d.length === 10 ||
+              d.length === 11 ||
+              (d.startsWith('55') && d.length >= 12 && d.length <= 13)
+            : /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+  if (ok) return null
+  return {
+    CPF: 'Informe um CPF válido.',
+    CNPJ: 'Informe um CNPJ válido.',
+    EMAIL: 'Informe um e-mail válido.',
+    PHONE: 'Informe o telefone com DDD.',
+    EVP: 'A chave aleatória tem o formato 1234abcd-12ab-34cd-56ef-1234567890ab.',
+  }[tipo]
+}
+
+/** Mesmas regras de `partnerAccountFieldsSchema.couponCode`. Vazio vale: o sistema sugere. */
+export function validateCouponName(value: string): FieldError {
+  const v = value.trim()
+  if (v === '') return null
+  if (v.length < 3) return 'O nome do cupom precisa de ao menos 3 caracteres.'
+  if (v.length > 20) return 'O nome do cupom pode ter no máximo 20 caracteres.'
+  if (!/^[a-zA-Z0-9]+$/.test(v)) return 'Use só letras e números, sem espaço.'
+  return null
+}

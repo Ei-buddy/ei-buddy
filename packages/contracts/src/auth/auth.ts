@@ -8,7 +8,7 @@ import {
   roleSchema,
 } from '../common/primitives.js'
 import { cnpjSchema } from '../common/document.js'
-import { partnerAccountFieldsSchema } from '../partners/partner.js'
+import { partnerAccountFieldsSchema, pixCombinaComTipo } from '../partners/partner.js'
 
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
 
@@ -147,7 +147,10 @@ export const signupAccountSchema = z.discriminatedUnion('type', [
   z
     .object({ type: z.literal('parceiro') })
     .strict()
-    .extend(partnerAccountFieldsSchema.shape),
+    .extend(partnerAccountFieldsSchema.shape)
+    /* `.shape` copia os campos e deixa a regra do objeto para tras: a chave
+       PIX que combina com o tipo precisa ser conferida aqui tambem. */
+    .superRefine(pixCombinaComTipo),
 ])
 
 export type SignupAccount = z.infer<typeof signupAccountSchema>

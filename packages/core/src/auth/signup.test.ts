@@ -38,8 +38,9 @@ function cenario() {
   const legalConsents = new InMemoryLegalConsentRepository()
 
   /* O diretorio nao tem falso proprio: o minimo que o caso de uso usa. */
-  const criados: { id: string; name: string; companyId: string }[] = []
+  const criados: { id: string; name: string; companyId: string; phone: string | null }[] = []
   const users = {
+    findByPhone: async (phone: string) => criados.find((u) => u.phone === phone),
     createUserWithAccess: async (c: {
       companyId: string
       name: string
@@ -47,7 +48,7 @@ function cenario() {
       phone: string | null
     }) => {
       const usuario = { id: `usr-${criados.length + 1}`, name: c.name, isActive: true }
-      criados.push({ id: usuario.id, name: c.name, companyId: c.companyId })
+      criados.push({ id: usuario.id, name: c.name, companyId: c.companyId, phone: c.phone })
       return usuario
     },
   }
@@ -187,6 +188,23 @@ describe('cadastro de conta', () => {
     expect(sessao.memberships[0]?.role).toBe('owner')
   })
 
+  it('telefone ja usado por outra conta e recusado antes de criar a credencial', async () => {
+    const c = cenario()
+    await signup(c.deps, { ...entrada, phone: '41999990000' }, AGORA)
+
+    const erro = await pegaErro(() =>
+      signup(
+        c.deps,
+        { ...entrada, email: 'outra@loja.local', cnpj: '11444777000161', phone: '41999990000' },
+        AGORA,
+      ),
+    )
+
+    /* Era um 500 do indice unico de `users`, com a credencial ja criada. */
+    expect(erro).toMatchObject({ code: 'CONFLICT' })
+    expect(c.criados).toHaveLength(1)
+  })
+
   describe('aceite dos documentos legais — RF-02, LGPD art. 8 §1', () => {
     it('o cadastro grava a prova do aceite dos dois documentos', async () => {
       const c = cenario()
@@ -232,6 +250,36 @@ describe('cadastro de conta', () => {
 
       const minha = await c.partners.mine(sessao.activeCompanyId!)
       expect(minha).toBeUndefined()
+    })
+
+    it('cupom ja usado e recusado ANTES de criar a conta — nada fica pela metade', async () => {
+      const c = cenario()
+      const parceiro = (email: string, cnpj: string) => ({
+        ...entrada,
+        email,
+        cnpj,
+        phone: undefined,
+        account: {
+          type: 'parceiro' as const,
+          pixKey: '41999990000',
+          pixKeyType: 'PHONE' as const,
+          message: 'Quero divulgar o Buddy para meus clientes.',
+          couponCode: 'ANA10',
+        },
+      })
+      await signup(c.deps, parceiro('ana@loja.local', '11222333000181'), AGORA)
+
+      const erro = await pegaErro(() =>
+        signup(c.deps, parceiro('bia@loja.local', '11444777000161'), AGORA),
+      )
+
+      /* Antes, o cupom repetido so estourava na candidatura, com a conta ja
+         criada: a tela dizia "erro" e o e-mail ficava preso. */
+      expect(erro).toMatchObject({ code: 'CONFLICT' })
+      expect(c.criados).toHaveLength(1)
+      expect(
+        await c.provider.verify({ identifier: 'bia@loja.local', secret: entrada.secret }),
+      ).toBeUndefined()
     })
 
     it('`account.type: "parceiro"` cria a candidatura pending, sessao continua abrindo normal', async () => {
