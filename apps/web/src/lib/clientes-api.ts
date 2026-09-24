@@ -244,6 +244,50 @@ const paraContato = (c: ContatoDaApi): ContatoCliente => ({
   descricao: c.description,
 })
 
+/**
+ * Consentimento de WhatsApp — RF-016.
+ *
+ * Duas datas e nao um booleano: nulas as duas quer dizer NUNCA HOUVE
+ * manifestacao, que e diferente de recusa. Uma exige pedir o aceite; a outra
+ * proibe pedir de novo.
+ */
+export type ConsentimentoWhatsapp = {
+  autorizouEm: string | null
+  recusouEm: string | null
+}
+
+type ConsentimentoDaApi = { optedInAt: string | null; optedOutAt: string | null }
+
+const paraConsentimento = (c: ConsentimentoDaApi): ConsentimentoWhatsapp => ({
+  autorizouEm: c.optedInAt,
+  recusouEm: c.optedOutAt,
+})
+
+export async function consentimentoDoCliente(
+  clienteId: string,
+): Promise<Resultado<ConsentimentoWhatsapp>> {
+  const r = await pedir<ConsentimentoDaApi>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/consentimento-whatsapp`,
+  )
+
+  return r.ok ? { ok: true, dados: paraConsentimento(r.dados) } : r
+}
+
+export async function registrarConsentimento(
+  clienteId: string,
+  decisao: 'autorizou' | 'recusou',
+): Promise<Resultado<ConsentimentoWhatsapp>> {
+  const r = await pedir<ConsentimentoDaApi>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/consentimento-whatsapp`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ decision: decisao === 'autorizou' ? 'opt_in' : 'opt_out' }),
+    },
+  )
+
+  return r.ok ? { ok: true, dados: paraConsentimento(r.dados) } : r
+}
+
 /** O historico da ficha — RF-011. */
 export async function contatosDoCliente(clienteId: string): Promise<Resultado<ContatoCliente[]>> {
   const r = await pedir<{ contacts: ContatoDaApi[] }>(

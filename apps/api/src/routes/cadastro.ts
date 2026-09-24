@@ -8,11 +8,13 @@ import {
   importProductsInputSchema,
   updateCompanyInputSchema,
   createCustomerContactInputSchema,
+  recordWhatsappConsentInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
   addCustomerContact,
   catalogSummary,
+  getWhatsappConsent,
   type CustomerContactDeps,
   deleteCustomer,
   getCompany,
@@ -26,6 +28,7 @@ import {
   listCustomers,
   type ManageCompanyDeps,
   productSuggestions,
+  recordWhatsappConsent,
   registerCompany,
   type RegisterCompanyDeps,
   restoreCustomer,
@@ -34,6 +37,7 @@ import {
   type RegisterCustomerDeps,
   registerProductWithStock,
   type RegisterProductDeps,
+  type WhatsappConsentDeps,
   searchProducts,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
@@ -51,6 +55,7 @@ import { validate } from '../plugins/validate.js'
  */
 
 export type CadastroDeps = CustomerContactDeps &
+  WhatsappConsentDeps &
   ImportProductsDeps &
   ManageCompanyDeps &
   RegisterCompanyDeps &
@@ -199,6 +204,45 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
 
     return reply.code(200).send(cliente)
   })
+
+  /**
+   * Consentimento de WhatsApp — RF-016.
+   *
+   * O bloqueio ja existia em `sendCustomerCharge`; faltava alguem ESCREVER as
+   * duas datas. Ate aqui a composicao devolvia um aceite fixo de 2026-01-01
+   * para todo cliente identificado, e cobrar por WhatsApp quem nunca autorizou
+   * passava.
+   *
+   * Sob `/clientes/:id` porque consentimento sem cliente nao existe.
+   */
+  app.get('/clientes/:id/consentimento-whatsapp', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+
+    const c = await getWhatsappConsent(deps, ctx, id)
+
+    return reply.code(200).send({
+      optedInAt: c.optedInAt?.toISOString() ?? null,
+      optedOutAt: c.optedOutAt?.toISOString() ?? null,
+    })
+  })
+
+  app.put(
+    '/clientes/:id/consentimento-whatsapp',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(recordWhatsappConsentInputSchema, request.body)
+
+      const c = await recordWhatsappConsent(deps, ctx, id, input.decision)
+
+      return reply.code(200).send({
+        optedInAt: c.optedInAt?.toISOString() ?? null,
+        optedOutAt: c.optedOutAt?.toISOString() ?? null,
+      })
+    },
+  )
 
   /**
    * O historico de contatos da ficha — RF-011, NR-072.

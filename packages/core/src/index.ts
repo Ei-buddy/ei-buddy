@@ -116,6 +116,12 @@ export {
   listCustomerContacts,
   TETO_DE_CONTATOS_NA_FICHA,
 } from './registration/customer-contacts.js'
+export {
+  getWhatsappConsent,
+  recordWhatsappConsent,
+  type WhatsappConsentDeps,
+  type WhatsappConsentWriter,
+} from './registration/whatsapp-consent.js'
 export { lookupAddressByCep, lookupCompanyByCnpj } from './registration/lookups.js'
 export type { LookupCepDeps, LookupCnpjDeps } from './registration/lookups.js'
 export {

@@ -124,6 +124,7 @@ import {
   createSupplierDirectory,
   createUserDirectory,
   createWaitlistRepository,
+  createWhatsappConsentRepository,
   getClient,
   lerChaveDeSegredo,
   type DatabaseHealth,
@@ -494,6 +495,9 @@ export function buildCadastroDeps(): CadastroDeps {
     /* O diario de contatos da ficha — RF-011, NR-072. Porta propria: a de
        clientes responde "quem e este", esta responde "o que ja falamos". */
     contacts: createCustomerContactRepository(sql),
+    /* Consentimento de WhatsApp — RF-016. Le e escreve as duas colunas de
+       `customers` que existiam desde a 0002 sem ninguem tocar nelas. */
+    consents: createWhatsappConsentRepository(sql),
     products: createProductRepository(sql),
     /* Desambiguacao em portugues de balcao — RF-102, ADR-0017. Indexa no
        cadastro e serve de plano B quando a busca exata nao acha. */
@@ -1208,15 +1212,11 @@ export function buildAgentUseCases(): AgentUseCases {
           /* O caminho de volta do link: sem isto, o cliente paga e nenhum
              titulo baixa — silenciosamente. */
           charges: createCustomerChargeRepository(getClient(env.DATABASE_URL)),
-          consents: {
-            /* Harness: o aceite real (coluna whatsapp_consent_at) entra com
-               NR-046. Sem isso no CustomerOutput, o canal de teste trata o
-               cliente identificado como opt-in. O caso de uso ainda recusa
-               quando o leitor devolve nulo — coberto no teste de core. */
-            async of() {
-              return { optedInAt: new Date('2026-01-01T00:00:00.000Z'), optedOutAt: null }
-            },
-          },
+          /* O aceite de VERDADE, das colunas de `customers` — RF-016, NR-046.
+             Era um objeto fixo que dizia "autorizou em 2026-01-01" para todo
+             cliente identificado: o bloqueio de `sendCustomerCharge` rodava
+             contra um leitor que nunca dizia nao. */
+          consents: cadastro.consents,
         },
         ctx,
         input,

@@ -28,6 +28,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSaleHistoryRepository: vi.fn(vazio),
       createCompanyRepository: vi.fn(vazio),
       createConfirmationStore: vi.fn(vazio),
+      createWhatsappConsentRepository: vi.fn(vazio),
       createCustomerContactRepository: vi.fn(vazio),
       createCustomerRepository: vi.fn(vazio),
       createProductRepository: vi.fn(vazio),
