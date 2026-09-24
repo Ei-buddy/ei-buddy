@@ -234,7 +234,13 @@ export default function ProdutoForm() {
         {/* ---------------- NCM ---------------- */}
         <Card title="Classificação fiscal">
           <FormGrid>
-            <Field label="NCM" span={4}>
+            {/*
+              Os tres textos de ajuda sao CURTOS de proposito: numa coluna de
+              4/12 um texto longo quebra de linha ao lado do rotulo, a linha do
+              rotulo cresce e a caixa daquele campo desce — era o "campo NCM
+              mais alto que os outros" do TXT. O NCM, sem ajuda, ficava em cima.
+            */}
+            <Field label="NCM" span={4} hint="8 dígitos, na nota de compra">
               <Input
                 value={ncm}
                 onChange={(e) => setNcm(e.target.value)}
@@ -243,11 +249,7 @@ export default function ProdutoForm() {
               {erroDe('ncm')}
             </Field>
 
-            <Field
-              label="CFOP"
-              span={4}
-              hint="5102 é revenda comum. Bebida e cigarro com imposto já recolhido usam 5405."
-            >
+            <Field label="CFOP" span={4} hint="5102 revenda; 5405 com ST">
               <Input
                 value={cfop}
                 onChange={(e) => setCfop(e.target.value)}
@@ -258,13 +260,14 @@ export default function ProdutoForm() {
             </Field>
 
             <Field
-              label="CST ou CSOSN"
+              label="CSOSN"
               span={4}
-              /* A dica NAO deduz o codigo a partir do regime: substituicao
-                 tributaria depende do produto E do estado, muda por convenio, e
-                 errar para menos e sonegacao. Dizer como o codigo se parece e
-                 ajudar; escolher por ele seria dar conselho fiscal. */
-              hint="Empresa do Simples usa CSOSN (3 dígitos, ex. 102). Regime normal usa CST (2, ex. 00)."
+              /* So CSOSN: o produto atende Simples Nacional e MEI, e nao o
+                 regime normal (CST). A dica NAO deduz o codigo: substituicao
+                 tributaria depende do produto E do estado, e errar para menos
+                 e sonegacao. Dizer como o codigo se parece e ajudar; escolher
+                 por ele seria dar conselho fiscal. */
+              hint="3 dígitos, ex. 102"
             >
               <Input
                 value={situacaoTributaria}

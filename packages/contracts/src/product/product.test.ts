@@ -20,6 +20,16 @@ describe('cadastro de produto', () => {
     expect(r.barcode).toBe('7891234567890')
   })
 
+  it('aceita so CSOSN: o produto atende Simples e MEI, nao o regime normal', () => {
+    expect(createProductInputSchema.parse({ ...produto, taxSituationCode: '102' })).toMatchObject({
+      taxSituationCode: '102',
+    })
+    /* CST de dois digitos passaria aqui e seria recusado pela SEFAZ na nota. */
+    expect(createProductInputSchema.safeParse({ ...produto, taxSituationCode: '00' }).success).toBe(
+      false,
+    )
+  })
+
   it('recusa preco de venda abaixo do custo', () => {
     const r = createProductInputSchema.safeParse({ ...produto, salePriceCents: 1000 })
     expect(r.success).toBe(false)

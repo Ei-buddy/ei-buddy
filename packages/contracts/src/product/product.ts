@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cfopSchema, ncmSchema, taxSituationCodeSchema } from '../invoice/invoice.js'
+import { cfopSchema, csosnSchema, ncmSchema } from '../invoice/invoice.js'
 import {
   barcodeSchema,
   idSchema,
@@ -41,9 +41,9 @@ export const createProductInputSchema = z
     /* Varia por produto: 5102 e revenda comum, 5405 e revenda com ST ja
        recolhida — e uma mercearia tem os dois na mesma prateleira. */
     cfop: cfopSchema.optional(),
-    /* CST (2 digitos) no regime normal, CSOSN (3) no Simples. Qual vale sai do
-       regime da empresa — ver `situacaoTributariaPadrao` em `domain`. */
-    taxSituationCode: taxSituationCodeSchema.optional(),
+    /* So CSOSN (3 digitos): o produto atende Simples Nacional e MEI, e nao o
+       regime normal, que usaria CST — ver `csosnSchema`. */
+    taxSituationCode: csosnSchema.optional(),
     /**
      * Saldo inicial. Vira um MOVIMENTO de abertura, e nao uma coluna escrita
      * direto — o saldo e consequencia da trilha (RF-124), nunca o contrario.
