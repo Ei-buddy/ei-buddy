@@ -11,6 +11,7 @@ import {
   buildConsultasDeps,
   buildContabilidadeDeps,
   buildCustosFixosDeps,
+  buildCustosVariaveisDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
   buildWhatsAppWebhookDeps,
@@ -47,6 +48,7 @@ import { registerConnectionsRoutes } from './routes/connections.js'
 import { registerContabilidadeRoutes } from './routes/contabilidade.js'
 import { registerConsultasRoutes } from './routes/consultas.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
+import { registerCustosVariaveisRoutes } from './routes/custos-variaveis.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
 import { registerWhatsAppWebhookRoutes } from './routes/whatsapp-webhook.js'
@@ -131,6 +133,7 @@ async function registrarRotas(): Promise<void> {
   registerContabilidadeRoutes(app, buildContabilidadeDeps())
   registerConsultasRoutes(app, buildConsultasDeps())
   registerCustosFixosRoutes(app, buildCustosFixosDeps())
+  registerCustosVariaveisRoutes(app, buildCustosVariaveisDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
      ele pausar a fila de avisos — e fila pausada e loja que nao destrava. */

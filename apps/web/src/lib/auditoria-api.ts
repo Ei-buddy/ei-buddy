@@ -76,6 +76,7 @@ export const ROTULO_ENTIDADE: Record<string, string> = {
   Company: 'Empresa',
   Customer: 'Cliente',
   FixedCost: 'Custo fixo',
+  VariableCost: 'Custo variável',
   Payable: 'Conta a pagar',
   Product: 'Estoque',
   Receivable: 'Conta a receber',

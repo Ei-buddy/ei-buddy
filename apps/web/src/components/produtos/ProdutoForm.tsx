@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
+import { carregarCustosVariaveis } from '@/lib/financeiro-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -44,6 +45,10 @@ export default function ProdutoForm() {
 
   const [categorias, setCategorias] = useState<string[]>([])
   const [fornecedores, setFornecedores] = useState<string[]>([])
+  /* Soma dos custos variaveis da empresa, em pontos percentuais. Falha ao
+     carregar vira zero: a tela so deixa de mostrar a linha, e o cadastro
+     segue. */
+  const [percentualVariavel, setPercentualVariavel] = useState(0)
 
   /* Categoria/fornecedor ja usados pela propria loja — nao mais uma lista de
      exemplo igual para toda empresa. */
@@ -54,6 +59,10 @@ export default function ProdutoForm() {
         setCategorias(r.dados.categorias)
         setFornecedores(r.dados.fornecedores)
       }
+    })()
+    void (async () => {
+      const r = await carregarCustosVariaveis()
+      if (r.ok) setPercentualVariavel(r.dados.reduce((acc, c) => acc + c.percentual, 0))
     })()
   }, [])
 
@@ -67,6 +76,10 @@ export default function ProdutoForm() {
   const venda = reaisDoTexto(precoVenda)
   const margem = calcularMargem(custo, venda)
   const lucro = venda - custo
+  /* O que sobra depois de tarifa, imposto, comissao — os custos que crescem
+     com a venda. E a margem que o lojista de fato leva para casa. */
+  const variavel = (venda * percentualVariavel) / 100
+  const sobra = lucro - variavel
 
   /* ---------------------------------------------------------------- *
    * Imagem
@@ -310,6 +323,21 @@ export default function ProdutoForm() {
                 )}
               </div>
             </Field>
+
+            {percentualVariavel > 0 && venda > 0 ? (
+              <Field label="Depois dos custos variáveis" span={12}>
+                <div
+                  className={`${styles.margemBox} ${sobra < 0 ? styles.margemNegativa : ''}`}
+                  aria-live="polite"
+                >
+                  <strong>{formatMoney(sobra)} por unidade</strong>
+                  <span>
+                    custos variáveis de {formatPercent(percentualVariavel)} levam{' '}
+                    {formatMoney(variavel)} de cada venda
+                  </span>
+                </div>
+              </Field>
+            ) : null}
           </FormGrid>
         </Card>
 
