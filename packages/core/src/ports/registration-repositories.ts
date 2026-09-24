@@ -109,7 +109,10 @@ export type CompanyRepository = {
 
 export type NewCustomer = {
   readonly companyId: CompanyId
+  /** Razao social, quando o cliente e PJ. E ela que sai na nota. */
   readonly name: string
+  /** Nome fantasia. Exigido para PJ pelo contrato, ausente em pessoa fisica. */
+  readonly tradeName?: string | undefined
   readonly document?: string | undefined
   readonly phone?: string | undefined
   readonly email?: string | undefined

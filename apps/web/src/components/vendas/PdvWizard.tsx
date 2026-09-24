@@ -411,6 +411,9 @@ function CadastroRapido({
       tipoPessoa: 'fisica' as const,
       documento: digitos(documento),
       nome: nome.trim(),
+      /* O cadastro rapido do PDV e sempre pessoa fisica (logo acima), e pessoa
+         fisica nao tem nome fantasia. */
+      nomeFantasia: '',
       ddd: '',
       celular: digitos(celular),
       email: '',

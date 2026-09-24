@@ -429,6 +429,8 @@ describe.skipIf(!DATABASE_URL)('privacidade — NR-086', () => {
        */
       const limpas = new Set([
         'name',
+        /* Em MEI o fantasia costuma conter o nome da pessoa. */
+        'trade_name',
         'document',
         'phone',
         'email',

@@ -305,6 +305,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
     return {
       id: 'cli-1',
       name,
+      tradeName: null,
       document: null,
       phone,
       email: null,

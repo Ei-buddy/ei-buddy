@@ -96,6 +96,12 @@ export async function anonymizeCustomer(
    */
   const substitutes = {
     name: NOME_ANONIMIZADO,
+    /*
+     * O fantasia entra porque em MEI ele costuma CONTER o nome da pessoa —
+     * "Joana Ribeiro ME". Tratar como dado de empresa deixaria o nome do
+     * titular no banco depois de ele pedir para sair.
+     */
+    trade_name: null,
     document: null,
     phone: null,
     email: null,

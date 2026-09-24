@@ -426,6 +426,7 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
         const [alterada] = await tx<{ id: string }[]>`
           UPDATE customers
              SET name = ${s['name'] ?? ''},
+                 trade_name = ${s['trade_name'] ?? null},
                  document = ${s['document'] ?? null},
                  phone = ${s['phone'] ?? null},
                  email = ${s['email'] ?? null},
