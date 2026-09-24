@@ -1,4 +1,5 @@
 import type { CnpjCompany, CnpjLookup } from '@na-regua/core'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Consulta de CNPJ via BrasilAPI.
@@ -46,7 +47,7 @@ export function createBrasilApiCnpjLookup(): CnpjLookup {
           JSON.stringify({
             level: 40,
             msg: 'consulta de CNPJ indisponivel — o lojista preenche a mao desta vez',
-            motivo: erro instanceof Error ? erro.message : String(erro),
+            motivo: motivoDoErro(erro),
           }),
         )
         return undefined

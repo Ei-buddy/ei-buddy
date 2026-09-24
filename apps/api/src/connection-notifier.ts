@@ -2,6 +2,7 @@ import type { SendTextRequest } from '@na-regua/contracts'
 import type { ConnectionNotifier } from '@na-regua/core'
 import { Queue } from 'bullmq'
 import type { Redis } from 'ioredis'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Produtor do aviso de pedido de conexao — ADR-0008, RF-04.
@@ -24,7 +25,7 @@ export function createConnectionNotifier(connection: Redis): ConnectionNotifier 
       JSON.stringify({
         level: 40,
         msg: 'fila de whatsapp indisponivel — aviso de conexao nao sera enfileirado',
-        motivo: erro.message,
+        motivo: motivoDoErro(erro),
       }),
     )
   })
