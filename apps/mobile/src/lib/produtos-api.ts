@@ -20,8 +20,6 @@ import { chamarApi } from './api'
 
 import type { Produto } from './types'
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 /* -------------------------------------------------------------------------- */
 /* Consulta por EAN                                                           */
 /* -------------------------------------------------------------------------- */
@@ -156,125 +154,6 @@ export async function salvarProduto(
   })
 
   return r.ok ? { ok: true, id: r.dados.id } : { ok: false, error: r.message }
-}
-
-/** SUBSTITUIR POR: POST /produtos/importar */
-export async function confirmarImportacaoProdutos(
-  registros: Record<string, string>[],
-): Promise<void> {
-  await delay(1200)
-  void registros
-}
-
-/* -------------------------------------------------------------------------- */
-/* Estoque                                                                    */
-/* -------------------------------------------------------------------------- */
-
-export type TipoMovimento = 'entrada' | 'saida' | 'ajuste'
-
-export type MovimentoEstoque = {
-  id: string
-  data: string
-  tipo: TipoMovimento
-  quantidade: number
-  /** Saldo depois do movimento. */
-  saldo: number
-  origem: string
-  motivo?: string
-}
-
-/** SUBSTITUIR POR: GET /produtos/:id/movimentos?de=&ate= */
-export function movimentacoesEstoque(produtoId: string): MovimentoEstoque[] {
-  const base: Record<string, MovimentoEstoque[]> = {
-    'prod-1': [
-      {
-        id: 'm1',
-        data: '2026-08-24',
-        tipo: 'saida',
-        quantidade: 2,
-        saldo: 4,
-        origem: 'Venda 1842',
-      },
-      {
-        id: 'm2',
-        data: '2026-08-22',
-        tipo: 'saida',
-        quantidade: 6,
-        saldo: 6,
-        origem: 'Venda 1830',
-      },
-      {
-        id: 'm3',
-        data: '2026-08-18',
-        tipo: 'ajuste',
-        quantidade: -2,
-        saldo: 12,
-        origem: 'Ajuste manual',
-        motivo: 'Avaria no transporte',
-      },
-      {
-        id: 'm4',
-        data: '2026-08-10',
-        tipo: 'entrada',
-        quantidade: 24,
-        saldo: 14,
-        origem: 'NF-e 4471 · Torrefação Aurora',
-      },
-    ],
-    'prod-2': [
-      {
-        id: 'm5',
-        data: '2026-08-23',
-        tipo: 'saida',
-        quantidade: 3,
-        saldo: 2,
-        origem: 'Venda 1842',
-      },
-      {
-        id: 'm6',
-        data: '2026-08-05',
-        tipo: 'entrada',
-        quantidade: 12,
-        saldo: 5,
-        origem: 'NF-e 4465 · Engenho Doce',
-      },
-    ],
-    'prod-3': [
-      {
-        id: 'm7',
-        data: '2026-08-24',
-        tipo: 'saida',
-        quantidade: 12,
-        saldo: 6,
-        origem: 'Venda 1840',
-      },
-      {
-        id: 'm8',
-        data: '2026-08-15',
-        tipo: 'entrada',
-        quantidade: 36,
-        saldo: 18,
-        origem: 'NF-e 4468 · Campo Verde',
-      },
-    ],
-  }
-  return base[produtoId] ?? []
-}
-
-/** SUBSTITUIR POR: POST /produtos/:id/ajustes */
-export async function ajustarEstoque(
-  produtoId: string,
-  novaQuantidade: number,
-  motivo: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  await delay(700)
-  void produtoId
-  void novaQuantidade
-
-  if (!motivo.trim()) {
-    return { ok: false, error: 'Descreva o motivo do ajuste.' }
-  }
-  return { ok: true }
 }
 
 /* -------------------------------------------------------------------------- */
