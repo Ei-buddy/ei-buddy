@@ -151,13 +151,19 @@ export const FORMAS: {
   rotulo: string
   /** Taxa da operadora, em % — descontada do valor liquido. */
   taxa: number
-  /** Precisa de link/QR para o cliente pagar. */
+  /**
+   * Precisa de QR para o cliente pagar — so o Pix.
+   *
+   * Cartao passa na MAQUININHA do balcao, e o operador confirma quando ela
+   * aprova. Antes debito e credito eram `online` e abriam a cobranca Pix: o
+   * cliente de cartao recebia um QR code de Pix para pagar.
+   */
   online: boolean
 }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
   { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: true },
-  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: true },
-  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: true },
+  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
+  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
   { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },
 ]
 

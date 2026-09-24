@@ -265,9 +265,9 @@ Pagamento em ${rotulo}.`,
 
       {itens.length > 0 ? (
         <View style={estilos.rodape}>
-          {/* Formas online (Pix, cartao) exigem link de pagamento; no
-              balcao com fila, dinheiro e o caminho rapido. As demais
-              entram quando o PSP estiver ligado. */}
+          {/* O Pix exige QR de pagamento e entra quando o PSP estiver
+              ligado. Dinheiro, cartao (confirmado na maquininha) e carteira
+              fecham na hora. */}
           <View style={estilos.formas}>
             {FORMAS.filter((f) => !f.online).map((f) => (
               <Pressable

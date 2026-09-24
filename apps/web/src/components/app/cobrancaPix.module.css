@@ -1,6 +1,9 @@
 .card {
   display: grid;
   gap: 18px;
+  /* Item de grid, e o codigo copia e cola e uma linha longa sem quebra: sem
+     isto o cartao estica ate caber o codigo e vaza do modal que o contem. */
+  min-width: 0;
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -110,6 +113,7 @@
 .copyBlock {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .copyLabel {
@@ -122,6 +126,7 @@
   display: flex;
   align-items: stretch;
   gap: 8px;
+  min-width: 0;
 }
 
 .copyCode {
