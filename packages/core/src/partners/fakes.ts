@@ -43,6 +43,10 @@ export class InMemoryPartnerApplicationRepository implements PartnerApplicationR
     return { partnerId, couponCode }
   }
 
+  async couponCodeTaken(code: string): Promise<boolean> {
+    return this.registros.some((r) => r.couponCode === code.trim().toUpperCase())
+  }
+
   async resend(input: {
     ownerCompanyId: string
     pixKey: string

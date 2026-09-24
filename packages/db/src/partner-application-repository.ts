@@ -131,6 +131,13 @@ export function createPartnerApplicationRepository(sql: Sql): PartnerApplication
       }
     },
 
+    couponCodeTaken: async (code) => {
+      const [linha] = await sql<{ existe: boolean }[]>`
+        SELECT coupon_code_taken(${code}) AS existe
+      `
+      return linha?.existe === true
+    },
+
     resend: async (input) => {
       try {
         await sql`

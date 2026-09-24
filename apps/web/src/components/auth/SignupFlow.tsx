@@ -15,6 +15,8 @@ import {
   validatePasswordConfirm,
   validatePhone,
   validateRequired,
+  validateCouponName,
+  validatePixKey,
   type FieldError,
 } from '@/lib/validation'
 import { plan } from '@/content/site'
@@ -83,6 +85,7 @@ export default function SignupFlow() {
   const [pixKeyType, setPixKeyType] = useState<PixKeyType>('PHONE')
   const [partnerMessage, setPartnerMessage] = useState('')
   const [couponName, setCouponName] = useState('')
+  const [couponNameError, setCouponNameError] = useState<FieldError>(null)
   const [pixKeyError, setPixKeyError] = useState<FieldError>(null)
   const [partnerMessageError, setPartnerMessageError] = useState<FieldError>(null)
 
@@ -124,7 +127,8 @@ export default function SignupFlow() {
       razaoSocial: validateRequired(razaoSocial, 'a razao social'),
       cnpj: validateCNPJ(cnpj),
       /* So valem quando a pessoa escolheu ser Parceiro — mesmo portao. */
-      pixKey: tipoDeConta === 'parceiro' ? validateRequired(pixKey, 'a chave PIX') : null,
+      pixKey: tipoDeConta === 'parceiro' ? validatePixKey(pixKey, pixKeyType) : null,
+      couponName: tipoDeConta === 'parceiro' ? validateCouponName(couponName) : null,
       partnerMessage: tipoDeConta === 'parceiro' ? validatePartnerMessage(partnerMessage) : null,
     }
 
@@ -136,6 +140,7 @@ export default function SignupFlow() {
     setRazaoSocialError(erros.razaoSocial)
     setCnpjError(erros.cnpj)
     setPixKeyError(erros.pixKey)
+    setCouponNameError(erros.couponName)
     setPartnerMessageError(erros.partnerMessage)
 
     if (Object.values(erros).some(Boolean)) return
@@ -297,12 +302,15 @@ export default function SignupFlow() {
                 pixKey={pixKey}
                 onChangePixKey={(v) => {
                   setPixKey(v)
-                  if (pixKeyError) setPixKeyError(validateRequired(v, 'a chave PIX'))
+                  if (pixKeyError) setPixKeyError(validatePixKey(v, pixKeyType))
                 }}
                 pixKeyError={pixKeyError}
-                onBlurPixKey={() => setPixKeyError(validateRequired(pixKey, 'a chave PIX'))}
+                onBlurPixKey={() => setPixKeyError(validatePixKey(pixKey, pixKeyType))}
                 pixKeyType={pixKeyType}
-                onChangePixKeyType={setPixKeyType}
+                onChangePixKeyType={(t) => {
+                  setPixKeyType(t)
+                  if (pixKeyError) setPixKeyError(validatePixKey(pixKey, t))
+                }}
                 message={partnerMessage}
                 onChangeMessage={(v) => {
                   setPartnerMessage(v)
@@ -311,7 +319,12 @@ export default function SignupFlow() {
                 messageError={partnerMessageError}
                 onBlurMessage={() => setPartnerMessageError(validatePartnerMessage(partnerMessage))}
                 couponName={couponName}
-                onChangeCouponName={setCouponName}
+                onChangeCouponName={(v) => {
+                  setCouponName(v)
+                  if (couponNameError) setCouponNameError(validateCouponName(v))
+                }}
+                couponNameError={couponNameError}
+                onBlurCouponName={() => setCouponNameError(validateCouponName(couponName))}
               />
             ) : null}
 

@@ -1,6 +1,12 @@
-import { phoneSchema } from '@na-regua/contracts'
+import { phoneSchema, pixKeyError } from '@na-regua/contracts'
 import { describe, expect, it } from 'vitest'
-import { maskCelular, maskPhone, validateCPF } from './validation'
+import {
+  maskCelular,
+  maskPhone,
+  validateCPF,
+  validatePixKey,
+  type TipoDeChavePix,
+} from './validation'
 
 /**
  * As mascaras da tela contra o contrato da api.
@@ -62,5 +68,26 @@ describe('CPF', () => {
   /* Todos os digitos iguais passam na conta do verificador, e nao existem. */
   it('recusa 111.111.111-11, que fecha na conta e nao e CPF', () => {
     expect(validateCPF('111.111.111-11')).not.toBeNull()
+  })
+})
+
+/* A tela e o contrato decidem igual sobre a chave PIX: uma copia da regra que
+   divergisse deixaria passar na etapa 1 o que o servidor recusa na etapa 3. */
+describe('chave PIX: a tela e o contrato concordam', () => {
+  const casos: [TipoDeChavePix, string][] = [
+    ['EMAIL', 'abc'],
+    ['EMAIL', 'parceiro@loja.com.br'],
+    ['CPF', '123'],
+    ['CPF', '529.982.247-25'],
+    ['CNPJ', '11222333000100'],
+    ['CNPJ', '11.222.333/0001-81'],
+    ['PHONE', '12'],
+    ['PHONE', '+55 (41) 99876-5432'],
+    ['EVP', 'xyz'],
+    ['EVP', '123e4567-e89b-12d3-a456-426614174000'],
+  ]
+
+  it.each(casos)('%s %s', (tipo, chave) => {
+    expect(validatePixKey(chave, tipo) === null).toBe(pixKeyError(chave, tipo) === null)
   })
 })

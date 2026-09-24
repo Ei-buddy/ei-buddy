@@ -73,6 +73,31 @@ export async function signup(
     )
   }
 
+  /*
+   * Telefone e nome de cupom tambem sao recusados ANTES de criar qualquer
+   * coisa, pelo mesmo motivo do CNPJ. Depois da credencial, cada passo grava
+   * sozinho: um telefone repetido estourava o indice unico de `users` (500) e
+   * um cupom repetido so era pego na candidatura — nos dois casos a tela dizia
+   * "erro" e o banco guardava meia conta. Na nova tentativa, o e-mail ja
+   * estava "em uso", e a pessoa ficava presa fora do cadastro.
+   *
+   * A mensagem do telefone nao confirma que a conta existe — mesmo cuidado do
+   * e-mail, logo abaixo.
+   */
+  if (input.phone !== undefined && (await deps.users.findByPhone(input.phone)) !== undefined) {
+    throw AppError.conflict(
+      'Nao foi possivel usar este telefone. Se a conta e sua, entre por "Acessar minha conta".',
+    )
+  }
+
+  if (
+    input.account?.type === 'parceiro' &&
+    input.account.couponCode !== undefined &&
+    (await deps.partners.couponCodeTaken(input.account.couponCode))
+  ) {
+    throw AppError.conflict('Este nome de cupom ja esta em uso. Escolha outro.')
+  }
+
   const identidade = await deps.registrar.register(
     { identifier: input.email, secret: input.secret },
     { email: input.email, phone: input.phone ?? null },

@@ -35,6 +35,8 @@ export default function PartnerFields({
   onBlurMessage,
   couponName,
   onChangeCouponName,
+  couponNameError,
+  onBlurCouponName,
 }: {
   pixKey: string
   onChangePixKey: (v: string) => void
@@ -48,6 +50,8 @@ export default function PartnerFields({
   onBlurMessage: () => void
   couponName: string
   onChangeCouponName: (v: string) => void
+  couponNameError: string | null
+  onBlurCouponName: () => void
 }) {
   const pixKeyId = useId()
   const pixKeyTypeId = useId()
@@ -123,17 +127,25 @@ export default function PartnerFields({
         </label>
         <input
           id={couponNameId}
-          className={formStyles.input}
+          className={`${formStyles.input} ${couponNameError ? formStyles.inputError : ''}`}
           value={couponName}
           onChange={(e) => onChangeCouponName(e.target.value.toUpperCase())}
+          onBlur={onBlurCouponName}
+          aria-invalid={Boolean(couponNameError)}
           placeholder="Ex.: JOAO10 — deixe em branco para sugerirmos um"
           autoComplete="off"
           spellCheck={false}
         />
-        <span className={formStyles.hint}>
-          É o código que você vai divulgar. Se não escolher um, sugerimos um a partir do nome da sua
-          empresa.
-        </span>
+        {couponNameError ? (
+          <span className={formStyles.error} role="alert">
+            {couponNameError}
+          </span>
+        ) : (
+          <span className={formStyles.hint}>
+            É o código que você vai divulgar. Se não escolher um, sugerimos um a partir do nome da
+            sua empresa.
+          </span>
+        )}
       </div>
     </>
   )
