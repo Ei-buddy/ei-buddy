@@ -59,7 +59,6 @@ export default function EtapaFiscal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* SUBSTITUIR POR: GET /empresa/certificado */
   useEffect(() => {
     let cancelado = false
     async function carregar() {

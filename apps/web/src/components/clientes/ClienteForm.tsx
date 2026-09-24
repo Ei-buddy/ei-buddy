@@ -136,7 +136,6 @@ export default function ClienteForm() {
     setBuscandoDoc(true)
 
     if (tipo === 'juridica') {
-      /* SUBSTITUIR POR: GET /empresas/cnpj/:cnpj */
       const r = await buscarCnpj(campos.documento)
       setBuscandoDoc(false)
 
@@ -163,7 +162,6 @@ export default function ClienteForm() {
       return
     }
 
-    /* SUBSTITUIR POR: GET /pessoas/cpf/:cpf */
     const r = await buscarCpf(campos.documento)
     setBuscandoDoc(false)
 

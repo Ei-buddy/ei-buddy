@@ -1368,6 +1368,23 @@
   gap: 3px;
 }
 
+.estornoMotivo {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.estornoMotivo input {
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  background: var(--app-field);
+  color: var(--app-text);
+  font: inherit;
+}
+
 .estornoDetalhe strong {
   font-family: var(--font-display);
   font-size: 15px;

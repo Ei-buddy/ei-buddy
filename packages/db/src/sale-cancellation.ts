@@ -116,9 +116,18 @@ function escopo(tx: TransactionSql, companyId: string): SaleCancellationTransact
     },
 
     cancelReceivables: async (saleId) => {
+      /*
+       * `settled_at` vai a nulo junto com o status: a constraint
+       * `receivables_liquidado_completo` so aceita data de liquidacao em
+       * recebivel `settled`. Venda de balcao em dinheiro ou Pix nasce com o
+       * recebivel JA liquidado, sem baixa em `settlements` — cancela-la e
+       * devolver o dinheiro ao cliente. Sem limpar a data, o UPDATE violava a
+       * constraint e o cancelamento de toda venda em dinheiro virava 500.
+       * Baixa feita DEPOIS (em `settlements`) continua barrada no caso de uso.
+       */
       await tx`
         UPDATE receivables
-           SET status = 'cancelled'
+           SET status = 'cancelled', settled_at = NULL
          WHERE sale_id = ${saleId}
            AND status <> 'cancelled'
       `
