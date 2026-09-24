@@ -11,6 +11,7 @@ import { diaLocal, formatMoney, hoje } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { centavosDoTexto } from '@/lib/valor'
 
 /**
  * Baixa de titulo no celular — RF-059, RF-066.
@@ -73,13 +74,6 @@ function mascaraDeData(texto: string): string {
   return `${n.slice(0, 2)}/${n.slice(2, 4)}/${n.slice(4)}`
 }
 
-/** "1.234,56" para CENTAVOS — inteiro, arredondado uma vez so. */
-function paraCentavos(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? Math.round(n * 100) : 0
-}
-
 const ontem = (): string => {
   const d = new Date()
   d.setDate(d.getDate() - 1)
@@ -114,7 +108,7 @@ export default function BaixaModal({
   const [forma, setForma] = useState<FormaDeRecebimento>('pix')
 
   /* Na baixa TOTAL o valor e o saldo exato — nao passa por reais e volta. */
-  const valorCents = modo === 'total' ? saldoCents : paraCentavos(valorParcial)
+  const valorCents = modo === 'total' ? saldoCents : (centavosDoTexto(valorParcial) ?? 0)
   const restanteCents = saldoCents - valorCents
   const dataIso = paraIso(dataBr)
 
