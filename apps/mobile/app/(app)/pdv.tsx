@@ -265,9 +265,9 @@ Pagamento em ${rotulo}.`,
 
       {itens.length > 0 ? (
         <View style={estilos.rodape}>
-          {/* O Pix exige QR de pagamento e entra quando o PSP estiver
-              ligado. Dinheiro, cartao (confirmado na maquininha) e carteira
-              fecham na hora. */}
+          {/* No balcao todas as formas sao registradas e fecham na hora
+              (ADR-0004). As que um dia abrirem cobranca com QR ficam de fora
+              ate a cobranca existir no app. */}
           <View style={estilos.formas}>
             {FORMAS.filter((f) => !f.online).map((f) => (
               <Pressable
