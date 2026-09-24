@@ -18,12 +18,7 @@ import { Spinner } from '@/components/auth/Fields'
 import CobrancaPix from '@/components/app/CobrancaPix'
 import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function EtapaPagamento({
   total,
@@ -66,7 +61,7 @@ export default function EtapaPagamento({
    * ---------------------------------------------------------------- */
 
   function lancar() {
-    const valor = valorParcial.trim() ? paraNumero(valorParcial) : restante
+    const valor = valorParcial.trim() ? reaisDoTexto(valorParcial) : restante
 
     if (valor <= 0) {
       setToast({ msg: 'Informe um valor maior que zero.', tone: 'error' })
