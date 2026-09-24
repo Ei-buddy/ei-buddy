@@ -63,6 +63,7 @@ export type {
   ProductRepository,
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
+export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
 export type {
   ConnectionContact,
   ConnectionDirection,
@@ -107,6 +108,8 @@ export {
 } from './connections/manage-connections.js'
 export type { ManageConnectionsDeps } from './connections/manage-connections.js'
 export { resolveCoordinates } from './registration/geocoding.js'
+export { lookupAddressByCep, lookupCompanyByCnpj } from './registration/lookups.js'
+export type { LookupCepDeps, LookupCnpjDeps } from './registration/lookups.js'
 export {
   InMemoryConnectionNotifier,
   InMemoryConnectionRequests,
@@ -413,7 +416,11 @@ export type { ListAppointmentRangeDeps, RangeAgenda } from './schedule/list-appo
 export { signup } from './auth/signup.js'
 export type { SignupDeps } from './auth/signup.js'
 export type { IdentityRegistrar } from './ports/identity.js'
-export { InMemoryCepLookup, InMemoryCompanyRepository } from './registration/fakes.js'
+export {
+  InMemoryCepLookup,
+  InMemoryCnpjLookup,
+  InMemoryCompanyRepository,
+} from './registration/fakes.js'
 
 /* O gatilho da emissao — NR-042, RF-045, RF-046. */
 export { requestInvoice } from './fiscal/request-invoice.js'

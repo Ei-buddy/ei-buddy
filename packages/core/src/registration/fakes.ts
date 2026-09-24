@@ -7,6 +7,7 @@ import type {
 } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
 import type { CepAddress, CepLookup } from '../ports/cep-lookup.js'
+import type { CnpjCompany, CnpjLookup } from '../ports/cnpj-lookup.js'
 import type {
   CompanyChanges,
   CompanyRepository,
@@ -138,6 +139,23 @@ export class InMemoryCepLookup implements CepLookup {
 
   async lookup(cep: string): Promise<CepAddress | undefined> {
     return this.registros.get(cep)
+  }
+}
+
+/**
+ * Consulta de CNPJ em memoria. Mesma forma do fake de CEP, de proposito: os
+ * dois respondem a mesma pergunta ("o provedor conhece isto?") e um CNPJ nao
+ * semeado devolve `undefined`, como o provedor real faria.
+ */
+export class InMemoryCnpjLookup implements CnpjLookup {
+  private readonly registros = new Map<string, CnpjCompany>()
+
+  registrar(cnpj: string, empresa: CnpjCompany): void {
+    this.registros.set(cnpj, empresa)
+  }
+
+  async lookup(cnpj: string): Promise<CnpjCompany | undefined> {
+    return this.registros.get(cnpj)
   }
 }
 

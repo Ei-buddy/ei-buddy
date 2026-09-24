@@ -8,6 +8,7 @@ import {
   buildCadastroDeps,
   buildConciliacaoDeps,
   buildConnectionsDeps,
+  buildConsultasDeps,
   buildContabilidadeDeps,
   buildCustosFixosDeps,
   buildWaitlistDeps,
@@ -44,6 +45,7 @@ import { registerCadastroRoutes } from './routes/cadastro.js'
 import { registerConciliacaoRoutes } from './routes/conciliacao.js'
 import { registerConnectionsRoutes } from './routes/connections.js'
 import { registerContabilidadeRoutes } from './routes/contabilidade.js'
+import { registerConsultasRoutes } from './routes/consultas.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
@@ -127,6 +129,7 @@ async function registrarRotas(): Promise<void> {
   registerBaixasRoutes(app, buildBaixasDeps())
   registerConciliacaoRoutes(app, buildConciliacaoDeps())
   registerContabilidadeRoutes(app, buildContabilidadeDeps())
+  registerConsultasRoutes(app, buildConsultasDeps())
   registerCustosFixosRoutes(app, buildCustosFixosDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
