@@ -41,6 +41,7 @@ export {
   createFixedCostPayableGenerator,
   createFixedCostRepository,
 } from './fixed-cost-repository.js'
+export { createVariableCostRepository } from './variable-cost-repository.js'
 export { createWaitlistRepository } from './waitlist-repository.js'
 export { createInvoiceStore } from './invoice-repository.js'
 export {

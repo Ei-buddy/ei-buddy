@@ -428,3 +428,39 @@ export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resultad
     method: 'POST',
     body: JSON.stringify({ reason: motivo }),
   })
+
+/* -------------------------------------------------------------------------- */
+/* Custos variaveis — percentual sobre o preco de venda                       */
+/* -------------------------------------------------------------------------- */
+
+export type CustoVariavel = {
+  id: string
+  nome: string
+  /** Pontos percentuais: 3.5 = 3,5% do preco de venda. */
+  percentual: number
+}
+
+type CustoVariavelDaApi = { id: string; name: string; ratePercent: number }
+
+const paraCustoVariavel = (c: CustoVariavelDaApi): CustoVariavel => ({
+  id: c.id,
+  nome: c.name,
+  percentual: c.ratePercent,
+})
+
+export const carregarCustosVariaveis = (): Promise<Resultado<CustoVariavel[]>> =>
+  pedir<{ variableCosts: CustoVariavelDaApi[] }>('/api/custos-variaveis').then((r) =>
+    r.ok ? { ok: true, dados: r.dados.variableCosts.map(paraCustoVariavel) } : r,
+  )
+
+export const criarCustoVariavel = (
+  nome: string,
+  percentual: number,
+): Promise<Resultado<CustoVariavel>> =>
+  pedir<CustoVariavelDaApi>('/api/custos-variaveis', {
+    method: 'POST',
+    body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
+  }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
+
+export const excluirCustoVariavel = (id: string): Promise<Resultado<unknown>> =>
+  pedir(`/api/custos-variaveis/${encodeURIComponent(id)}`, { method: 'DELETE' })

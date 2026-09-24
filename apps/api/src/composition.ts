@@ -66,6 +66,7 @@ import {
   createChartOfAccountsRepository,
   createFixedCostPayableGenerator,
   createFixedCostRepository,
+  createVariableCostRepository,
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
@@ -128,6 +129,7 @@ import type { SaleRouteDeps } from './routes/sales.js'
 import type { ContabilidadeDeps } from './routes/contabilidade.js'
 import type { ConsultasDeps } from './routes/consultas.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
+import type { CustosVariaveisDeps } from './routes/custos-variaveis.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
@@ -730,6 +732,15 @@ export function buildCustosFixosDeps(): CustosFixosDeps {
     fixedCosts: createFixedCostRepository(sql),
     generator: createFixedCostPayableGenerator(sql),
     /* Mesma pendencia das outras: `db` nao expoe repositorio de auditoria. */
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Custos variaveis — percentual sobre o preco de venda. */
+export function buildCustosVariaveisDeps(): CustosVariaveisDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    variableCosts: createVariableCostRepository(sql),
     audit: createAuditTrail(sql),
   }
 }

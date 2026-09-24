@@ -134,6 +134,8 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
     'Comentarios do quadro de CRM (NR-109) — mesmo motivo de `crm_cards`: exportacao ainda nao conectada.',
   fixed_costs:
     'Previsao de gasto recorrente (NR-110), nao movimento — o gasto de verdade e a conta a pagar gerada, essa sim incluida na exportacao.',
+  variable_costs:
+    'Configuracao da loja (percentuais de tarifa, imposto, comissao), nao dado de pessoa nem movimento.',
   conversations:
     'NR-062 ligou o historico do assistente (turnos do fio vigente, RLS). Exportacao LGPD ainda nao serializa o body (RNF-034 / sem PII no pacote).',
   messages:

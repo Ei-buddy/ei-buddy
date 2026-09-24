@@ -28,6 +28,7 @@ import { IconCalendar, IconPlus, IconTrash } from '@/components/Icons'
 import { COMANDOS_PLANO_CONTAS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ConfirmarDialog from '@/components/app/ConfirmarDialog'
+import CustosVariaveis from './CustosVariaveis'
 import styles from './financeiro.module.css'
 
 function paraNumero(valor: string): number {
@@ -184,7 +185,7 @@ export default function PlanoDeContasView() {
     <>
       <PageHeader
         title="Plano de contas"
-        subtitle="Estrutura de receitas e despesas, e custos fixos do negócio"
+        subtitle="Estrutura de receitas e despesas, e custos fixos e variáveis do negócio"
         actions={
           <Button onClick={gerarContas} disabled={gerando || custos.length === 0}>
             {gerando ? (
@@ -387,6 +388,8 @@ export default function PlanoDeContasView() {
             </ul>
           )}
         </Card>
+
+        <CustosVariaveis />
       </div>
 
       <div className={styles.comandosWrap}>

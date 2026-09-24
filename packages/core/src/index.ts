@@ -508,6 +508,15 @@ export type {
   NewFixedCost,
 } from './ports/fixed-cost-repository.js'
 
+/* Custos variaveis — percentual sobre o preco de venda, Topico 6 do TXT. */
+export {
+  createVariableCost,
+  deleteVariableCost,
+  listVariableCosts,
+} from './variable-costs/manage-variable-costs.js'
+export type { VariableCostDeps } from './variable-costs/manage-variable-costs.js'
+export type { NewVariableCost, VariableCostRepository } from './ports/variable-cost-repository.js'
+
 /* Lista de espera do pre-lancamento — NR-111. */
 export { submitWaitlistEntry } from './waitlist/submit-waitlist-entry.js'
 export type { SubmitWaitlistEntryDeps } from './waitlist/submit-waitlist-entry.js'
