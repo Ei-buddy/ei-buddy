@@ -180,6 +180,28 @@ export type CustomerOutput = z.infer<typeof customerOutputSchema>
  * le mora na tela. Gravar a prosa faria a primeira mudanca de redacao virar
  * migration.
  */
+/**
+ * Consentimento de WhatsApp — RF-016.
+ *
+ * Duas datas e nao um booleano: `null` em ambas quer dizer NUNCA HOUVE
+ * manifestacao, que e diferente de recusa. Uma exige pedir o aceite; a outra
+ * proibe pedir de novo. Um booleano achataria as duas em "false".
+ */
+export const whatsappConsentDecisionSchema = z.enum(['opt_in', 'opt_out'])
+
+export const recordWhatsappConsentInputSchema = z
+  .object({ decision: whatsappConsentDecisionSchema })
+  .strict()
+
+export type RecordWhatsappConsentInput = z.infer<typeof recordWhatsappConsentInputSchema>
+
+export const whatsappConsentOutputSchema = z.object({
+  optedInAt: z.string().nullable(),
+  optedOutAt: z.string().nullable(),
+})
+
+export type WhatsappConsentOutput = z.infer<typeof whatsappConsentOutputSchema>
+
 export const customerContactKindSchema = z.enum(['call', 'whatsapp', 'visit', 'note'])
 
 export type CustomerContactKind = z.infer<typeof customerContactKindSchema>

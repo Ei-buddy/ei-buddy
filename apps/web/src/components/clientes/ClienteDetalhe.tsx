@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
+import ConsentimentoWhatsapp from './ConsentimentoWhatsapp'
 import ExcluirCliente from './ExcluirCliente'
 import NovoContato from './NovoContato'
 import styles from './detalhe.module.css'
@@ -399,6 +400,17 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
             </ul>
           )}
         </Card>
+      </div>
+
+      {/*
+        Aceite de mensagens — RF-016.
+
+        Ao lado das outras acoes que mexem no cadastro, e nao no topo: o
+        lojista registra isto uma vez, quando o cliente diz. O que ele faz
+        todo dia esta acima.
+      */}
+      <div className={styles.privacidade}>
+        <ConsentimentoWhatsapp clienteId={cliente.id} />
       </div>
 
       {/*
