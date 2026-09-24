@@ -57,3 +57,7 @@ Thumbs.db
 
 # Presets locais do Studio (UUIDs de fixture; nao versionar IDs reais) — NR-121
 packages/agent/studio/presets.json
+
+# Playwright (E2E no navegador — NR-049)
+test-results/
+playwright-report/

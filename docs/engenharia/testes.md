@@ -166,33 +166,29 @@ aí não serve para nada.
 
 ### Onde eles rodam hoje — NR-049
 
-**Pela API, não pelo navegador**, em `apps/api/src/e2e/`: HTTP → rota → `core`
-→ `db` → Postgres, com a composição real. Não é a forma final; é a forma que
-prova alguma coisa hoje.
+| Fluxo                                        | Onde                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1 — Onboarding → primeira venda              | **Navegador** — [`e2e/1-onboarding-primeira-venda.spec.ts`](../../e2e/1-onboarding-primeira-venda.spec.ts)               |
+| 2 — Código de barras → pagamento → recebível | **Navegador** — [`e2e/2-codigo-de-barras-ate-o-recebivel.spec.ts`](../../e2e/2-codigo-de-barras-ate-o-recebivel.spec.ts) |
+| 3 — WhatsApp → link de pagamento → webhook   | API — [`cobranca-ate-a-baixa.test.ts`](../../apps/api/src/e2e/cobranca-ate-a-baixa.test.ts)                              |
 
-O navegador ainda não alcança nenhum dos três fluxos, e o que falta não é
-teste:
+**Navegador** (Playwright, `pnpm test:e2e`): tela → BFF → api → Postgres, tudo
+de verdade. O cadastro do fluxo 1 é feito pela tela; o que é só preparação (o
+produto, a loja do fluxo 2) entra pela api, para o teste ler como o fluxo que
+prova. O leitor de código usa a entrada manual — a CI não tem câmera.
 
-| Fluxo                                        | O que impede                                    |
-| -------------------------------------------- | ----------------------------------------------- |
-| 1 — Onboarding → primeira venda              | o web não tem BFF para `/empresas` nem `/sales` |
-| 2 — Código de barras → pagamento → recebível | idem                                            |
-| 3 — WhatsApp → link de pagamento → webhook   | só o ENVIO: o adapter real é a NR-046           |
+Na CI é o job **E2E navegador**: sobe o mesmo banco do `.env.example` (com os
+papéis do script de init, porque a api recusa superusuário), faz o build do
+web e deixa o `webServer` do `playwright.config.ts` subir api e web. Uma nova
+tentativa, só na CI; teste que precisa de mais que isso está quebrado.
 
-O fluxo 3 deixou de estar impedido na metade que importa: a cobrança a
-distância vai do link registrado até o título baixado em
-[`cobranca-ate-a-baixa.test.ts`](../../apps/api/src/e2e/cobranca-ate-a-baixa.test.ts),
-com Postgres de verdade. O que continua de fora é o ENVIO pelo WhatsApp —
-incluí-lo hoje exercitaria o remetente falso, que é o que esta seção manda
-evitar.
+Localmente, com `pnpm dev` no ar: `pnpm test:e2e`. Na sessão de nuvem,
+`PW_CHROMIUM_PATH=/opt/pw-browsers/chromium pnpm test:e2e`.
 
-Playwright contra as telas de hoje exercitaria mock. Suíte verde que prova nada
-é pior que suíte nenhuma: cria confiança sem lastro, e é justamente o que esta
-seção diz para evitar. Quando as rotas de BFF existirem, os fluxos 1 e 2 sobem
-para o navegador e este arquivo muda junto.
-
-O E2E de hoje também **não cobre a sessão**: não há rota de login (só
-`/auth/me`), então a identidade é injetada e o que se prova é daí para baixo.
+**API** (`apps/api/src/e2e/`): o fluxo 3 continua aqui porque o ENVIO pelo
+WhatsApp ainda é o remetente falso (a NR-046 é o adapter real); incluí-lo no
+navegador exercitaria mock. Os fluxos 1 e 2 também seguem aqui, mais baratos,
+cobrindo o que a tela não mostra (liquido, tarifa, cancelamento, devolução).
 
 ## O que não testar
 
