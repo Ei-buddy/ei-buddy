@@ -82,8 +82,8 @@ export default function EtapaPagamento({
     onPagamentos([...pagamentos, novo])
     setValorParcial('')
 
-    /* Dinheiro e carteira sao confirmados na hora — nao ha o que aguardar.
-       As formas online abrem a cobranca para o cliente pagar. */
+    /* Dinheiro, cartao (na maquininha) e carteira sao confirmados na hora.
+       So o Pix abre a cobranca para o cliente pagar. */
     if (formaAtual.online) {
       setCobrando(novo)
     } else {
@@ -297,16 +297,20 @@ export default function EtapaPagamento({
             />
 
             {/* ----------------------------------------------------------
-                APOIO A DEMONSTRACAO — remover ao ligar o PSP.
-                Sem provedor real o polling nunca confirma.
+                APOIO A DEMONSTRACAO — so fora de producao.
+                Sem provedor real o polling nunca confirma. Em producao este
+                botao deixava qualquer operador marcar um Pix como pago sem
+                dinheiro nenhum ter entrado.
                ---------------------------------------------------------- */}
-            <button
-              type="button"
-              className={styles.demoBotao}
-              onClick={() => confirmarCobranca(cobrando.id)}
-            >
-              Simular pagamento confirmado (demonstracao)
-            </button>
+            {process.env.NODE_ENV !== 'production' ? (
+              <button
+                type="button"
+                className={styles.demoBotao}
+                onClick={() => confirmarCobranca(cobrando.id)}
+              >
+                Simular pagamento confirmado (demonstracao)
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
