@@ -215,7 +215,10 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-114 | Conta de Parceiro e esquema de cupons: schema, ADR-0013 (fecha DEC-012) |   🔵   | `db`                          |   2 | —                                                      | —    | RF-114, RF-115                                                |   ✅   |
 | NR-075 | `web`: planos, assinatura e cupom                                       |   🟢   | `web`                         |   3 | NR-063                                                 | —    | E12, ADR-0013                                                 |   ⬜   |
 
-**NR-046 (branch `feat/NR-046-whatsapp-meta-cloud-api`):** rota
+**NR-046 (branch `feat/NR-046-whatsapp-meta-cloud-api`):** o CONSENTIMENTO
+fechou (RF-016): as colunas `whatsapp_consent_at` e `whatsapp_opt_out_at`
+passaram a ser lidas e escritas de verdade, e a composicao deixou de entregar
+ao envio um aceite fixo que valia para todo cliente identificado. Rota
 `GET`/`POST /webhooks/whatsapp` com `WHATSAPP_PROVIDER=meta`; local e CI
 permanecem `fake`. Cobrança ao cliente e templates ficam fora desta fatia.
 Aceite no chip: matriz e passos em
