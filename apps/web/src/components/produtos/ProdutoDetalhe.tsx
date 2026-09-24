@@ -210,7 +210,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
               <dd>{produto.cfop ?? '—'}</dd>
             </div>
             <div>
-              <dt>CST</dt>
+              <dt>CSOSN</dt>
               <dd>{produto.cst ?? '—'}</dd>
             </div>
             <div>

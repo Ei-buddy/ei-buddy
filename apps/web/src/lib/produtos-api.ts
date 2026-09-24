@@ -60,7 +60,7 @@ export type DadosProduto = {
   ncm: string
   /* Natureza da operacao — 5102 revenda comum, 5405 com ST ja recolhida. */
   cfop: string
-  /* CST (2 digitos) ou CSOSN (3), conforme o regime da empresa. */
+  /* CSOSN, 3 digitos — o produto atende Simples Nacional e MEI. */
   situacaoTributaria: string
   categoria: string
   fornecedor: string
