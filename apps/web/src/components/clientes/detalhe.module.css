@@ -237,3 +237,17 @@
   display: flex;
   gap: 10px;
 }
+
+/*
+ * A secao de excluir/reativar — RF-009.
+ *
+ * Reaproveita `.privacidadeTexto`, `.privacidadeAviso` e `.privacidadeErro` da
+ * secao de anonimizacao logo abaixo: as duas vivem dentro do mesmo `.privacidade`
+ * e precisam parecer parte da mesma area de "acoes que mexem no cadastro". Só o
+ * espacamento entre elas e proprio.
+ */
+.exclusao {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--app-border);
+}

@@ -11,6 +11,7 @@ import {
 import {
   AppError,
   catalogSummary,
+  deleteCustomer,
   getCompany,
   getCustomer,
   getProduct,
@@ -23,6 +24,7 @@ import {
   productSuggestions,
   registerCompany,
   type RegisterCompanyDeps,
+  restoreCustomer,
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
@@ -192,6 +194,49 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
 
     return reply.code(200).send(cliente)
   })
+
+  /**
+   * Excluir o cliente da lista — RF-009.
+   *
+   * DELETE, e nao PATCH com um campo: o que a tela pede e "tire este cliente
+   * daqui", e o verbo diz isso. Que por baixo seja um UPDATE numa coluna e
+   * detalhe de como o historico de vendas e preservado — nao contrato.
+   *
+   * 204 e nao 200 com corpo: nao ha estado novo para a tela desenhar, ela ja
+   * sabe que vai voltar para a lista.
+   */
+  app.delete(
+    '/clientes/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await deleteCustomer(deps, ctx, id)
+
+      return reply.code(204).send()
+    },
+  )
+
+  /**
+   * Trazer de volta — RF-009.
+   *
+   * `POST /clientes/:id/reativar` e nao `DELETE` invertido: e uma acao com
+   * nome, e a tela mostra um botao com esse nome. A ficha do cliente excluido
+   * continua abrindo justamente para caber ele.
+   */
+  app.post(
+    '/clientes/:id/reativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await restoreCustomer(deps, ctx, id)
+
+      return reply.code(204).send()
+    },
+  )
 
   app.post('/produtos', { config: { rateLimit: LIMITE_DE_ESCRITA } }, async (request, reply) => {
     const ctx = requireContext(request)

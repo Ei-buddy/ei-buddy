@@ -134,6 +134,7 @@ function cadastroEmMemoria() {
         },
         createdAt: c.createdAt.toISOString(),
         anonymizedAt: null,
+        deletedAt: null,
       }
       clientes.push(cl)
       return cl
@@ -144,7 +145,7 @@ function cadastroEmMemoria() {
     list: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = clientes
-        .filter((c) => c.companyId === companyId)
+        .filter((c) => c.companyId === companyId && c.deletedAt === null)
         .filter((c) => termo === '' || c.name.toLowerCase().includes(termo))
         .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -165,6 +166,7 @@ function cadastroEmMemoria() {
         : clientes.filter(
             (c) =>
               c.companyId === companyId &&
+              c.deletedAt === null &&
               ((criteria.phone !== undefined && c.phone === criteria.phone) ||
                 (criteria.document !== undefined && c.document === criteria.document)),
           ),
@@ -172,7 +174,7 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return clientes
-        .filter((c) => c.companyId === companyId)
+        .filter((c) => c.companyId === companyId && c.deletedAt === null)
         .filter(
           (c) =>
             termo === '' ||
@@ -182,6 +184,16 @@ function cadastroEmMemoria() {
         )
         .sort((a, b) => a.name.localeCompare(b.name))
         .slice(0, criterio.limite)
+    },
+
+    /* `findById` NAO filtra excluido, aqui como no banco: e a ficha dele que
+       carrega o botao de reativar. */
+    setDeletedAt: async (companyId, customerId, deletedAt) => {
+      const alvo = clientes.find((c) => c.id === customerId && c.companyId === companyId)
+      if (alvo === undefined) return false
+
+      alvo.deletedAt = deletedAt === null ? null : deletedAt.toISOString()
+      return true
     },
   }
 
@@ -547,6 +559,75 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
 
     expect(r.statusCode).toBe(200)
     expect(r.json().imported).toBe(1)
+  })
+})
+
+describe('excluir e reativar cliente — RF-009', () => {
+  /* Fixture propria: a `CLIENTE` la de cima vive no describe do cadastro. */
+  const CLIENTE_A_EXCLUIR = { name: 'Dona Marta', phone: '41988887777' }
+
+  async function comCliente() {
+    const c = await buildApp()
+    app = c.app
+
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: CLIENTE_A_EXCLUIR,
+    })
+
+    return { id: criado.json().id as string }
+  }
+
+  it('DELETE responde 204 e o cliente sai da lista', async () => {
+    const { id } = await comCliente()
+
+    const r = await app.inject({ method: 'DELETE', url: `/clientes/${id}` })
+    expect(r.statusCode).toBe(204)
+
+    const lista = await app.inject({ method: 'GET', url: '/clientes' })
+    expect(lista.json().total).toBe(0)
+  })
+
+  /* A ficha continua abrindo depois de excluido — e nela que a tela desenha o
+     botao de trazer de volta. */
+  it('a ficha do excluido ainda abre, com deletedAt preenchido', async () => {
+    const { id } = await comCliente()
+    await app.inject({ method: 'DELETE', url: `/clientes/${id}` })
+
+    const r = await app.inject({ method: 'GET', url: `/clientes/${id}` })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().deletedAt).not.toBeNull()
+  })
+
+  it('reativar devolve o cliente para a lista', async () => {
+    const { id } = await comCliente()
+    await app.inject({ method: 'DELETE', url: `/clientes/${id}` })
+
+    const r = await app.inject({ method: 'POST', url: `/clientes/${id}/reativar` })
+    expect(r.statusCode).toBe(204)
+
+    const lista = await app.inject({ method: 'GET', url: '/clientes' })
+    expect(lista.json().total).toBe(1)
+  })
+
+  it('id desconhecido responde 404', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({ method: 'DELETE', url: '/clientes/cli-999' })
+
+    expect(r.statusCode).toBe(404)
+  })
+
+  it('sem sessao responde 401', async () => {
+    const c = await buildApp(null)
+    app = c.app
+
+    const r = await app.inject({ method: 'DELETE', url: '/clientes/cli-1' })
+
+    expect(r.statusCode).toBe(401)
   })
 })
 

@@ -154,6 +154,17 @@ export const customerOutputSchema = z.object({
    * anterior nao foi atendido.
    */
   anonymizedAt: z.string().nullable(),
+  /**
+   * Quando o cliente foi excluido da lista — RF-009.
+   *
+   * Exclusao aqui e reversivel: a linha continua existindo, e o historico de
+   * vendas continua apontando para ela (dados.md#exclusão). Nulo = ativo.
+   *
+   * CUIDADO com a palavra "inativo": o filtro `inativos` da lista significa
+   * outra coisa — cliente que nao compra ha `DIAS_PARA_INATIVO` dias. Um e
+   * decisao do lojista, o outro e observacao sobre o comportamento de compra.
+   */
+  deletedAt: z.string().nullable(),
 })
 
 export type CustomerOutput = z.infer<typeof customerOutputSchema>
