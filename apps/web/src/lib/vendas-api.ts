@@ -491,7 +491,10 @@ export type VendaDoHistorico = {
   status: 'open' | 'settled' | 'cancelled' | 'returned'
   bruto: number
   desconto: number
+  /** O que o cliente pagou: bruto menos desconto. */
   total: number
+  /** O que fica para a loja: sem imposto e sem tarifa de cartao. */
+  liquido: number
   imposto: number
   taxaCartao: number
   itens: ItemDaVenda[]
@@ -545,7 +548,10 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
   status: v.status,
   bruto: reais(v.grossAmountCents),
   desconto: reais(v.discountCents),
-  total: reais(v.netAmountCents),
+  /* `netAmountCents` e o LIQUIDO (sem imposto e sem tarifa). Mostra-lo como
+     total fazia a venda de R$ 28,90 aparecer como R$ 27,17. */
+  total: reais(v.grossAmountCents - v.discountCents),
+  liquido: reais(v.netAmountCents),
   imposto: reais(v.taxAmountCents),
   taxaCartao: reais(v.cardFeeAmountCents),
   itens: v.items.map((i) => ({
@@ -602,6 +608,7 @@ export async function carregarHistorico(
     pageSize?: number
     summary?: {
       salesCount: number
+      grossCents: number
       netCents: number
       netAfterFeesCents: number
       averageTicketCents: number | null
@@ -622,7 +629,9 @@ export async function carregarHistorico(
       porPagina: json.pageSize ?? 20,
       resumo: {
         quantidade: json.summary.salesCount,
-        faturamento: reais(json.summary.netCents),
+        /* Faturamento e o bruto — o que os clientes pagaram. O liquido ja vem
+           sem imposto e sem tarifa. */
+        faturamento: reais(json.summary.grossCents),
         liquido: reais(json.summary.netAfterFeesCents),
         ticketMedio:
           json.summary.averageTicketCents === null ? null : reais(json.summary.averageTicketCents),

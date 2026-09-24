@@ -201,7 +201,9 @@ export default function Inicio() {
                 <Text style={estilos.linhaTexto} numberOfLines={1}>
                   {v.customerName ?? 'Venda de balcão'}
                 </Text>
-                <Text style={estilos.linhaValor}>{formatMoney(emReais(v.netAmountCents))}</Text>
+                <Text style={estilos.linhaValor}>
+                  {formatMoney(emReais(v.grossAmountCents - v.discountCents))}
+                </Text>
               </View>
             )}
           </Lista>
