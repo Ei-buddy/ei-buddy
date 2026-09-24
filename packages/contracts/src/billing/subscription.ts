@@ -195,6 +195,36 @@ export const couponApplicationSchema = z.discriminatedUnion('status', [
 
 export type CouponApplication = z.infer<typeof couponApplicationSchema>
 
+/**
+ * Conferir um cupom de indicacao no cadastro — RF-114, RF-115.
+ *
+ * Irmao do `couponApplicationSchema`, SEM os valores: no cadastro ainda nao ha
+ * preco (QST-002), e um "R$ 0,00 de desconto" seria pior que nenhum numero. A
+ * tela diz quem indicou e o percentual; o valor em reais aparece quando a
+ * assinatura existir.
+ */
+export const couponCheckSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('valid'),
+      code: z.string().min(1),
+      referrerLabel: z.string().min(1),
+      discountPercent: rateSchema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('rejected'),
+      rejection: z.object({ code: couponRejectionCodeSchema, message: z.string().min(1) }).strict(),
+    })
+    .strict(),
+])
+
+export type CouponCheck = z.infer<typeof couponCheckSchema>
+
+/** O codigo como vem da tela: com espaco, em minuscula — quem normaliza e o core. */
+export const couponCodeInputSchema = z.string().trim().min(1, 'Informe o cupom.').max(40)
+
 /** A assinatura como o sistema a conhece — espelha `subscriptions`. */
 export const subscriptionSchema = z
   .object({

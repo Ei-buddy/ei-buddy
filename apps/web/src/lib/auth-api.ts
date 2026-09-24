@@ -3,15 +3,13 @@
  * PONTOS DE INTEGRACAO COM O BACKEND
  * ============================================================================
  *
- * O login e real (`/api/session`, ver LoginForm) e o cadastro tambem
- * (`createAccount`). O que ainda e SIMULADO aqui marca onde entra a chamada
- * real — as telas nao precisam mudar desde que o formato de retorno seja
- * mantido.
+ * O login e real (`/api/session`, ver LoginForm), o cadastro tambem
+ * (`createAccount`), e o cupom de indicacao (`validateCoupon`). O que ainda e
+ * SIMULADO aqui marca onde entra a chamada real — as telas nao precisam mudar
+ * desde que o formato de retorno seja mantido.
  *
  *  | Funcao                  | Endpoint esperado                  | Quando            |
  *  |-------------------------|------------------------------------|-------------------|
- *  | validateCoupon          | GET  /partners/coupons/:codigo     | digitacao (debounce) |
- *  | createAccount           | POST /auth/signup                  | fim da etapa 3    |
  *  | createPixCharge         | POST /billing/charges (pix)        | entrada na etapa 4|
  *  | fetchPixChargeStatus    | GET  /billing/charges/:id          | polling da etapa 4|
  *
@@ -33,33 +31,44 @@ export type CouponResult =
   | { status: 'invalid'; message: string }
 
 /**
- * SUBSTITUIR POR: GET /partners/coupons/:codigo
+ * Confere o cupom de quem indicou — RF-114, RF-115 (`GET /cupons/:codigo`).
  *
- * A UI chama com debounce a cada digitacao. Retornar 404 para cupom
- * inexistente e 200 com os dados do parceiro quando valido.
+ * A tela chama com debounce. O beneficio e dito em PERCENTUAL e sem valor em
+ * reais: o preco ainda nao existe (QST-002), e o desconto vale um ciclo
+ * (ADR-0013) — dizer "nos 3 primeiros meses" prometeria o que ninguem cobra.
  */
 export async function validateCoupon(code: string): Promise<CouponResult> {
-  await delay(650)
-
-  const known: Record<string, { partner: string; benefit: string }> = {
-    PARCEIRO10: {
-      partner: 'Contabilidade Prisma',
-      benefit: '10% de desconto nos 3 primeiros meses',
-    },
-    INDICA20: { partner: 'Rede Lojista PR', benefit: '20% de desconto no primeiro mes' },
-    SOCIO15: { partner: 'Associacao Comercial', benefit: '15% de desconto recorrente' },
+  let resposta: Response
+  try {
+    resposta = await fetch(`/api/cupons/${encodeURIComponent(code.trim())}`, {
+      credentials: 'same-origin',
+    })
+  } catch {
+    return { status: 'invalid', message: 'Não foi possível conferir o cupom agora.' }
   }
 
-  const found = known[code.trim().toUpperCase()]
-  if (!found) {
-    return { status: 'invalid', message: 'Cupom nao encontrado.' }
-  }
+  const corpo = (await resposta.json().catch(() => ({}))) as
+    | { status: 'valid'; code: string; referrerLabel: string; discountPercent: number }
+    | { status: 'rejected'; rejection: { message: string } }
+    | { error?: { message?: string } }
 
+  if (resposta.ok && 'status' in corpo && corpo.status === 'valid') {
+    return {
+      status: 'valid',
+      code: corpo.code,
+      partner: corpo.referrerLabel,
+      benefit: `${String(corpo.discountPercent).replace('.', ',')}% de desconto na primeira mensalidade`,
+    }
+  }
+  if (resposta.ok && 'status' in corpo && corpo.status === 'rejected') {
+    return { status: 'invalid', message: corpo.rejection.message }
+  }
   return {
-    status: 'valid',
-    code: code.trim().toUpperCase(),
-    partner: found.partner,
-    benefit: found.benefit,
+    status: 'invalid',
+    message:
+      resposta.status === 429
+        ? 'Muitas tentativas. Espere um minuto e tente de novo.'
+        : ('error' in corpo && corpo.error?.message) || 'Não foi possível conferir o cupom agora.',
   }
 }
 
@@ -125,6 +134,9 @@ export async function createAccount(
          * na tela explicasse por que.
          */
         acceptedLegalTerms: true,
+        /* So o cupom que a tela ja conferiu como valido: o servidor confere
+           de novo e grava o vinculo com quem indicou (RF-114). */
+        ...(data.cupom === null ? {} : { referralCode: data.cupom }),
         ...(data.accountType !== 'parceiro'
           ? {}
           : {

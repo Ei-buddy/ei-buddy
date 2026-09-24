@@ -36,6 +36,23 @@ function cenario() {
   const sessions = new InMemorySessionIssuer()
   const partners = new InMemoryPartnerApplicationRepository()
   const legalConsents = new InMemoryLegalConsentRepository()
+  const resgates: { code: string; companyId: string }[] = []
+  const coupons = {
+    lookup: async (code: string) =>
+      code === 'INDICA10'
+        ? {
+            couponId: '00000000-0000-4000-8000-000000000010',
+            kind: 'partner' as const,
+            referrerLabel: 'Contabilidade Prisma',
+            active: true,
+            discountPercent: 10,
+            reason: 'ok' as const,
+          }
+        : undefined,
+    recordRedemption: async (code: string, companyId: string) => {
+      resgates.push({ code, companyId })
+    },
+  }
 
   /* O diretorio nao tem falso proprio: o minimo que o caso de uso usa. */
   const criados: { id: string; name: string; companyId: string; phone: string | null }[] = []
@@ -62,6 +79,7 @@ function cenario() {
       sessions,
       partners,
       legalConsents,
+      coupons,
     } as never,
     companies,
     accounts,
@@ -69,6 +87,7 @@ function cenario() {
     partners,
     legalConsents,
     criados,
+    resgates,
   }
 }
 
@@ -306,6 +325,26 @@ describe('cadastro de conta', () => {
       const minha = await c.partners.mine(sessao.activeCompanyId!)
       expect(minha?.status).toBe('pending')
       expect(minha?.couponCode).toBe('ANA10')
+    })
+  })
+
+  describe('cupom de quem indicou — RF-114', () => {
+    it('grava o vinculo com a empresa nova', async () => {
+      const c = cenario()
+      const sessao = await signup(c.deps, { ...entrada, referralCode: ' indica10 ' }, AGORA)
+
+      expect(c.resgates).toEqual([{ code: 'indica10', companyId: sessao.activeCompanyId }])
+    })
+
+    it('cupom que nao existe recusa ANTES de criar a credencial', async () => {
+      const c = cenario()
+      const erro = await pegaErro(() =>
+        signup(c.deps, { ...entrada, referralCode: 'NAOEXISTE' }, AGORA),
+      )
+
+      expect(erro).toMatchObject({ code: 'VALIDATION_FAILED' })
+      expect(c.criados).toHaveLength(0)
+      expect(c.resgates).toHaveLength(0)
     })
   })
 })

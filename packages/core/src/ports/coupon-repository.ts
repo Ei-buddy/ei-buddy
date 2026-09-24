@@ -30,4 +30,13 @@ export type CouponRepository = {
    * digitou um codigo real precisa saber por que ele nao serve (RF-115).
    */
   lookup(code: string): Promise<CouponLookup | undefined>
+
+  /**
+   * Grava o vinculo indicador -> indicado — `coupon_redemption_record`.
+   *
+   * A funcao confere tudo de novo (ativo, revogado, vencido, cota, empresa que
+   * ja resgatou, o proprio cupom) e LANCA se nao valer: entre a consulta e o
+   * resgate alguem pode ter levado a ultima cota.
+   */
+  recordRedemption(code: string, redeemedCompanyId: string): Promise<void>
 }

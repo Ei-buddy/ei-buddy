@@ -1,4 +1,9 @@
-import type { CouponApplication, CouponLookup, CouponRejectionCode } from '@na-regua/contracts'
+import type {
+  CouponApplication,
+  CouponCheck,
+  CouponLookup,
+  CouponRejectionCode,
+} from '@na-regua/contracts'
 import { Money } from '@na-regua/money'
 import type { CouponRepository } from '../ports/coupon-repository.js'
 
@@ -40,7 +45,7 @@ export async function previewCoupon(
   /* Normalizado aqui, e nao na tela, para que web, mobile e assistente nao
      tenham tres ideias de que "parceiro10 " e. (A funcao SQL ja compara sem
      caixa; o `trim` e o que ela nao faz.) */
-  const codigo = entrada.code.trim().toUpperCase()
+  const codigo = normalizarCodigo(entrada.code)
 
   const cupom = await deps.coupons.lookup(codigo)
 
@@ -67,7 +72,42 @@ export async function previewCoupon(
   }
 }
 
-const recusa = (code: CouponRejectionCode, message: string): CouponApplication => ({
+/**
+ * Confere o cupom de quem indicou, no cadastro — RF-114, RF-115.
+ *
+ * O `previewCoupon` sem o preco: quem digita o cupom no cadastro ainda nao tem
+ * plano (QST-002), entao a resposta e quem indicou e o percentual. Mesma
+ * normalizacao e mesmas frases, para o cadastro e a assinatura nao recusarem o
+ * mesmo codigo com palavras diferentes.
+ */
+export async function checkCoupon(
+  deps: Pick<PreviewCouponDeps, 'coupons'>,
+  entrada: { readonly code: string },
+): Promise<CouponCheck> {
+  const codigo = normalizarCodigo(entrada.code)
+  const cupom = await deps.coupons.lookup(codigo)
+
+  if (cupom === undefined) return recusa('not_found', MENSAGENS.not_found)
+  if (!cupom.active) {
+    const motivo: CouponRejectionCode = cupom.reason === 'ok' ? 'not_found' : cupom.reason
+    return recusa(motivo, MENSAGENS[motivo])
+  }
+
+  return {
+    status: 'valid',
+    code: codigo,
+    referrerLabel: cupom.referrerLabel,
+    discountPercent: cupom.discountPercent,
+  }
+}
+
+/* A funcao SQL ja compara sem caixa; o `trim` e o que ela nao faz. */
+export const normalizarCodigo = (codigo: string): string => codigo.trim().toUpperCase()
+
+const recusa = (
+  code: CouponRejectionCode,
+  message: string,
+): { status: 'rejected'; rejection: { code: CouponRejectionCode; message: string } } => ({
   status: 'rejected',
   rejection: { code, message },
 })

@@ -16,8 +16,7 @@ type Resolvido = {
 /**
  * Campo de cupom de parceiro com validacao em tempo real (debounce 600ms).
  *
- * SUBSTITUIR POR: GET /partners/coupons/:codigo — ver `lib/auth-api.ts`.
- * O campo e opcional: o fluxo segue normalmente se ficar em branco ou se o
+ * Confere no servidor (`validateCoupon`, RF-114). O campo e opcional: o fluxo segue normalmente se ficar em branco ou se o
  * cupom for invalido, apenas sem o beneficio.
  *
  * O texto de ajuda fala do beneficio de QUEM SE CADASTRA, e nao da comissao do

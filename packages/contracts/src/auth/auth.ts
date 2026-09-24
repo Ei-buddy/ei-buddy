@@ -8,6 +8,7 @@ import {
   roleSchema,
 } from '../common/primitives.js'
 import { cnpjSchema } from '../common/document.js'
+import { couponCodeInputSchema } from '../billing/subscription.js'
 import { partnerAccountFieldsSchema, pixCombinaComTipo } from '../partners/partner.js'
 
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
@@ -188,6 +189,15 @@ export const signupInputSchema = z
      * como lojista, so o cupom de indicacao fica inativo ate a aprovacao.
      */
     account: signupAccountSchema.optional(),
+
+    /**
+     * Cupom de quem INDICOU esta loja — RF-114, ADR-0013.
+     *
+     * Grava o vinculo indicador -> indicado no cadastro. O desconto na fatura
+     * espera o preco (QST-002); o vinculo nao pode esperar, ou a indicacao
+     * feita hoje se perde.
+     */
+    referralCode: couponCodeInputSchema.optional(),
 
     /**
      * Aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1.
