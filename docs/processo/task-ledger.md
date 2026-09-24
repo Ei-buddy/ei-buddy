@@ -51,7 +51,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
 | Total                         |     101 |  253 |
-| ✅ Concluídas                 |      93 |  226 |
+| ✅ Concluídas                 |      94 |  229 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -94,7 +94,7 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > aplicativo" para cancelar venda, e esse caso de uso nao existia — RF-043 e
 > a US-021 estavam no papel desde o inicio, sem tarefa nenhuma cobrindo. A
 > NR-122 escreveu o caso de uso, e a tool `cancel_sale` passou a chama-lo.
-> Devolucao parcial (RF-044) segue aberta, na propria NR-122.
+> Devolucao parcial (RF-044) fechou depois, na propria NR-122 (`returnSaleItems`).
 > As somas saem das linhas deste arquivo e fecham com o
 > [`monday-import.csv`](monday-import.csv) que `pnpm ledger:csv` gera.
 > Em **2026-09-16** entrou a NR-121 (harness Studio) e a cascata E11 foi
@@ -206,7 +206,7 @@ Objetivo: operar o ERP por mensagem (E11) e cobrar a mensalidade.
 | NR-116 | `agent`: foto do código de barras (SHOULD)                              |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-068, RF-137–139                                            |   ✅   |
 | NR-117 | `agent`: cadastrar produto e lançar pagar/receber por mensagem          |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062                                 | —    | US-069–071, RF-140–142                                        |   ✅   |
 | NR-118 | `agent`: baixas, ajuste de estoque e cancelar/devolver venda            |   🟠   | `agent`                       |   2 | NR-060, NR-061, NR-062, NR-042                         | —    | US-072–075, RF-143–145, RF-147                                |   ✅   |
-| NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   🟨   |
+| NR-122 | `core`: cancelar venda estornando estoque, recebiveis e carteira        |   🔵   | `contracts` `core` `db` `api` |   3 | NR-022                                                 | —    | RF-043, RF-044, US-021                                        |   ✅   |
 | NR-119 | `agent`: criar compromisso por mensagem (COULD)                         |   🟠   | `agent`                       |   1 | NR-060, NR-061, NR-062, NR-034                         | —    | US-076, RF-148                                                |   ✅   |
 | NR-120 | `agent` + `db`: RAG auxiliar (store com `company_id`, retrieve top‑k)   |   🟠   | `agent` `db`                  |   2 | NR-007, NR-062, NR-115, NR-116, NR-117, NR-118, NR-119 | —    | RF-102, RNF-075, ADR-0017                                     |   ✅   |
 | NR-113 | Canal WhatsApp: celular do owner é o vínculo; PeerDirectory             |   🟠   | `core` `api` `agent` `web`    |   3 | NR-014, NR-084, NR-120                                 | —    | US-046, RF-094, RF-095, RF-132                                |   🟨   |

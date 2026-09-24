@@ -143,6 +143,12 @@ function buildApp(
         throw new Error('nao executa neste teste')
       },
     },
+    /* A devolucao tambem tem suite propria em `core` e no E2E. */
+    returns: {
+      transaction: async () => {
+        throw new Error('nao executa neste teste')
+      },
+    },
     ...over,
   }
 
@@ -347,7 +353,17 @@ describe('historico de vendas — NR-027, US-021', () => {
     netAmountCents: 1990,
     taxAmountCents: 0,
     cardFeeAmountCents: 0,
-    items: [{ description: 'Cafe', quantity: 1, unitPriceCents: 1990, totalCents: 1990 }],
+    returnedAmountCents: 0,
+    items: [
+      {
+        productId: null,
+        description: 'Cafe',
+        quantity: 1,
+        returnedQuantity: 0,
+        unitPriceCents: 1990,
+        totalCents: 1990,
+      },
+    ],
     payments: [{ method: 'cash', amountCents: 1990, installments: null }],
     invoiceNumber: null,
     invoiceAccessKey: null,

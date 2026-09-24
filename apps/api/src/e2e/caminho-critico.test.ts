@@ -678,6 +678,46 @@ describe.skipIf(!DATABASE_URL)('caminho critico — NR-049', () => {
     })
   })
 
+  describe('devolver parte da venda — RF-044', () => {
+    it('devolve 1 de 2 em dinheiro: o estoque volta e metade sai do caixa', async () => {
+      const estoque = async () =>
+        (await comSessao({ method: 'GET', url: `/produtos/codigo-de-barras/${EAN}` })).json().stock
+
+      const venda = await comSessao({
+        method: 'POST',
+        url: '/sales',
+        headers: { 'idempotency-key': randomUUID() },
+        payload: {
+          items: [{ productId: produtoId, quantity: 2, unitPriceCents: 1990 }],
+          payments: [{ method: 'cash', amountCents: 3980 }],
+        },
+      })
+      const saleId = venda.json().sale.id
+      const antes = await estoque()
+
+      const devolucao = (quantity: number) =>
+        comSessao({
+          method: 'POST',
+          url: `/sales/${saleId}/devolucao`,
+          payload: { reason: 'Um veio com defeito', items: [{ productId: produtoId, quantity }] },
+        })
+
+      const r = await devolucao(1)
+      expect(r.statusCode).toBe(200)
+      expect(r.json()).toEqual({
+        refundCents: 1990,
+        paidBackCents: 1990,
+        uncollectedCents: 0,
+        status: 'settled',
+      })
+      expect(await estoque()).toBe(antes + 1)
+
+      /* Devolver mais do que resta e recusado; o que resta, fecha a venda. */
+      expect((await devolucao(2)).statusCode).toBe(400)
+      expect((await devolucao(1)).json().status).toBe('returned')
+    })
+  })
+
   /*
    * NAO ha teste de isolamento aqui, e a ausencia e deliberada.
    *

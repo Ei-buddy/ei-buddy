@@ -29,9 +29,17 @@ type VendaDaApi = {
   netAmountCents: number
   taxAmountCents: number
   cardFeeAmountCents: number
-  items: { description: string; quantity: number; unitPriceCents: number; totalCents: number }[]
+  returnedAmountCents: number
+  items: {
+    productId: string | null
+    description: string
+    quantity: number
+    returnedQuantity: number
+    unitPriceCents: number
+    totalCents: number
+  }[]
   payments: {
-    method: VendaDoHistorico['pagamentos'][number]['forma']
+    method: string
     amountCents: number
     installments: number | null
   }[]
@@ -40,6 +48,18 @@ type VendaDaApi = {
 }
 
 const reais = (centavos: number) => centavos / 100
+
+type Forma = VendaDoHistorico['pagamentos'][number]['forma']
+
+/* A api fala `cash`; a tela procura `dinheiro` em FORMAS. Sem a traducao o
+   detalhe mostrava "cash" cru — mesma tabela de `vendas-api.ts`. */
+const FORMA_DO_METODO: Record<string, Forma> = {
+  cash: 'dinheiro',
+  pix: 'pix',
+  debit: 'debito',
+  credit: 'credito',
+  wallet: 'carteira',
+}
 
 /** `null` quando nao existe, e de outra loja, ou nao ha sessao. */
 export async function buscarVenda(id: string): Promise<VendaDoHistorico | null> {
@@ -74,14 +94,17 @@ export async function buscarVenda(id: string): Promise<VendaDoHistorico | null> 
     liquido: reais(v.netAmountCents),
     imposto: reais(v.taxAmountCents),
     taxaCartao: reais(v.cardFeeAmountCents),
+    devolvidoValor: reais(v.returnedAmountCents),
     itens: v.items.map((i) => ({
+      produtoId: i.productId,
       descricao: i.description,
       quantidade: i.quantity,
+      devolvido: i.returnedQuantity,
       precoUnitario: reais(i.unitPriceCents),
       total: reais(i.totalCents),
     })),
     pagamentos: v.payments.map((p) => ({
-      forma: p.method,
+      forma: FORMA_DO_METODO[p.method] ?? (p.method as Forma),
       valor: reais(p.amountCents),
       parcelas: p.installments,
     })),
