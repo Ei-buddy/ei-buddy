@@ -50,7 +50,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-013 | Manter saldo em carteira (fiado) por cliente, alterado por venda `wallet` e por recebimento | US-007 | `domain`    |  M  | ⬜  |
 | RF-014 | Avisar o operador do saldo devedor do cliente ao iniciar nova venda para ele                | US-007 | `core`      |  M  | ⬜  |
 | RF-015 | Vincular número de WhatsApp ao cadastro do cliente e usá-lo como destino de mensagens       | US-008 | `core`      |  M  | ⬜  |
-| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento            | US-008 | `core`      |  M  | ⬜  |
+| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento            | US-008 | `core`      |  M  | ✅  |
 
 ## E3 — Produtos & Estoque
 
