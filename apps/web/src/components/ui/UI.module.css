@@ -138,6 +138,26 @@
   gap: 7px;
   grid-column: span 12;
   min-width: 0;
+
+  /*
+   * As linhas nao esticam para preencher a celula.
+   *
+   * Sem isto, um campo vizinho mais alto — por ter erro ou ajuda embaixo —
+   * fazia as linhas automaticas deste crescerem, e o INPUT ficava mais alto
+   * que o dos outros. O extra agora sobra como espaco no fim, que e onde
+   * espaco deve sobrar.
+   */
+  align-content: start;
+}
+
+/* Rotulo e ajuda na mesma linha. Quebra quando a ajuda e longa, em vez de
+   empurrar o campo para baixo. */
+.labelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
 }
 
 .label {
