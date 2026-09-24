@@ -18,7 +18,6 @@ import {
   FORMAS,
   PARCELAS_MAXIMAS,
   paraItemCarrinho,
-  produtoPorEan,
   subtotalCarrinho,
   subtotalItem,
   type ItemCarrinho,
@@ -89,14 +88,10 @@ export default function Pdv() {
       return
     }
 
-    /* Achou na api. O carrinho ainda usa o produto do catalogo local para
-       preco e estoque — trocar isso e a NR-073, que traz o resumo com liquido.
-       Aqui o ganho e nao inventar item que a loja nao tem. */
-    const produto = produtoPorEan(codigo)
-    if (!produto) {
-      Alert.alert('Produto sem dados locais', r.descricao)
-      return
-    }
+    /* Preco, custo e saldo vem da API, e nao do catalogo de exemplo que o app
+       usava antes: com ele, a venda levava ids que a loja nao tem e a api
+       recusava no fechamento. */
+    const produto = r.produto
 
     setItens((atual) => {
       const existe = atual.find((i) => i.produtoId === produto.id)
