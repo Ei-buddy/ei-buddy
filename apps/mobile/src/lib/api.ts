@@ -79,6 +79,9 @@ export async function chamarApi<T>(
   }
 
   if (resposta.ok) {
+    /* 204 nao tem corpo: `json()` lancaria, e um cancelamento que deu certo
+       apareceria na tela como falta de conexao. */
+    if (resposta.status === 204) return { ok: true, dados: undefined as T }
     return { ok: true, dados: (await resposta.json()) as T }
   }
 

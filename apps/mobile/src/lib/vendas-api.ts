@@ -484,29 +484,21 @@ export async function listarHistoricoDeVendas(): Promise<
 }
 
 /**
- * Estorno de venda — RF-036.
+ * Cancela a venda — RF-043, `POST /sales/:id/cancelar`.
  *
- * AINDA NAO EXISTE no backend, nem no web: precisa ser uma unica transacao
- * cobrindo tres coisas — devolver o item ao estoque, estornar o titulo em
- * Contas a Receber e cancelar a nota fiscal (ou emitir a de devolucao). Se uma
- * falhar, nenhuma pode valer, senao a venda estornada com estoque nao
- * devolvido vira furo de inventario que ninguem consegue explicar depois.
- *
- * Por isso o botao na tela avisa em vez de fingir — ver `vendas.tsx`.
+ * Uma transacao no servidor: o estoque volta, os recebiveis sao cancelados e a
+ * venda fica marcada. O motivo e obrigatorio (minimo 3 caracteres) e fica na
+ * trilha — e a resposta para "por que o faturamento de ontem mudou".
  */
 export async function estornarVenda(
   id: string,
-): Promise<{ ok: true; itensDevolvidos: number } | { ok: false; error: string }> {
-  await delay(1200)
-
-  const venda = listarVendas().find((v) => v.id === id)
-  if (!venda) return { ok: false, error: 'Venda não encontrada.' }
-  if (venda.status === 'estornada') {
-    return { ok: false, error: 'Esta venda já foi estornada.' }
-  }
-
-  const itensDevolvidos = venda.itens.reduce((acc, i) => acc + i.quantidade, 0)
-  return { ok: true, itensDevolvidos }
+  motivo: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await chamarApi<undefined>(`/sales/${encodeURIComponent(id)}/cancelar`, {
+    method: 'POST',
+    body: { reason: motivo.trim() },
+  })
+  return r.ok ? { ok: true } : { ok: false, erro: r.message }
 }
 
 /* -------------------------------------------------------------------------- */
