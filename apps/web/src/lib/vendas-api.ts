@@ -24,6 +24,7 @@
  * inventario que ninguem consegue explicar depois.
  */
 
+import { pedir } from './http'
 import type { PixCharge, PixChargeStatus } from './auth-api'
 import type { FormaPagamento } from './types'
 
@@ -251,6 +252,12 @@ const METODO: Record<FormaPagamento, 'cash' | 'pix' | 'debit' | 'credit' | 'wall
   credito: 'credit',
   carteira: 'wallet',
 }
+
+/* O caminho de volta: a api devolve `cash` e a tela procura `dinheiro` em
+   FORMAS. Sem isto o detalhe da venda mostrava "cash" cru. */
+const FORMA_DO_METODO = Object.fromEntries(
+  Object.entries(METODO).map(([forma, metodo]) => [metodo, forma]),
+) as Record<string, FormaPagamento>
 
 /** Reais para centavos. Arredondar aqui evita 1990.0000000000002 no corpo. */
 const emCentavos = (reais: number): number => Math.round(reais * 100)
@@ -527,7 +534,7 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
     total: reais(i.totalCents),
   })),
   pagamentos: v.payments.map((p) => ({
-    forma: p.method,
+    forma: FORMA_DO_METODO[p.method] ?? (p.method as FormaPagamento),
     valor: reais(p.amountCents),
     parcelas: p.installments,
   })),
@@ -604,35 +611,26 @@ export async function carregarHistorico(
 }
 
 /**
- * O estorno ainda NAO existe — RF-043.
+ * Estorna (cancela) a venda inteira — RF-043, NR-122.
  *
- * Recusa em vez de fingir. Antes esta funcao esperava 1,2 s e devolvia
- * `{ ok: true }` com uma contagem tirada de `lib/mock-data`: a tela dizia "3
- * itens devolvidos ao estoque" e nada tinha sido devolvido, nem estornado, nem
- * cancelado. Um estorno que parece ter acontecido e pior que um botao que
- * recusa, porque o furo de inventario so aparece na contagem seguinte.
+ * O servidor devolve os itens ao estoque e reverte o recebivel na mesma
+ * transacao, e guarda o motivo. Ele RECUSA, com a mensagem de por que, venda
+ * com nota emitida (cancele a nota antes), venda com recebimento ja baixado
+ * (estorne a baixa antes) e venda ja cancelada — a mensagem vai direto para a
+ * tela.
  *
- * O que falta nao e a rota: e o caso de uso, e ele tem de cobrir TRES coisas na
- * mesma transacao — devolver o item ao estoque (movimento de `sale_cancelled`,
- * que a trilha ja preve), estornar o titulo em contas a receber, e cancelar a
- * nota fiscal ou emitir a de devolucao. Se uma falhar, nenhuma pode valer.
- *
- * As tres pecas ja existem em separado: a trilha de estoque ganhou
- * implementacao no banco, o estorno de baixa esta em `core`
- * (`reverseSettlement`) e o cancelamento de nota esta no emissor fiscal. Falta
- * a transacao que as junta.
+ * Ate aqui esta funcao recusava sempre, com "ainda nao esta disponivel",
+ * enquanto o caso de uso ja existia e o assistente ja o usava.
  */
 export async function estornarVenda(
   id: string,
-): Promise<{ ok: true; itensDevolvidos: number } | { ok: false; error: string }> {
-  void id
-
-  return {
-    ok: false,
-    error:
-      'O estorno de venda ainda não está disponível. Para corrigir agora, ajuste o estoque ' +
-      'pelo produto e cancele a nota pela tela da venda.',
-  }
+  motivo: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await pedir(`/api/vendas/${encodeURIComponent(id)}/cancelar`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: motivo.trim() }),
+  })
+  return r.ok ? { ok: true } : { ok: false, error: r.erro }
 }
 
 /* -------------------------------------------------------------------------- */

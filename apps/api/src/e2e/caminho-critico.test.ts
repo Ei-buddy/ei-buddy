@@ -648,6 +648,36 @@ describe.skipIf(!DATABASE_URL)('caminho critico — NR-049', () => {
     })
   })
 
+  describe('cancelar a venda — RF-043', () => {
+    it('venda em dinheiro cancela, e o estoque volta', async () => {
+      /*
+       * Dinheiro nasce com o recebivel JA liquidado. O cancelamento marcava o
+       * recebivel `cancelled` sem limpar `settled_at`, a constraint
+       * `receivables_liquidado_completo` recusava e toda venda em dinheiro
+       * virava 500 ao cancelar — os falsos em memoria nao tem a constraint.
+       */
+      const estoque = async () =>
+        (await comSessao({ method: 'GET', url: `/produtos/codigo-de-barras/${EAN}` })).json().stock
+
+      const venda = await comSessao({
+        method: 'POST',
+        url: '/sales',
+        headers: { 'idempotency-key': randomUUID() },
+        payload: vendaDinheiro(produtoId),
+      })
+      const antes = await estoque()
+
+      const r = await comSessao({
+        method: 'POST',
+        url: `/sales/${venda.json().sale.id}/cancelar`,
+        payload: { reason: 'Cliente desistiu' },
+      })
+
+      expect(r.statusCode).toBe(204)
+      expect(await estoque()).toBe(antes + 1)
+    })
+  })
+
   /*
    * NAO ha teste de isolamento aqui, e a ausencia e deliberada.
    *

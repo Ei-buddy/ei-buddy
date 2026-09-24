@@ -20,8 +20,6 @@ import { pedir, type Resultado } from './http'
 import type { LinhaRecusada, ResultadoDaImportacao } from './produtos-api'
 import type { Cliente } from './types'
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 /* -------------------------------------------------------------------------- */
 /* Consulta de CPF                                                            */
 /* -------------------------------------------------------------------------- */
@@ -29,32 +27,23 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 export type CpfResult =
   { ok: true; nome: string } | { ok: false; error: string; indisponivel?: boolean }
 
-/** SUBSTITUIR POR: GET /pessoas/cpf/:cpf */
+/**
+ * Consulta de CPF — sempre indisponivel, de proposito.
+ *
+ * Diferente do CNPJ, dado de CPF nao e publico: so existe com base contratada
+ * e base legal (LGPD), e nenhuma das duas existe hoje. A tela diz isso e o
+ * cadastro segue manual. Antes esta funcao devolvia nomes ficticios ("Joana
+ * Ribeiro") para dois CPFs de exemplo, como se a consulta existisse.
+ */
 export async function buscarCpf(cpf: string): Promise<CpfResult> {
-  await delay(900)
-
-  const d = cpf.replace(/\D/g, '')
-  if (d.length !== 11) {
+  if (cpf.replace(/\D/g, '').length !== 11) {
     return { ok: false, error: 'Informe o CPF completo antes de buscar.' }
   }
-
-  /* Base de exemplo. Sem contrato de consulta, o backend devolve 403 e a
-     tela mostra que a busca esta indisponivel — sem travar o cadastro. */
-  const conhecidos: Record<string, string> = {
-    '12345678900': 'Joana Ribeiro',
-    '32165498711': 'Marcos Dias',
+  return {
+    ok: false,
+    error: 'Consulta de CPF indisponível. Preencha o nome manualmente.',
+    indisponivel: true,
   }
-
-  const nome = conhecidos[d]
-  if (!nome) {
-    return {
-      ok: false,
-      error: 'Consulta de CPF indisponível. Preencha o nome manualmente.',
-      indisponivel: true,
-    }
-  }
-
-  return { ok: true, nome }
 }
 
 /* -------------------------------------------------------------------------- */

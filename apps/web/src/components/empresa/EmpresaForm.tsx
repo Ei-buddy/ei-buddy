@@ -134,7 +134,6 @@ export default function EmpresaForm() {
     setBuscandoCep(true)
     setAvisoCep(null)
 
-    /* SUBSTITUIR POR: GET /enderecos/cep/:cep */
     const resultado = await buscarCep(cepFormatado)
     setBuscandoCep(false)
 
@@ -170,7 +169,6 @@ export default function EmpresaForm() {
 
     setBuscandoCnpj(true)
 
-    /* SUBSTITUIR POR: GET /empresas/cnpj/:cnpj */
     const resultado = await buscarCnpj(campos.cnpj)
     setBuscandoCnpj(false)
 

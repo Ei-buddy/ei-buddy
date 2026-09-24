@@ -3,14 +3,13 @@
  * PONTOS DE INTEGRACAO COM O BACKEND
  * ============================================================================
  *
- * Tudo neste arquivo e SIMULADO no front. Cada funcao abaixo marca exatamente
- * onde entra uma chamada real — as telas nao precisam mudar desde que o
- * formato de retorno seja mantido.
+ * O login e real (`/api/session`, ver LoginForm) e o cadastro tambem
+ * (`createAccount`). O que ainda e SIMULADO aqui marca onde entra a chamada
+ * real — as telas nao precisam mudar desde que o formato de retorno seja
+ * mantido.
  *
  *  | Funcao                  | Endpoint esperado                  | Quando            |
  *  |-------------------------|------------------------------------|-------------------|
- *  | signIn                  | POST /auth/login                   | submit do login   |
- *  | fetchSubscription       | GET  /billing/subscription         | apos o login      |
  *  | validateCoupon          | GET  /partners/coupons/:codigo     | digitacao (debounce) |
  *  | createAccount           | POST /auth/signup                  | fim da etapa 3    |
  *  | createPixCharge         | POST /billing/charges (pix)        | entrada na etapa 4|
@@ -22,90 +21,8 @@
 
 export type SubscriptionStatus = 'active' | 'overdue' | 'trial'
 
-export type Subscription = {
-  status: SubscriptionStatus
-  planName: string
-  amount: number
-  /** Data do proximo vencimento ou do vencimento em atraso. */
-  dueDate: string
-  daysOverdue: number
-}
-
-export type AuthUser = {
-  id: string
-  nome: string
-  email: string
-  empresa: string
-}
-
-export type SignInResult =
-  { ok: true; user: AuthUser; subscription: Subscription } | { ok: false; error: string }
-
 /** Atraso artificial so para exercitar os estados de loading da UI. */
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-/* -------------------------------------------------------------------------- */
-/* Autenticacao                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * SUBSTITUIR POR: POST /auth/login
- *
- * Enquanto nao existe backend, qualquer credencial com senha valida entra.
- * A conta cai em "pagamento pendente" quando o e-mail contem "pendente",
- * o que permite demonstrar o fluxo bloqueado sem precisar de dados reais.
- */
-export async function signIn(credential: string, password: string): Promise<SignInResult> {
-  await delay(900)
-
-  if (password.length < 6) {
-    return { ok: false, error: 'E-mail ou senha incorretos.' }
-  }
-
-  const overdue = credential.toLowerCase().includes('pendente')
-
-  return {
-    ok: true,
-    user: {
-      id: 'usr-1',
-      nome: 'Marina Alves',
-      email: credential,
-      empresa: 'Mercearia Sol Nascente',
-    },
-    subscription: overdue
-      ? {
-          status: 'overdue',
-          planName: 'Plano unico',
-          amount: 149,
-          dueDate: '2026-08-10',
-          daysOverdue: 14,
-        }
-      : {
-          status: 'active',
-          planName: 'Plano unico',
-          amount: 149,
-          dueDate: '2026-09-10',
-          daysOverdue: 0,
-        },
-  }
-}
-
-/**
- * SUBSTITUIR POR: GET /billing/subscription
- *
- * Chamada no login e, depois, sempre que o painel precisar reavaliar o
- * acesso (por exemplo ao voltar da tela de pagamento).
- */
-export async function fetchSubscription(): Promise<Subscription> {
-  await delay(400)
-  return {
-    status: 'active',
-    planName: 'Plano unico',
-    amount: 149,
-    dueDate: '2026-09-10',
-    daysOverdue: 0,
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Cadastro                                                                   */

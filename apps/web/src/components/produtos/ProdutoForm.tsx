@@ -119,7 +119,6 @@ export default function ProdutoForm() {
 
     setSalvando(true)
 
-    /* SUBSTITUIR POR: POST /produtos */
     const r = await salvarProduto({
       descricao,
       ean,

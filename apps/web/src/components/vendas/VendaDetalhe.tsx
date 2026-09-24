@@ -13,6 +13,7 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
   const [status, setStatus] = useState(venda.status)
   const [estornando, setEstornando] = useState(false)
   const [processando, setProcessando] = useState(false)
+  const [motivo, setMotivo] = useState('')
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   /* Cancelada, devolvida ou devolvida em parte: nos tres o dinheiro nao ficou
@@ -30,23 +31,27 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
   const valorLiquido = venda.total - venda.taxaCartao
 
   async function confirmarEstorno() {
-    setProcessando(true)
+    /* O servidor exige o motivo (fica no historico da venda). Recusar aqui
+       evita a ida e volta so para ouvir isso. */
+    if (motivo.trim().length < 3) {
+      setToast({ msg: 'Diga o motivo do estorno.', tone: 'error' })
+      return
+    }
 
-    /* SUBSTITUIR POR: POST /vendas/:id/estorno — precisa ser transacional:
-       estoque, contas a receber e nota fiscal voltam juntos ou nenhum
-       volta. Ver nota no topo de lib/vendas-api.ts. */
-    const r = await estornarVenda(venda.id)
+    setProcessando(true)
+    const r = await estornarVenda(venda.id, motivo)
     setProcessando(false)
-    setEstornando(false)
 
     if (!r.ok) {
+      setEstornando(false)
       setToast({ msg: r.error, tone: 'error' })
       return
     }
 
+    setEstornando(false)
     setStatus('cancelled')
     setToast({
-      msg: `Venda estornada. ${r.itensDevolvidos} item(ns) devolvido(s) ao estoque.`,
+      msg: `Venda estornada. ${totalItens} item(ns) devolvido(s) ao estoque.`,
       tone: 'success',
     })
   }
@@ -163,7 +168,7 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
       {estornando ? (
         <ConfirmarDialog
           titulo="Estornar a venda"
-          descricao="Os itens voltam ao estoque, o título em contas a receber é revertido e a nota fiscal é cancelada. A venda continua no histórico, marcada como estornada."
+          descricao="Os itens voltam ao estoque e o título em contas a receber é revertido. A venda continua no histórico, marcada como estornada, com o motivo."
           tom="perigo"
           rotuloConfirmar="Estornar"
           processando={processando}
@@ -175,6 +180,16 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
               <span>
                 {venda.clienteNome ?? 'Venda de balcao'} · {totalItens} item(ns)
               </span>
+              <label className={styles.estornoMotivo}>
+                Motivo do estorno
+                <input
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Cliente desistiu, item com defeito..."
+                  maxLength={280}
+                  autoFocus
+                />
+              </label>
             </div>
           }
           onConfirmar={confirmarEstorno}
