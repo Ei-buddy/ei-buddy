@@ -18,7 +18,7 @@
   "dependencies": {
     "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",
-    "@mastra/fastify": "1.5.10",
+    "@mastra/fastify": "1.5.12",
     "@na-regua/agent": "workspace:*",
     "@na-regua/banking": "workspace:*",
     "@na-regua/billing": "workspace:*",
