@@ -97,7 +97,14 @@ jobs:
 
       - name: Referencia a tarefa no titulo ou no corpo
         # Idem: atualizacao de dependencia nao sai de tarefa do ledger.
-        if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
+        #
+        # E a promocao `dev` -> `main` tambem nao: ela nao FAZ trabalho, ela
+        # leva o que ja foi feito. Exigir um NR obrigaria a escolher um dos
+        # quarenta e tantos que o PR carrega, e o escolhido mentiria sobre os
+        # outros. Mesma isencao do nome da branch, logo acima.
+        if: >-
+          ${{ !startsWith(github.head_ref, 'dependabot/')
+              && !(github.head_ref == 'dev' && github.base_ref == 'main') }}
         env:
           PR_TITLE: ${{ steps.pr.outputs.titulo || github.event.pull_request.title }}
           PR_BODY: ${{ steps.pr.outputs.corpo || github.event.pull_request.body }}
