@@ -13,6 +13,7 @@ import type { CustomerContactRepository, NewCustomerContact } from '../ports/cus
 import type {
   CompanyChanges,
   CompanyRepository,
+  CustomerPatch,
   CustomerRepository,
   NewCompany,
   NewCustomer,
@@ -292,6 +293,50 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, criterio.limite)
       .map((c) => this.semTenant(c))
+  }
+
+  /**
+   * Edita so o que veio — RF-009.
+   *
+   * `?? atual` campo a campo, que e o `COALESCE` do SQL escrito em JavaScript:
+   * ausente nao mexe. Espalhar o patch com `{ ...atual, ...patch }` daria o
+   * mesmo resultado hoje e mentiria amanha — bastaria o contrato passar a
+   * aceitar `null` para o espalhamento gravar nulo onde o banco manteria o
+   * valor.
+   */
+  async update(
+    companyId: CompanyId,
+    customerId: string,
+    patch: CustomerPatch,
+    _updatedBy: UserId,
+  ): Promise<CustomerOutput | undefined> {
+    const atual = this.registros.get(customerId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+
+    const e = patch.address
+
+    const atualizado = {
+      ...atual,
+      name: patch.name ?? atual.name,
+      tradeName: patch.tradeName ?? atual.tradeName,
+      document: patch.document ?? atual.document,
+      phone: patch.phone ?? atual.phone,
+      email: patch.email ?? atual.email,
+      notes: patch.notes ?? atual.notes,
+      walletLimitCents: patch.walletLimitCents ?? atual.walletLimitCents,
+      address: {
+        zipCode: e?.zipCode ?? atual.address.zipCode,
+        street: e?.street ?? atual.address.street,
+        number: e?.number ?? atual.address.number,
+        complement: e?.complement ?? atual.address.complement,
+        district: e?.district ?? atual.address.district,
+        city: e?.city ?? atual.address.city,
+        state: e?.state ?? atual.address.state,
+      },
+    }
+
+    this.registros.set(customerId, atualizado)
+    return this.semTenant(atualizado)
   }
 
   /**

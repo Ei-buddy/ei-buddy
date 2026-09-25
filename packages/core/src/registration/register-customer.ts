@@ -4,6 +4,7 @@ import {
   type CustomerListInput,
   type CustomerListOutput,
   type CustomerOutput,
+  type UpdateCustomerInput,
   DIAS_PARA_INATIVO,
   type ImportCustomersInput,
   type ImportCustomersOutput,
@@ -179,6 +180,46 @@ export async function getCustomer(
   }
 
   return cliente
+}
+
+/**
+ * Edita o cadastro do cliente — RF-009.
+ *
+ * O contrato ja tinha `updateCustomerInputSchema` desde o inicio, e NINGUEM o
+ * usava: nao havia caso de uso, nem rota, nem botao. Quem cadastrava o
+ * telefone errado so tinha a saida de excluir e cadastrar de novo — e ate a
+ * exclusao chegar (#279) nem isso.
+ *
+ * ## Campo ausente nao e campo vazio
+ *
+ * A tela manda o que mudou. Ausente fica como esta; `null` apaga. Sem essa
+ * distincao, salvar a edicao do telefone apagaria o e-mail que ninguem tocou —
+ * que e o que um `UPDATE` com `?? null` em toda coluna faz.
+ *
+ * ## Por que nao procura parecido, como o cadastro faz
+ *
+ * A RF-010 avisa sobre duplicata no CADASTRO, quando o balcao pode estar
+ * criando de novo alguem que ja existe. Na edicao a pessoa esta olhando para a
+ * ficha que escolheu abrir: interromper com "achamos alguem parecido" no meio
+ * de uma correcao de telefone atrapalharia o conserto em vez de evitar o erro.
+ */
+export async function updateCustomer(
+  deps: { readonly customers: CustomerRepository },
+  ctx: ExecutionContext,
+  customerId: string,
+  input: UpdateCustomerInput,
+): Promise<CustomerOutput> {
+  assertCanWrite(ctx)
+
+  const atualizado = await deps.customers.update(ctx.companyId, customerId, input, ctx.userId)
+
+  /* De outra empresa cai no MESMO 404 de "nao existe" — um erro diferente
+     confirmaria que aquele id existe em alguma outra loja. */
+  if (atualizado === undefined) {
+    throw AppError.notFound('Cliente nao encontrado.')
+  }
+
+  return atualizado
 }
 
 /**

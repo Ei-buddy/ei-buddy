@@ -4,7 +4,13 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { buscarCep, UFS } from '@/lib/empresa-api'
 import { buscarCnpj } from '@/lib/empresa-api'
-import { buscarCpf, type CandidatoCliente, salvarCliente } from '@/lib/clientes-api'
+import {
+  atualizarCliente,
+  buscarCpf,
+  type CandidatoCliente,
+  type ClienteDaFicha,
+  salvarCliente,
+} from '@/lib/clientes-api'
 import {
   maskCelular,
   maskCEP,
@@ -57,13 +63,54 @@ const VAZIO: Campos = {
   uf: '',
 }
 
+/**
+ * A ficha gravada vira os campos da tela — RF-009.
+ *
+ * Sem cliente (cadastro novo) devolve `VAZIO`, e por isso o formulario tem um
+ * caminho so: quem cadastra e quem edita passam pelas mesmas mascaras e pelas
+ * mesmas validacoes.
+ *
+ * `?? ''` em tudo porque a ficha e anulavel e o campo de texto nao: um `null`
+ * num `<input value>` faz o React trocar para nao-controlado no meio da
+ * digitacao, e o campo para de responder.
+ */
+function paraCampos(cliente?: ClienteDaFicha): Campos {
+  if (cliente === undefined) return VAZIO
+
+  return {
+    documento: cliente.documento ?? '',
+    nome: cliente.nome,
+    nomeFantasia: cliente.nomeFantasia ?? '',
+    email: cliente.email ?? '',
+    ddd: cliente.ddd ?? '',
+    celular: cliente.celular ?? '',
+    cep: cliente.endereco.cep ?? '',
+    logradouro: cliente.endereco.logradouro ?? '',
+    numero: cliente.endereco.numero ?? '',
+    complemento: cliente.endereco.complemento ?? '',
+    bairro: cliente.endereco.bairro ?? '',
+    cidade: cliente.endereco.cidade ?? '',
+    uf: cliente.endereco.uf ?? '',
+  }
+}
+
 type Erros = Partial<Record<keyof Campos, FieldError>>
 
-export default function ClienteForm() {
+/**
+ * Cadastro e edicao do cliente — RF-009, RF-010.
+ *
+ * Um componente para os dois, e nao dois parecidos: os campos, as mascaras, a
+ * validacao condicional de PJ e a busca de CEP sao os mesmos, e duas copias
+ * divergiriam no primeiro campo novo. O que muda e o verbo e a busca por
+ * parecido — ver `salvar` abaixo.
+ */
+export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = {}) {
   const router = useRouter()
 
-  const [tipo, setTipo] = useState<TipoPessoa>('fisica')
-  const [campos, setCampos] = useState<Campos>(VAZIO)
+  const [tipo, setTipo] = useState<TipoPessoa>(
+    cliente?.tipoPessoa === 'juridica' ? 'juridica' : 'fisica',
+  )
+  const [campos, setCampos] = useState<Campos>(() => paraCampos(cliente))
   const [erros, setErros] = useState<Erros>({})
 
   const [buscandoCep, setBuscandoCep] = useState(false)
@@ -75,6 +122,15 @@ export default function ClienteForm() {
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
   /** Clientes parecidos que a api encontrou — RF-010. */
   const [duplicados, setDuplicados] = useState<CandidatoCliente[] | null>(null)
+
+  /*
+   * Em edicao, o formulario abre com o que esta gravado.
+   *
+   * `useState` com inicializador, e nao `useEffect` que preenche depois: o
+   * segundo desenharia os campos vazios por um quadro e so entao os preencheria
+   * — e quem digitasse rapido perderia o que escreveu.
+   */
+  const editando = cliente !== undefined
 
   const rotuloDocumento = tipo === 'fisica' ? 'CPF' : 'CNPJ'
   const rotuloNome = tipo === 'fisica' ? 'Nome completo' : 'Razão social'
@@ -212,7 +268,15 @@ export default function ClienteForm() {
 
     setSalvando(true)
 
-    const resultado = await salvarCliente({ ...campos, tipoPessoa: tipo })
+    /*
+     * Editar NAO procura parecido. A RF-010 avisa sobre duplicata no cadastro,
+     * quando o balcao pode estar criando de novo alguem que ja existe; na
+     * edicao a pessoa esta olhando para a ficha que escolheu abrir, e a
+     * interrupcao atrapalharia o conserto em vez de evitar o erro.
+     */
+    const resultado = editando
+      ? await atualizarCliente(cliente.id, { ...campos, tipoPessoa: tipo })
+      : await salvarCliente({ ...campos, tipoPessoa: tipo })
     setSalvando(false)
 
     if (!resultado.ok) {
@@ -231,7 +295,9 @@ export default function ClienteForm() {
     }
 
     setToast({ msg: 'Cliente cadastrado.', tone: 'success' })
-    router.push('/app/clientes')
+    /* Depois de editar, volta para a FICHA: quem corrigiu um telefone quer
+       conferir o resultado, e a lista nao mostra telefone. */
+    router.push(editando ? `/app/clientes/${cliente.id}` : '/app/clientes')
   }
 
   /**

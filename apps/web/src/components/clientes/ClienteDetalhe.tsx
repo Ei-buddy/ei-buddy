@@ -14,12 +14,13 @@ import {
 } from '@/lib/clientes-api'
 import { describeDueDate, formatDate, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
-import { Button } from '@/components/ui/Button'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
 import ConsentimentoWhatsapp from './ConsentimentoWhatsapp'
 import ExcluirCliente from './ExcluirCliente'
+import NovaPendencia from './NovaPendencia'
 import NovoContato from './NovoContato'
 import styles from './detalhe.module.css'
 
@@ -81,10 +82,18 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
    */
   const [contatos, setContatos] = useState<ContatoCliente[]>([])
   const [lancandoContato, setLancandoContato] = useState(false)
+  const [lancandoPendencia, setLancandoPendencia] = useState(false)
+
   /* Compras e pendencias vem da api. Falha em uma delas deixa a secao vazia,
      e nao derruba a ficha — mesmo criterio dos contatos. */
   const [compras, setCompras] = useState<CompraCliente[]>([])
   const [pendencias, setPendencias] = useState<PendenciaCliente[]>([])
+  const carregarPendencias = useCallback(async () => {
+    const r = await pendenciasDoCliente(clienteId)
+    /* Falha aqui NAO derruba a ficha: e uma secao, e o cadastro, o endereco e
+       o historico continuam legiveis sem ela. */
+    if (r.ok) setPendencias(r.dados)
+  }, [clienteId])
 
   const carregarContatos = useCallback(async () => {
     const r = await contatosDoCliente(clienteId)
@@ -161,15 +170,19 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
         {...(subtitulo === '' ? {} : { subtitle: subtitulo })}
         actions={
           <>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setToast('Lançamento de pendência entra com o módulo de Contas a Receber.')
-              }
-            >
+            {/* Leva ao formulario da secao de pendencias, mais abaixo: um
+                segundo formulario aqui em cima significaria dois lugares para
+                lancar a mesma coisa. */}
+            <Button variant="secondary" onClick={() => setLancandoPendencia(true)}>
               <IconReceipt size={16} />
               Lançar pendência
             </Button>
+            {/* Editar vem PRIMEIRO entre as acoes: e o que se procura quando
+                se abre a ficha de alguem com dado errado, e ate agora nao
+                existia em lugar nenhum — nem rota, nem caso de uso, nem botao. */}
+            <ButtonLink href={`/app/clientes/${cliente.id}/editar`} variant="secondary">
+              Editar cadastro
+            </ButtonLink>
             {/* Leva ao formulario da secao de historico, mais abaixo: um
                 segundo formulario aqui em cima significaria dois lugares para
                 escrever a mesma coisa. */}
@@ -286,13 +299,33 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
         <Card
           title="Pendências financeiras"
           action={
-            <Link href="/app/financeiro/contas-a-receber" className={styles.verMais}>
-              Contas a receber
-              <IconArrowRight size={14} />
-            </Link>
+            lancandoPendencia ? null : (
+              <div className={styles.acoesDoCard}>
+                <Button variant="ghost" size="sm" onClick={() => setLancandoPendencia(true)}>
+                  <IconPlus size={14} />
+                  Lançar
+                </Button>
+                <Link href="/app/financeiro/contas-a-receber" className={styles.verMais}>
+                  Contas a receber
+                  <IconArrowRight size={14} />
+                </Link>
+              </div>
+            )
           }
         >
-          {pendencias.length === 0 ? (
+          {lancandoPendencia ? (
+            <NovaPendencia
+              clienteId={cliente.id}
+              onLancada={() => {
+                setLancandoPendencia(false)
+                setToast('Pendência lançada.')
+                void carregarPendencias()
+              }}
+              onCancelar={() => setLancandoPendencia(false)}
+            />
+          ) : null}
+
+          {pendencias.length === 0 && !lancandoPendencia ? (
             <EmptyState
               title="Nada em aberto"
               description="Este cliente não tem títulos pendentes."

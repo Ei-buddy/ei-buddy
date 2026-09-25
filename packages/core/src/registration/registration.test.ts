@@ -23,6 +23,7 @@ import {
   listCustomers,
   registerCustomer,
   restoreCustomer,
+  updateCustomer,
 } from './register-customer.js'
 import {
   catalogSummary,
@@ -450,6 +451,45 @@ describe('excluir e reativar cliente — RF-009', () => {
     })
 
     expect(r.status).toBe('created')
+  })
+})
+
+describe('editar cliente — RF-009', () => {
+  async function comCliente() {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+      email: 'joao@antigo.local',
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    return { customers, id: r.customer.id }
+  }
+
+  /*
+   * O que o COALESCE do SQL garante, escrito como teste: mandar so o e-mail
+   * nao pode apagar o telefone. Um UPDATE com `?? null` em toda coluna
+   * limparia tudo que a tela nao mandou.
+   */
+  it('campo ausente fica como esta', async () => {
+    const { customers, id } = await comCliente()
+
+    const c = await updateCustomer({ customers }, contexto(), id, { email: 'joao@novo.local' })
+
+    expect(c.email).toBe('joao@novo.local')
+    expect(c.phone).toBe('41999990000')
+    expect(c.name).toBe('Joao do Bar')
+  })
+
+  it('cliente de outra empresa responde NOT_FOUND', async () => {
+    const { customers, id } = await comCliente()
+
+    const erro = await updateCustomer({ customers }, contexto({ companyId: 'emp-2' }), id, {
+      name: 'Nao deveria gravar',
+    }).catch((e: unknown) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 })
 

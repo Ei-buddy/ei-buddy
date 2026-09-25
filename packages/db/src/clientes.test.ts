@@ -74,6 +74,13 @@ describe.skipIf(!DATABASE_URL)('lista de clientes — NR-072', () => {
     quando: string,
     valorCents: number,
     cancelada = false,
+    /* O que o teste precisa variar para separar "o que o cliente pagou" de "o
+       que sobrou para a loja". Ausentes, a venda e simples e bruto = liquido. */
+    extras: {
+      descontoCents?: number
+      liquidoCents?: number
+      devolvidoCents?: number
+    } = {},
   ): Promise<void> {
     sequencia += 1
     await withTenant(
@@ -82,9 +89,10 @@ describe.skipIf(!DATABASE_URL)('lista de clientes — NR-072', () => {
       (tx) => tx`
         INSERT INTO sales
           (company_id, number, customer_id, status, gross_amount_cents, discount_cents,
-           net_amount_cents, created_at, cancelled_at)
+           net_amount_cents, returned_amount_cents, created_at, cancelled_at)
         VALUES (${empresa}, ${sequencia}, ${clienteId},
-                ${cancelada ? 'cancelled' : 'open'}, ${valorCents}, 0, ${valorCents},
+                ${cancelada ? 'cancelled' : 'open'}, ${valorCents}, ${extras.descontoCents ?? 0},
+                ${extras.liquidoCents ?? valorCents}, ${extras.devolvidoCents ?? 0},
                 ${quando}, ${cancelada ? quando : null})
       `,
     )
@@ -149,6 +157,43 @@ describe.skipIf(!DATABASE_URL)('lista de clientes — NR-072', () => {
 
     expect(r.clientes[0]?.salesCount).toBe(1)
     expect(r.clientes[0]?.totalSpentCents).toBe(5_000)
+  })
+
+  /*
+   * O bug que os testes acima nao pegavam: todos criam venda com bruto igual
+   * ao liquido, entao somar por um ou por outro dava o mesmo numero.
+   *
+   * `net_amount_cents` e bruto menos desconto, IMPOSTO e TARIFA da adquirente.
+   * Os dois ultimos sao custo da loja, nao abatimento para quem comprou — o
+   * cliente pagou os R$ 24,00 inteiros.
+   */
+  it('o total gasto e o que o cliente pagou, e nao o que sobrou para a loja', async () => {
+    const cliente = await criarCliente(empresaA, 'Paula Pagou Tudo')
+    await criarVenda(empresaA, cliente, '2026-09-02T10:00:00.000Z', 2_400, false, {
+      liquidoCents: 2_256,
+    })
+
+    const r = await repo.list(empresaA, { ...pedido, termo: 'Paula Pagou Tudo' })
+
+    expect(r.clientes[0]?.totalSpentCents).toBe(2_400)
+  })
+
+  /*
+   * `returned_amount_cents` soma TOTAIS DE LINHA — ja com o desconto do item,
+   * mas antes do desconto da venda. Subtrai-lo direto de "bruto - desconto"
+   * daria saldo NEGATIVO numa venda com desconto devolvida por inteiro.
+   */
+  it('devolucao total de venda com desconto zera, e nao fica negativa', async () => {
+    const cliente = await criarCliente(empresaA, 'Rui Devolveu Tudo')
+    await criarVenda(empresaA, cliente, '2026-09-02T10:00:00.000Z', 10_000, false, {
+      descontoCents: 1_000,
+      liquidoCents: 9_000,
+      devolvidoCents: 10_000,
+    })
+
+    const r = await repo.list(empresaA, { ...pedido, termo: 'Rui Devolveu Tudo' })
+
+    expect(r.clientes[0]?.totalSpentCents).toBe(0)
   })
 
   it('quem nunca comprou volta com nulo, e nao com zero disfarcado', async () => {

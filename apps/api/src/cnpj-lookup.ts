@@ -1,5 +1,6 @@
 import type { CnpjCompany, CnpjLookup } from '@na-regua/core'
 import { motivoDoErro } from './motivo-do-erro.js'
+import { USER_AGENT } from './identificacao-do-cliente-http.js'
 
 /**
  * Consulta de CNPJ via BrasilAPI.
@@ -41,7 +42,9 @@ export function createBrasilApiCnpjLookup(): CnpjLookup {
 
       let resposta: Response
       try {
-        resposta = await fetch(`${BASE_URL}/${digitos}`)
+        resposta = await fetch(`${BASE_URL}/${digitos}`, {
+          headers: { 'user-agent': USER_AGENT },
+        })
       } catch (erro) {
         console.warn(
           JSON.stringify({
@@ -53,7 +56,27 @@ export function createBrasilApiCnpjLookup(): CnpjLookup {
         return undefined
       }
 
-      if (!resposta.ok) return undefined
+      /*
+       * 400 e 404 do provedor sao os dois "confira o numero" — ele responde
+       * 400 para digito verificador errado e 404 para numero valido que nao
+       * esta cadastrado. QUALQUER outro status e "nao consegui
+       * perguntar", e as duas coisas nao podem virar a mesma resposta.
+       *
+       * Era `return undefined` para tudo, e o caso de uso traduz `undefined`
+       * em 404 "confira os numeros" — dizendo ao lojista que o numero esta
+       * errado quando o numero estava certo e o provedor e que recusou. Foi
+       * assim que um 403 por falta de `user-agent` passou por "CNPJ
+       * inexistente" em CNPJ de empresa que qualquer um conhece.
+       *
+       * Lancar deixa o erro virar 500 com "Algo deu errado do nosso lado.
+       * Tente de novo em instantes." — que e a acao certa para quem esta na
+       * frente da tela.
+       */
+      if (resposta.status === 404 || resposta.status === 400) return undefined
+
+      if (!resposta.ok) {
+        throw new Error(`a consulta de CNPJ respondeu ${resposta.status} ${resposta.statusText}`)
+      }
 
       const dados = (await resposta.json().catch(() => undefined)) as RespostaBrasilApi | undefined
 
