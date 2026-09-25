@@ -264,3 +264,15 @@
   margin-bottom: 4px;
   border-bottom: 1px solid var(--app-border);
 }
+
+/*
+ * Duas acoes no canto do card: lancar e ir para a tela cheia.
+ *
+ * O card so aceitava um `action`, entao a lista precisava de um agrupador —
+ * sem ele o "Lancar" empurraria o link "Contas a receber" para baixo.
+ */
+.acoesDoCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
