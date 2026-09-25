@@ -8,7 +8,7 @@
     "@na-regua/money": "workspace:*",
     "@na-regua/ui": "workspace:*",
     "@react-native-async-storage/async-storage": "3.1.1",
-    "@react-navigation/drawer": "^7.13.10",
+    "@react-navigation/drawer": "^7.14.2",
     "@react-navigation/native": "^7.3.18",
     "expo": "~57.0.16",
     "expo-camera": "~57.0.4",
