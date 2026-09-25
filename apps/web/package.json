@@ -17,7 +17,7 @@
     "@na-regua/ui": "workspace:*",
     "@react-three/fiber": "^9.8.0",
     "framer-motion": "^13.4.3",
-    "next": "16.3.4",
+    "next": "16.3.6",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.3.0",
