@@ -505,6 +505,53 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
      * empresa, entao "nao atualizou nada" e exatamente a resposta certa para
      * inexistente e para de outro tenant.
      */
+    /**
+     * Edita o cadastro — RF-009.
+     *
+     * `COALESCE(novo, coluna)` em toda coluna, como o UPDATE de `companies`:
+     * ausente nao mexe. Um `SET` direto com `?? null` limparia todo campo que a
+     * tela nao mandou — salvar a correcao do telefone apagaria o e-mail.
+     *
+     * Nao ha como APAGAR um campo por aqui, e e do contrato: `.partial()`
+     * aceita omitir ou mandar valor, nunca `null`. A empresa tem a mesma
+     * limitacao.
+     *
+     * `undefined` quando nao atualizou nada — inexistente ou de outra loja,
+     * indistinguiveis daqui por causa da RLS.
+     */
+    update: async (companyId, customerId, patch, updatedBy) => {
+      const e = patch.address
+
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaCliente[]>`
+          UPDATE customers
+             SET name               = COALESCE(${patch.name ?? null}, name),
+                 trade_name         = COALESCE(${patch.tradeName ?? null}, trade_name),
+                 document           = COALESCE(${patch.document ?? null}, document),
+                 phone              = COALESCE(${patch.phone ?? null}, phone),
+                 email              = COALESCE(${patch.email ?? null}, email),
+                 notes              = COALESCE(${patch.notes ?? null}, notes),
+                 wallet_limit_cents = COALESCE(${patch.walletLimitCents ?? null},
+                                               wallet_limit_cents),
+                 postal_code        = COALESCE(${e?.zipCode ?? null}, postal_code),
+                 street             = COALESCE(${e?.street ?? null}, street),
+                 street_number      = COALESCE(${e?.number ?? null}, street_number),
+                 complement         = COALESCE(${e?.complement ?? null}, complement),
+                 neighborhood       = COALESCE(${e?.district ?? null}, neighborhood),
+                 city               = COALESCE(${e?.city ?? null}, city),
+                 state              = COALESCE(${e?.state ?? null}, state),
+                 updated_by         = ${updatedBy},
+                 updated_at         = now()
+           WHERE id = ${customerId}
+          RETURNING *
+        `,
+      )
+
+      return linha === undefined ? undefined : paraCliente(linha)
+    },
+
     setDeletedAt: async (companyId, customerId, deletedAt, updatedBy) => {
       const linhas = await withTenant(
         sql,

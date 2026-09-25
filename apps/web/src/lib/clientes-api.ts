@@ -175,6 +175,41 @@ export async function salvarCliente(
   return { ok: true, id: corpo.id! }
 }
 
+/**
+ * Edita o cadastro — RF-009.
+ *
+ * Manda a ficha inteira, e nao so o que mudou: a tela ja tem todos os campos
+ * preenchidos (ela carregou o cliente para editar), entao calcular o diff aqui
+ * seria trabalho para chegar ao mesmo lugar. Quem trata ausente como "nao
+ * mexe" e o servidor — e por isso o verbo e `PATCH`.
+ *
+ * Campo apagado na tela vira campo AUSENTE, nao vazio: o contrato valida
+ * formato, e `''` seria recusado como "e-mail invalido" de quem so quis
+ * limpar. O efeito e que apagar nao apaga — fica como estava. Limpar campo
+ * depende de o contrato aceitar `null`, que hoje ele nao aceita, nem para
+ * cliente nem para empresa.
+ */
+export async function atualizarCliente(
+  id: string,
+  dados: DadosCliente,
+): Promise<ResultadoSalvarCliente> {
+  const address = enderecoParaApi(dados)
+
+  const r = await pedir<{ id: string }>(`/api/clientes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      ...(dados.nome ? { name: dados.nome } : {}),
+      ...(dados.nomeFantasia ? { tradeName: dados.nomeFantasia } : {}),
+      ...(dados.documento ? { document: dados.documento } : {}),
+      ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
+      ...(dados.email ? { email: dados.email } : {}),
+      ...(address === undefined ? {} : { address }),
+    }),
+  })
+
+  return r.ok ? { ok: true, id: r.dados.id } : { ok: false, error: r.erro }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Dados vinculados ao cliente (detalhe)                                      */
 /* -------------------------------------------------------------------------- */
@@ -345,6 +380,9 @@ export type EnderecoDoCliente = {
 export type ClienteDaFicha = {
   id: string
   nome: string
+  /* Razao social fica em `nome`; este e o apelido pelo qual a loja conhece o
+     cliente. Nulo em pessoa fisica, que nao tem fantasia. */
+  nomeFantasia: string | null
   documento: string | null
   /** Derivado do documento — 11 digitos e fisica, 14 e juridica. */
   tipoPessoa: 'fisica' | 'juridica' | null
@@ -380,6 +418,7 @@ export type ClienteDaFicha = {
 type FichaDaApi = {
   id: string
   name: string
+  tradeName: string | null
   document: string | null
   phone: string | null
   email: string | null
@@ -428,6 +467,7 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
     dados: {
       id: c.id,
       nome: c.name,
+      nomeFantasia: c.tradeName,
       documento: c.document,
       tipoPessoa: tipoDePessoa(c.document),
       /* Menos de dez digitos nao tem DDD: e um telefone antigo ou incompleto,

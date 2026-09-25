@@ -186,6 +186,22 @@ function cadastroEmMemoria() {
         .slice(0, criterio.limite)
     },
 
+    /* Edita so o que veio, como o COALESCE do SQL. */
+    update: async (companyId, customerId, patch) => {
+      const alvo = clientes.find((c) => c.id === customerId && c.companyId === companyId)
+      if (alvo === undefined) return undefined
+
+      alvo.name = patch.name ?? alvo.name
+      alvo.tradeName = patch.tradeName ?? alvo.tradeName
+      alvo.document = patch.document ?? alvo.document
+      alvo.phone = patch.phone ?? alvo.phone
+      alvo.email = patch.email ?? alvo.email
+      alvo.notes = patch.notes ?? alvo.notes
+      alvo.walletLimitCents = patch.walletLimitCents ?? alvo.walletLimitCents
+
+      return alvo
+    },
+
     /* `findById` NAO filtra excluido, aqui como no banco: e a ficha dele que
        carrega o botao de reativar. */
     setDeletedAt: async (companyId, customerId, deletedAt) => {
