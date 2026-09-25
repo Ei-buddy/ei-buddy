@@ -37,7 +37,7 @@ type LinhaTitulo = {
   settled_amount_cents: string | number
   status: string
   customer_id: string | null
-  payment_method: string | null
+  is_customer_debt: boolean
 }
 
 const paraSnapshot = (l: LinhaTitulo): TituloSnapshot => ({
@@ -46,7 +46,7 @@ const paraSnapshot = (l: LinhaTitulo): TituloSnapshot => ({
   settledAmountCents: numero(l.settled_amount_cents),
   status: l.status,
   customerId: l.customer_id,
-  paymentMethod: l.payment_method as TituloSnapshot['paymentMethod'],
+  isCustomerDebt: l.is_customer_debt,
 })
 
 type LinhaBaixa = {
@@ -111,7 +111,7 @@ function escopo(tx: TransactionSql, companyId: string): SettlementTransaction {
      * caso de uso decide "parcial ou completa" com base neste numero. Ler antes
      * da transacao decidiria sobre um saldo que ja mudou.
      *
-     * `payment_method` volta nulo porque `payables` nao tem a coluna: quem paga
+     * `is_customer_debt` volta falso porque `payables` nao tem a coluna: quem paga
      * um fornecedor informa a CONTA de onde saiu, e nao a forma. A porta declara
      * o campo por causa do recebivel, e aqui a resposta honesta e nula. Como
      * `customer_id` tambem e nulo, `mexeNoSaldoDoCliente` responde nao — que e
@@ -125,7 +125,7 @@ function escopo(tx: TransactionSql, companyId: string): SettlementTransaction {
     findPayable: async (_companyId, id) => {
       const [linha] = await tx<LinhaTitulo[]>`
         SELECT id, amount_cents, settled_amount_cents, status,
-               NULL::uuid AS customer_id, NULL::text AS payment_method
+               NULL::uuid AS customer_id, false AS is_customer_debt
         FROM payables
         WHERE id = ${id}
       `
@@ -133,30 +133,25 @@ function escopo(tx: TransactionSql, companyId: string): SettlementTransaction {
     },
 
     /**
-     * O recebivel, com a forma de pagamento que veio da VENDA.
+     * O recebivel, e se a divida dele e do cliente.
      *
-     * `receivables` nao guarda `payment_method`, e nao deveria: a forma e um
-     * fato do PAGAMENTO, e mora em `payments`. Copiar para o recebivel criaria
-     * duas versoes da mesma verdade.
+     * `is_customer_debt` e lido, e nao mais deduzido.
      *
-     * Isso importa porque `mexeNoSaldoDoCliente` decide o fiado por ela. Um
-     * recebivel de venda no CREDITO nao pode abater o saldo devedor do cliente:
-     * quem vai pagar e a adquirente, e nao ele. Ja um de venda na CARTEIRA
-     * (fiado) tem de abater.
+     * Ate a migration 0037 a forma de pagamento saia de
+     * `MIN(p.method) FROM payments WHERE sale_id = r.sale_id`, e o comentario
+     * que justificava o `MIN` dizia: "na pratica so o parcelado gera recebivel,
+     * e ele e de uma forma so". Nao e verdade — uma venda paga metade em
+     * dinheiro e metade no fiado gera dois recebiveis, e `MIN('cash','wallet')`
+     * e `'cash'`. O "Fiado" daquela venda era lido como recebimento em
+     * dinheiro, e paga-lo nao abatia o que o cliente devia.
      *
-     * Nulo — recebivel avulso, sem venda — tambem mexe no saldo, e o comentario
-     * de `mexeNoSaldoDoCliente` diz por que: alguem lancou uma cobranca nominal,
-     * e ela e divida daquela pessoa.
-     *
-     * `MIN` porque uma venda pode ter mais de um pagamento. Na pratica so o
-     * parcelado gera recebivel, e ele e de uma forma so; `MIN` torna a consulta
-     * deterministica em vez de depender da ordem que o banco devolver.
+     * Nao ha `MIN` que acerte: o recebivel nao sabe de qual pagamento nasceu.
+     * Quem decide agora e `core`, uma vez, quando o titulo nasce.
      */
     findReceivable: async (_companyId, id) => {
       const [linha] = await tx<LinhaTitulo[]>`
         SELECT r.id, r.amount_cents, r.settled_amount_cents, r.status, r.customer_id,
-               (SELECT MIN(p.method) FROM payments p WHERE p.sale_id = r.sale_id)
-                 AS payment_method
+               r.is_customer_debt
         FROM receivables r
         WHERE r.id = ${id}
       `

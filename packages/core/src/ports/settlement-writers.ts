@@ -20,14 +20,14 @@ export type TituloSnapshot = {
   /** Nulo quando o titulo nao esta ligado a ninguem. */
   readonly customerId: string | null
   /**
-   * Como a venda foi paga, quando o recebivel veio de uma.
+   * Esta divida e do CLIENTE — RF-013, migration 0037.
    *
-   * Nulo em recebivel avulso (RF-065) e em conta a pagar. Serve para uma
-   * decisao so, e ela vive em `core`: recebivel de CARTAO e divida da
-   * adquirente, nao do cliente — baixar um deles nao pode diminuir o que o
-   * cliente deve na loja.
+   * Decidido por `core` quando o titulo nasce, e nao deduzido depois da forma
+   * de pagamento: o recebivel nao sabe de qual pagamento veio, e a deducao por
+   * `MIN(p.method)` lia o fiado de uma venda mista como recebimento em
+   * dinheiro. Ver `nasceComoDividaDoCliente`.
    */
-  readonly paymentMethod: PaymentMethod | null
+  readonly isCustomerDebt: boolean
 }
 
 export type NewSettlement = {

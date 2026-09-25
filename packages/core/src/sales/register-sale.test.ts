@@ -130,6 +130,62 @@ describe('registerSale — o caminho comum', () => {
   })
 })
 
+describe('o saldo do fiado — RF-013', () => {
+  /*
+   * O bug que este bloco tranca: nada somava no saldo quando a divida nascia.
+   * So a baixa, o cancelamento e a devolucao mexiam, e os tres para MENOS —
+   * entao o filtro "Fiado" da lista (`wallet_balance_cents > 0`) nunca casava
+   * com ninguem, e cancelar uma venda fiada levava o saldo a negativo.
+   */
+  it('venda no fiado soma no que o cliente deve', async () => {
+    await registerSale(
+      deps(),
+      contexto(),
+      venda({
+        customerId: 'cli-1',
+        payments: [{ method: 'wallet', amountCents: 1990 }],
+      }),
+    )
+
+    expect(unitOfWork.saldoDe('cli-1')).toBe(1990)
+  })
+
+  it('venda em dinheiro nao soma: nao ha divida', async () => {
+    await registerSale(deps(), contexto(), venda({ customerId: 'cli-1' }))
+
+    expect(unitOfWork.saldoDe('cli-1')).toBe(0)
+  })
+
+  /*
+   * O caso que a deducao por `MIN(p.method)` errava: metade agora, metade
+   * fiado. `MIN('cash','wallet')` e `'cash'`, entao o "Fiado" da venda era
+   * lido como recebimento em dinheiro — e so a parte fiada e divida.
+   */
+  it('venda mista soma so a parte fiada', async () => {
+    await registerSale(
+      deps(),
+      contexto(),
+      venda({
+        customerId: 'cli-1',
+        payments: [
+          { method: 'cash', amountCents: 990 },
+          { method: 'wallet', amountCents: 1000 },
+        ],
+      }),
+    )
+
+    expect(unitOfWork.saldoDe('cli-1')).toBe(1000)
+  })
+
+  /* Venda no fiado sem cliente nao existe — o contrato ja recusa —, mas sem
+     cliente nao ha saldo de ninguem para mexer. */
+  it('sem cliente, nada e somado', async () => {
+    await registerSale(deps(), contexto(), venda())
+
+    expect(unitOfWork.saldoDe('cli-1')).toBe(0)
+  })
+})
+
 describe('pagamento — RF-034, RF-037', () => {
   it('recusa quando a soma dos pagamentos nao fecha o total', async () => {
     const erro = await registerSale(

@@ -107,6 +107,10 @@ function unitOfWorkEmMemoria() {
         },
         decreaseStock: async () => undefined,
         findByIdempotencyKey: async (chave) => porChave.get(chave),
+
+        /* O saldo do fiado — RF-013. O teste da rota afirma status e corpo;
+           quanto subiu tem cobertura em core. */
+        adjustCustomerBalance: async () => {},
       }
       return fn(tx)
     },

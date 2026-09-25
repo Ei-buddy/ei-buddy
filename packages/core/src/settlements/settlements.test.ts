@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isAppError } from '../app-error.js'
 import { InMemoryAuditTrail } from '../audit/fakes.js'
 import type { ExecutionContext } from '../context.js'
-import { mexeNoSaldoDoCliente } from './customer-balance.js'
+import { mexeNoSaldoDoCliente, nasceComoDividaDoCliente } from './customer-balance.js'
 import { InMemorySettlements } from './fakes.js'
 import { reverseSettlement } from './reverse-settlement.js'
 import { settlePayable, settleReceivable } from './settle.js'
@@ -40,7 +40,7 @@ function cenario() {
     settledAmountCents: 0,
     status: 'open',
     customerId: 'cliente-1',
-    paymentMethod: 'wallet',
+    isCustomerDebt: true,
   })
   uow.adicionarTitulo('empresa-1', 'receivable', {
     id: 'rec-cartao',
@@ -48,7 +48,7 @@ function cenario() {
     settledAmountCents: 0,
     status: 'open',
     customerId: 'cliente-1',
-    paymentMethod: 'credit',
+    isCustomerDebt: false,
   })
   uow.definirSaldo('cliente-1', 10_000)
   return { deps: { uow, audit }, uow, audit }
@@ -200,13 +200,31 @@ describe('quem mexe no saldo do cliente', () => {
   const base = { id: 'x', amountCents: 1, settledAmountCents: 0, status: 'open' }
 
   it.each([
+    [true, 'cliente-1', true],
+    [false, 'cliente-1', false],
+    [true, null, false],
+  ] as const)(
+    'divida do cliente %s com cliente %s → %s',
+    (isCustomerDebt, customerId, esperado) => {
+      expect(mexeNoSaldoDoCliente({ ...base, customerId, isCustomerDebt })).toBe(esperado)
+    },
+  )
+
+  /*
+   * A decisao saiu da baixa e foi para o NASCIMENTO do titulo, entao e la que
+   * as formas de pagamento importam. Antes tudo isto vivia em
+   * `mexeNoSaldoDoCliente`, deduzido de um `paymentMethod` que o repositorio
+   * adivinhava com `MIN(p.method)` — e numa venda mista adivinhava errado.
+   */
+  it.each([
     ['wallet', 'cliente-1', true],
     [null, 'cliente-1', true],
+    ['cash', 'cliente-1', false],
     ['credit', 'cliente-1', false],
     ['debit', 'cliente-1', false],
     ['wallet', null, false],
-  ] as const)('metodo %s com cliente %s → %s', (paymentMethod, customerId, esperado) => {
-    expect(mexeNoSaldoDoCliente({ ...base, customerId, paymentMethod })).toBe(esperado)
+  ] as const)('nasce como divida: %s com cliente %s → %s', (forma, customerId, esperado) => {
+    expect(nasceComoDividaDoCliente(customerId, forma)).toBe(esperado)
   })
 })
 
