@@ -69,7 +69,19 @@ jobs:
         # descricao do PR para o evento vir em nome dele, a excecao nao valer e
         # o PR reprovar por um nome de branch que ninguem pode mudar. Aconteceu
         # no #11. O head_ref e propriedade do PR e nao muda conforme quem mexe.
-        if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
+        #
+        # A PROMOCAO tambem fica de fora, pelo mesmo motivo do dependabot: o
+        # nome da branch nao pode mudar. `dev` -> `main` e o fluxo que o
+        # git-workflow.md descreve ("um PR de dev para main, como qualquer
+        # outro"), e o padrao `<tipo>/NR-<n>-<slug>` recusava justamente ele —
+        # a promocao nao podia ficar verde de jeito nenhum.
+        #
+        # A isencao exige as DUAS pontas. So `head_ref == dev` liberaria
+        # qualquer PR saindo da dev; exigir tambem `base_ref == main` limita a
+        # excecao ao caminho que de fato nao tem como ter outro nome.
+        if: >-
+          ${{ !startsWith(github.head_ref, 'dependabot/')
+              && !(github.head_ref == 'dev' && github.base_ref == 'main') }}
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
