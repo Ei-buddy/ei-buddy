@@ -58,6 +58,14 @@ overrides:
   #
   # Nao veio de mudanca nossa: a 4.3.1 ja estava no lock, e o aviso foi
   # publicado depois do ultimo PR verde. Subir para a 4.3.2, que e a primeira
-  # corrigida, e a saida — sem teto, porque a serie 4 nao tem quebra prevista e
-  # prender aqui so adiaria o proximo aviso.
-  js-yaml: '>=4.3.2'
+  # corrigida, e a saida.
+  #
+  # COM TETO. A versao anterior desta linha dizia "sem teto, porque a serie 4
+  # nao tem quebra prevista" — e a serie 5 saiu. O override sem teto arrastou
+  # o `gray-matter` (dependencia do Mastra, que pede `js-yaml ^3`) para a 5, e
+  # ele quebrou na carga: `Cannot read properties of undefined (reading
+  # 'bind')`, porque `safeLoad` nao existe mais. Toda a suite do agente caiu.
+  #
+  # O teto preserva a correcao de seguranca e para na fronteira do major, que e
+  # onde a promessa de compatibilidade acaba — como o override do vite acima.
+  js-yaml: '>=4.3.2 <5'
