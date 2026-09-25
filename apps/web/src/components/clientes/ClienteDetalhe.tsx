@@ -14,7 +14,7 @@ import {
 } from '@/lib/clientes-api'
 import { describeDueDate, formatDate, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
-import { Button } from '@/components/ui/Button'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
@@ -170,6 +170,12 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
               <IconReceipt size={16} />
               Lançar pendência
             </Button>
+            {/* Editar vem PRIMEIRO entre as acoes: e o que se procura quando
+                se abre a ficha de alguem com dado errado, e ate agora nao
+                existia em lugar nenhum — nem rota, nem caso de uso, nem botao. */}
+            <ButtonLink href={`/app/clientes/${cliente.id}/editar`} variant="secondary">
+              Editar cadastro
+            </ButtonLink>
             {/* Leva ao formulario da secao de historico, mais abaixo: um
                 segundo formulario aqui em cima significaria dois lugares para
                 escrever a mesma coisa. */}

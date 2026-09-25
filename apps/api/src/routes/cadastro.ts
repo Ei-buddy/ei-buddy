@@ -9,6 +9,7 @@ import {
   updateCompanyInputSchema,
   createCustomerContactInputSchema,
   recordWhatsappConsentInputSchema,
+  updateCustomerInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
@@ -32,6 +33,7 @@ import {
   registerCompany,
   type RegisterCompanyDeps,
   restoreCustomer,
+  updateCustomer,
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
@@ -269,6 +271,25 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
       const input = validate(createCustomerContactInputSchema, request.body)
 
       return reply.code(201).send(await addCustomerContact(deps, ctx, id, input))
+    },
+  )
+
+  /**
+   * Editar o cadastro — RF-009.
+   *
+   * `PATCH` e nao `PUT`: a tela manda o que mudou, e o que nao veio fica como
+   * esta. `PUT` prometeria substituir a ficha inteira, e quem mandasse metade
+   * dos campos apagaria a outra metade.
+   */
+  app.patch(
+    '/clientes/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateCustomerInputSchema, request.body)
+
+      return reply.code(200).send(await updateCustomer(deps, ctx, id, input))
     },
   )
 

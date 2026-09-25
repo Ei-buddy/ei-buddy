@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { chamarApi } from '@/lib/api-server'
-import { encaminhar } from '@/lib/bff'
+import { corpoDe, encaminhar } from '@/lib/bff'
 import { SESSION_COOKIE } from '@/lib/session'
 
 /**
@@ -46,4 +46,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params
 
   return encaminhar(`/clientes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+/**
+ * Editar o cadastro — RF-009.
+ *
+ * `PATCH` e nao `PUT`: a tela manda o que mudou, e o que nao veio fica como
+ * esta. `PUT` prometeria substituir a ficha inteira.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  return encaminhar(`/clientes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: await corpoDe(request),
+  })
 }

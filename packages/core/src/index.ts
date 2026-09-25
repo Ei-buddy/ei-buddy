@@ -64,6 +64,7 @@ export type {
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
+export type { CustomerPatch } from './ports/registration-repositories.js'
 export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
@@ -501,6 +502,7 @@ export {
   getCustomer,
   listCustomers,
   restoreCustomer,
+  updateCustomer,
 } from './registration/register-customer.js'
 
 /* Chamados de suporte — NR-080, US-062. */
