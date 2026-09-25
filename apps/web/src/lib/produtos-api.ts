@@ -69,7 +69,6 @@ export type DadosProduto = {
   precoVenda: number
   estoque: number
   estoqueMinimo: number
-  imagem: string | null
 }
 
 /**

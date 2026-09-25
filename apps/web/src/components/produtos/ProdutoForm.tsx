@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
 import { carregarCustosVariaveis } from '@/lib/financeiro-api'
 import { formatMoney, formatPercent } from '@/lib/format'
@@ -11,7 +10,7 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { Card, Field, FormGrid, Input, PageHeader } from '@/components/ui/UI'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
-import { IconBarcode, IconTrash } from '@/components/Icons'
+import { IconBarcode } from '@/components/Icons'
 import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './produtoForm.module.css'
@@ -41,7 +40,6 @@ export default function ProdutoForm() {
   const [estoque, setEstoque] = useState('0')
   const [estoqueMinimo, setEstoqueMinimo] = useState('0')
   const [motivoAjuste, setMotivoAjuste] = useState('')
-  const [imagem, setImagem] = useState<string | null>(null)
 
   const [categorias, setCategorias] = useState<string[]>([])
   const [fornecedores, setFornecedores] = useState<string[]>([])
@@ -82,23 +80,6 @@ export default function ProdutoForm() {
   const sobra = lucro - variavel
 
   /* ---------------------------------------------------------------- *
-   * Imagem
-   * ---------------------------------------------------------------- */
-
-  function receberImagem(arquivo: File) {
-    if (!arquivo.type.startsWith('image/')) {
-      setToast({ msg: 'Envie um arquivo de imagem.', tone: 'error' })
-      return
-    }
-
-    /* Previa local via data URL. No envio real o arquivo vai para o
-       storage e o cadastro guarda so a URL. */
-    const reader = new FileReader()
-    reader.onload = () => setImagem(String(reader.result))
-    reader.readAsDataURL(arquivo)
-  }
-
-  /* ---------------------------------------------------------------- *
    * Gravacao
    * ---------------------------------------------------------------- */
 
@@ -131,7 +112,6 @@ export default function ProdutoForm() {
       precoVenda: venda,
       estoque: Number(estoque) || 0,
       estoqueMinimo: Number(estoqueMinimo) || 0,
-      imagem,
     })
     setSalvando(false)
 
@@ -377,42 +357,23 @@ export default function ProdutoForm() {
           </FormGrid>
         </Card>
 
-        {/* ---------------- Imagem ---------------- */}
-        <Card title="Imagem do produto">
-          <div className={styles.imagemBloco}>
-            {imagem ? (
-              <div className={styles.previaWrap}>
-                {/* unoptimized: e um data URL local, nao passa pelo otimizador */}
-                <Image
-                  src={imagem}
-                  alt="Prévia da imagem do produto"
-                  className={styles.previa}
-                  width={160}
-                  height={160}
-                  unoptimized
-                />
-                <Button variant="secondary" size="sm" onClick={() => setImagem(null)}>
-                  <IconTrash size={15} />
-                  Remover
-                </Button>
-              </div>
-            ) : (
-              <label className={styles.imagemUpload}>
-                <strong>Escolher imagem</strong>
-                <span>JPG ou PNG</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className={styles.imagemInput}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) receberImagem(f)
-                  }}
-                />
-              </label>
-            )}
-          </div>
-        </Card>
+        {/*
+          A IMAGEM DO PRODUTO saiu daqui — RF-017, NR-015.
+
+          Havia um cartao "Imagem do produto" com upload, previa e botao de
+          remover. O arquivo virava data URL, ia junto no `salvarProduto` — e a
+          funcao NAO o enviava. O lojista escolhia a foto, via a previa, lia
+          "Produto cadastrado." e a foto sumia; reabrir o produto nao mostrava
+          nada.
+
+          Guardar de verdade depende de armazenamento de objeto, que e a
+          NR-015: a tabela `attachments` ja existe e guarda `storage_path` —
+          um caminho, nao bytes —, e nenhum repositorio escreve nela.
+
+          Campo que finge funcionar e pior que campo ausente: o primeiro faz o
+          lojista acreditar que cadastrou, o segundo so nao existe ainda.
+          Quando a NR-015 fechar, isto volta com o upload de verdade atras.
+        */}
 
         <div className={styles.rodape}>
           <ButtonLink href="/app/produtos" variant="secondary">
