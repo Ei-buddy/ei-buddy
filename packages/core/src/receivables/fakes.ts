@@ -107,6 +107,13 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
     }
   }
 
+  private readonly saldos = new Map<string, number>()
+
+  /** Quanto o cliente deve, segundo o que esta transacao somou. */
+  saldoDe(customerId: string): number {
+    return this.saldos.get(customerId) ?? 0
+  }
+
   private escopo(_companyId: CompanyId): ManualReceivableTransaction {
     return {
       record: (entrada) => this.trilha.record(entrada),
@@ -132,6 +139,11 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
         }
         this.registros.push(gravado)
         return gravado
+      },
+
+      /** O saldo devedor do cliente — RF-013. */
+      adjustCustomerBalance: async (customerId, deltaCents) => {
+        this.saldos.set(customerId, (this.saldos.get(customerId) ?? 0) + deltaCents)
       },
     }
   }

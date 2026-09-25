@@ -90,6 +90,8 @@ export class InMemoryUnitOfWork implements UnitOfWork {
     }
   }
 
+  private readonly saldos = new Map<string, number>()
+
   private escopo(companyId: CompanyId): SaleTransaction {
     return {
       /* A trilha entra NA transacao — NR-087. Ver `TransactionalAuditTrail`. */
@@ -159,7 +161,22 @@ export class InMemoryUnitOfWork implements UnitOfWork {
         const { companyId: _fora, dados: _dados, ...resto } = achada
         return resto
       },
+
+      /**
+       * O saldo devedor do cliente — RF-013.
+       *
+       * Guardado por cliente, para o teste poder afirmar QUANTO subiu: um
+       * espiao que so conta chamadas passaria com o valor errado.
+       */
+      adjustCustomerBalance: async (customerId, deltaCents) => {
+        this.saldos.set(customerId, (this.saldos.get(customerId) ?? 0) + deltaCents)
+      },
     }
+  }
+
+  /** Quanto o cliente deve, segundo o que esta transacao somou. */
+  saldoDe(customerId: string): number {
+    return this.saldos.get(customerId) ?? 0
   }
 
   /**
