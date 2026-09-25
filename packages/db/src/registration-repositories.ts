@@ -386,9 +386,30 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
                compara. Formatar aqui obrigaria a comparar string com data. */
             SELECT max(s.created_at)                    AS last_sale_at,
                    count(*)                             AS sales_count,
-                   COALESCE(sum(s.net_amount_cents - COALESCE(ROUND(s.net_amount_cents
-                     * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0)), 0)
-                                                        AS total_spent_cents
+                   /*
+                      O que o CLIENTE pagou, e nao o que sobrou para a loja.
+
+                      Era "net_amount_cents" — bruto menos desconto, imposto e
+                      tarifa da adquirente. Os dois ultimos sao custo DA LOJA,
+                      nao abatimento para quem comprou: uma venda de R$ 24,00
+                      entrava como R$ 22,56 no "total gasto" do cliente.
+
+                      E a mesma regra que o #303 fixou nas telas ("total da
+                      venda = bruto - desconto"), e que esta agregacao nao
+                      seguiu porque ela vive no SQL e aquele PR mexeu no front.
+
+                      A proporcao continua: "returned_amount_cents" soma
+                      TOTAIS DE LINHA, ja com o desconto do item mas antes do
+                      desconto da venda — entao devolver tudo de uma venda com
+                      desconto de R$ 10 sobre R$ 100 subtrairia 100 de 90 e
+                      daria saldo negativo. Escalado, subtrai 90 de 90.
+                   */
+                   COALESCE(sum(
+                     (s.gross_amount_cents - s.discount_cents)
+                     - COALESCE(ROUND((s.gross_amount_cents - s.discount_cents)
+                         * s.returned_amount_cents::numeric
+                         / NULLIF(s.gross_amount_cents, 0)), 0)
+                   ), 0)                                AS total_spent_cents
             FROM sales s
             /* Devolvida inteira nao conta; a parcial entra sem a parte devolvida (RF-044). */
             WHERE s.customer_id = c.id AND s.status NOT IN ('cancelled', 'returned')

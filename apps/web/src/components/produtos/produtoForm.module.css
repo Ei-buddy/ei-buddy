@@ -54,62 +54,6 @@
   color: var(--app-muted);
 }
 
-/* --- Imagem --- */
-
-.imagemBloco {
-  display: grid;
-  gap: 12px;
-}
-
-.imagemUpload {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  padding: 32px 20px;
-  border: 2px dashed var(--app-border);
-  border-radius: var(--radius);
-  background: var(--app-field);
-  color: var(--app-muted);
-  cursor: pointer;
-  transition: border-color var(--transition);
-}
-
-.imagemUpload:hover {
-  border-color: var(--app-accent);
-}
-
-.imagemUpload strong {
-  font-family: var(--font-display);
-  font-size: 14.5px;
-  color: var(--app-text);
-}
-
-.imagemUpload span {
-  font-size: 12.5px;
-}
-
-.imagemInput {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.previaWrap {
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
-}
-
-.previa {
-  width: 160px;
-  height: 160px;
-  object-fit: cover;
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius);
-}
-
 /* --- Rodape --- */
 
 .rodape {
