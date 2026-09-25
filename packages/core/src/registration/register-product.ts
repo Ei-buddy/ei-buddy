@@ -16,6 +16,7 @@ import { adjustStock } from '../inventory/adjust-stock.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { InventoryUnitOfWork } from '../ports/inventory-writers.js'
 import type { ProductRepository } from '../ports/registration-repositories.js'
+import type { NcmLookup } from '../ports/ncm-lookup.js'
 import type { RetrievalStore } from '../ports/retrieval.js'
 
 export type RegisterProductDeps = {
@@ -28,6 +29,11 @@ export type RegisterProductDeps = {
    * cadastro que nao conclui — mesmo criterio de `SECRETS_KEY`.
    */
   readonly retrieval?: RetrievalStore | undefined
+  /**
+   * Tabela oficial de NCM. Opcional pelo mesmo criterio: sem ela o cadastro so
+   * confere o formato (8 digitos), como antes.
+   */
+  readonly ncmLookup?: NcmLookup | undefined
 }
 
 /**
@@ -115,6 +121,20 @@ export async function registerProduct(
         `Este codigo de barras ja esta em "${existente.description}". ` +
           'Edite o produto existente em vez de criar outro.',
       )
+    }
+  }
+
+  /*
+   * NCM que a tabela oficial diz que NAO existe e recusado aqui, no campo — e
+   * nao na emissao, dias depois, quando o lojista ja esqueceu de onde tirou o
+   * numero. Provedor fora do ar deixa passar (ver `NcmConsulta`).
+   */
+  if (input.ncm !== undefined && deps.ncmLookup !== undefined) {
+    const consulta = await deps.ncmLookup.consultar(input.ncm)
+    if (consulta.status === 'inexistente') {
+      throw AppError.validation('NCM nao encontrado na tabela oficial.', [
+        { path: 'ncm', message: 'Este NCM nao existe na tabela oficial. Confira os numeros.' },
+      ])
     }
   }
 
@@ -347,6 +367,39 @@ export type ImportProductsDeps = RegisterProductDeps & {
 }
 
 /**
+ * Cadastra o produto E grava o saldo inicial — RF-017, RF-124.
+ *
+ * `registerProduct` sozinho descarta o `stock` do contrato: o lojista digitava
+ * 40 na tela e o produto nascia zerado, sem erro nenhum. So a importacao de
+ * planilha lancava o saldo. Agora a tela, a planilha e o assistente passam
+ * todos por aqui, e a regra e uma so.
+ *
+ * O saldo vira MOVIMENTO, e nao coluna — mesmo motivo de `ImportProductsDeps`.
+ * Devolve o produto relido para que o `stock` da resposta seja o que ficou
+ * gravado, e nao o zero de antes do movimento.
+ */
+export async function registerProductWithStock(
+  deps: ImportProductsDeps,
+  ctx: ExecutionContext,
+  input: CreateProductInput,
+  motivo = 'Saldo inicial do cadastro',
+): Promise<ProductOutput> {
+  const produto = await registerProduct(deps, ctx, input)
+
+  /* Saldo inicial so quando ha saldo: movimento de zero unidade e ruido na
+     trilha, e o CHECK do schema o recusa de qualquer jeito. */
+  if (input.stock <= 0) return produto
+
+  await adjustStock(deps, ctx, {
+    productId: produto.id,
+    countedQuantity: input.stock,
+    reason: motivo,
+  })
+
+  return (await deps.products.findById(ctx.companyId, produto.id)) ?? produto
+}
+
+/**
  * Importacao de catalogo em lote — NR-072, US-008.
  *
  * ## Parcial, e uma linha por vez
@@ -385,17 +438,7 @@ export async function importProducts(
 
   for (const [index, linha] of input.products.entries()) {
     try {
-      const produto = await registerProduct(deps, ctx, linha)
-
-      /* Saldo inicial so quando ha saldo: movimento de zero unidade e ruido na
-         trilha, e o CHECK do schema o recusa de qualquer jeito. */
-      if (linha.stock > 0) {
-        await adjustStock(deps, ctx, {
-          productId: produto.id,
-          countedQuantity: linha.stock,
-          reason: 'Saldo inicial da importacao de planilha',
-        })
-      }
+      await registerProductWithStock(deps, ctx, linha, 'Saldo inicial da importacao de planilha')
 
       imported += 1
     } catch (erro) {

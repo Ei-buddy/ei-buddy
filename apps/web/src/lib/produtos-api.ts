@@ -25,6 +25,7 @@
  */
 
 import { pedir, type Resultado } from './http'
+import { centavosDoTexto } from './valor'
 
 /* -------------------------------------------------------------------------- */
 /* Categorias e fornecedores                                                  */
@@ -55,13 +56,12 @@ export const carregarSugestoes = (): Promise<Resultado<SugestoesDoFormulario>> =
 
 export type DadosProduto = {
   id?: string
-  codigo: string
   descricao: string
   ean: string
   ncm: string
   /* Natureza da operacao — 5102 revenda comum, 5405 com ST ja recolhida. */
   cfop: string
-  /* CST (2 digitos) ou CSOSN (3), conforme o regime da empresa. */
+  /* CSOSN, 3 digitos — o produto atende Simples Nacional e MEI. */
   situacaoTributaria: string
   categoria: string
   fornecedor: string
@@ -69,7 +69,6 @@ export type DadosProduto = {
   precoVenda: number
   estoque: number
   estoqueMinimo: number
-  imagem: string | null
 }
 
 /**
@@ -84,9 +83,27 @@ export type DadosProduto = {
  * existia no banco, mas o contrato de cadastro nunca a expunha, e o lojista
  * achava ter informado.
  */
+/** Campo do contrato -> campo da tela, para o erro aparecer onde se digitou. */
+const CAMPO_DA_TELA: Record<string, keyof DadosProduto> = {
+  description: 'descricao',
+  barcode: 'ean',
+  salePriceCents: 'precoVenda',
+  costPriceCents: 'precoCusto',
+  ncm: 'ncm',
+  cfop: 'cfop',
+  taxSituationCode: 'situacaoTributaria',
+  category: 'categoria',
+  supplier: 'fornecedor',
+  stock: 'estoque',
+  minStock: 'estoqueMinimo',
+}
+
 export async function salvarProduto(
   dados: DadosProduto,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; id: string }
+  | { ok: false; error: string; campos: Partial<Record<keyof DadosProduto, string>> }
+> {
   let resposta: Response
   try {
     resposta = await fetch('/api/produtos', {
@@ -101,6 +118,10 @@ export async function salvarProduto(
            (RNF-044). A conversao acontece AQUI, na borda, e nao no meio. */
         salePriceCents: Math.round(dados.precoVenda * 100),
         costPriceCents: Math.round(dados.precoCusto * 100),
+        /* Saldo inicial — vira movimento de estoque no servidor (RF-124). Ate
+           aqui a tela pedia a quantidade e nao a enviava: o produto nascia
+           zerado. */
+        stock: Math.round(dados.estoque),
         minStock: Math.round(dados.estoqueMinimo),
         ...(dados.categoria.trim() === '' ? {} : { category: dados.categoria.trim() }),
         ...(dados.fornecedor.trim() === '' ? {} : { supplier: dados.fornecedor.trim() }),
@@ -122,16 +143,31 @@ export async function salvarProduto(
       }),
     })
   } catch {
-    return { ok: false, error: 'Sem conexao. Verifique sua internet.' }
+    return { ok: false, error: 'Sem conexao. Verifique sua internet.', campos: {} }
   }
 
   const corpo = (await resposta.json().catch(() => ({}))) as {
     id?: string
-    error?: { message?: string }
+    error?: { message?: string; fields?: { path?: string; message?: string }[] }
   }
 
   if (!resposta.ok) {
-    return { ok: false, error: corpo.error?.message ?? 'Nao foi possivel salvar. Tente de novo.' }
+    /*
+     * O servidor diz QUAL campo recusou (`fields`), e a tela jogava isso fora:
+     * mostrava so "Confira os campos indicados" sem indicar campo nenhum — e o
+     * lojista ficava sem saber o que corrigir.
+     */
+    const campos: Partial<Record<keyof DadosProduto, string>> = {}
+    for (const f of corpo.error?.fields ?? []) {
+      const campo = f.path === undefined ? undefined : CAMPO_DA_TELA[f.path]
+      if (campo !== undefined && f.message) campos[campo] ??= f.message
+    }
+    const primeiro = Object.values(campos)[0]
+    return {
+      ok: false,
+      error: primeiro ?? corpo.error?.message ?? 'Nao foi possivel salvar. Tente de novo.',
+      campos,
+    }
   }
 
   return { ok: true, id: corpo.id! }
@@ -151,35 +187,14 @@ export type ResultadoDaImportacao = {
 }
 
 /**
- * Converte um numero digitado em planilha para centavos.
- *
- * Aceita "12,90", "12.90", "R$ 12,90" e "1.234,56" — sao todos formatos que
- * saem de planilha em pt-BR. Devolve `null` quando nao da para ler, e nao zero:
- * zero passaria como preco valido e o produto entraria custando nada.
+ * Preco de planilha para centavos. A regra e a mesma de qualquer valor
+ * digitado na tela, e mora em `valor.ts`.
  */
-export function centavosDaPlanilha(texto: string | undefined): number | null {
-  const bruto = (texto ?? '').replace(/[^d,.-]/g, '').trim()
-  if (bruto === '') return null
-
-  /*
-   * A ULTIMA virgula ou ponto e o separador decimal; o resto e milhar. E o que
-   * distingue "1.234,56" de "1.234" — no primeiro o ponto separa milhar, no
-   * segundo tambem, e ler o ponto como decimal transformaria mil reais em um.
-   */
-  const ultimoSeparador = Math.max(bruto.lastIndexOf(','), bruto.lastIndexOf('.'))
-  const temDecimal = ultimoSeparador >= 0 && bruto.length - ultimoSeparador - 1 <= 2
-
-  const inteiro = temDecimal ? bruto.slice(0, ultimoSeparador) : bruto
-  const decimal = temDecimal ? bruto.slice(ultimoSeparador + 1) : ''
-
-  const numero = Number(`${inteiro.replace(/[.,]/g, '')}.${decimal.padEnd(2, '0') || '00'}`)
-
-  return Number.isFinite(numero) ? Math.round(numero * 100) : null
-}
+export const centavosDaPlanilha = centavosDoTexto
 
 /** Quantidade inteira de planilha. `null` quando nao da para ler. */
 export function inteiroDaPlanilha(texto: string | undefined): number | null {
-  const bruto = (texto ?? '').replace(/[^d-]/g, '').trim()
+  const bruto = (texto ?? '').replace(/[^\d-]/g, '').trim()
   if (bruto === '') return null
   const n = Number(bruto)
   return Number.isInteger(n) ? n : null

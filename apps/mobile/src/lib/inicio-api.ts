@@ -38,7 +38,7 @@ export type Saudacao = {
 }
 
 type Perfil = { userName: string; companyName: string | null }
-type Faturamento = { months: { netCents: number; salesCount: number }[] }
+type Faturamento = { months: { grossCents: number; salesCount: number }[] }
 type ResumoCatalogo = { belowMinimum: number; outOfStock: number }
 export type ContaAPagar = {
   id: string
@@ -66,7 +66,9 @@ export type VendaRecente = {
   id: string
   number: number
   customerName: string | null
-  netAmountCents: number
+  /* O valor da venda e o bruto menos desconto; `netAmountCents` e o liquido. */
+  grossAmountCents: number
+  discountCents: number
 }
 
 export async function carregarSaudacao(agora: Date = new Date()): Promise<Saudacao> {
@@ -100,7 +102,8 @@ export async function carregarResumoDoDia(agora: Date = new Date()): Promise<Res
     : null
 
   return {
-    faturamentoCents: doDia?.netCents ?? (faturamento.ok ? 0 : null),
+    /* O bruto: o que os clientes pagaram. O liquido ja vem sem imposto e tarifa. */
+    faturamentoCents: doDia?.grossCents ?? (faturamento.ok ? 0 : null),
     vendasHoje: doDia?.salesCount ?? (faturamento.ok ? 0 : null),
     aPagarCents: contas.ok ? contas.dados.totalCents : null,
     contasVencidas: vencidas,

@@ -28,7 +28,7 @@ import {
   listDayAppointments,
   abrirCanal,
   registerCustomer,
-  registerProduct,
+  registerProductWithStock,
   registerSale,
   searchProducts,
   sendCustomerCharge,
@@ -50,11 +50,18 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
-import type { IdentityProvider, IdentityRegistrar } from '@na-regua/core'
+import type {
+  IdentityPhoneChanger,
+  IdentityProvider,
+  IdentityRegistrar,
+  PasswordSetter,
+} from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
 import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
 import { IdentidadeBetterAuth } from './identidade-better-auth.js'
+import { criarEmailEmLog } from './email-em-log.js'
+import { criarEmailSmtp } from './email-smtp.js'
 import { IdentidadeEmArquivo } from './identidade-em-arquivo.js'
 import { createReminderScheduler } from './reminder-scheduler.js'
 import {
@@ -66,6 +73,8 @@ import {
   createChartOfAccountsRepository,
   createFixedCostPayableGenerator,
   createFixedCostRepository,
+  createVariableCostRepository,
+  createBankAccountRepository,
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
@@ -86,6 +95,7 @@ import {
   createCompanyRepository,
   createConfirmationStore,
   createConversationStore,
+  createCustomerContactRepository,
   createCustomerRepository,
   createPartnerApplicationRepository,
   createPeerDirectory,
@@ -94,6 +104,9 @@ import {
   createCustomerChargeRepository,
   createWebhookInbox,
   createLegalConsentRepository,
+  createCouponRepository,
+  createPasswordResetTokens,
+  createUserContacts,
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
@@ -107,10 +120,12 @@ import {
   createReconciliationUnitOfWork,
   createSaleHistoryRepository,
   createSaleCancellationUnitOfWork,
+  createSaleReturnUnitOfWork,
   createSaleUnitOfWork,
   createSupplierDirectory,
   createUserDirectory,
   createWaitlistRepository,
+  createWhatsappConsentRepository,
   getClient,
   lerChaveDeSegredo,
   type DatabaseHealth,
@@ -125,7 +140,10 @@ import type { ConnectionsRouteDeps } from './routes/connections.js'
 import type { ConciliacaoDeps } from './routes/conciliacao.js'
 import type { SaleRouteDeps } from './routes/sales.js'
 import type { ContabilidadeDeps } from './routes/contabilidade.js'
+import type { ConsultasDeps } from './routes/consultas.js'
 import type { CustosFixosDeps } from './routes/custos-fixos.js'
+import type { CustosVariaveisDeps } from './routes/custos-variaveis.js'
+import type { ContasBancariasDeps } from './routes/contas-bancarias.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
@@ -139,9 +157,12 @@ import type { CrmRouteDeps } from './routes/crm.js'
 import { createInvoiceQueue } from './invoice-queue.js'
 import { createConnectionNotifier } from './connection-notifier.js'
 import { createBrasilApiCepLookup } from './cep-lookup.js'
+import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
+import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
 import { loadApiEnv } from '@na-regua/env'
 import { Redis } from 'ioredis'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 /**
  * Validado aqui, na raiz de composicao, antes de qualquer I/O — NR-006. Se
@@ -194,7 +215,7 @@ export function getRedis(url = env.REDIS_URL): Redis {
       JSON.stringify({
         level: 40,
         msg: 'redis indisponivel — limite de requisicao cai para memoria; ver /health',
-        motivo: erro.message,
+        motivo: motivoDoErro(erro),
       }),
     )
   })
@@ -286,6 +307,8 @@ export function buildSaleDeps(): SaleRouteDeps {
     /* Cancelamento tem escopo transacional proprio — ver
        ports/sale-cancellation.ts, em core. */
     uow: createSaleCancellationUnitOfWork(sql),
+    /* Devolucao parcial — RF-044. Mesma transacao por empresa, porta propria. */
+    returns: createSaleReturnUnitOfWork(sql),
     settings: createDefaultSaleSettings(),
     /* O fuso vem da `TZ` pelo mesmo motivo dos relatorios: "vendas de 15 de
        marco" e uma pergunta com fuso embutido, e a venda das 21h30 em Sao
@@ -356,6 +379,24 @@ export function buildAuthDeps(): AuthRouteDeps {
      * que cuida do reaceite quando sai versao nova).
      */
     legalConsents: createLegalConsentRepository(sql),
+
+    /* Cupom de indicacao — RF-114. `signup()` grava o vinculo, e
+       `GET /cupons/:codigo` confere o codigo enquanto a pessoa digita. */
+    coupons: createCouponRepository(sql),
+
+    /*
+     * Recuperar senha — NR-014. O link no banco, a senha no provedor de
+     * identidade (a mesma instancia do login), e o e-mail no log ate o
+     * provedor de e-mail ser escolhido.
+     */
+    resetTokens: createPasswordResetTokens(sql),
+    passwords: identidade,
+    email: montarEnvioDeEmail(),
+    webUrl: env.WEB_URL,
+
+    /* Trocar o celular — RF-132: o contato no banco e o mesmo provedor do login. */
+    contacts: createUserContacts(sql),
+    phoneChanger: identidade,
   }
 }
 
@@ -382,7 +423,10 @@ const MINIMO_DE_SENHA = 8
  * `fake` segue sendo o modo local, e `assertAuthUsavelEmProducao` recusa subir
  * com ele em producao.
  */
-export function criarIdentidade(): IdentityProvider & IdentityRegistrar {
+export function criarIdentidade(): IdentityProvider &
+  IdentityRegistrar &
+  PasswordSetter &
+  IdentityPhoneChanger {
   if (env.AUTH_PROVIDER === 'better-auth') {
     if (env.BETTER_AUTH_SECRET === undefined) {
       /*
@@ -450,10 +494,18 @@ export function buildCadastroDeps(): CadastroDeps {
   return {
     companies: createCompanyRepository(sql),
     customers: createCustomerRepository(sql),
+    /* O diario de contatos da ficha — RF-011, NR-072. Porta propria: a de
+       clientes responde "quem e este", esta responde "o que ja falamos". */
+    contacts: createCustomerContactRepository(sql),
+    /* Consentimento de WhatsApp — RF-016. Le e escreve as duas colunas de
+       `customers` que existiam desde a 0002 sem ninguem tocar nelas. */
+    consents: createWhatsappConsentRepository(sql),
     products: createProductRepository(sql),
     /* Desambiguacao em portugues de balcao — RF-102, ADR-0017. Indexa no
        cadastro e serve de plano B quando a busca exata nao acha. */
     retrieval: createRetrievalStore(sql),
+    /* NCM que nao existe na tabela oficial e recusado no cadastro. */
+    ncmLookup: createBrasilApiNcmLookup(),
     /* O onboarding semeia o plano de contas padrao — RF-081, NR-077. */
     accounts: createChartOfAccountsRepository(sql),
     /*
@@ -464,13 +516,50 @@ export function buildCadastroDeps(): CadastroDeps {
      */
     uow: createInventoryUnitOfWork(sql),
     audit: createAuditTrail(sql),
-    /* Geocodifica o endereco ao salvar — ADR-0008. Fecha o TODO de
-       `GET /enderecos/cep/:cep` que so existia como mock no front. */
+    /* Geocodifica o endereco ao salvar — ADR-0008. A mesma porta atende
+       `GET /enderecos/cep/:cep`, em `buildConsultasDeps`. */
     cepLookup: createBrasilApiCepLookup(),
     /* Periodo de teste junto com a empresa — RF-110. `undefined` sem os
        prazos configurados, e o cadastro segue funcionando. */
     assinatura: montarInicioDoTeste(),
   }
+}
+
+/**
+ * Como o e-mail sai — NR-014.
+ *
+ * SMTP so quando `EMAIL_PROVIDER=smtp` E ha host e remetente. Meia
+ * configuracao cai no adapter de log em vez de estourar na subida: o e-mail
+ * hoje serve a UM fluxo (redefinir senha), e derrubar a api inteira por causa
+ * dele tiraria do ar cadastro, venda e financeiro.
+ *
+ * Mas nao cai em silencio — o aviso diz o que faltou, e o adapter de log em
+ * producao repete a cada tentativa que nada foi enviado.
+ */
+function montarEnvioDeEmail() {
+  const producao = env.NODE_ENV === 'production'
+
+  if (env.EMAIL_PROVIDER !== 'smtp') return criarEmailEmLog(producao)
+
+  if (env.SMTP_HOST === undefined || env.SMTP_FROM === undefined) {
+    console.warn(
+      JSON.stringify({
+        level: 40,
+        msg: 'EMAIL_PROVIDER=smtp sem SMTP_HOST ou SMTP_FROM — nenhum e-mail sera enviado',
+      }),
+    )
+    return criarEmailEmLog(producao)
+  }
+
+  return criarEmailSmtp({
+    host: env.SMTP_HOST,
+    /* 587 e a porta de submissao com STARTTLS, que e o caso comum. */
+    port: env.SMTP_PORT ?? 587,
+    secure: env.SMTP_SECURE,
+    from: env.SMTP_FROM,
+    user: env.SMTP_USER,
+    password: env.SMTP_PASSWORD,
+  })
 }
 
 /**
@@ -701,12 +790,47 @@ export function buildContabilidadeDeps(): ContabilidadeDeps {
 }
 
 /** Custos fixos — NR-110. */
+/**
+ * As duas consultas que preenchem formulario — NR-072.
+ *
+ * Nao toca no banco: sao dois adapters de provedor publico e nada mais. Por
+ * isso e a unica `build*` deste arquivo sem `getClient` — nao ha tenant, nao
+ * ha linha, nao ha auditoria a escrever.
+ *
+ * `cepLookup` e o MESMO adapter que o cadastro de empresa ja usa para
+ * geocodificar. Um provedor, uma configuracao, um lugar para trocar.
+ */
+export function buildConsultasDeps(): ConsultasDeps {
+  return {
+    cepLookup: createBrasilApiCepLookup(),
+    cnpjLookup: createBrasilApiCnpjLookup(),
+  }
+}
+
 export function buildCustosFixosDeps(): CustosFixosDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     fixedCosts: createFixedCostRepository(sql),
     generator: createFixedCostPayableGenerator(sql),
     /* Mesma pendencia das outras: `db` nao expoe repositorio de auditoria. */
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Custos variaveis — percentual sobre o preco de venda. */
+export function buildCustosVariaveisDeps(): CustosVariaveisDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    variableCosts: createVariableCostRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Contas bancarias da loja — RF-073. */
+export function buildContasBancariasDeps(): ContasBancariasDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    bankAccounts: createBankAccountRepository(sql),
     audit: createAuditTrail(sql),
   }
 }
@@ -906,7 +1030,7 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
       JSON.stringify({
         level: 40,
         msg: 'studio presets nao carregados — adapter nao monta; HTTP do assistente segue',
-        motivo: erro instanceof Error ? erro.message : String(erro),
+        motivo: motivoDoErro(erro),
       }),
     )
     return undefined
@@ -1104,7 +1228,7 @@ export function buildAgentUseCases(): AgentUseCases {
        todas as letras. Reimplementar aqui seria ter duas regras de cadastro
        divergindo em silencio, que e o que a promessa "app e WhatsApp acionam as
        mesmas regras" existe para impedir. */
-    registerProduct: (ctx, input) => registerProduct(cadastro, ctx, input),
+    registerProduct: (ctx, input) => registerProductWithStock(cadastro, ctx, input),
     createPayable: (ctx, input) => createPayable(contas, ctx, input),
     createReceivable: (ctx, input) => createReceivable({ uow: contas.receivablesUow }, ctx, input),
     /* NR-118: baixa e ajuste tambem saem dos casos de uso das telas. */
@@ -1127,15 +1251,11 @@ export function buildAgentUseCases(): AgentUseCases {
           /* O caminho de volta do link: sem isto, o cliente paga e nenhum
              titulo baixa — silenciosamente. */
           charges: createCustomerChargeRepository(getClient(env.DATABASE_URL)),
-          consents: {
-            /* Harness: o aceite real (coluna whatsapp_consent_at) entra com
-               NR-046. Sem isso no CustomerOutput, o canal de teste trata o
-               cliente identificado como opt-in. O caso de uso ainda recusa
-               quando o leitor devolve nulo — coberto no teste de core. */
-            async of() {
-              return { optedInAt: new Date('2026-01-01T00:00:00.000Z'), optedOutAt: null }
-            },
-          },
+          /* O aceite de VERDADE, das colunas de `customers` — RF-016, NR-046.
+             Era um objeto fixo que dizia "autorizou em 2026-01-01" para todo
+             cliente identificado: o bloqueio de `sendCustomerCharge` rodava
+             contra um leitor que nunca dizia nao. */
+          consents: cadastro.consents,
         },
         ctx,
         input,

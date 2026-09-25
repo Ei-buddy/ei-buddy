@@ -69,7 +69,19 @@ jobs:
         # descricao do PR para o evento vir em nome dele, a excecao nao valer e
         # o PR reprovar por um nome de branch que ninguem pode mudar. Aconteceu
         # no #11. O head_ref e propriedade do PR e nao muda conforme quem mexe.
-        if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
+        #
+        # A PROMOCAO tambem fica de fora, pelo mesmo motivo do dependabot: o
+        # nome da branch nao pode mudar. `dev` -> `main` e o fluxo que o
+        # git-workflow.md descreve ("um PR de dev para main, como qualquer
+        # outro"), e o padrao `<tipo>/NR-<n>-<slug>` recusava justamente ele —
+        # a promocao nao podia ficar verde de jeito nenhum.
+        #
+        # A isencao exige as DUAS pontas. So `head_ref == dev` liberaria
+        # qualquer PR saindo da dev; exigir tambem `base_ref == main` limita a
+        # excecao ao caminho que de fato nao tem como ter outro nome.
+        if: >-
+          ${{ !startsWith(github.head_ref, 'dependabot/')
+              && !(github.head_ref == 'dev' && github.base_ref == 'main') }}
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
@@ -85,7 +97,14 @@ jobs:
 
       - name: Referencia a tarefa no titulo ou no corpo
         # Idem: atualizacao de dependencia nao sai de tarefa do ledger.
-        if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
+        #
+        # E a promocao `dev` -> `main` tambem nao: ela nao FAZ trabalho, ela
+        # leva o que ja foi feito. Exigir um NR obrigaria a escolher um dos
+        # quarenta e tantos que o PR carrega, e o escolhido mentiria sobre os
+        # outros. Mesma isencao do nome da branch, logo acima.
+        if: >-
+          ${{ !startsWith(github.head_ref, 'dependabot/')
+              && !(github.head_ref == 'dev' && github.base_ref == 'main') }}
         env:
           PR_TITLE: ${{ steps.pr.outputs.titulo || github.event.pull_request.title }}
           PR_BODY: ${{ steps.pr.outputs.corpo || github.event.pull_request.body }}

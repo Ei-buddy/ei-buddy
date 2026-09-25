@@ -30,7 +30,11 @@ export type ReceivableQueries = {
    */
   list(
     companyId: CompanyId,
-    criterio: { readonly status: readonly ReceivableStatus[] },
+    criterio: {
+      readonly status: readonly ReceivableStatus[]
+      /** So os deste cliente — a ficha do cliente (RF-072). */
+      readonly customerId?: string
+    },
   ): Promise<readonly ReceivableOutput[]>
 }
 
@@ -46,10 +50,28 @@ export type NewManualReceivable = {
   readonly accountId: string | null
   readonly createdBy: UserId
   readonly createdAt: Date
+  /**
+   * Esta divida e do CLIENTE — RF-013, migration 0037.
+   *
+   * Verdadeiro sempre que ha cliente: recebivel avulso nao tem forma de
+   * pagamento, e quem lancou uma cobranca nominal esta dizendo que aquela
+   * pessoa deve.
+   */
+  readonly isCustomerDebt: boolean
 }
 
 export type ManualReceivableTransaction = TransactionalAuditTrail & {
   insert(receivable: NewManualReceivable): Promise<ReceivableOutput>
+
+  /**
+   * Soma no que o cliente deve — RF-013.
+   *
+   * Cobranca nominal e divida de quem ela nomeia, e o comentario de
+   * `mexeNoSaldoDoCliente` ja dizia isso — mas nada somava. So a BAIXA mexia no
+   * saldo, para menos: lancar R$ 125 na ficha de alguem deixava o saldo em
+   * zero, e baixar esses R$ 125 depois o levava a menos 125.
+   */
+  adjustCustomerBalance(customerId: string, deltaCents: number): Promise<void>
 }
 
 export type ManualReceivableUnitOfWork = {

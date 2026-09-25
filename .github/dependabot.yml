@@ -2,6 +2,17 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    # A base e a `dev`, e nao o branch padrao do repositorio.
+    #
+    # Sem isto o dependabot abre contra a `main`, que e producao e so recebe
+    # promocao — ela fica atras da `dev` o tempo todo, por desenho. O bump
+    # nascia apontando para um lockfile que ninguem mais tem: cinco PRs
+    # ficaram parados com `mergeable_state=unknown`, e mergear um deles
+    # levaria para producao uma dependencia que nunca rodou na VM de teste.
+    #
+    # Mirando a `dev`, o bump passa pela CI, pelo deploy automatico e pela
+    # promocao — o mesmo caminho de qualquer outra mudanca.
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -44,6 +55,8 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    # Mesmo motivo do bloco acima.
+    target-branch: dev
     schedule:
       interval: monthly
     commit-message:

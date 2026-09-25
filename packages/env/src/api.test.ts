@@ -178,3 +178,24 @@ describe('AGENT_STUDIO_PRESETS', () => {
     ).toBe('/tmp/studio-presets.json')
   })
 })
+
+describe('e-mail por SMTP — NR-014', () => {
+  /*
+   * `.env.example` escreve `SMTP_PORT=` para dizer "nao configurado", e
+   * `z.coerce.number()` converte string vazia em ZERO — que reprova em
+   * `.positive()` e derruba a api na subida, com uma mensagem sobre um numero
+   * que ninguem escreveu. Foi assim que o E2E do navegador quebrou.
+   */
+  it('SMTP_PORT vazia conta como ausente, e nao como zero', () => {
+    expect(loadApiEnv({ ...base, SMTP_PORT: '' }).SMTP_PORT).toBeUndefined()
+  })
+
+  it('o padrao e o adapter de log, que nao envia nada', () => {
+    expect(loadApiEnv(base).EMAIL_PROVIDER).toBe('log')
+  })
+
+  it('SMTP_SECURE vira booleano', () => {
+    expect(loadApiEnv({ ...base, SMTP_SECURE: 'true' }).SMTP_SECURE).toBe(true)
+    expect(loadApiEnv(base).SMTP_SECURE).toBe(false)
+  })
+})

@@ -50,7 +50,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-013 | Manter saldo em carteira (fiado) por cliente, alterado por venda `wallet` e por recebimento | US-007 | `domain`    |  M  | ⬜  |
 | RF-014 | Avisar o operador do saldo devedor do cliente ao iniciar nova venda para ele                | US-007 | `core`      |  M  | ⬜  |
 | RF-015 | Vincular número de WhatsApp ao cadastro do cliente e usá-lo como destino de mensagens       | US-008 | `core`      |  M  | ⬜  |
-| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento            | US-008 | `core`      |  M  | ⬜  |
+| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento            | US-008 | `core`      |  M  | ✅  |
 
 ## E3 — Produtos & Estoque
 
@@ -88,7 +88,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-041 | Calcular imposto conforme o regime tributário configurado para a empresa                                   | US-020 | `domain`    |  M  | ⬜  |
 | RF-042 | Ocultar custo, imposto e margem do resumo da venda para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
 | RF-043 | Cancelar venda estornando estoque, contas a receber e saldo de carteira                                    | US-021 | `core`      |  M  | ✅  |
-| RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  | ⬜  |
+| RF-044 | Registrar devolução total ou parcial, estornando apenas os itens e o valor proporcional                    | US-021 | `core`      |  M  |     | ✅  |
 
 ## E5 — Emissão Fiscal
 
@@ -138,7 +138,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 
 | ID     | Requisito                                                                                        | US     | Módulo dono | Pri | St  |
 | ------ | ------------------------------------------------------------------------------------------------ | ------ | ----------- | :-: | :-: |
-| RF-073 | Cadastrar conta bancária com saldo inicial                                                       | US-035 | `core`      |  S  | ⬜  |
+| RF-073 | Cadastrar conta bancária com saldo inicial                                                       | US-035 | `core`      |  S  | ✅  |
 | RF-074 | Conectar conta bancária via Open Finance e importar transações periodicamente                    | US-036 | `banking`   |  S  | ⬜  |
 | RF-075 | Detectar consentimento expirado, avisar o lojista e preservar conciliações anteriores            | US-036 | `banking`   |  S  | ⬜  |
 | RF-076 | Importar extrato em OFX ou CSV, informando quantas transações entraram e quantas foram ignoradas | US-037 | `banking`   |  S  | ✅  |
@@ -190,7 +190,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-107 | Disparar cobrança pelo assistente e confirmar o envio ao lojista                                                      | US-052 | `agent`     |  M  | ⬜  |
 | RF-108 | Gerar resumo de período pelo assistente com faturamento, custo, despesas e resultado                                  | US-053 | `agent`     |  S  | ⬜  |
 | RF-109 | Entregar relatório extenso como arquivo ou link, com resumo na mensagem                                               | US-053 | `agent`     |  S  | ⬜  |
-| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ⬜  |
+| RF-132 | Substituir o celular do owner pela sessão do aplicativo; o número anterior deixa de autorizar o WhatsApp              | US-046 | `core`      |  M  | ✅  |
 | RF-133 | Consultar estoque por mensagem usando o mesmo caso de uso do aplicativo                                               | US-065 | `agent`     |  M  | ⬜  |
 | RF-134 | Consultar contas a pagar por vencimento por mensagem usando o mesmo caso de uso do aplicativo                         | US-066 | `agent`     |  M  | ⬜  |
 | RF-135 | Consultar saldo em carteira do cliente por mensagem usando o mesmo caso de uso do aplicativo                          | US-067 | `agent`     |  M  | ⬜  |

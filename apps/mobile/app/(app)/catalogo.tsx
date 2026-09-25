@@ -1,45 +1,77 @@
 import { useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
-import { produtos } from '@/lib/mock-data'
-import { buscarEan, nivelEstoque } from '@/lib/produtos-api'
-import { produtoPorEan } from '@/lib/vendas-api'
+import {
+  buscarEan,
+  listarCatalogo,
+  nivelEstoque,
+  type FiltroDeEstoque,
+  type ProdutoDoCatalogo,
+} from '@/lib/produtos-api'
 import { formatMoney } from '@/lib/format'
-import type { Produto } from '@/lib/types'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
+/** Espera a pessoa parar de digitar antes de ir ao servidor. */
+const ESPERA_DA_BUSCA_MS = 400
+
+const FILTROS: { valor: FiltroDeEstoque; rotulo: string }[] = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'baixo', rotulo: 'Estoque baixo' },
+  { valor: 'esgotado', rotulo: 'Esgotados' },
+]
+
 export default function Catalogo() {
   const [busca, setBusca] = useState('')
-  const [categoria, setCategoria] = useState('')
+  const [estoque, setEstoque] = useState<FiltroDeEstoque>('todos')
   const [lendo, setLendo] = useState(false)
   const router = useRouter()
-  const [encontrado, setEncontrado] = useState<Produto | null>(null)
   const [consultando, setConsultando] = useState(false)
   const [avisoLeitura, setAvisoLeitura] = useState<{
     tom: 'novo' | 'erro'
     texto: string
     ean?: string
   } | null>(null)
+  const [lista, setLista] = useState<ProdutoDoCatalogo[]>([])
+  const [total, setTotal] = useState(0)
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [tentativa, setTentativa] = useState(0)
 
-  const categorias = useMemo(() => [...new Set(produtos.map((p) => p.categoria))].sort(), [])
-
-  const lista = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    return produtos.filter((p) => {
-      if (categoria && p.categoria !== categoria) return false
-      if (!termo) return true
-      return (
-        p.descricao.toLowerCase().includes(termo) ||
-        p.codigo.toLowerCase().includes(termo) ||
-        p.ean.includes(termo.replace(/\D/g, ''))
-      )
-    })
-  }, [busca, categoria])
+  /* Busca e filtro no SERVIDOR: o catalogo da loja pode ter centenas de itens. */
+  useEffect(() => {
+    let cancelado = false
+    async function carregar() {
+      setCarregando(true)
+      const r = await listarCatalogo({ termo: busca.trim(), estoque })
+      if (cancelado) return
+      setCarregando(false)
+      if (!r.ok) {
+        setErro(r.erro)
+        return
+      }
+      setErro(null)
+      setLista(r.dados.produtos)
+      setTotal(r.dados.total)
+    }
+    const t = setTimeout(() => void carregar(), ESPERA_DA_BUSCA_MS)
+    return () => {
+      cancelado = true
+      clearTimeout(t)
+    }
+  }, [busca, estoque, tentativa])
 
   /**
    * O que fazer com o codigo lido — RF-018.
@@ -61,9 +93,8 @@ export default function Catalogo() {
     setConsultando(false)
 
     if (r.situacao === 'cadastrado') {
-      /* Joga na busca para a pessoa ver o item na lista tambem. */
+      /* Joga na busca: a lista, que vem do servidor, mostra o item. */
       setBusca(r.descricao)
-      setEncontrado(produtoPorEan(codigo) ?? null)
       return
     }
 
@@ -83,7 +114,7 @@ export default function Catalogo() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Catálogo" subtitulo={`${produtos.length} produtos`} />
+      <Cabecalho titulo="Catálogo" subtitulo={carregando ? 'Carregando...' : `${total} produtos`} />
 
       <View style={estilos.barra}>
         <TextInput
@@ -97,25 +128,19 @@ export default function Catalogo() {
         <Botao onPress={() => setLendo(true)}>{consultando ? '...' : 'Bipar'}</Botao>
       </View>
 
-      {/* Categorias em faixa horizontal: no celular nao cabe empilhado. */}
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={estilos.categorias}
-        contentContainerStyle={estilos.categoriasConteudo}
-        data={['', ...categorias]}
-        keyExtractor={(c) => c || 'todas'}
-        renderItem={({ item }) => (
+      <View style={estilos.filtros}>
+        {FILTROS.map((f) => (
           <Pressable
-            onPress={() => setCategoria(item)}
-            style={[estilos.chip, categoria === item && estilos.chipAtivo]}
+            key={f.valor}
+            onPress={() => setEstoque(f.valor)}
+            style={[estilos.chip, estoque === f.valor && estilos.chipAtivo]}
           >
-            <Text style={[estilos.chipTexto, categoria === item && estilos.chipTextoAtivo]}>
-              {item || 'Todas'}
+            <Text style={[estilos.chipTexto, estoque === f.valor && estilos.chipTextoAtivo]}>
+              {f.rotulo}
             </Text>
           </Pressable>
-        )}
-      />
+        ))}
+      </View>
 
       {avisoLeitura !== null ? (
         <View style={avisoLeitura.tom === 'novo' ? estilos.avisoNovo : estilos.avisoErro}>
@@ -132,16 +157,18 @@ export default function Catalogo() {
         </View>
       ) : null}
 
-      {encontrado === null && busca.trim() && lista.length === 0 ? (
+      {erro ? (
         <Vazio
-          titulo="Produto não encontrado"
-          descricao="Nenhum item com esse termo ou código."
+          titulo="Não deu para carregar"
+          descricao={erro}
           acao={
-            <Botao variante="secundario" onPress={() => setBusca('')}>
-              Limpar busca
+            <Botao variante="secundario" onPress={() => setTentativa((n) => n + 1)}>
+              Tentar de novo
             </Botao>
           }
         />
+      ) : carregando && lista.length === 0 ? (
+        <ActivityIndicator style={estilos.carregando} color={cores.acento} />
       ) : (
         <FlatList
           data={lista}
@@ -149,7 +176,21 @@ export default function Catalogo() {
           contentContainerStyle={estilos.lista}
           renderItem={({ item }) => <LinhaProduto produto={item} />}
           ListEmptyComponent={
-            <Vazio titulo="Nada por aqui" descricao="Nenhum produto nesta categoria." />
+            <Vazio
+              titulo="Produto não encontrado"
+              descricao="Nenhum item com esse termo, código ou filtro."
+              acao={
+                <Botao
+                  variante="secundario"
+                  onPress={() => {
+                    setBusca('')
+                    setEstoque('todos')
+                  }}
+                >
+                  Limpar
+                </Botao>
+              }
+            />
           }
         />
       )}
@@ -163,7 +204,7 @@ export default function Catalogo() {
   )
 }
 
-function LinhaProduto({ produto }: { produto: Produto }) {
+function LinhaProduto({ produto }: { produto: ProdutoDoCatalogo }) {
   const nivel = nivelEstoque(produto)
 
   return (
@@ -173,7 +214,9 @@ function LinhaProduto({ produto }: { produto: Produto }) {
         <Text style={estilos.produtoNome} numberOfLines={2}>
           {produto.descricao}
         </Text>
-        <Text style={estilos.produtoCategoria}>{produto.categoria}</Text>
+        {produto.categoria ? (
+          <Text style={estilos.produtoCategoria}>{produto.categoria}</Text>
+        ) : null}
       </View>
 
       <View style={estilos.produtoNumeros}>
@@ -234,8 +277,14 @@ const estilos = StyleSheet.create({
     fontSize: fonte.corpo,
   },
 
-  categorias: { flexGrow: 0 },
-  categoriasConteudo: { paddingHorizontal: espaco.lg, gap: espaco.sm },
+  filtros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco.sm,
+    paddingHorizontal: espaco.lg,
+    marginBottom: espaco.sm,
+  },
+  carregando: { marginTop: espaco.xl },
   chip: {
     paddingHorizontal: espaco.lg,
     paddingVertical: espaco.sm,

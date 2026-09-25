@@ -12,6 +12,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
+    "test:e2e": "playwright test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
@@ -32,12 +33,14 @@
     "ledger:check": "node scripts/ledger-check.mjs",
     "changelog": "node scripts/changelog.mjs",
     "db:super-admin": "pnpm --filter @na-regua/db super-admin",
-    "studio": "pnpm --filter @na-regua/api studio"
+    "studio": "pnpm --filter @na-regua/api studio",
+    "pendencias": "node scripts/pendencias.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.5.1",
     "@vitest/coverage-v8": "^4.1.11",
     "dependency-cruiser": "^18.2.0",

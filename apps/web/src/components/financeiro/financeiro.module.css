@@ -728,3 +728,66 @@
     align-items: start;
   }
 }
+
+/* --- Custos variaveis --- */
+
+.variaveisAjuda {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+/* Nome e percentual na mesma linha, com o botao alinhado a base dos campos. */
+.variaveisForm {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+@media (min-width: 640px) {
+  .variaveisForm {
+    grid-template-columns: 2fr 1fr auto;
+  }
+}
+
+/* Sem a coluna do dia, nome, percentual e lixeira cabem numa linha so. */
+.custoVariavel {
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'principal valor acoes';
+}
+
+/* Contas bancarias — RF-073 */
+.contasBancarias {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.contaBancaria {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+}
+.contaBancaria span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.contaBancaria small {
+  color: var(--text-muted, inherit);
+  opacity: 0.8;
+}
+.contaAcoes {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .contaBancaria {
+    grid-template-columns: 1fr auto;
+  }
+}

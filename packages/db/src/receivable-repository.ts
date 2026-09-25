@@ -96,11 +96,13 @@ export function createReceivableRepository(sql: Sql): ReceivableQueries {
                  r.created_at
           FROM receivables r
           LEFT JOIN customers c ON c.id = r.customer_id
+          WHERE TRUE
           ${
             criterio.status.length === 0
               ? tx``
-              : tx`WHERE r.status = ANY(${criterio.status as string[]})`
+              : tx`AND r.status = ANY(${criterio.status as string[]})`
           }
+          ${criterio.customerId === undefined ? tx`` : tx`AND r.customer_id = ${criterio.customerId}`}
           ORDER BY r.due_date
         `,
       )
@@ -126,9 +128,10 @@ function escopo(tx: TransactionSql): ManualReceivableTransaction {
       const [criado] = await tx<{ id: string }[]>`
         INSERT INTO receivables
           (company_id, customer_id, origin, description, amount_cents, net_amount_cents,
-           due_date, account_id, created_by, created_at, updated_at)
+           due_date, account_id, is_customer_debt, created_by, created_at, updated_at)
         VALUES (${novo.companyId}, ${novo.customerId}, 'manual', ${novo.description},
                 ${novo.amountCents}, ${novo.amountCents}, ${novo.dueDate}, ${novo.accountId},
+                ${novo.isCustomerDebt},
                 ${novo.createdBy}, ${novo.createdAt}, ${novo.createdAt})
         RETURNING id
       `
@@ -142,6 +145,21 @@ function escopo(tx: TransactionSql): ManualReceivableTransaction {
         WHERE r.id = ${criado!.id}
       `
       return paraSaida(linha!)
+    },
+
+    /**
+     * Soma no que o cliente deve — RF-013.
+     *
+     * Incremento no proprio UPDATE, e nao ler-somar-gravar: dois lancamentos
+     * ao mesmo tempo para o mesmo cliente gravariam o saldo de um so.
+     */
+    adjustCustomerBalance: async (customerId, deltaCents) => {
+      await tx`
+        UPDATE customers
+           SET wallet_balance_cents = wallet_balance_cents + ${deltaCents},
+               updated_at = now()
+         WHERE id = ${customerId}
+      `
     },
   }
 }

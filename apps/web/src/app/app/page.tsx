@@ -76,9 +76,9 @@ export default async function VisaoGeralPage() {
         */}
         <Stat
           label="Faturamento hoje"
-          value={painel.hoje === null ? '—' : formatMoney(emReais(painel.hoje.netCents))}
+          value={painel.hoje === null ? '—' : formatMoney(emReais(painel.hoje.grossCents))}
           hint={painel.hoje === null ? 'não carregou' : `${painel.hoje.salesCount} vendas`}
-          tone={painel.hoje !== null && painel.hoje.netCents > 0 ? 'positive' : undefined}
+          tone={painel.hoje !== null && painel.hoje.grossCents > 0 ? 'positive' : undefined}
         />
         {/*
           Tres estados, e nao dois. O valor e um traco nos dois primeiros, mas o
@@ -128,7 +128,7 @@ export default async function VisaoGeralPage() {
         />
       </div>
 
-      <MetaDiaria faturamentoHojeCents={painel.hoje === null ? null : painel.hoje.netCents} />
+      <MetaDiaria faturamentoHojeCents={painel.hoje === null ? null : painel.hoje.grossCents} />
 
       <div className={styles.grid}>
         <Card
@@ -171,7 +171,7 @@ export default async function VisaoGeralPage() {
                   </span>
                   {venda.status === 'cancelled' ? <Badge tone="danger">Cancelada</Badge> : null}
                   <span className={styles.rowValue}>
-                    {formatMoney(emReais(venda.netAmountCents))}
+                    {formatMoney(emReais(venda.grossAmountCents - venda.discountCents))}
                   </span>
                 </li>
               ))}
@@ -252,7 +252,7 @@ export default async function VisaoGeralPage() {
  * chao, o que e a leitura correta.
  */
 function Grafico({ dias }: { dias: readonly DiaDoGrafico[] }) {
-  const maior = Math.max(...dias.map((d) => d.netCents), 0)
+  const maior = Math.max(...dias.map((d) => d.grossCents), 0)
 
   return (
     <div className={styles.chart}>
@@ -260,10 +260,10 @@ function Grafico({ dias }: { dias: readonly DiaDoGrafico[] }) {
         <div key={d.dia} className={styles.chartCol}>
           <span
             className={styles.bar}
-            style={{ height: maior === 0 ? '0%' : `${(d.netCents / maior) * 100}%` }}
+            style={{ height: maior === 0 ? '0%' : `${(d.grossCents / maior) * 100}%` }}
             /* O valor tambem em texto: barra sozinha nao e leitura acessivel,
                e o rotulo diz o numero para quem usa leitor de tela. */
-            title={`${d.rotulo}: ${formatMoney(emReais(d.netCents))} em ${d.salesCount} vendas`}
+            title={`${d.rotulo}: ${formatMoney(emReais(d.grossCents))} em ${d.salesCount} vendas`}
           />
           <span className={styles.chartDay}>{d.rotulo}</span>
         </div>

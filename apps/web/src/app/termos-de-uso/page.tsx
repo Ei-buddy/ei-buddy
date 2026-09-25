@@ -29,7 +29,7 @@ export const metadata: Metadata = {
  */
 export default function TermosDeUso() {
   return (
-    <PaginaLegal eyebrow="Documentos" titulo="Termos de Uso" atualizadoEm="2026-09-09">
+    <PaginaLegal eyebrow="Documentos" titulo="Termos de Uso" atualizadoEm="2026-09-24">
       <Pendente>
         As condições comerciais — preço, forma e prazo de pagamento, nível de serviço, limite de
         responsabilidade, rescisão e foro — estão em elaboração e serão publicadas aqui antes de o
@@ -40,9 +40,9 @@ export default function TermosDeUso() {
       <h2>O que o {BRAND} é</h2>
 
       <p>
-        Um sistema de gestão para comércio: vendas, estoque, financeiro, emissão fiscal e
-        relatórios, com um assistente que responde em linguagem natural. O acesso é por conta, e
-        cada conta pertence a uma empresa.
+        Um sistema de gestão para comércio enquadrado como MEI: vendas, estoque, financeiro, emissão
+        fiscal e relatórios, com um assistente que responde em linguagem natural. O acesso é por
+        conta, e cada conta pertence a uma empresa.
       </p>
 
       <h2>Sua conta</h2>

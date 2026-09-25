@@ -301,11 +301,12 @@ export default function CobrancaPix({
       {erro ? <p className={styles.inlineError}>{erro}</p> : null}
 
       {/* ----------------------------------------------------------------
-          APOIO A DEMONSTRACAO — remover ao ligar o backend.
+          APOIO A DEMONSTRACAO — so fora de producao.
           Sem PSP real o polling nunca confirma, entao este botao permite
-          ver o estado de sucesso.
+          ver o estado de sucesso. Em producao ele deixava marcar como paga
+          uma venda Pix, ou a propria assinatura no cadastro, sem pagamento.
          ---------------------------------------------------------------- */}
-      {estado === 'aguardando' ? (
+      {estado === 'aguardando' && process.env.NODE_ENV !== 'production' ? (
         <button type="button" className={styles.demoButton} onClick={() => setEstado('confirmado')}>
           Simular pagamento confirmado (demonstração)
         </button>

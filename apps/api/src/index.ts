@@ -8,8 +8,11 @@ import {
   buildCadastroDeps,
   buildConciliacaoDeps,
   buildConnectionsDeps,
+  buildConsultasDeps,
   buildContabilidadeDeps,
   buildCustosFixosDeps,
+  buildCustosVariaveisDeps,
+  buildContasBancariasDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
   buildWhatsAppWebhookDeps,
@@ -44,7 +47,10 @@ import { registerCadastroRoutes } from './routes/cadastro.js'
 import { registerConciliacaoRoutes } from './routes/conciliacao.js'
 import { registerConnectionsRoutes } from './routes/connections.js'
 import { registerContabilidadeRoutes } from './routes/contabilidade.js'
+import { registerConsultasRoutes } from './routes/consultas.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
+import { registerCustosVariaveisRoutes } from './routes/custos-variaveis.js'
+import { registerContasBancariasRoutes } from './routes/contas-bancarias.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
 import { registerWhatsAppWebhookRoutes } from './routes/whatsapp-webhook.js'
@@ -60,6 +66,7 @@ import { registerSuporteRoutes } from './routes/suporte.js'
 import { registerSaleRoutes } from './routes/sales.js'
 import { registerAgentRoutes } from './routes/agent.js'
 import { montarStudio } from './studio.js'
+import { motivoDoErro } from './motivo-do-erro.js'
 
 // RNF-058: log estruturado (JSON) com requestId, companyId e userId.
 const app = Fastify({
@@ -127,7 +134,10 @@ async function registrarRotas(): Promise<void> {
   registerBaixasRoutes(app, buildBaixasDeps())
   registerConciliacaoRoutes(app, buildConciliacaoDeps())
   registerContabilidadeRoutes(app, buildContabilidadeDeps())
+  registerConsultasRoutes(app, buildConsultasDeps())
   registerCustosFixosRoutes(app, buildCustosFixosDeps())
+  registerCustosVariaveisRoutes(app, buildCustosVariaveisDeps())
+  registerContasBancariasRoutes(app, buildContasBancariasDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
      ele pausar a fila de avisos — e fila pausada e loja que nao destrava. */
@@ -240,9 +250,6 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
  * O log estruturado aqui e o que transforma "morreu" em "morreu por isto".
  */
 main().catch((erro: unknown) => {
-  app.log.fatal(
-    { motivo: erro instanceof Error ? erro.message : String(erro) },
-    'a api nao conseguiu subir',
-  )
+  app.log.fatal({ motivo: motivoDoErro(erro) }, 'a api nao conseguiu subir')
   process.exit(1)
 })

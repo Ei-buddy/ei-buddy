@@ -1,7 +1,19 @@
-import { loginInputSchema, selectCompanyInputSchema, signupInputSchema } from '@na-regua/contracts'
+import {
+  changePhoneInputSchema,
+  couponCodeInputSchema,
+  loginInputSchema,
+  passwordResetInputSchema,
+  passwordResetRequestSchema,
+  selectCompanyInputSchema,
+  signupInputSchema,
+} from '@na-regua/contracts'
 import {
   AppError,
   type AuthDeps,
+  changePhone,
+  type ChangePhoneDeps,
+  currentPhone,
+  checkCoupon,
   type LoginMeta,
   login,
   selectCompany,
@@ -9,6 +21,10 @@ import {
   type SignupDeps,
   loadProfile,
   logout,
+  requestPasswordReset,
+  type RequestPasswordResetDeps,
+  resetPassword,
+  type ResetPasswordDeps,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { LIMITE_DE_AUTENTICACAO } from '../plugins/rate-limit.js'
@@ -51,7 +67,11 @@ function meta(request: FastifyRequest, channel: 'app' | 'whatsapp' = 'app'): Log
  * fica visivel que o cadastro toca mais coisa, e que o login continua nao
  * tocando nenhuma delas.
  */
-export type AuthRouteDeps = AuthDeps & SignupDeps
+export type AuthRouteDeps = AuthDeps &
+  SignupDeps &
+  Omit<RequestPasswordResetDeps, 'users'> &
+  ResetPasswordDeps &
+  Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'>
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**
@@ -95,6 +115,50 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
       /* 201: criou pessoa, loja e vinculo. E ja devolve a sessao aberta — quem
          acabou de cadastrar quer usar o sistema, nao digitar tudo de novo. */
       return reply.code(201).send(sessao)
+    },
+  )
+
+  /**
+   * Conferir o cupom de quem indicou — RF-114, RF-115.
+   *
+   * PUBLICA pelo mesmo motivo do cadastro, e com o mesmo limite apertado: sem
+   * ele, a rota vira um jeito de varrer quais codigos existem. A tela so
+   * chama depois de a pessoa parar de digitar.
+   */
+  app.get<{ Params: { codigo: string } }>(
+    '/cupons/:codigo',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request) => {
+      const codigo = validate(couponCodeInputSchema, request.params.codigo)
+      return checkCoupon(deps, { code: codigo })
+    },
+  )
+
+  /**
+   * Pedir o link de redefinir senha — NR-014, RF-119.
+   *
+   * Responde 204 SEMPRE, com ou sem conta: a resposta nao pode dizer se o
+   * e-mail tem cadastro (RF-120). Limite de autenticacao, para nao virar
+   * disparador de e-mail na caixa de quem nao pediu.
+   */
+  app.post(
+    '/auth/recuperar-senha',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const input = validate(passwordResetRequestSchema, request.body)
+      await requestPasswordReset(deps, input, new Date())
+      return reply.code(204).send()
+    },
+  )
+
+  /** Trocar a senha pelo link — NR-014. Encerra as sessoes abertas da pessoa. */
+  app.post(
+    '/auth/redefinir-senha',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const input = validate(passwordResetInputSchema, request.body)
+      await resetPassword(deps, input)
+      return reply.code(204).send()
     },
   )
 
@@ -195,6 +259,37 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
 
     return reply.code(200).send(await loadProfile(deps, claims))
   })
+
+  /**
+   * O celular da pessoa logada, e a troca — RF-132, ADR-0012.
+   *
+   * O celular do dono e quem opera a loja pelo WhatsApp: trocar aqui tira o
+   * numero antigo do canal. Pede a senha, e tem o limite de autenticacao — a
+   * rota confere senha, e sem limite viraria um jeito de testar senhas.
+   */
+  app.get('/auth/telefone', async (request, reply) => {
+    const claims = request.sessionClaims
+    if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+    return reply.code(200).send(await currentPhone(deps, claims.userId))
+  })
+
+  app.put(
+    '/auth/telefone',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const claims = request.sessionClaims
+      if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+      const input = validate(changePhoneInputSchema, request.body)
+      const r = await changePhone(
+        deps,
+        { userId: claims.userId, companyId: claims.companyId, now: new Date() },
+        input,
+      )
+      return reply.code(200).send(r)
+    },
+  )
 
   app.get('/auth/me', async (request, reply) => {
     const claims = request.sessionClaims

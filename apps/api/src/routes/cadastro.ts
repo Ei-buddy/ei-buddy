@@ -7,10 +7,17 @@ import {
   importCustomersInputSchema,
   importProductsInputSchema,
   updateCompanyInputSchema,
+  createCustomerContactInputSchema,
+  recordWhatsappConsentInputSchema,
+  updateCustomerInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
+  addCustomerContact,
   catalogSummary,
+  getWhatsappConsent,
+  type CustomerContactDeps,
+  deleteCustomer,
   getCompany,
   getCustomer,
   getProduct,
@@ -18,16 +25,21 @@ import {
   importProducts,
   type ImportProductsDeps,
   listCatalog,
+  listCustomerContacts,
   listCustomers,
   type ManageCompanyDeps,
   productSuggestions,
+  recordWhatsappConsent,
   registerCompany,
   type RegisterCompanyDeps,
+  restoreCustomer,
+  updateCustomer,
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
-  registerProduct,
+  registerProductWithStock,
   type RegisterProductDeps,
+  type WhatsappConsentDeps,
   searchProducts,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
@@ -44,7 +56,9 @@ import { validate } from '../plugins/validate.js'
  * caminho, com outras regras.
  */
 
-export type CadastroDeps = ImportProductsDeps &
+export type CadastroDeps = CustomerContactDeps &
+  WhatsappConsentDeps &
+  ImportProductsDeps &
   ManageCompanyDeps &
   RegisterCompanyDeps &
   RegisterCustomerDeps &
@@ -193,11 +207,140 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     return reply.code(200).send(cliente)
   })
 
+  /**
+   * Consentimento de WhatsApp — RF-016.
+   *
+   * O bloqueio ja existia em `sendCustomerCharge`; faltava alguem ESCREVER as
+   * duas datas. Ate aqui a composicao devolvia um aceite fixo de 2026-01-01
+   * para todo cliente identificado, e cobrar por WhatsApp quem nunca autorizou
+   * passava.
+   *
+   * Sob `/clientes/:id` porque consentimento sem cliente nao existe.
+   */
+  app.get('/clientes/:id/consentimento-whatsapp', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+
+    const c = await getWhatsappConsent(deps, ctx, id)
+
+    return reply.code(200).send({
+      optedInAt: c.optedInAt?.toISOString() ?? null,
+      optedOutAt: c.optedOutAt?.toISOString() ?? null,
+    })
+  })
+
+  app.put(
+    '/clientes/:id/consentimento-whatsapp',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(recordWhatsappConsentInputSchema, request.body)
+
+      const c = await recordWhatsappConsent(deps, ctx, id, input.decision)
+
+      return reply.code(200).send({
+        optedInAt: c.optedInAt?.toISOString() ?? null,
+        optedOutAt: c.optedOutAt?.toISOString() ?? null,
+      })
+    },
+  )
+
+  /**
+   * O historico de contatos da ficha — RF-011, NR-072.
+   *
+   * Sob `/clientes/:id` e nao numa colecao propria (`/contatos?cliente=`):
+   * contato sem cliente nao existe, e a rota aninhada diz isso na URL.
+   *
+   * Nao exige que o cliente esteja na lista: da para ler o historico de quem
+   * ja foi excluido — e e justamente ali que ele explica o porque.
+   */
+  app.get('/clientes/:id/contatos', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+
+    return reply.code(200).send({ contacts: await listCustomerContacts(deps, ctx, id) })
+  })
+
+  app.post(
+    '/clientes/:id/contatos',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(createCustomerContactInputSchema, request.body)
+
+      return reply.code(201).send(await addCustomerContact(deps, ctx, id, input))
+    },
+  )
+
+  /**
+   * Editar o cadastro — RF-009.
+   *
+   * `PATCH` e nao `PUT`: a tela manda o que mudou, e o que nao veio fica como
+   * esta. `PUT` prometeria substituir a ficha inteira, e quem mandasse metade
+   * dos campos apagaria a outra metade.
+   */
+  app.patch(
+    '/clientes/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateCustomerInputSchema, request.body)
+
+      return reply.code(200).send(await updateCustomer(deps, ctx, id, input))
+    },
+  )
+
+  /**
+   * Excluir o cliente da lista — RF-009.
+   *
+   * DELETE, e nao PATCH com um campo: o que a tela pede e "tire este cliente
+   * daqui", e o verbo diz isso. Que por baixo seja um UPDATE numa coluna e
+   * detalhe de como o historico de vendas e preservado — nao contrato.
+   *
+   * 204 e nao 200 com corpo: nao ha estado novo para a tela desenhar, ela ja
+   * sabe que vai voltar para a lista.
+   */
+  app.delete(
+    '/clientes/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await deleteCustomer(deps, ctx, id)
+
+      return reply.code(204).send()
+    },
+  )
+
+  /**
+   * Trazer de volta — RF-009.
+   *
+   * `POST /clientes/:id/reativar` e nao `DELETE` invertido: e uma acao com
+   * nome, e a tela mostra um botao com esse nome. A ficha do cliente excluido
+   * continua abrindo justamente para caber ele.
+   */
+  app.post(
+    '/clientes/:id/reativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await restoreCustomer(deps, ctx, id)
+
+      return reply.code(204).send()
+    },
+  )
+
   app.post('/produtos', { config: { rateLimit: LIMITE_DE_ESCRITA } }, async (request, reply) => {
     const ctx = requireContext(request)
     const input = validate(createProductInputSchema, request.body)
 
-    const produto = await registerProduct(deps, ctx, input)
+    const produto = await registerProductWithStock(deps, ctx, input)
 
     return reply.code(201).send(produto)
   })

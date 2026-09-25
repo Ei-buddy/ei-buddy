@@ -96,6 +96,14 @@ export type NewReceivable = {
   readonly installmentCount: number
   /** `cash` e `pix` nascem liquidados; `credit` e `wallet`, em aberto — RF-064. */
   readonly settledAt?: string | undefined
+  /**
+   * Esta divida e do CLIENTE — RF-013, migration 0037.
+   *
+   * Decidido aqui, no nascimento, por `nasceComoDividaDoCliente`. Antes o
+   * repositorio deduzia depois, de `MIN(p.method)` sobre os pagamentos da
+   * venda — e numa venda mista o fiado saia lido como dinheiro.
+   */
+  readonly isCustomerDebt: boolean
 }
 
 export type NewSale = {
@@ -203,6 +211,20 @@ export type SaleTransaction = TransactionalAuditTrail & {
    * de chave duplicada.
    */
   findByIdempotencyKey(key: string): Promise<RegisteredSale | undefined>
+
+  /**
+   * Soma no que o cliente deve — RF-013.
+   *
+   * Incremento, e nao valor absoluto, pelo mesmo motivo da baixa: aqui se sabe
+   * QUANTO nasceu de divida, nao qual o saldo final. Ler para somar em
+   * JavaScript abriria a corrida que o `+ delta` no proprio UPDATE evita.
+   *
+   * Nada chamava isto ate agora — o saldo so era DECREMENTADO, na baixa, no
+   * cancelamento e na devolucao. Vender no fiado nao somava nada, entao o
+   * filtro "Fiado" da lista (`wallet_balance_cents > 0`) nunca casava com
+   * ninguem, e cancelar uma venda fiada deixava o saldo NEGATIVO.
+   */
+  adjustCustomerBalance(customerId: string, deltaCents: number): Promise<void>
 }
 
 export type UnitOfWork = {

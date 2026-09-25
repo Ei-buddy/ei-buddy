@@ -237,3 +237,42 @@
   display: flex;
   gap: 10px;
 }
+
+/*
+ * A secao de excluir/reativar — RF-009.
+ *
+ * Reaproveita `.privacidadeTexto`, `.privacidadeAviso` e `.privacidadeErro` da
+ * secao de anonimizacao logo abaixo: as duas vivem dentro do mesmo `.privacidade`
+ * e precisam parecer parte da mesma area de "acoes que mexem no cadastro". Só o
+ * espacamento entre elas e proprio.
+ */
+.exclusao {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+/*
+ * O formulario de lancar contato, dentro do card do historico — RF-011.
+ *
+ * Separado por uma borda de baixo porque ele ocupa o topo do card e a lista
+ * continua logo abaixo: sem a linha, o campo de texto e a primeira linha do
+ * historico pareceriam a mesma coisa.
+ */
+.novoContato {
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+/*
+ * Duas acoes no canto do card: lancar e ir para a tela cheia.
+ *
+ * O card so aceitava um `action`, entao a lista precisava de um agrupador —
+ * sem ele o "Lancar" empurraria o link "Contas a receber" para baixo.
+ */
+.acoesDoCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

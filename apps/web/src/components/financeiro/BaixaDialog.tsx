@@ -8,24 +8,12 @@ import {
   type FormaDeRecebimento,
   NOMES_BANCOS,
 } from '@/lib/financeiro-api'
+import { listarContasBancarias } from '@/lib/contas-bancarias-api'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import styles from './financeiro.module.css'
-
-/**
- * Converte "1.234,56" em CENTAVOS.
- *
- * Centavos, e nao reais: o valor vai para a api como inteiro, e converter uma
- * vez aqui evita `Math.round(x * 100)` espalhado pela tela. Em ponto flutuante
- * `19.99 * 100` da `1998.9999999999998` — arredondar uma vez, na borda, e o que
- * impede um centavo de sumir.
- */
-function paraCentavos(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? Math.round(n * 100) : 0
-}
+import { centavosDoTexto } from '@/lib/valor'
 
 /**
  * Baixa de titulo — total ou parcial.
@@ -75,7 +63,21 @@ export default function BaixaDialog({
   const [data, setData] = useState(hoje)
   const [conta, setConta] = useState('')
   const [forma, setForma] = useState<FormaDeRecebimento>('pix')
+  /* As contas da LOJA (RF-073). Sem nenhuma cadastrada, a lista volta a ser a
+     de sugestoes genericas — a baixa nao pode travar por falta de cadastro. */
+  const [contasDaLoja, setContasDaLoja] = useState<string[] | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    void listarContasBancarias().then((r) => {
+      const nomes = r.ok ? r.dados.map((c) => c.name) : []
+      setContasDaLoja(nomes)
+      /* Uma conta so: ja vem escolhida. */
+      if (nomes.length === 1) setConta(nomes[0]!)
+    })
+  }, [])
+
+  const sugestoes = contasDaLoja !== null && contasDaLoja.length > 0 ? contasDaLoja : NOMES_BANCOS
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,7 +95,7 @@ export default function BaixaDialog({
   const pagar = verbo === 'pagar'
 
   /* Na baixa TOTAL o valor e o saldo exato — nao passa por reais e volta. */
-  const valorCents = modo === 'total' ? saldoCents : paraCentavos(valorParcial)
+  const valorCents = modo === 'total' ? saldoCents : (centavosDoTexto(valorParcial) ?? 0)
   const restanteCents = saldoCents - valorCents
   /* Sem a tolerancia de um centavo que existia aqui: em inteiros ela nao e
      necessaria, e era ela que deixava passar uma baixa maior que o saldo — que
@@ -108,7 +110,9 @@ export default function BaixaDialog({
     onConfirmar({
       amountCents: valorCents,
       settledOn: data,
-      ...(pagar ? { bankAccount: conta.trim() } : { method: forma }),
+      ...(pagar
+        ? { bankAccount: conta.trim() }
+        : { method: forma, ...(conta.trim() === '' ? {} : { bankAccount: conta.trim() }) }),
     })
 
   return (
@@ -221,26 +225,47 @@ export default function BaixaDialog({
               {/* `datalist` e nao `select`: a lista de bancos ajuda, mas a conta
                   pode ser uma que nao esta nela — e a api aceita texto livre. */}
               <datalist id="baixa-contas">
-                {NOMES_BANCOS.map((b) => (
+                {sugestoes.map((b) => (
                   <option key={b} value={b} />
                 ))}
               </datalist>
             </label>
           ) : (
-            <label className={styles.baixaCampo}>
-              <span>Como o cliente pagou</span>
-              <select
-                className={styles.baixaInput}
-                value={forma}
-                onChange={(e) => setForma(e.target.value as FormaDeRecebimento)}
-              >
-                {FORMAS_DE_RECEBIMENTO.map((f) => (
-                  <option key={f.valor} value={f.valor}>
-                    {f.rotulo}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <>
+              {/* Onde entrou — opcional: dinheiro na gaveta nao tem conta. E o que
+                faz o saldo da conta subir com os recebimentos (RF-073). */}
+              {contasDaLoja !== null && contasDaLoja.length > 0 ? (
+                <label className={styles.baixaCampo}>
+                  <span>Conta onde entrou (opcional)</span>
+                  <select
+                    className={styles.baixaInput}
+                    value={conta}
+                    onChange={(e) => setConta(e.target.value)}
+                  >
+                    <option value="">Nenhuma — dinheiro no caixa</option>
+                    {contasDaLoja.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className={styles.baixaCampo}>
+                <span>Como o cliente pagou</span>
+                <select
+                  className={styles.baixaInput}
+                  value={forma}
+                  onChange={(e) => setForma(e.target.value as FormaDeRecebimento)}
+                >
+                  {FORMAS_DE_RECEBIMENTO.map((f) => (
+                    <option key={f.valor} value={f.valor}>
+                      {f.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
           )}
         </div>
 

@@ -18,8 +18,11 @@ import type { CompanyId } from '../context.js'
 
 /** Um item da venda, como estava no momento em que ela foi fechada. */
 export type ItemDoHistorico = {
+  readonly productId: string | null
   readonly description: string
   readonly quantity: number
+  /** Ja devolvido — RF-044. */
+  readonly returnedQuantity: number
   readonly unitPriceCents: number
   readonly totalCents: number
 }
@@ -45,6 +48,8 @@ export type VendaDoHistorico = {
   readonly netAmountCents: number
   readonly taxAmountCents: number
   readonly cardFeeAmountCents: number
+  /** Ja devolvido ao cliente, cumulativo — RF-044. */
+  readonly returnedAmountCents: number
   readonly items: readonly ItemDoHistorico[]
   readonly payments: readonly PagamentoDoHistorico[]
   /** Numero da nota, quando houve emissao. */
@@ -58,6 +63,8 @@ export type FiltroDoHistorico = {
   readonly to?: string
   /** Numero da venda, nome do cliente ou descricao de item. */
   readonly termo?: string
+  /** So as vendas deste cliente — RF-011. */
+  readonly customerId?: string
   readonly offset: number
   readonly limite: number
 }

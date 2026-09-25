@@ -28,13 +28,9 @@ import { IconCalendar, IconPlus, IconTrash } from '@/components/Icons'
 import { COMANDOS_PLANO_CONTAS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ConfirmarDialog from '@/components/app/ConfirmarDialog'
+import CustosVariaveis from './CustosVariaveis'
 import styles from './financeiro.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function PlanoDeContasView() {
   const [contas, setContas] = useState<ContaContabil[]>([])
@@ -184,7 +180,7 @@ export default function PlanoDeContasView() {
     <>
       <PageHeader
         title="Plano de contas"
-        subtitle="Estrutura de receitas e despesas, e custos fixos do negócio"
+        subtitle="Estrutura de receitas e despesas, e custos fixos e variáveis do negócio"
         actions={
           <Button onClick={gerarContas} disabled={gerando || custos.length === 0}>
             {gerando ? (
@@ -387,6 +383,8 @@ export default function PlanoDeContasView() {
             </ul>
           )}
         </Card>
+
+        <CustosVariaveis />
       </div>
 
       <div className={styles.comandosWrap}>
@@ -486,7 +484,7 @@ function FormCustoFixo({
     const dados: DadosCustoFixo = {
       nome,
       diaVencimento: Number(dia),
-      valorCents: Math.round(paraNumero(valor) * 100),
+      valorCents: Math.round(reaisDoTexto(valor) * 100),
       planoContasId: contaId === '' ? null : contaId,
     }
 

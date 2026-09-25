@@ -109,7 +109,10 @@ export type CompanyRepository = {
 
 export type NewCustomer = {
   readonly companyId: CompanyId
+  /** Razao social, quando o cliente e PJ. E ela que sai na nota. */
   readonly name: string
+  /** Nome fantasia. Exigido para PJ pelo contrato, ausente em pessoa fisica. */
+  readonly tradeName?: string | undefined
   readonly document?: string | undefined
   readonly phone?: string | undefined
   readonly email?: string | undefined
@@ -123,6 +126,29 @@ export type NewCustomer = {
    * Ate a migration 0019 nao havia onde guardar, e a tela descartava os sete
    * campos que pedia.
    */
+  readonly address?: Address | undefined
+}
+
+/**
+ * O que a edicao pode mudar — RF-009.
+ *
+ * Espelha `updateCustomerInputSchema` de `contracts`: tudo opcional, nada
+ * anulavel. Ausente quer dizer "nao mexe".
+ *
+ * NAO da para APAGAR um campo por aqui, e isso e do contrato, nao deste tipo:
+ * `camposDoCliente.partial()` aceita omitir ou mandar um valor, nunca `null`.
+ * A empresa (`CompanyChanges`) tem a mesma limitacao, pelo mesmo motivo — e
+ * inventar uma terceira semantica so para cliente faria duas telas parecidas
+ * se comportarem diferente.
+ */
+export type CustomerPatch = {
+  readonly name?: string | undefined
+  readonly tradeName?: string | undefined
+  readonly document?: string | undefined
+  readonly phone?: string | undefined
+  readonly email?: string | undefined
+  readonly notes?: string | undefined
+  readonly walletLimitCents?: number | undefined
   readonly address?: Address | undefined
 }
 
@@ -179,6 +205,41 @@ export type CustomerRepository = {
     companyId: CompanyId,
     criterio: { readonly termo?: string; readonly limite: number },
   ): Promise<readonly CustomerOutput[]>
+
+  /**
+   * Edita o que veio, e so o que veio — RF-009.
+   *
+   * `CustomerPatch` tem tudo opcional porque a tela manda o que mudou; campo
+   * AUSENTE fica como esta, e `null` APAGA. Sem essa distincao, editar o
+   * telefone e deixar o e-mail de fora apagaria o e-mail — que e o que um
+   * `UPDATE` ingenuo com `?? null` faz.
+   *
+   * `undefined` quando nao ha o que atualizar: inexistente ou de outra
+   * empresa, indistinguiveis daqui por causa da RLS.
+   */
+  update(
+    companyId: CompanyId,
+    customerId: string,
+    patch: CustomerPatch,
+    updatedBy: UserId,
+  ): Promise<CustomerOutput | undefined>
+
+  /**
+   * Exclui (data) ou reativa (`null`) — RF-009.
+   *
+   * Um metodo para os dois sentidos, e nao `softDelete` mais `restore`: e o
+   * mesmo UPDATE numa coluna so, e dois metodos dariam duas chances de um
+   * esquecer o `updated_by` que o outro escreve.
+   *
+   * `false` quando nao ha o que atualizar — cliente inexistente ou de outra
+   * empresa, que sao indistinguiveis daqui por causa da RLS.
+   */
+  setDeletedAt(
+    companyId: CompanyId,
+    customerId: string,
+    deletedAt: Date | null,
+    updatedBy: UserId,
+  ): Promise<boolean>
 }
 
 export type NewProduct = {

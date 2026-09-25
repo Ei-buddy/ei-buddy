@@ -3,10 +3,12 @@ import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { AppError } from '../app-error.js'
 import { recordLegalAcceptance, type OrigemDoAceite } from '../legal/legal-consent.js'
 import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
+import type { CouponRepository } from '../ports/coupon-repository.js'
 import type { IdentityRegistrar, SessionIssuer, UserDirectory } from '../ports/identity.js'
 import type { LegalConsentRepository } from '../ports/legal-consent-repository.js'
 import type { PartnerApplicationRepository } from '../ports/partner-application-repository.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
+import { checkCoupon } from '../subscriptions/preview-coupon.js'
 
 /**
  * Cadastro de conta — NR-014, RF-001, RF-002.
@@ -48,6 +50,8 @@ export type SignupDeps = {
   readonly partners: PartnerApplicationRepository
   /** Prova de aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1. */
   readonly legalConsents: LegalConsentRepository
+  /** Cupom de quem indicou — RF-114. So chamada quando vem `referralCode`. */
+  readonly coupons: CouponRepository
 }
 
 /** Quanto tempo a sessao do cadastro vale. Igual a do login. */
@@ -71,6 +75,45 @@ export async function signup(
     throw AppError.conflict(
       'Este CNPJ ja tem cadastro. Se a empresa e sua, peca acesso a quem administra a conta.',
     )
+  }
+
+  /*
+   * Telefone e nome de cupom tambem sao recusados ANTES de criar qualquer
+   * coisa, pelo mesmo motivo do CNPJ. Depois da credencial, cada passo grava
+   * sozinho: um telefone repetido estourava o indice unico de `users` (500) e
+   * um cupom repetido so era pego na candidatura — nos dois casos a tela dizia
+   * "erro" e o banco guardava meia conta. Na nova tentativa, o e-mail ja
+   * estava "em uso", e a pessoa ficava presa fora do cadastro.
+   *
+   * A mensagem do telefone nao confirma que a conta existe — mesmo cuidado do
+   * e-mail, logo abaixo.
+   */
+  if (input.phone !== undefined && (await deps.users.findByPhone(input.phone)) !== undefined) {
+    throw AppError.conflict(
+      'Nao foi possivel usar este telefone. Se a conta e sua, entre por "Acessar minha conta".',
+    )
+  }
+
+  if (
+    input.account?.type === 'parceiro' &&
+    input.account.couponCode !== undefined &&
+    (await deps.partners.couponCodeTaken(input.account.couponCode))
+  ) {
+    throw AppError.conflict('Este nome de cupom ja esta em uso. Escolha outro.')
+  }
+
+  /*
+   * Cupom de indicacao — RF-114, RF-115. Conferido ANTES da credencial, pelo
+   * mesmo motivo do CNPJ: recusar depois deixaria meia conta. E recusa com o
+   * motivo exato, no campo, para a pessoa corrigir ou apagar o cupom.
+   */
+  if (input.referralCode !== undefined) {
+    const cupom = await checkCoupon(deps, { code: input.referralCode })
+    if (cupom.status === 'rejected') {
+      throw AppError.validation(cupom.rejection.message, [
+        { path: 'referralCode', message: cupom.rejection.message },
+      ])
+    }
   }
 
   const identidade = await deps.registrar.register(
@@ -149,6 +192,20 @@ export async function signup(
       message: input.account.message,
       couponCode: input.account.couponCode,
     })
+  }
+
+  /*
+   * O vinculo indicador -> indicado — RF-114, ADR-0013.
+   *
+   * Fora da transacao, como a candidatura: se falhar aqui (alguem levou a
+   * ultima cota entre a conferencia e agora), a conta existe e funciona — so
+   * sem a indicacao. Derrubar o cadastro por isso trocaria um desconto
+   * perdido por um cliente perdido.
+   */
+  if (input.referralCode !== undefined) {
+    await deps.coupons
+      .recordRedemption(input.referralCode.trim(), empresa.id)
+      .catch(() => undefined)
   }
 
   const expiraEm = new Date(agora.getTime() + DURACAO_DA_SESSAO_HORAS * 3_600_000)

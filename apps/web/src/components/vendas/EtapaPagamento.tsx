@@ -4,7 +4,9 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   criarCobrancaVenda,
   FORMAS,
+  PARCELAS_MAXIMAS,
   statusCobrancaVenda,
+  taxaDoCredito,
   taxaDoPagamento,
   valorLiquido,
   type Pagamento,
@@ -18,12 +20,7 @@ import { Spinner } from '@/components/auth/Fields'
 import CobrancaPix from '@/components/app/CobrancaPix'
 import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
-
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function EtapaPagamento({
   total,
@@ -42,6 +39,7 @@ export default function EtapaPagamento({
 }) {
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
   const [valorParcial, setValorParcial] = useState('')
+  const [parcelas, setParcelas] = useState(1)
   const [cobrando, setCobrando] = useState<Pagamento | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
@@ -66,7 +64,7 @@ export default function EtapaPagamento({
    * ---------------------------------------------------------------- */
 
   function lancar() {
-    const valor = valorParcial.trim() ? paraNumero(valorParcial) : restante
+    const valor = valorParcial.trim() ? reaisDoTexto(valorParcial) : restante
 
     if (valor <= 0) {
       setToast({ msg: 'Informe um valor maior que zero.', tone: 'error' })
@@ -82,18 +80,20 @@ export default function EtapaPagamento({
       forma,
       valor,
       status: formaAtual.online ? 'pendente' : 'confirmado',
+      ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
     }
 
     onPagamentos([...pagamentos, novo])
     setValorParcial('')
+    setParcelas(1)
 
-    /* Dinheiro e carteira sao confirmados na hora — nao ha o que aguardar.
-       As formas online abrem a cobranca para o cliente pagar. */
+    /* Dinheiro, cartao (na maquininha) e carteira sao confirmados na hora.
+       So o Pix abre a cobranca para o cliente pagar. */
     if (formaAtual.online) {
       setCobrando(novo)
     } else {
       setToast({
-        msg: `${formaAtual.rotulo}: ${formatMoney(valor)} recebido.`,
+        msg: `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
         tone: 'success',
       })
     }
@@ -147,6 +147,24 @@ export default function EtapaPagamento({
                 />
               </label>
 
+              {forma === 'credito' ? (
+                <label className={styles.campo}>
+                  <span>Parcelas</span>
+                  <select
+                    className={styles.input}
+                    value={parcelas}
+                    onChange={(e) => setParcelas(Number(e.target.value))}
+                  >
+                    {Array.from({ length: PARCELAS_MAXIMAS }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n === 1 ? 'À vista (1x)' : `${n}x`} — taxa{' '}
+                        {taxaDoCredito(n).toFixed(2).replace('.', ',')}%
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
               <Button block onClick={lancar}>
                 {formaAtual.online
                   ? `Gerar cobranca em ${formaAtual.rotulo}`
@@ -195,7 +213,10 @@ export default function EtapaPagamento({
                 return (
                   <li key={p.id} className={styles.pagamento}>
                     <span className={styles.pagamentoPrincipal}>
-                      <strong>{f.rotulo}</strong>
+                      <strong>
+                        {f.rotulo}
+                        {p.parcelas ? ` · ${p.parcelas}x` : ''}
+                      </strong>
                       {taxaDoPagamento(p) > 0 ? (
                         <span>taxa {formatMoney(taxaDoPagamento(p))}</span>
                       ) : null}
@@ -302,16 +323,20 @@ export default function EtapaPagamento({
             />
 
             {/* ----------------------------------------------------------
-                APOIO A DEMONSTRACAO — remover ao ligar o PSP.
-                Sem provedor real o polling nunca confirma.
+                APOIO A DEMONSTRACAO — so fora de producao.
+                Sem provedor real o polling nunca confirma. Em producao este
+                botao deixava qualquer operador marcar um Pix como pago sem
+                dinheiro nenhum ter entrado.
                ---------------------------------------------------------- */}
-            <button
-              type="button"
-              className={styles.demoBotao}
-              onClick={() => confirmarCobranca(cobrando.id)}
-            >
-              Simular pagamento confirmado (demonstracao)
-            </button>
+            {process.env.NODE_ENV !== 'production' ? (
+              <button
+                type="button"
+                className={styles.demoBotao}
+                onClick={() => confirmarCobranca(cobrando.id)}
+              >
+                Simular pagamento confirmado (demonstracao)
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

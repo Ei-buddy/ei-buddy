@@ -253,6 +253,7 @@ export function createCompanyRepository(sql: Sql): CompanyRepository {
 type LinhaCliente = {
   id: string
   name: string
+  trade_name: string | null
   document: string | null
   phone: string | null
   email: string | null
@@ -268,11 +269,13 @@ type LinhaCliente = {
   state: string | null
   created_at: Date
   anonymized_at: Date | null
+  deleted_at: Date | null
 }
 
 const paraCliente = (l: LinhaCliente): CustomerOutput => ({
   id: l.id,
   name: l.name,
+  tradeName: l.trade_name,
   document: l.document,
   phone: l.phone,
   email: l.email,
@@ -284,6 +287,9 @@ const paraCliente = (l: LinhaCliente): CustomerOutput => ({
   /* A ficha precisa disto para nao oferecer "atender pedido de exclusao" a um
      cliente ja anonimizado — RF-127. */
   anonymizedAt: l.anonymized_at?.toISOString() ?? null,
+  /* Sai da lista sem sair do historico de vendas — RF-009, dados.md#exclusão.
+     A ficha continua abrindo, e e ela que oferece reativar. */
+  deletedAt: l.deleted_at?.toISOString() ?? null,
 })
 
 export function createCustomerRepository(sql: Sql): CustomerRepository {
@@ -294,10 +300,10 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
         c.companyId,
         (tx) => tx<LinhaCliente[]>`
           INSERT INTO customers
-            (company_id, name, document, phone, email, notes, wallet_limit_cents,
+            (company_id, name, trade_name, document, phone, email, notes, wallet_limit_cents,
              postal_code, street, street_number, complement, neighborhood, city, state,
              created_by, created_at)
-          VALUES (${c.companyId}, ${c.name}, ${c.document ?? null}, ${c.phone ?? null},
+          VALUES (${c.companyId}, ${c.name}, ${c.tradeName ?? null}, ${c.document ?? null}, ${c.phone ?? null},
                   ${c.email ?? null}, ${c.notes ?? null}, ${c.walletLimitCents ?? 0},
                   ${c.address?.zipCode ?? null}, ${c.address?.street ?? null},
                   ${c.address?.number ?? null}, ${c.address?.complement ?? null},
@@ -380,11 +386,37 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
                compara. Formatar aqui obrigaria a comparar string com data. */
             SELECT max(s.created_at)                    AS last_sale_at,
                    count(*)                             AS sales_count,
-                   COALESCE(sum(s.net_amount_cents), 0) AS total_spent_cents
+                   /*
+                      O que o CLIENTE pagou, e nao o que sobrou para a loja.
+
+                      Era "net_amount_cents" — bruto menos desconto, imposto e
+                      tarifa da adquirente. Os dois ultimos sao custo DA LOJA,
+                      nao abatimento para quem comprou: uma venda de R$ 24,00
+                      entrava como R$ 22,56 no "total gasto" do cliente.
+
+                      E a mesma regra que o #303 fixou nas telas ("total da
+                      venda = bruto - desconto"), e que esta agregacao nao
+                      seguiu porque ela vive no SQL e aquele PR mexeu no front.
+
+                      A proporcao continua: "returned_amount_cents" soma
+                      TOTAIS DE LINHA, ja com o desconto do item mas antes do
+                      desconto da venda — entao devolver tudo de uma venda com
+                      desconto de R$ 10 sobre R$ 100 subtrairia 100 de 90 e
+                      daria saldo negativo. Escalado, subtrai 90 de 90.
+                   */
+                   COALESCE(sum(
+                     (s.gross_amount_cents - s.discount_cents)
+                     - COALESCE(ROUND((s.gross_amount_cents - s.discount_cents)
+                         * s.returned_amount_cents::numeric
+                         / NULLIF(s.gross_amount_cents, 0)), 0)
+                   ), 0)                                AS total_spent_cents
             FROM sales s
-            WHERE s.customer_id = c.id AND s.status <> 'cancelled'
+            /* Devolvida inteira nao conta; a parcial entra sem a parte devolvida (RF-044). */
+            WHERE s.customer_id = c.id AND s.status NOT IN ('cancelled', 'returned')
           ) h ON true
-          WHERE true
+          /* O excluido sai da lista — e so dela. O LATERAL acima continua
+             somando as vendas dele para quem abrir a ficha pelo historico. */
+          WHERE c.deleted_at IS NULL
           ${
             criterio.termo === undefined
               ? tx``
@@ -460,6 +492,80 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
         `,
       )
       return linhas.map(paraCliente)
+    },
+
+    /**
+     * Exclui ou reativa — RF-009.
+     *
+     * Um UPDATE para os dois sentidos: `deleted_at` recebe a data ou
+     * `null`. Sem `WHERE deleted_at IS NULL`, de proposito — o caso de uso ja
+     * conferiu o estado atual, e filtrar aqui tornaria a reativacao impossivel.
+     *
+     * `RETURNING id` e nao `count`: a RLS ja escondeu o cliente de outra
+     * empresa, entao "nao atualizou nada" e exatamente a resposta certa para
+     * inexistente e para de outro tenant.
+     */
+    /**
+     * Edita o cadastro — RF-009.
+     *
+     * `COALESCE(novo, coluna)` em toda coluna, como o UPDATE de `companies`:
+     * ausente nao mexe. Um `SET` direto com `?? null` limparia todo campo que a
+     * tela nao mandou — salvar a correcao do telefone apagaria o e-mail.
+     *
+     * Nao ha como APAGAR um campo por aqui, e e do contrato: `.partial()`
+     * aceita omitir ou mandar valor, nunca `null`. A empresa tem a mesma
+     * limitacao.
+     *
+     * `undefined` quando nao atualizou nada — inexistente ou de outra loja,
+     * indistinguiveis daqui por causa da RLS.
+     */
+    update: async (companyId, customerId, patch, updatedBy) => {
+      const e = patch.address
+
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaCliente[]>`
+          UPDATE customers
+             SET name               = COALESCE(${patch.name ?? null}, name),
+                 trade_name         = COALESCE(${patch.tradeName ?? null}, trade_name),
+                 document           = COALESCE(${patch.document ?? null}, document),
+                 phone              = COALESCE(${patch.phone ?? null}, phone),
+                 email              = COALESCE(${patch.email ?? null}, email),
+                 notes              = COALESCE(${patch.notes ?? null}, notes),
+                 wallet_limit_cents = COALESCE(${patch.walletLimitCents ?? null},
+                                               wallet_limit_cents),
+                 postal_code        = COALESCE(${e?.zipCode ?? null}, postal_code),
+                 street             = COALESCE(${e?.street ?? null}, street),
+                 street_number      = COALESCE(${e?.number ?? null}, street_number),
+                 complement         = COALESCE(${e?.complement ?? null}, complement),
+                 neighborhood       = COALESCE(${e?.district ?? null}, neighborhood),
+                 city               = COALESCE(${e?.city ?? null}, city),
+                 state              = COALESCE(${e?.state ?? null}, state),
+                 updated_by         = ${updatedBy},
+                 updated_at         = now()
+           WHERE id = ${customerId}
+          RETURNING *
+        `,
+      )
+
+      return linha === undefined ? undefined : paraCliente(linha)
+    },
+
+    setDeletedAt: async (companyId, customerId, deletedAt, updatedBy) => {
+      const linhas = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ id: string }[]>`
+          UPDATE customers
+             SET deleted_at = ${deletedAt},
+                 updated_by = ${updatedBy},
+                 updated_at = now()
+           WHERE id = ${customerId}
+          RETURNING id
+        `,
+      )
+      return linhas.length > 0
     },
   }
 }

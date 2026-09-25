@@ -14,11 +14,8 @@
  *  | estadoDaNota           | GET  /vendas/:id/nota      | polling da nota    |
  *  | reconciliarContingencia| POST /vendas/notas/reconciliar | abrir a etapa |
  *
- * O que AINDA NAO existe no backend, de proposito documentado (nao e so falta
- * de wiring): cobranca Pix avulsa (`criarCobrancaVenda`/`statusCobrancaVenda`,
- * depende do adapter Asaas da NR-044) e estorno de venda
- * (`estornarVenda` — precisa ser transacional em tres tabelas de uma vez, e
- * essa unidade de trabalho ainda nao foi escrita nem no web).
+ * A cobranca Pix com QR no balcao ainda nao existe: no app, o Pix e
+ * REGISTRADO, como o cartao (ADR-0004). Volta quando a conta Asaas existir.
  *
  * O SERVIDOR E QUEM FECHA A VENDA. O carrinho vive no aparelho so ate o
  * fechamento; a partir dai, preco, imposto, taxa e estoque sao calculados
@@ -26,27 +23,8 @@
  * alterar preco por fora.
  */
 
-import { produtos } from './mock-data'
-/* Tipos da cobranca Pix. No web eles moravam no auth-api por causa da
-   assinatura; aqui, como o mobile nao cobra mensalidade, o unico uso e a
-   venda — entao vivem junto dela. */
-export type PixCharge = {
-  chargeId: string
-  /** Payload "copia e cola" — vira o QR Code. */
-  payload: string
-  /** Timestamp (ms) em que o codigo expira. */
-  expiresAt: number
-  amount: number
-}
-
-export type PixChargeStatus = 'pending' | 'paid' | 'expired'
 import { chamarApi } from './api'
 import type { FormaPagamento, Produto } from './types'
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/** Data de referencia do app. */
-export const HOJE = '2026-08-24'
 
 /* -------------------------------------------------------------------------- */
 /* Carrinho                                                                   */
@@ -93,7 +71,9 @@ export function totalCarrinho(itens: ItemCarrinho[], desconto: Desconto | null):
   return sub - valorDesconto(sub, desconto)
 }
 
-export function paraItemCarrinho(produto: Produto): ItemCarrinho {
+export function paraItemCarrinho(
+  produto: Pick<Produto, 'id' | 'codigo' | 'descricao' | 'precoVenda' | 'precoCusto' | 'estoque'>,
+): ItemCarrinho {
   return {
     produtoId: produto.id,
     codigo: produto.codigo,
@@ -105,16 +85,6 @@ export function paraItemCarrinho(produto: Produto): ItemCarrinho {
   }
 }
 
-/** Busca produto pelo EAN lido na camera. */
-export function produtoPorEan(ean: string): Produto | null {
-  const limpo = ean.replace(/\D/g, '')
-  return (
-    produtos.find((p) => p.ean === limpo) ??
-    produtos.find((p) => p.codigo.toUpperCase() === ean.trim().toUpperCase()) ??
-    null
-  )
-}
-
 /* -------------------------------------------------------------------------- */
 /* Pagamento                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -124,13 +94,17 @@ export const FORMAS: {
   rotulo: string
   /** Taxa da operadora, em % — descontada do valor liquido. */
   taxa: number
-  /** Precisa de link/QR para o cliente pagar. */
+  /**
+   * Abre cobranca com QR — nenhuma, por enquanto. No balcao o pagamento e
+   * registrado (ADR-0004): Pix na chave do lojista, cartao na maquininha.
+   * Volta a ser `true` quando a cobranca Pix real do PDV existir.
+   */
   online: boolean
 }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
-  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: true },
-  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: true },
-  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: true },
+  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: false },
+  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
+  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
   { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },
 ]
 
@@ -139,13 +113,30 @@ export type Pagamento = {
   forma: FormaPagamento
   valor: number
   status: 'pendente' | 'confirmado' | 'falhou'
+  /** So no credito. Ausente = a vista. */
+  parcelas?: number
+}
+
+/** Ate quantas vezes o balcao parcela no credito — a tabela da api cobre 1x a 12x. */
+export const PARCELAS_MAXIMAS = 12
+
+/**
+ * Taxa estimada do credito por numero de parcelas, em %. A mesma escada da
+ * tabela padrao da api (`default-settings`); quem calcula o liquido de
+ * verdade e o servidor.
+ */
+export function taxaDoCredito(parcelas: number): number {
+  if (parcelas <= 1) return FORMAS.find((f) => f.valor === 'credito')?.taxa ?? 0
+  if (parcelas === 2) return 5
+  return 6 + (parcelas - 3) * 1.5
 }
 
 /** Taxa cobrada pela operadora sobre um pagamento. */
 export function taxaDoPagamento(pagamento: Pagamento): number {
   const forma = FORMAS.find((f) => f.valor === pagamento.forma)
   if (!forma) return 0
-  return (pagamento.valor * forma.taxa) / 100
+  const taxa = pagamento.forma === 'credito' ? taxaDoCredito(pagamento.parcelas ?? 1) : forma.taxa
+  return (pagamento.valor * taxa) / 100
 }
 
 /**
@@ -157,34 +148,6 @@ export function valorLiquido(pagamentos: Pagamento[]): number {
   return pagamentos
     .filter((p) => p.status === 'confirmado')
     .reduce((acc, p) => acc + p.valor - taxaDoPagamento(p), 0)
-}
-
-/** SUBSTITUIR POR: POST /vendas/:id/cobrancas */
-export async function criarCobrancaVenda(valor: number): Promise<PixCharge> {
-  await delay(800)
-
-  const chargeId = `vch-${Math.random().toString(36).slice(2, 10)}`
-  const payload = [
-    '00020126580014BR.GOV.BCB.PIX0136',
-    chargeId.padEnd(36, '0'),
-    '52040000530398654',
-    valor.toFixed(2).padStart(6, '0'),
-    '5802BR5913EI BUDDY LTDA6008CURITIBA62070503***6304',
-  ].join('')
-
-  return {
-    chargeId,
-    payload,
-    expiresAt: Date.now() + 15 * 60_000,
-    amount: valor,
-  }
-}
-
-/** SUBSTITUIR POR: GET /vendas/:id/cobrancas/:cid */
-export async function statusCobrancaVenda(chargeId: string): Promise<PixChargeStatus> {
-  await delay(400)
-  void chargeId
-  return 'pending'
 }
 
 /* -------------------------------------------------------------------------- */
@@ -472,29 +435,21 @@ export async function listarHistoricoDeVendas(): Promise<
 }
 
 /**
- * Estorno de venda — RF-036.
+ * Cancela a venda — RF-043, `POST /sales/:id/cancelar`.
  *
- * AINDA NAO EXISTE no backend, nem no web: precisa ser uma unica transacao
- * cobrindo tres coisas — devolver o item ao estoque, estornar o titulo em
- * Contas a Receber e cancelar a nota fiscal (ou emitir a de devolucao). Se uma
- * falhar, nenhuma pode valer, senao a venda estornada com estoque nao
- * devolvido vira furo de inventario que ninguem consegue explicar depois.
- *
- * Por isso o botao na tela avisa em vez de fingir — ver `vendas.tsx`.
+ * Uma transacao no servidor: o estoque volta, os recebiveis sao cancelados e a
+ * venda fica marcada. O motivo e obrigatorio (minimo 3 caracteres) e fica na
+ * trilha — e a resposta para "por que o faturamento de ontem mudou".
  */
 export async function estornarVenda(
   id: string,
-): Promise<{ ok: true; itensDevolvidos: number } | { ok: false; error: string }> {
-  await delay(1200)
-
-  const venda = listarVendas().find((v) => v.id === id)
-  if (!venda) return { ok: false, error: 'Venda não encontrada.' }
-  if (venda.status === 'estornada') {
-    return { ok: false, error: 'Esta venda já foi estornada.' }
-  }
-
-  const itensDevolvidos = venda.itens.reduce((acc, i) => acc + i.quantidade, 0)
-  return { ok: true, itensDevolvidos }
+  motivo: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await chamarApi<undefined>(`/sales/${encodeURIComponent(id)}/cancelar`, {
+    method: 'POST',
+    body: { reason: motivo.trim() },
+  })
+  return r.ok ? { ok: true } : { ok: false, erro: r.message }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -602,6 +557,8 @@ export async function fecharVenda(
       payments: pagamentos.map((p) => ({
         method: METODO[p.forma],
         amountCents: Math.round(p.valor * 100),
+        /* 1x vai sem o campo: a vista e a ausencia de parcelamento no contrato. */
+        ...(p.forma === 'credito' && (p.parcelas ?? 1) > 1 ? { installments: p.parcelas } : {}),
       })),
       ...(opcoes.descontoCentavos === undefined ? {} : { discountCents: opcoes.descontoCentavos }),
     },

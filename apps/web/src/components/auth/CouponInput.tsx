@@ -16,9 +16,13 @@ type Resolvido = {
 /**
  * Campo de cupom de parceiro com validacao em tempo real (debounce 600ms).
  *
- * SUBSTITUIR POR: GET /partners/coupons/:codigo — ver `lib/auth-api.ts`.
- * O campo e opcional: o fluxo segue normalmente se ficar em branco ou se o
+ * Confere no servidor (`validateCoupon`, RF-114). O campo e opcional: o fluxo segue normalmente se ficar em branco ou se o
  * cupom for invalido, apenas sem o beneficio.
+ *
+ * O texto de ajuda fala do beneficio de QUEM SE CADASTRA, e nao da comissao do
+ * parceiro. Dizia "identificamos e comissionamos o parceiro", que e verdade e
+ * e a informacao errada para o momento: quem esta preenchendo o cadastro
+ * precisa saber o que ganha, nao como o outro lado e remunerado.
  */
 export default function CouponInput({
   value,
@@ -136,8 +140,8 @@ export default function CouponInput({
 
         {estado === 'vazio' ? (
           <span className={formStyles.hint}>
-            Se alguém indicou o sistema para você, informe o cupom — é assim que identificamos e
-            comissionamos o parceiro. Pode seguir sem preencher.
+            Se alguém indicou o sistema para você, informe o cupom — é assim que identificaremos o
+            benefício que você receberá. Caso contrário, prossiga sem preencher.
           </span>
         ) : null}
       </div>

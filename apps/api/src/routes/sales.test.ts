@@ -107,6 +107,10 @@ function unitOfWorkEmMemoria() {
         },
         decreaseStock: async () => undefined,
         findByIdempotencyKey: async (chave) => porChave.get(chave),
+
+        /* O saldo do fiado — RF-013. O teste da rota afirma status e corpo;
+           quanto subiu tem cobertura em core. */
+        adjustCustomerBalance: async () => {},
       }
       return fn(tx)
     },
@@ -139,6 +143,12 @@ function buildApp(
     /* O cancelamento tem suite propria em `core`; aqui so precisa existir para
        o tipo fechar. Quem testar a rota de cancelar sobrescreve. */
     uow: {
+      transaction: async () => {
+        throw new Error('nao executa neste teste')
+      },
+    },
+    /* A devolucao tambem tem suite propria em `core` e no E2E. */
+    returns: {
       transaction: async () => {
         throw new Error('nao executa neste teste')
       },
@@ -347,7 +357,17 @@ describe('historico de vendas — NR-027, US-021', () => {
     netAmountCents: 1990,
     taxAmountCents: 0,
     cardFeeAmountCents: 0,
-    items: [{ description: 'Cafe', quantity: 1, unitPriceCents: 1990, totalCents: 1990 }],
+    returnedAmountCents: 0,
+    items: [
+      {
+        productId: null,
+        description: 'Cafe',
+        quantity: 1,
+        returnedQuantity: 0,
+        unitPriceCents: 1990,
+        totalCents: 1990,
+      },
+    ],
     payments: [{ method: 'cash', amountCents: 1990, installments: null }],
     invoiceNumber: null,
     invoiceAccessKey: null,

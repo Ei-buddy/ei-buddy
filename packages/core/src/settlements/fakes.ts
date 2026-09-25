@@ -1,5 +1,5 @@
 import { InMemoryAuditTrail } from '../audit/fakes.js'
-import type { PaymentMethod, SettlementOutput } from '@na-regua/contracts'
+import type { SettlementOutput } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
 import type {
   NewSettlement,
@@ -43,11 +43,11 @@ export class InMemorySettlements implements SettlementUnitOfWork {
   adicionarTitulo(
     companyId: CompanyId,
     tipo: 'payable' | 'receivable',
-    t: Omit<TituloSnapshot, 'paymentMethod'> & { paymentMethod?: PaymentMethod | null },
+    t: Omit<TituloSnapshot, 'isCustomerDebt'> & { isCustomerDebt?: boolean },
   ): void {
     this.titulos.push({
       ...t,
-      paymentMethod: t.paymentMethod ?? null,
+      isCustomerDebt: t.isCustomerDebt ?? false,
       companyId,
       tipo,
     })

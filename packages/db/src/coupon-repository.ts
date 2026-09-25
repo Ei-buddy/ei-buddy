@@ -49,5 +49,14 @@ export function createCouponRepository(sql: Sql): CouponRepository {
       )
       return linha === undefined ? undefined : paraSaida(linha)
     },
+
+    /* A funcao confere de novo e LANCA com a frase em portugues quando o
+       cupom deixou de valer — quem chama decide o que fazer com isso. */
+    recordRedemption: async (code, redeemedCompanyId) => {
+      await withPlatformScope(
+        sql,
+        (tx) => tx`SELECT * FROM coupon_redemption_record(${code}, ${redeemedCompanyId})`,
+      )
+    },
   }
 }

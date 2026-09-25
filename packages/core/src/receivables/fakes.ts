@@ -49,12 +49,13 @@ export class InMemoryReceivables implements ReceivableQueries {
 
   async list(
     companyId: CompanyId,
-    criterio: { readonly status: readonly ReceivableStatus[] },
+    criterio: { readonly status: readonly ReceivableStatus[]; readonly customerId?: string },
   ): Promise<readonly ReceivableOutput[]> {
     return (
       this.registros
         .filter((r) => r.companyId === companyId)
         .filter((r) => criterio.status.length === 0 || criterio.status.includes(r.status))
+        .filter((r) => criterio.customerId === undefined || r.customerId === criterio.customerId)
         /* Ordena como o SQL (`ORDER BY due_date`): um falso sem isso deixaria
          passar uma consulta sem ordenacao. */
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
@@ -106,6 +107,13 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
     }
   }
 
+  private readonly saldos = new Map<string, number>()
+
+  /** Quanto o cliente deve, segundo o que esta transacao somou. */
+  saldoDe(customerId: string): number {
+    return this.saldos.get(customerId) ?? 0
+  }
+
   private escopo(_companyId: CompanyId): ManualReceivableTransaction {
     return {
       record: (entrada) => this.trilha.record(entrada),
@@ -131,6 +139,11 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
         }
         this.registros.push(gravado)
         return gravado
+      },
+
+      /** O saldo devedor do cliente — RF-013. */
+      adjustCustomerBalance: async (customerId, deltaCents) => {
+        this.saldos.set(customerId, (this.saldos.get(customerId) ?? 0) + deltaCents)
       },
     }
   }

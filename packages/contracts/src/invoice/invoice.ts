@@ -53,6 +53,22 @@ export const taxSituationCodeSchema = z
   })
 
 /**
+ * CSOSN — 3 digitos. O unico aceito no CADASTRO de produto.
+ *
+ * O produto so atende empresa do Simples Nacional e MEI, e as duas usam CSOSN.
+ * Aceitar CST de dois digitos no cadastro era deixar entrar um codigo que a
+ * SEFAZ recusaria na primeira nota. A nota em si segue aceitando os dois
+ * (`taxSituationCodeSchema`): produto antigo com CST gravado precisa ao menos
+ * chegar a emissao, que diz qual item corrigir.
+ */
+export const csosnSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ''))
+  .refine((d) => d.length === 3, {
+    message: 'CSOSN invalido. Deve ter 3 digitos, por exemplo 102.',
+  })
+
+/**
  * Chave de acesso — os 44 digitos que identificam a nota — RF-045.
  *
  * E o que o lojista informa ao contador e o que o cliente usa para consultar a

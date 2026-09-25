@@ -33,7 +33,10 @@ export type TipoDeDocumentoLegal = z.infer<typeof tipoDeDocumentoLegalSchema>
  */
 export const VERSOES_LEGAIS = {
   privacy: '2026-09-09',
-  terms: '2026-09-09',
+  /* 2026-09-24: o escopo do produto nos Termos passou a dizer "comercio
+     enquadrado como MEI", em vez de "comercio". Mudanca de texto obriga
+     reaceite (RF-03), e por isso a data sobe junto. */
+  terms: '2026-09-24',
 } as const satisfies Record<TipoDeDocumentoLegal, string>
 
 /** Os dois documentos, para quem precisa percorrer sem repetir a lista. */

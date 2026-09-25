@@ -3,19 +3,20 @@
  * PONTOS DE INTEGRACAO — TELA DE EMPRESA
  * ============================================================================
  *
- * O cadastro (`carregarEmpresa`/`salvarEmpresa`) e de VERDADE desde a
- * migration 0021. O que continua simulado esta marcado funcao a funcao.
+ * Nada aqui e simulado. A ultima simulacao a cair foram as consultas de CEP
+ * e CNPJ (NR-072), que devolviam tres CEPs de Curitiba e uma empresa de
+ * exemplo; o cadastro ja era de verdade desde a migration 0021.
  *
  *  | Funcao              | Endpoint                       | Disparo            |
  *  |---------------------|--------------------------------|--------------------|
  *  | carregarEmpresa     | GET  /empresa                  | abrir a tela       |
  *  | salvarEmpresa       | PUT  /empresa                  | submit do form     |
- *  | buscarCep           | GET /enderecos/cep/:cep (mock) | CEP completo (8)   |
- *  | buscarCnpj          | GET /empresas/cnpj/:cnpj (mock)| botao "Buscar dados"|
- *  | enviarCertificado   | POST /empresa/certificado(mock)| upload do .pfx     |
+ *  | buscarCep           | GET /enderecos/cep/:cep        | CEP completo (8)   |
+ *  | buscarCnpj          | GET /empresas/cnpj/:cnpj       | botao "Buscar dados"|
+ *  | enviarCertificado   | PUT  /empresa/credenciais-fiscais | upload do .pfx  |
  *
- * DECISAO: as consultas de CEP e CNPJ passam pelo NOSSO backend, e nao
- * direto do navegador para ViaCEP/ReceitaWS. Motivos:
+ * DECISAO (cumprida em NR-072): as consultas de CEP e CNPJ passam pelo NOSSO
+ * backend, e nao direto do navegador para ViaCEP/ReceitaWS. Motivos:
  *   - a chave e a cota do servico ficam no servidor, nao expostas no bundle;
  *   - da para cachear (CEP muda pouco) e nao estourar limite de terceiro;
  *   - o front nao quebra se o fornecedor for trocado.
@@ -27,8 +28,6 @@
  */
 
 import { pedir, type Resultado } from './http'
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /* -------------------------------------------------------------------------- */
 /* CEP                                                                        */
@@ -43,44 +42,45 @@ export type EnderecoCep = {
 
 export type CepResult = { ok: true; endereco: EnderecoCep } | { ok: false; error: string }
 
-/** SUBSTITUIR POR: GET /enderecos/cep/:cep */
+/**
+ * Busca o endereco pelo CEP — NR-072.
+ *
+ * Ate aqui era uma base de tres CEPs de Curitiba: qualquer outro voltava "CEP
+ * nao encontrado", e o lojista de Sao Paulo concluia que o campo estava
+ * quebrado. Agora vai a BrasilAPI pelo nosso backend.
+ *
+ * A resposta da API traz tambem latitude e longitude (ADR-0008); a tela so
+ * precisa do endereco e ignora o resto.
+ */
 export async function buscarCep(cep: string): Promise<CepResult> {
-  await delay(700)
-
   const digits = cep.replace(/\D/g, '')
   if (digits.length !== 8) {
     return { ok: false, error: 'CEP incompleto.' }
   }
 
-  /* Base de exemplo: alguns CEPs reconhecidos, o resto devolve nao
-     encontrado para exercitar o caminho de erro da tela. */
-  const conhecidos: Record<string, EnderecoCep> = {
-    '80010010': {
-      logradouro: 'Rua das Flores',
-      bairro: 'Centro',
-      cidade: 'Curitiba',
-      uf: 'PR',
-    },
-    '80020100': {
-      logradouro: 'Avenida Sete de Setembro',
-      bairro: 'Centro',
-      cidade: 'Curitiba',
-      uf: 'PR',
-    },
-    '01310100': {
-      logradouro: 'Avenida Paulista',
-      bairro: 'Bela Vista',
-      cidade: 'Sao Paulo',
-      uf: 'SP',
+  const r = await pedir<RespostaCep>(`/api/enderecos/cep/${digits}`)
+  if (!r.ok) return { ok: false, error: r.erro }
+
+  /* Campo ausente vira string vazia, e nao "null" escrito dentro do input: o
+     provedor as vezes conhece a cidade e nao o logradouro (CEP de cidade
+     inteira), e ai o lojista digita a rua. */
+  return {
+    ok: true,
+    endereco: {
+      logradouro: r.dados.street ?? '',
+      bairro: r.dados.district ?? '',
+      cidade: r.dados.city ?? '',
+      uf: r.dados.state ?? '',
     },
   }
+}
 
-  const encontrado = conhecidos[digits]
-  if (!encontrado) {
-    return { ok: false, error: 'CEP não encontrado.' }
-  }
-
-  return { ok: true, endereco: encontrado }
+/** O que a API devolve — `CepAddress` do core, em JSON. */
+type RespostaCep = {
+  street: string | null
+  district: string | null
+  city: string | null
+  state: string | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -101,29 +101,59 @@ export type DadosCnpj = {
 
 export type CnpjResult = { ok: true; dados: DadosCnpj } | { ok: false; error: string }
 
-/** SUBSTITUIR POR: GET /empresas/cnpj/:cnpj */
+/**
+ * Busca os dados da empresa pelo CNPJ — NR-072.
+ *
+ * Devolvia sempre a mesma empresa de exemplo ("Mercearia Sol Nascente LTDA"),
+ * para qualquer CNPJ de quatorze digitos. Agora vai a BrasilAPI pelo backend.
+ *
+ * O que vem daqui e SUGESTAO: os campos chegam preenchidos e o lojista pode
+ * corrigir qualquer um antes de salvar. Por isso campo ausente nao e erro —
+ * falta o fantasia, o lojista escreve o fantasia.
+ */
 export async function buscarCnpj(cnpj: string): Promise<CnpjResult> {
-  await delay(1100)
-
   const digits = cnpj.replace(/\D/g, '')
   if (digits.length !== 14) {
     return { ok: false, error: 'Informe o CNPJ completo antes de buscar.' }
   }
 
+  const r = await pedir<RespostaCnpj>(`/api/empresas/cnpj/${digits}`)
+  if (!r.ok) return { ok: false, error: r.erro }
+
   return {
     ok: true,
     dados: {
-      razaoSocial: 'Mercearia Sol Nascente LTDA',
-      nomeFantasia: 'Mercearia Sol Nascente',
-      ramoAtividade: 'Comercio varejista de alimentos',
-      cep: '80010-010',
-      logradouro: 'Rua das Flores',
-      numero: '482',
-      bairro: 'Centro',
-      cidade: 'Curitiba',
-      uf: 'PR',
+      razaoSocial: r.dados.legalName,
+      nomeFantasia: r.dados.tradeName ?? '',
+      ramoAtividade: r.dados.mainActivity ?? '',
+      cep: formatarCep(r.dados.zipCode),
+      logradouro: r.dados.street ?? '',
+      numero: r.dados.streetNumber ?? '',
+      bairro: r.dados.district ?? '',
+      cidade: r.dados.city ?? '',
+      uf: r.dados.state ?? '',
     },
   }
+}
+
+/** O que a API devolve — `CnpjCompany` do core, em JSON. */
+type RespostaCnpj = {
+  legalName: string
+  tradeName: string | null
+  mainActivity: string | null
+  zipCode: string | null
+  street: string | null
+  streetNumber: string | null
+  district: string | null
+  city: string | null
+  state: string | null
+  registrationStatus: string | null
+}
+
+/** A API devolve so digitos; o campo da tela usa mascara. */
+function formatarCep(digitos: string | null): string {
+  if (digitos === null || digitos.length !== 8) return ''
+  return `${digitos.slice(0, 5)}-${digitos.slice(5)}`
 }
 
 /* -------------------------------------------------------------------------- */

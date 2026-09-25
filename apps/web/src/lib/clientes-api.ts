@@ -20,8 +20,6 @@ import { pedir, type Resultado } from './http'
 import type { LinhaRecusada, ResultadoDaImportacao } from './produtos-api'
 import type { Cliente } from './types'
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 /* -------------------------------------------------------------------------- */
 /* Consulta de CPF                                                            */
 /* -------------------------------------------------------------------------- */
@@ -29,32 +27,23 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 export type CpfResult =
   { ok: true; nome: string } | { ok: false; error: string; indisponivel?: boolean }
 
-/** SUBSTITUIR POR: GET /pessoas/cpf/:cpf */
+/**
+ * Consulta de CPF — sempre indisponivel, de proposito.
+ *
+ * Diferente do CNPJ, dado de CPF nao e publico: so existe com base contratada
+ * e base legal (LGPD), e nenhuma das duas existe hoje. A tela diz isso e o
+ * cadastro segue manual. Antes esta funcao devolvia nomes ficticios ("Joana
+ * Ribeiro") para dois CPFs de exemplo, como se a consulta existisse.
+ */
 export async function buscarCpf(cpf: string): Promise<CpfResult> {
-  await delay(900)
-
-  const d = cpf.replace(/\D/g, '')
-  if (d.length !== 11) {
+  if (cpf.replace(/\D/g, '').length !== 11) {
     return { ok: false, error: 'Informe o CPF completo antes de buscar.' }
   }
-
-  /* Base de exemplo. Sem contrato de consulta, o backend devolve 403 e a
-     tela mostra que a busca esta indisponivel — sem travar o cadastro. */
-  const conhecidos: Record<string, string> = {
-    '12345678900': 'Joana Ribeiro',
-    '32165498711': 'Marcos Dias',
+  return {
+    ok: false,
+    error: 'Consulta de CPF indisponível. Preencha o nome manualmente.',
+    indisponivel: true,
   }
-
-  const nome = conhecidos[d]
-  if (!nome) {
-    return {
-      ok: false,
-      error: 'Consulta de CPF indisponível. Preencha o nome manualmente.',
-      indisponivel: true,
-    }
-  }
-
-  return { ok: true, nome }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -66,6 +55,8 @@ export type DadosCliente = {
   tipoPessoa: 'fisica' | 'juridica'
   documento: string
   nome: string
+  /** Obrigatorio quando `tipoPessoa` e `juridica` — o contrato recusa sem. */
+  nomeFantasia: string
   ddd: string
   celular: string
   email: string
@@ -156,6 +147,7 @@ export async function salvarCliente(
       credentials: 'same-origin',
       body: JSON.stringify({
         name: dados.nome,
+        ...(dados.nomeFantasia ? { tradeName: dados.nomeFantasia } : {}),
         ...(dados.documento ? { document: dados.documento } : {}),
         ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
         ...(dados.email ? { email: dados.email } : {}),
@@ -183,6 +175,41 @@ export async function salvarCliente(
   return { ok: true, id: corpo.id! }
 }
 
+/**
+ * Edita o cadastro — RF-009.
+ *
+ * Manda a ficha inteira, e nao so o que mudou: a tela ja tem todos os campos
+ * preenchidos (ela carregou o cliente para editar), entao calcular o diff aqui
+ * seria trabalho para chegar ao mesmo lugar. Quem trata ausente como "nao
+ * mexe" e o servidor — e por isso o verbo e `PATCH`.
+ *
+ * Campo apagado na tela vira campo AUSENTE, nao vazio: o contrato valida
+ * formato, e `''` seria recusado como "e-mail invalido" de quem so quis
+ * limpar. O efeito e que apagar nao apaga — fica como estava. Limpar campo
+ * depende de o contrato aceitar `null`, que hoje ele nao aceita, nem para
+ * cliente nem para empresa.
+ */
+export async function atualizarCliente(
+  id: string,
+  dados: DadosCliente,
+): Promise<ResultadoSalvarCliente> {
+  const address = enderecoParaApi(dados)
+
+  const r = await pedir<{ id: string }>(`/api/clientes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      ...(dados.nome ? { name: dados.nome } : {}),
+      ...(dados.nomeFantasia ? { tradeName: dados.nomeFantasia } : {}),
+      ...(dados.documento ? { document: dados.documento } : {}),
+      ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
+      ...(dados.email ? { email: dados.email } : {}),
+      ...(address === undefined ? {} : { address }),
+    }),
+  })
+
+  return r.ok ? { ok: true, id: r.dados.id } : { ok: false, error: r.erro }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Dados vinculados ao cliente (detalhe)                                      */
 /* -------------------------------------------------------------------------- */
@@ -204,11 +231,128 @@ export type PendenciaCliente = {
   status: 'aberto' | 'vencido' | 'parcial'
 }
 
+export type TipoDeContato = 'ligacao' | 'whatsapp' | 'visita' | 'observacao'
+
 export type ContatoCliente = {
   id: string
+  /** O dia do FATO, em AAAA-MM-DD. Nao e o dia do registro. */
   data: string
-  tipo: 'ligacao' | 'whatsapp' | 'visita' | 'observacao'
+  tipo: TipoDeContato
   descricao: string
+}
+
+/**
+ * O vocabulario da api e ingles; o da tela, portugues — NR-072.
+ *
+ * A traducao mora aqui e nao no componente porque ela e ida E volta: a lista
+ * chega em ingles e o lancamento sai em ingles, e duas tabelas em lugares
+ * diferentes divergiriam na primeira chave nova.
+ */
+const TIPO_DA_API: Record<string, TipoDeContato> = {
+  call: 'ligacao',
+  whatsapp: 'whatsapp',
+  visit: 'visita',
+  note: 'observacao',
+}
+
+const TIPO_PARA_API: Record<TipoDeContato, string> = {
+  ligacao: 'call',
+  whatsapp: 'whatsapp',
+  visita: 'visit',
+  observacao: 'note',
+}
+
+type ContatoDaApi = {
+  id: string
+  kind: string
+  description: string
+  happenedOn: string
+}
+
+const paraContato = (c: ContatoDaApi): ContatoCliente => ({
+  id: c.id,
+  data: c.happenedOn,
+  /* Chave desconhecida vira "observacao" em vez de quebrar a ficha: a api pode
+     ganhar um tipo novo (e-mail, balcao) antes de a tela aprender a desenha-lo,
+     e uma lista que nao abre e pior que um rotulo generico. */
+  tipo: TIPO_DA_API[c.kind] ?? 'observacao',
+  descricao: c.description,
+})
+
+/**
+ * Consentimento de WhatsApp — RF-016.
+ *
+ * Duas datas e nao um booleano: nulas as duas quer dizer NUNCA HOUVE
+ * manifestacao, que e diferente de recusa. Uma exige pedir o aceite; a outra
+ * proibe pedir de novo.
+ */
+export type ConsentimentoWhatsapp = {
+  autorizouEm: string | null
+  recusouEm: string | null
+}
+
+type ConsentimentoDaApi = { optedInAt: string | null; optedOutAt: string | null }
+
+const paraConsentimento = (c: ConsentimentoDaApi): ConsentimentoWhatsapp => ({
+  autorizouEm: c.optedInAt,
+  recusouEm: c.optedOutAt,
+})
+
+export async function consentimentoDoCliente(
+  clienteId: string,
+): Promise<Resultado<ConsentimentoWhatsapp>> {
+  const r = await pedir<ConsentimentoDaApi>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/consentimento-whatsapp`,
+  )
+
+  return r.ok ? { ok: true, dados: paraConsentimento(r.dados) } : r
+}
+
+export async function registrarConsentimento(
+  clienteId: string,
+  decisao: 'autorizou' | 'recusou',
+): Promise<Resultado<ConsentimentoWhatsapp>> {
+  const r = await pedir<ConsentimentoDaApi>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/consentimento-whatsapp`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ decision: decisao === 'autorizou' ? 'opt_in' : 'opt_out' }),
+    },
+  )
+
+  return r.ok ? { ok: true, dados: paraConsentimento(r.dados) } : r
+}
+
+/** O historico da ficha — RF-011. */
+export async function contatosDoCliente(clienteId: string): Promise<Resultado<ContatoCliente[]>> {
+  const r = await pedir<{ contacts: ContatoDaApi[] }>(
+    `/api/clientes/${encodeURIComponent(clienteId)}/contatos`,
+  )
+
+  return r.ok ? { ok: true, dados: r.dados.contacts.map(paraContato) } : r
+}
+
+/**
+ * Lanca um contato — RF-011.
+ *
+ * `data` opcional: ausente, a api usa o dia de hoje pelo relogio DELA. A tela
+ * poderia mandar o do navegador, mas o relogio do navegador e do usuario — e
+ * um cliente com a data errada gravaria o contato no ano que vem.
+ */
+export async function lancarContato(
+  clienteId: string,
+  contato: { tipo: TipoDeContato; descricao: string; data?: string },
+): Promise<Resultado<ContatoCliente>> {
+  const r = await pedir<ContatoDaApi>(`/api/clientes/${encodeURIComponent(clienteId)}/contatos`, {
+    method: 'POST',
+    body: JSON.stringify({
+      kind: TIPO_PARA_API[contato.tipo],
+      description: contato.descricao,
+      ...(contato.data === undefined ? {} : { happenedOn: contato.data }),
+    }),
+  })
+
+  return r.ok ? { ok: true, dados: paraContato(r.dados) } : r
 }
 
 /* -------------------------------------------------------------------------- */
@@ -236,6 +380,9 @@ export type EnderecoDoCliente = {
 export type ClienteDaFicha = {
   id: string
   nome: string
+  /* Razao social fica em `nome`; este e o apelido pelo qual a loja conhece o
+     cliente. Nulo em pessoa fisica, que nao tem fantasia. */
+  nomeFantasia: string | null
   documento: string | null
   /** Derivado do documento — 11 digitos e fisica, 14 e juridica. */
   tipoPessoa: 'fisica' | 'juridica' | null
@@ -256,11 +403,22 @@ export type ClienteDaFicha = {
    * 409, e o lojista poderia achar que o pedido anterior nao valeu.
    */
   anonimizadoEm: string | null
+  /**
+   * Quando o lojista tirou este cliente da lista — RF-009.
+   *
+   * Nulo = ativo. A ficha CONTINUA abrindo depois de excluido, e e por isso
+   * que este campo existe: e ela que mostra o aviso e o botao de reativar.
+   *
+   * Nao confundir com o filtro "inativos" da lista, que quer dizer outra
+   * coisa — cliente que nao compra ha sessenta dias.
+   */
+  excluidoEm: string | null
 }
 
 type FichaDaApi = {
   id: string
   name: string
+  tradeName: string | null
   document: string | null
   phone: string | null
   email: string | null
@@ -277,6 +435,7 @@ type FichaDaApi = {
     state: string | null
   }
   anonymizedAt: string | null
+  deletedAt: string | null
 }
 
 /**
@@ -308,6 +467,7 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
     dados: {
       id: c.id,
       nome: c.name,
+      nomeFantasia: c.tradeName,
       documento: c.document,
       tipoPessoa: tipoDePessoa(c.document),
       /* Menos de dez digitos nao tem DDD: e um telefone antigo ou incompleto,
@@ -329,168 +489,119 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
         uf: c.address.state,
       },
       anonimizadoEm: c.anonymizedAt,
+      excluidoEm: c.deletedAt,
     },
   }
 }
 
-/** SUBSTITUIR POR: GET /clientes/:id/compras */
-export function comprasDoCliente(clienteId: string): CompraCliente[] {
-  const base: Record<string, CompraCliente[]> = {
-    'cli-1': [
-      {
-        id: 'v1',
-        numero: '1842',
-        data: '2026-08-24',
-        valor: 86.9,
-        itens: 6,
-        formaPagamento: 'Pix',
-      },
-      {
-        id: 'v2',
-        numero: '1798',
-        data: '2026-08-11',
-        valor: 214.4,
-        itens: 12,
-        formaPagamento: 'Credito',
-      },
-      {
-        id: 'v3',
-        numero: '1755',
-        data: '2026-07-29',
-        valor: 132.0,
-        itens: 8,
-        formaPagamento: 'Dinheiro',
-      },
-    ],
-    'cli-2': [
-      {
-        id: 'v4',
-        numero: '1839',
-        data: '2026-08-23',
-        valor: 156.2,
-        itens: 4,
-        formaPagamento: 'Debito',
-      },
-      {
-        id: 'v5',
-        numero: '1801',
-        data: '2026-08-12',
-        valor: 4820.0,
-        itens: 96,
-        formaPagamento: 'Credito',
-      },
-    ],
-    'cli-3': [
-      {
-        id: 'v6',
-        numero: '1840',
-        data: '2026-08-24',
-        valor: 412.5,
-        itens: 18,
-        formaPagamento: 'Dinheiro',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'v7',
-        numero: '1702',
-        data: '2026-06-02',
-        valor: 2310.5,
-        itens: 44,
-        formaPagamento: 'Credito',
-      },
-    ],
+/**
+ * Tira o cliente da lista — RF-009.
+ *
+ * Nada e apagado: a linha fica, e o historico de vendas continua apontando
+ * para ela. Por isso ha volta, logo abaixo.
+ *
+ * Recusa com fiado em aberto, e a api e quem diz isso — a mensagem dela chega
+ * pronta para a tela ("baixe o saldo antes de excluir").
+ */
+export async function excluirCliente(
+  id: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await pedir<unknown>(`/api/clientes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+
+  return r.ok ? { ok: true } : { ok: false, erro: r.erro }
+}
+
+/** Traz o cliente de volta para a lista — RF-009. */
+export async function reativarCliente(
+  id: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await pedir<unknown>(`/api/clientes/${encodeURIComponent(id)}/reativacao`, {
+    method: 'POST',
+  })
+
+  return r.ok ? { ok: true } : { ok: false, erro: r.erro }
+}
+
+/**
+ * As ultimas compras do cliente — RF-011.
+ *
+ * Do historico de vendas, filtrado pelo cliente no servidor. Antes era uma
+ * lista fixa com ids de exemplo ('cli-1'): para cliente de verdade a ficha
+ * mostrava "nunca comprou" mesmo com vendas.
+ */
+export async function comprasDoCliente(clienteId: string): Promise<Resultado<CompraCliente[]>> {
+  const r = await pedir<{
+    sales: {
+      id: string
+      number: number
+      soldAt: string
+      status: string
+      grossAmountCents: number
+      discountCents: number
+      items: { quantity: number }[]
+      payments: { method: string }[]
+    }[]
+  }>(`/api/vendas/historico?customerId=${encodeURIComponent(clienteId)}&pageSize=20`)
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.sales
+      .filter((v) => v.status !== 'cancelled' && v.status !== 'returned')
+      .map((v) => ({
+        id: v.id,
+        numero: String(v.number),
+        data: v.soldAt.slice(0, 10),
+        valor: (v.grossAmountCents - v.discountCents) / 100,
+        itens: v.items.reduce((acc, i) => acc + i.quantity, 0),
+        formaPagamento: v.payments.map((p) => ROTULO_DO_METODO[p.method] ?? p.method).join(' + '),
+      })),
   }
-  return base[clienteId] ?? []
 }
 
-/** SUBSTITUIR POR: GET /clientes/:id/titulos (Contas a Receber) */
-export function pendenciasDoCliente(clienteId: string): PendenciaCliente[] {
-  const base: Record<string, PendenciaCliente[]> = {
-    'cli-2': [
-      {
-        id: 'p1',
-        referente: 'Pedido 8891',
-        vencimento: '2026-08-25',
-        valor: 4820.0,
-        status: 'aberto',
-      },
-      {
-        id: 'p2',
-        referente: 'Pedido 8880',
-        vencimento: '2026-09-05',
-        valor: 3740.0,
-        status: 'parcial',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'p3',
-        referente: 'Pedido 8874',
-        vencimento: '2026-08-16',
-        valor: 2310.5,
-        status: 'vencido',
-      },
-    ],
-    'cli-3': [
-      {
-        id: 'p4',
-        referente: 'Venda 1840',
-        vencimento: '2026-09-19',
-        valor: 412.5,
-        status: 'aberto',
-      },
-    ],
+const ROTULO_DO_METODO: Record<string, string> = {
+  cash: 'Dinheiro',
+  pix: 'Pix',
+  debit: 'Débito',
+  credit: 'Crédito',
+  wallet: 'Carteira',
+}
+
+/**
+ * O que o cliente ainda deve — RF-072.
+ *
+ * Contas a receber em aberto, filtradas pelo cliente no servidor. Antes era
+ * uma lista fixa com ids de exemplo: a ficha nunca mostrava divida de verdade.
+ */
+export async function pendenciasDoCliente(
+  clienteId: string,
+): Promise<Resultado<PendenciaCliente[]>> {
+  const r = await pedir<{
+    grupos: {
+      faixa: string
+      receivables: {
+        id: string
+        description: string
+        dueDate: string
+        amountCents: number
+        settledAmountCents: number
+      }[]
+    }[]
+  }>(`/api/contas-a-receber?cliente=${encodeURIComponent(clienteId)}`)
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.grupos.flatMap((g) =>
+      g.receivables.map((t) => ({
+        id: t.id,
+        referente: t.description,
+        vencimento: t.dueDate,
+        valor: (t.amountCents - t.settledAmountCents) / 100,
+        status: g.faixa === 'overdue' ? 'vencido' : t.settledAmountCents > 0 ? 'parcial' : 'aberto',
+      })),
+    ),
   }
-  return base[clienteId] ?? []
-}
-
-/** SUBSTITUIR POR: GET /clientes/:id/contatos (CRM) */
-export function contatosDoCliente(clienteId: string): ContatoCliente[] {
-  const base: Record<string, ContatoCliente[]> = {
-    'cli-2': [
-      { id: 'c1', data: '2026-08-20', tipo: 'whatsapp', descricao: 'Enviado catalogo de agosto.' },
-      {
-        id: 'c2',
-        data: '2026-08-14',
-        tipo: 'ligacao',
-        descricao: 'Confirmou pedido 8891 para o dia 25.',
-      },
-    ],
-    'cli-4': [
-      {
-        id: 'c3',
-        data: '2026-08-18',
-        tipo: 'ligacao',
-        descricao: 'Cobranca do pedido 8874. Prometeu pagar dia 22.',
-      },
-      {
-        id: 'c4',
-        data: '2026-06-02',
-        tipo: 'visita',
-        descricao: 'Visita ao restaurante, apresentada linha de azeites.',
-      },
-    ],
-    'cli-5': [
-      {
-        id: 'c5',
-        data: '2026-03-11',
-        tipo: 'observacao',
-        descricao: 'Compra pontual, sem recorrencia ate agora.',
-      },
-    ],
-  }
-  return base[clienteId] ?? []
-}
-
-/** Total em aberto do cliente — usado como indicador na listagem. */
-export function pendenciaTotal(clienteId: string): number {
-  return pendenciasDoCliente(clienteId).reduce((acc, p) => acc + p.valor, 0)
-}
-
-/** True quando ha titulo vencido — pinta o indicador em tom de alerta. */
-export function temVencido(clienteId: string): boolean {
-  return pendenciasDoCliente(clienteId).some((p) => p.status === 'vencido')
 }
 
 export type { Cliente }

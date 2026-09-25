@@ -63,6 +63,10 @@ export type {
   ProductRepository,
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
+export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
+export type { CustomerPatch } from './ports/registration-repositories.js'
+export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
+export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
   ConnectionContact,
   ConnectionDirection,
@@ -108,6 +112,20 @@ export {
 export type { ManageConnectionsDeps } from './connections/manage-connections.js'
 export { resolveCoordinates } from './registration/geocoding.js'
 export {
+  addCustomerContact,
+  type CustomerContactDeps,
+  listCustomerContacts,
+  TETO_DE_CONTATOS_NA_FICHA,
+} from './registration/customer-contacts.js'
+export {
+  getWhatsappConsent,
+  recordWhatsappConsent,
+  type WhatsappConsentDeps,
+  type WhatsappConsentWriter,
+} from './registration/whatsapp-consent.js'
+export { lookupAddressByCep, lookupCompanyByCnpj } from './registration/lookups.js'
+export type { LookupCepDeps, LookupCnpjDeps } from './registration/lookups.js'
+export {
   InMemoryConnectionNotifier,
   InMemoryConnectionRequests,
   InMemorySupplierDirectory,
@@ -151,7 +169,7 @@ export type {
   CobrancaRegistrada,
   CustomerChargeRepository,
 } from './ports/customer-charge-repository.js'
-export { previewCoupon } from './subscriptions/preview-coupon.js'
+export { checkCoupon, previewCoupon } from './subscriptions/preview-coupon.js'
 export type { PreviewCouponDeps } from './subscriptions/preview-coupon.js'
 export { handleSubscriptionEvent } from './subscriptions/handle-subscription-event.js'
 export type {
@@ -238,8 +256,24 @@ export type {
   ResultadoDaBaixa,
   SettleCustomerChargeDeps,
 } from './receivables/settle-customer-charge.js'
+export {
+  createBankAccount,
+  deleteBankAccount,
+  listBankAccounts,
+} from './banking/manage-bank-accounts.js'
+export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
+export type { BankAccountRepository, NewBankAccount } from './ports/bank-account-repository.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
+export { returnSaleItems } from './sales/return-sale-items.js'
+export type { ReturnSaleItemsDeps } from './sales/return-sale-items.js'
+export type {
+  LinhaDevolvivel,
+  RecebivelDaVenda,
+  SaleReturnTransaction,
+  SaleReturnUnitOfWork,
+  SaleToReturn,
+} from './ports/sale-return.js'
 export type {
   SaleCancellationTransaction,
   SaleCancellationUnitOfWork,
@@ -287,6 +321,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  registerProductWithStock,
   searchProducts,
   TETO_DO_CATALOGO,
 } from './registration/register-product.js'
@@ -413,7 +448,18 @@ export type { ListAppointmentRangeDeps, RangeAgenda } from './schedule/list-appo
 export { signup } from './auth/signup.js'
 export type { SignupDeps } from './auth/signup.js'
 export type { IdentityRegistrar } from './ports/identity.js'
-export { InMemoryCepLookup, InMemoryCompanyRepository } from './registration/fakes.js'
+export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
+export { changePhone, currentPhone } from './auth/change-phone.js'
+export type { ChangePhoneDeps, QuemTroca } from './auth/change-phone.js'
+export type { IdentityPhoneChanger, UserContacts } from './ports/phone-change.js'
+export type { RequestPasswordResetDeps, ResetPasswordDeps } from './auth/password-reset.js'
+export type { EmailSender, PasswordResetTokens, PasswordSetter } from './ports/password-reset.js'
+export {
+  InMemoryCepLookup,
+  InMemoryCnpjLookup,
+  InMemoryCompanyRepository,
+  InMemoryCustomerContacts,
+} from './registration/fakes.js'
 
 /* O gatilho da emissao — NR-042, RF-045, RF-046. */
 export { requestInvoice } from './fiscal/request-invoice.js'
@@ -451,7 +497,13 @@ export type {
   SaleHistoryRepository,
   VendaDoHistorico,
 } from './ports/sale-history.js'
-export { getCustomer, listCustomers } from './registration/register-customer.js'
+export {
+  deleteCustomer,
+  getCustomer,
+  listCustomers,
+  restoreCustomer,
+  updateCustomer,
+} from './registration/register-customer.js'
 
 /* Chamados de suporte — NR-080, US-062. */
 export { getTicket, listTickets, openTicket, readTicket, replyToTicket } from './support/tickets.js'
@@ -486,6 +538,15 @@ export type {
   FixedCostRepository,
   NewFixedCost,
 } from './ports/fixed-cost-repository.js'
+
+/* Custos variaveis — percentual sobre o preco de venda, Topico 6 do TXT. */
+export {
+  createVariableCost,
+  deleteVariableCost,
+  listVariableCosts,
+} from './variable-costs/manage-variable-costs.js'
+export type { VariableCostDeps } from './variable-costs/manage-variable-costs.js'
+export type { NewVariableCost, VariableCostRepository } from './ports/variable-cost-repository.js'
 
 /* Lista de espera do pre-lancamento — NR-111. */
 export { submitWaitlistEntry } from './waitlist/submit-waitlist-entry.js'

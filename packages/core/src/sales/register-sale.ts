@@ -11,6 +11,7 @@ import {
 } from '@na-regua/domain'
 import { Money } from '@na-regua/money'
 import { AppError } from '../app-error.js'
+import { nasceComoDividaDoCliente } from '../settlements/customer-balance.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type {
@@ -22,6 +23,13 @@ import type {
   SaleProductSnapshot,
   UnitOfWork,
 } from '../ports/sale-writers.js'
+
+/**
+ * Todo recebivel de cartao comeca assim. Quem deve esse dinheiro e a
+ * OPERADORA, e nao o cliente, que ja pagou no balcao — a ficha do cliente usa
+ * este prefixo para nao listar parcela de cartao como divida dele.
+ */
+export const PREFIXO_RECEBIVEL_DE_CARTAO = 'Cartao de '
 
 export type RegisterSaleDeps = {
   readonly unitOfWork: UnitOfWork
@@ -234,6 +242,24 @@ export async function registerSale(
       createdAt: ctx.now,
     })
 
+    /*
+     * O que nasceu de divida sobe no saldo do cliente — RF-013.
+     *
+     * Na MESMA transacao do `insertSale`: um titulo de fiado gravado com o
+     * saldo intacto e uma divida que o sistema nao sabe que existe, e era
+     * exatamente esse o estado ate aqui.
+     *
+     * Uma soma so, e nao uma por titulo: e um UPDATE a menos na venda mais
+     * comum, e o saldo final e o mesmo.
+     */
+    const dividaNova = recebiveis
+      .filter((r) => r.isCustomerDebt)
+      .reduce((soma, r) => soma + r.amountCents, 0)
+
+    if (dividaNova > 0 && input.customerId !== undefined) {
+      await tx.adjustCustomerBalance(input.customerId, dividaNova)
+    }
+
     /* A baixa carrega autoria para virar linha na trilha de estoque — RF-024.
        Depois do insertSale porque so aqui a venda tem id. */
     await tx.decreaseStock(
@@ -348,13 +374,15 @@ function recebiveisDoPagamento(
         cardFeeCents: Number(plano.cardFeeAmount.cents),
       },
       gerados: plano.installments.map((parcela) => ({
-        description: `Cartao de credito ${parcela.number}/${plano.installments.length}`,
+        description: `${PREFIXO_RECEBIVEL_DE_CARTAO}credito ${parcela.number}/${plano.installments.length}`,
         customerId,
         amountCents: Number(parcela.grossAmount.cents),
         netAmountCents: Number(parcela.netAmount.cents),
         dueDate: soData(parcela.dueDate),
         installmentNumber: parcela.number,
         installmentCount: plano.installments.length,
+        /* Parcela de cartao e divida da ADQUIRENTE, nunca do cliente. */
+        isCustomerDebt: false,
       })),
     }
   }
@@ -372,13 +400,14 @@ function recebiveisDoPagamento(
       },
       gerados: [
         {
-          description: 'Cartao de debito',
+          description: `${PREFIXO_RECEBIVEL_DE_CARTAO}debito`,
           customerId,
           amountCents: valor,
           netAmountCents: Number(pagamento.amount.subtract(tarifa).cents),
           dueDate: soData(vencimento),
           installmentNumber: 1,
           installmentCount: 1,
+          isCustomerDebt: nasceComoDividaDoCliente(customerId, metodo),
         },
       ],
     }
@@ -398,6 +427,7 @@ function recebiveisDoPagamento(
         dueDate: soData(agora),
         installmentNumber: 1,
         installmentCount: 1,
+        isCustomerDebt: nasceComoDividaDoCliente(customerId, metodo),
         ...(liquidado ? { settledAt: agora.toISOString() } : {}),
       },
     ],

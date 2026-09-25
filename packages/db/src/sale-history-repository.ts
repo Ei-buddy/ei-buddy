@@ -38,7 +38,15 @@ type LinhaVenda = {
   net_amount_cents: string
   tax_amount_cents: string
   card_fee_amount_cents: string
-  itens: { description: string; quantity: number; unit_price_cents: string; total_cents: string }[]
+  returned_amount_cents: string
+  itens: {
+    product_id: string | null
+    description: string
+    quantity: number
+    returned_quantity: number
+    unit_price_cents: string
+    total_cents: string
+  }[]
   pagamentos: { method: string; amount_cents: string; installments: number | null }[]
   invoice_number: number | null
   invoice_access_key: string | null
@@ -61,12 +69,15 @@ const paraVenda = (l: LinhaVenda): VendaDoHistorico => ({
   netAmountCents: numero(l.net_amount_cents),
   taxAmountCents: numero(l.tax_amount_cents),
   cardFeeAmountCents: numero(l.card_fee_amount_cents),
+  returnedAmountCents: numero(l.returned_amount_cents),
   /* `json_agg` sobre conjunto vazio devolve NULL, e nao `[]`. Com o `LATERAL`
      em `LEFT JOIN`, a venda sem item chega aqui com `itens` nulo — o `?? []` e
      o que impede um `.map` de undefined na venda cancelada sem filhos. */
   items: (l.itens ?? []).map((i) => ({
+    productId: i.product_id,
     description: i.description,
     quantity: i.quantity,
+    returnedQuantity: i.returned_quantity,
     unitPriceCents: numero(i.unit_price_cents),
     totalCents: numero(i.total_cents),
   })),
@@ -84,7 +95,7 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
   const colunas = (tx: TransactionSql) => tx`
     s.id, s.number, s.created_at, s.customer_id, c.name AS customer_name, s.status,
     s.gross_amount_cents, s.discount_cents, s.net_amount_cents,
-    s.tax_amount_cents, s.card_fee_amount_cents,
+    s.tax_amount_cents, s.card_fee_amount_cents, s.returned_amount_cents,
     i.itens, p.pagamentos,
     nf.number AS invoice_number, nf.access_key AS invoice_access_key
   `
@@ -102,8 +113,10 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
     LEFT JOIN LATERAL (
       SELECT json_agg(
                json_build_object(
+                 'product_id', si.product_id,
                  'description', si.description,
                  'quantity', si.quantity,
+                 'returned_quantity', si.returned_quantity,
                  'unit_price_cents', si.unit_price_cents,
                  'total_cents', si.total_cents
                ) ORDER BY si.created_at, si.id
@@ -177,6 +190,7 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
                     )
                   )`
           }
+          ${filtro.customerId === undefined ? tx`` : tx`AND s.customer_id = ${filtro.customerId}`}
           ORDER BY s.created_at DESC, s.number DESC
           LIMIT ${filtro.limite} OFFSET ${filtro.offset}
         `,

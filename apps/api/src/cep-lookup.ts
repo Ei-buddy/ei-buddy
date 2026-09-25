@@ -1,4 +1,6 @@
 import type { CepAddress, CepLookup } from '@na-regua/core'
+import { motivoDoErro } from './motivo-do-erro.js'
+import { USER_AGENT } from './identificacao-do-cliente-http.js'
 
 /**
  * Busca de CEP via BrasilAPI — ADR-0008.
@@ -38,19 +40,44 @@ export function createBrasilApiCepLookup(): CepLookup {
 
       let resposta: Response
       try {
-        resposta = await fetch(`${BASE_URL}/${digitos}`)
+        /* O endpoint de CEP hoje responde sem `user-agent`; o de CNPJ nao.
+           Mandar nos dois evita descobrir a diferenca pelo campo que parou
+           de preencher. */
+        resposta = await fetch(`${BASE_URL}/${digitos}`, {
+          headers: { 'user-agent': USER_AGENT },
+        })
       } catch (erro) {
         console.warn(
           JSON.stringify({
             level: 40,
             msg: 'busca de CEP indisponivel — endereco/coordenada nao resolvidos desta vez',
-            motivo: erro instanceof Error ? erro.message : String(erro),
+            motivo: motivoDoErro(erro),
           }),
         )
         return undefined
       }
 
-      if (!resposta.ok) return undefined
+      /*
+       * 400 e 404 do provedor sao os dois "confira o numero" — ele responde
+       * 400 para digito verificador errado e 404 para numero valido que nao
+       * esta cadastrado. QUALQUER outro status e "nao consegui
+       * perguntar", e as duas coisas nao podem virar a mesma resposta.
+       *
+       * Era `return undefined` para tudo, e o caso de uso traduz `undefined`
+       * em 404 "confira os numeros" — dizendo ao lojista que o numero esta
+       * errado quando o numero estava certo e o provedor e que recusou. Foi
+       * assim que um 403 por falta de `user-agent` passou por "CNPJ
+       * inexistente" em CNPJ de empresa que qualquer um conhece.
+       *
+       * Lancar deixa o erro virar 500 com "Algo deu errado do nosso lado.
+       * Tente de novo em instantes." — que e a acao certa para quem esta na
+       * frente da tela.
+       */
+      if (resposta.status === 404 || resposta.status === 400) return undefined
+
+      if (!resposta.ok) {
+        throw new Error(`a busca de CEP respondeu ${resposta.status} ${resposta.statusText}`)
+      }
 
       const dados = (await resposta.json().catch(() => undefined)) as RespostaBrasilApi | undefined
       if (dados === undefined) return undefined

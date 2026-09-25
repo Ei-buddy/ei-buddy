@@ -20,8 +20,6 @@ import { chamarApi } from './api'
 
 import type { Produto } from './types'
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 /* -------------------------------------------------------------------------- */
 /* Consulta por EAN                                                           */
 /* -------------------------------------------------------------------------- */
@@ -49,7 +47,13 @@ export type EanResult = { ok: true; dados: DadosEan } | { ok: false; error: stri
  * mostrar mensagem de erro para o caso mais comum e mais util do balcao.
  */
 export type LeituraDeCodigo =
-  | { readonly situacao: 'cadastrado'; readonly produtoId: string; readonly descricao: string }
+  | {
+      readonly situacao: 'cadastrado'
+      readonly produtoId: string
+      readonly descricao: string
+      /** O produto como a api o conhece: e dele que o carrinho tira preco e saldo. */
+      readonly produto: ProdutoLido
+    }
   | { readonly situacao: 'novo'; readonly ean: string }
   | { readonly situacao: 'erro'; readonly mensagem: string }
 
@@ -65,7 +69,19 @@ export async function buscarEan(ean: string): Promise<LeituraDeCodigo> {
   const r = await chamarApi<ProdutoDaApi>(`/produtos/codigo-de-barras/${limpo}`)
 
   if (r.ok) {
-    return { situacao: 'cadastrado', produtoId: r.dados.id, descricao: r.dados.description }
+    return {
+      situacao: 'cadastrado',
+      produtoId: r.dados.id,
+      descricao: r.dados.description,
+      produto: {
+        id: r.dados.id,
+        codigo: r.dados.internalCode,
+        descricao: r.dados.description,
+        precoVenda: r.dados.salePriceCents / 100,
+        precoCusto: r.dados.costPriceCents / 100,
+        estoque: r.dados.stock,
+      },
+    }
   }
 
   /* 404 aqui e resposta, nao falha: o codigo lido e de produto que a loja ainda
@@ -94,7 +110,24 @@ export type DadosProduto = {
   imagem: string | null
 }
 
-type ProdutoDaApi = { id: string; internalCode: string; description: string }
+type ProdutoDaApi = {
+  id: string
+  internalCode: string
+  description: string
+  salePriceCents: number
+  costPriceCents: number
+  stock: number
+}
+
+/** O minimo do produto que o balcao usa: preco, custo e saldo, em reais. */
+export type ProdutoLido = {
+  readonly id: string
+  readonly codigo: string
+  readonly descricao: string
+  readonly precoVenda: number
+  readonly precoCusto: number
+  readonly estoque: number
+}
 
 /**
  * Cadastra o produto — RF-017, RF-019.
@@ -123,132 +156,13 @@ export async function salvarProduto(
   return r.ok ? { ok: true, id: r.dados.id } : { ok: false, error: r.message }
 }
 
-/** SUBSTITUIR POR: POST /produtos/importar */
-export async function confirmarImportacaoProdutos(
-  registros: Record<string, string>[],
-): Promise<void> {
-  await delay(1200)
-  void registros
-}
-
-/* -------------------------------------------------------------------------- */
-/* Estoque                                                                    */
-/* -------------------------------------------------------------------------- */
-
-export type TipoMovimento = 'entrada' | 'saida' | 'ajuste'
-
-export type MovimentoEstoque = {
-  id: string
-  data: string
-  tipo: TipoMovimento
-  quantidade: number
-  /** Saldo depois do movimento. */
-  saldo: number
-  origem: string
-  motivo?: string
-}
-
-/** SUBSTITUIR POR: GET /produtos/:id/movimentos?de=&ate= */
-export function movimentacoesEstoque(produtoId: string): MovimentoEstoque[] {
-  const base: Record<string, MovimentoEstoque[]> = {
-    'prod-1': [
-      {
-        id: 'm1',
-        data: '2026-08-24',
-        tipo: 'saida',
-        quantidade: 2,
-        saldo: 4,
-        origem: 'Venda 1842',
-      },
-      {
-        id: 'm2',
-        data: '2026-08-22',
-        tipo: 'saida',
-        quantidade: 6,
-        saldo: 6,
-        origem: 'Venda 1830',
-      },
-      {
-        id: 'm3',
-        data: '2026-08-18',
-        tipo: 'ajuste',
-        quantidade: -2,
-        saldo: 12,
-        origem: 'Ajuste manual',
-        motivo: 'Avaria no transporte',
-      },
-      {
-        id: 'm4',
-        data: '2026-08-10',
-        tipo: 'entrada',
-        quantidade: 24,
-        saldo: 14,
-        origem: 'NF-e 4471 · Torrefação Aurora',
-      },
-    ],
-    'prod-2': [
-      {
-        id: 'm5',
-        data: '2026-08-23',
-        tipo: 'saida',
-        quantidade: 3,
-        saldo: 2,
-        origem: 'Venda 1842',
-      },
-      {
-        id: 'm6',
-        data: '2026-08-05',
-        tipo: 'entrada',
-        quantidade: 12,
-        saldo: 5,
-        origem: 'NF-e 4465 · Engenho Doce',
-      },
-    ],
-    'prod-3': [
-      {
-        id: 'm7',
-        data: '2026-08-24',
-        tipo: 'saida',
-        quantidade: 12,
-        saldo: 6,
-        origem: 'Venda 1840',
-      },
-      {
-        id: 'm8',
-        data: '2026-08-15',
-        tipo: 'entrada',
-        quantidade: 36,
-        saldo: 18,
-        origem: 'NF-e 4468 · Campo Verde',
-      },
-    ],
-  }
-  return base[produtoId] ?? []
-}
-
-/** SUBSTITUIR POR: POST /produtos/:id/ajustes */
-export async function ajustarEstoque(
-  produtoId: string,
-  novaQuantidade: number,
-  motivo: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  await delay(700)
-  void produtoId
-  void novaQuantidade
-
-  if (!motivo.trim()) {
-    return { ok: false, error: 'Descreva o motivo do ajuste.' }
-  }
-  return { ok: true }
-}
-
 /* -------------------------------------------------------------------------- */
 /* Utilitarios de tela                                                        */
 /* -------------------------------------------------------------------------- */
 
 export type NivelEstoque = 'normal' | 'baixo' | 'esgotado'
 
-export function nivelEstoque(produto: Produto): NivelEstoque {
+export function nivelEstoque(produto: Pick<Produto, 'estoque' | 'estoqueMinimo'>): NivelEstoque {
   if (produto.estoque <= 0) return 'esgotado'
   if (produto.estoque < produto.estoqueMinimo) return 'baixo'
   return 'normal'
@@ -258,4 +172,63 @@ export function nivelEstoque(produto: Produto): NivelEstoque {
 export function calcularMargem(custo: number, venda: number): number | null {
   if (!venda || venda <= 0) return null
   return ((venda - custo) / venda) * 100
+}
+
+/* -------------------------------------------------------------------------- */
+/* Catalogo                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type ProdutoDoCatalogo = {
+  id: string
+  codigo: string
+  descricao: string
+  categoria: string | null
+  precoVenda: number
+  estoque: number
+  estoqueMinimo: number
+}
+
+export type FiltroDeEstoque = 'todos' | 'baixo' | 'esgotado'
+
+/** Mais que a pagina da web: no celular a lista rola, e paginar por botao atrapalha. */
+const ITENS_DO_CATALOGO = 100
+
+/**
+ * O catalogo da loja — RF-019, `GET /produtos/catalogo`.
+ *
+ * Busca e filtro de estoque no SERVIDOR. A lista vinha de `mock-data`, e o
+ * lojista via produtos que a loja nao tem.
+ */
+export async function listarCatalogo(opcoes: {
+  termo?: string
+  estoque?: FiltroDeEstoque
+}): Promise<
+  | { ok: true; dados: { produtos: ProdutoDoCatalogo[]; total: number } }
+  | { ok: false; erro: string }
+> {
+  const query = new URLSearchParams({ pageSize: String(ITENS_DO_CATALOGO) })
+  if (opcoes.termo) query.set('q', opcoes.termo)
+  if (opcoes.estoque && opcoes.estoque !== 'todos') query.set('stock', opcoes.estoque)
+
+  const r = await chamarApi<{
+    products: (ProdutoDaApi & { minStock: number; category: string | null })[]
+    total: number
+  }>(`/produtos/catalogo?${query.toString()}`)
+  if (!r.ok) return { ok: false, erro: r.message }
+
+  return {
+    ok: true,
+    dados: {
+      total: r.dados.total,
+      produtos: r.dados.products.map((p) => ({
+        id: p.id,
+        codigo: p.internalCode,
+        descricao: p.description,
+        categoria: p.category,
+        precoVenda: p.salePriceCents / 100,
+        estoque: p.stock,
+        estoqueMinimo: p.minStock,
+      })),
+    },
+  }
 }

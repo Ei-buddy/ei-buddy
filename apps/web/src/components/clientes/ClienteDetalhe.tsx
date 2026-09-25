@@ -8,14 +8,20 @@ import {
   contatosDoCliente,
   pendenciasDoCliente,
   type ClienteDaFicha,
+  type CompraCliente,
   type ContatoCliente,
+  type PendenciaCliente,
 } from '@/lib/clientes-api'
 import { describeDueDate, formatDate, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
-import { Button } from '@/components/ui/Button'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { IconArrowRight, IconCalendar, IconPlus, IconReceipt } from '@/components/Icons'
 import AnonimizarCliente from './AnonimizarCliente'
+import ConsentimentoWhatsapp from './ConsentimentoWhatsapp'
+import ExcluirCliente from './ExcluirCliente'
+import NovaPendencia from './NovaPendencia'
+import NovoContato from './NovoContato'
 import styles from './detalhe.module.css'
 
 const TIPO_CONTATO: Record<ContatoCliente['tipo'], string> = {
@@ -69,6 +75,32 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
   const [cliente, setCliente] = useState<ClienteDaFicha | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  /*
+   * Os contatos vem da api e nao de um `useMemo` sobre dados de exemplo, e por
+   * isso tem estado proprio: a ficha e o historico sao duas leituras, e o
+   * lancamento de um contato recarrega so o segundo.
+   */
+  const [contatos, setContatos] = useState<ContatoCliente[]>([])
+  const [lancandoContato, setLancandoContato] = useState(false)
+  const [lancandoPendencia, setLancandoPendencia] = useState(false)
+
+  /* Compras e pendencias vem da api. Falha em uma delas deixa a secao vazia,
+     e nao derruba a ficha — mesmo criterio dos contatos. */
+  const [compras, setCompras] = useState<CompraCliente[]>([])
+  const [pendencias, setPendencias] = useState<PendenciaCliente[]>([])
+  const carregarPendencias = useCallback(async () => {
+    const r = await pendenciasDoCliente(clienteId)
+    /* Falha aqui NAO derruba a ficha: e uma secao, e o cadastro, o endereco e
+       o historico continuam legiveis sem ela. */
+    if (r.ok) setPendencias(r.dados)
+  }, [clienteId])
+
+  const carregarContatos = useCallback(async () => {
+    const r = await contatosDoCliente(clienteId)
+    /* Falha aqui NAO derruba a ficha: o historico e uma secao, e o cadastro, o
+       endereco e o fiado continuam legiveis sem ele. */
+    if (r.ok) setContatos(r.dados)
+  }, [clienteId])
 
   const carregar = useCallback(async () => {
     const r = await buscarCliente(clienteId)
@@ -88,8 +120,15 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
        await, nunca sincronos no corpo do efeito. */
     void (async () => {
       await carregar()
+      await carregarContatos()
+      const [c, p] = await Promise.all([
+        comprasDoCliente(clienteId),
+        pendenciasDoCliente(clienteId),
+      ])
+      if (c.ok) setCompras(c.dados)
+      if (p.ok) setPendencias(p.dados)
     })()
-  }, [carregar])
+  }, [carregar, carregarContatos, clienteId])
 
   if (carregando) {
     return <PageHeader title="Carregando…" subtitle="Buscando a ficha do cliente" />
@@ -115,10 +154,6 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
     )
   }
 
-  const compras = comprasDoCliente(cliente.id)
-  const pendencias = pendenciasDoCliente(cliente.id)
-  const contatos = contatosDoCliente(cliente.id)
-
   const totalComprado = compras.reduce((acc, c) => acc + c.valor, 0)
   const documento = formatarDocumento(cliente.documento)
   const telefone = formatarTelefone(cliente.ddd, cliente.celular)
@@ -135,19 +170,23 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
         {...(subtitulo === '' ? {} : { subtitle: subtitulo })}
         actions={
           <>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setToast('Lançamento de pendência entra com o módulo de Contas a Receber.')
-              }
-            >
+            {/* Leva ao formulario da secao de pendencias, mais abaixo: um
+                segundo formulario aqui em cima significaria dois lugares para
+                lancar a mesma coisa. */}
+            <Button variant="secondary" onClick={() => setLancandoPendencia(true)}>
               <IconReceipt size={16} />
               Lançar pendência
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setToast('Lançamento de contato entra com o módulo de CRM.')}
-            >
+            {/* Editar vem PRIMEIRO entre as acoes: e o que se procura quando
+                se abre a ficha de alguem com dado errado, e ate agora nao
+                existia em lugar nenhum — nem rota, nem caso de uso, nem botao. */}
+            <ButtonLink href={`/app/clientes/${cliente.id}/editar`} variant="secondary">
+              Editar cadastro
+            </ButtonLink>
+            {/* Leva ao formulario da secao de historico, mais abaixo: um
+                segundo formulario aqui em cima significaria dois lugares para
+                escrever a mesma coisa. */}
+            <Button variant="secondary" onClick={() => setLancandoContato(true)}>
               <IconCalendar size={16} />
               Lançar contato
             </Button>
@@ -170,6 +209,18 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
           </>
         }
       />
+
+      {/*
+        O aviso vem ANTES dos numeros. Quem abre a ficha de um cliente que saiu
+        da lista precisa saber disso antes de ler o saldo de fiado — senao le a
+        ficha inteira achando que e um cliente ativo qualquer.
+      */}
+      {cliente.excluidoEm === null ? null : (
+        <p className={styles.privacidadeAviso}>
+          Cliente excluído da lista. Ele não aparece mais no cadastro nem nas buscas; o histórico de
+          vendas continua intacto. A opção de trazer de volta está no fim desta ficha.
+        </p>
+      )}
 
       <div className="statRow">
         <Stat
@@ -248,13 +299,33 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
         <Card
           title="Pendências financeiras"
           action={
-            <Link href="/app/financeiro/contas-a-receber" className={styles.verMais}>
-              Contas a receber
-              <IconArrowRight size={14} />
-            </Link>
+            lancandoPendencia ? null : (
+              <div className={styles.acoesDoCard}>
+                <Button variant="ghost" size="sm" onClick={() => setLancandoPendencia(true)}>
+                  <IconPlus size={14} />
+                  Lançar
+                </Button>
+                <Link href="/app/financeiro/contas-a-receber" className={styles.verMais}>
+                  Contas a receber
+                  <IconArrowRight size={14} />
+                </Link>
+              </div>
+            )
           }
         >
-          {pendencias.length === 0 ? (
+          {lancandoPendencia ? (
+            <NovaPendencia
+              clienteId={cliente.id}
+              onLancada={() => {
+                setLancandoPendencia(false)
+                setToast('Pendência lançada.')
+                void carregarPendencias()
+              }}
+              onCancelar={() => setLancandoPendencia(false)}
+            />
+          ) : null}
+
+          {pendencias.length === 0 && !lancandoPendencia ? (
             <EmptyState
               title="Nada em aberto"
               description="Este cliente não tem títulos pendentes."
@@ -322,17 +393,27 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
           title="Histórico de contatos"
           className={styles.largo}
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setToast('Lançamento de contato entra com o módulo de CRM.')}
-            >
-              <IconPlus size={14} />
-              Novo contato
-            </Button>
+            lancandoContato ? null : (
+              <Button variant="ghost" size="sm" onClick={() => setLancandoContato(true)}>
+                <IconPlus size={14} />
+                Novo contato
+              </Button>
+            )
           }
         >
-          {contatos.length === 0 ? (
+          {lancandoContato ? (
+            <NovoContato
+              clienteId={cliente.id}
+              onLancado={() => {
+                setLancandoContato(false)
+                setToast('Contato registrado.')
+                void carregarContatos()
+              }}
+              onCancelar={() => setLancandoContato(false)}
+            />
+          ) : null}
+
+          {contatos.length === 0 && !lancandoContato ? (
             <EmptyState
               title="Nenhum contato registrado"
               description="Registre ligações, visitas e combinados para não depender da memória."
@@ -352,6 +433,33 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
             </ul>
           )}
         </Card>
+      </div>
+
+      {/*
+        Aceite de mensagens — RF-016.
+
+        Ao lado das outras acoes que mexem no cadastro, e nao no topo: o
+        lojista registra isto uma vez, quando o cliente diz. O que ele faz
+        todo dia esta acima.
+      */}
+      <div className={styles.privacidade}>
+        <ConsentimentoWhatsapp clienteId={cliente.id} />
+      </div>
+
+      {/*
+        Tirar da lista — RF-009. Reversivel, decisao do lojista.
+
+        Fica ACIMA da anonimizacao de proposito: as duas se parecem pelo nome e
+        nao sao a mesma coisa, e quem procura "excluir" encontra primeiro a que
+        da para desfazer.
+      */}
+      <div className={styles.privacidade}>
+        <ExcluirCliente
+          clienteId={cliente.id}
+          nome={cliente.nome}
+          excluidoEm={cliente.excluidoEm}
+          onMudou={() => void carregar()}
+        />
       </div>
 
       {/*

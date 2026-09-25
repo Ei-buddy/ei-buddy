@@ -16,8 +16,8 @@ import {
   type SituacaoCertificado,
   type VendaRegistrada,
   FORMAS,
+  PARCELAS_MAXIMAS,
   paraItemCarrinho,
-  produtoPorEan,
   subtotalCarrinho,
   subtotalItem,
   type ItemCarrinho,
@@ -42,6 +42,8 @@ export default function Pdv() {
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [lendo, setLendo] = useState(false)
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
+  /* So vale no credito; 1 = a vista. */
+  const [parcelas, setParcelas] = useState(1)
   const [fechando, setFechando] = useState(false)
   /** A ultima venda fechada, com a decomposicao — US-020. */
   const [resumo, setResumo] = useState<VendaRegistrada | null>(null)
@@ -86,14 +88,10 @@ export default function Pdv() {
       return
     }
 
-    /* Achou na api. O carrinho ainda usa o produto do catalogo local para
-       preco e estoque — trocar isso e a NR-073, que traz o resumo com liquido.
-       Aqui o ganho e nao inventar item que a loja nao tem. */
-    const produto = produtoPorEan(codigo)
-    if (!produto) {
-      Alert.alert('Produto sem dados locais', r.descricao)
-      return
-    }
+    /* Preco, custo e saldo vem da API, e nao do catalogo de exemplo que o app
+       usava antes: com ele, a venda levava ids que a loja nao tem e a api
+       recusava no fechamento. */
+    const produto = r.produto
 
     setItens((atual) => {
       const existe = atual.find((i) => i.produtoId === produto.id)
@@ -161,7 +159,15 @@ export default function Pdv() {
 
     const r = await fecharVenda(
       itens,
-      [{ id: 'p1', forma, valor: total, status: 'confirmado' }],
+      [
+        {
+          id: 'p1',
+          forma,
+          valor: total,
+          status: 'confirmado',
+          ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+        },
+      ],
       chaveDoFechamento.current,
       {},
     )
@@ -181,6 +187,7 @@ O carrinho continua aqui. Tente de novo.`,
 
     chaveDoFechamento.current = null
     setItens([])
+    setParcelas(1)
     /*
      * Mostra o resumo, e nao mais um Alert de sucesso.
      *
@@ -193,7 +200,9 @@ O carrinho continua aqui. Tente de novo.`,
   }
 
   function fechar() {
-    const rotulo = FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
+    const rotulo =
+      (FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma) +
+      (forma === 'credito' && parcelas > 1 ? ` em ${parcelas}x` : '')
 
     Alert.alert(
       'Fechar a venda',
@@ -265,9 +274,9 @@ Pagamento em ${rotulo}.`,
 
       {itens.length > 0 ? (
         <View style={estilos.rodape}>
-          {/* Formas online (Pix, cartao) exigem link de pagamento; no
-              balcao com fila, dinheiro e o caminho rapido. As demais
-              entram quando o PSP estiver ligado. */}
+          {/* No balcao todas as formas sao registradas e fecham na hora
+              (ADR-0004). As que um dia abrirem cobranca com QR ficam de fora
+              ate a cobranca existir no app. */}
           <View style={estilos.formas}>
             {FORMAS.filter((f) => !f.online).map((f) => (
               <Pressable
@@ -281,6 +290,31 @@ Pagamento em ${rotulo}.`,
               </Pressable>
             ))}
           </View>
+
+          {forma === 'credito' ? (
+            <View style={estilos.parcelas}>
+              <Text style={estilos.totalRotulo}>Parcelas</Text>
+              <View style={estilos.parcelasControle}>
+                <Pressable
+                  onPress={() => setParcelas((n) => Math.max(1, n - 1))}
+                  style={estilos.parcelasBotao}
+                  accessibilityLabel="Menos parcelas"
+                >
+                  <Text style={estilos.formaTexto}>−</Text>
+                </Pressable>
+                <Text style={estilos.parcelasValor}>
+                  {parcelas === 1 ? 'À vista' : `${parcelas}x`}
+                </Text>
+                <Pressable
+                  onPress={() => setParcelas((n) => Math.min(PARCELAS_MAXIMAS, n + 1))}
+                  style={estilos.parcelasBotao}
+                  accessibilityLabel="Mais parcelas"
+                >
+                  <Text style={estilos.formaTexto}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           <View style={estilos.totalLinha}>
             <Text style={estilos.totalRotulo}>Total</Text>
@@ -418,6 +452,22 @@ const estilos = StyleSheet.create({
   formaAtiva: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   formaTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
   formaTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+
+  parcelas: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  parcelasControle: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },
+  parcelasBotao: {
+    paddingVertical: espaco.sm,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+  },
+  parcelasValor: {
+    fontSize: fonte.pequeno,
+    fontWeight: peso.forte,
+    minWidth: 56,
+    textAlign: 'center',
+  },
 
   totalLinha: {
     flexDirection: 'row',

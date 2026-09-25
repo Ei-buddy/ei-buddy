@@ -1,58 +1,46 @@
 /**
- * ============================================================================
- * PONTOS DE INTEGRACAO — MODULO FINANCEIRO
- * ============================================================================
+ * Financeiro no app — contas a pagar e a receber, baixa e estorno de baixa.
  *
- *  | Funcao                | Endpoint esperado                | Disparo         |
- *  |-----------------------|----------------------------------|-----------------|
- *  | salvarTitulo          | POST/PUT /financeiro/titulos     | submit do form  |
- *  | salvarPlanoContas     | POST/PUT /financeiro/planos      | submit          |
- *  | salvarCustoFixo       | POST/PUT /financeiro/custos-fixos| submit          |
- *  | gerarContasDeCustosFixos | POST /financeiro/custos-fixos/gerar | botao      |
- *  | exportar              | GET  /financeiro/titulos/export  | botao exportar  |
- *
- * BAIXA E ESTORNO SAIRAM desta lista de pendencias na NR-081: sao reais, contra
- * a api, no fim do arquivo.
- *
- * PLANO DE CONTAS TAMBEM SAIU: e real, em `contabilidade-api.ts`, contra
- * `GET /contas-contabeis` — a tela de Plano de contas usa aquele modulo agora.
- * `listarPlanos` continua aqui, mock e sem tela que a chame, so porque
- * `PlanoContas.gastoMes` era um numero inventado que nao pode ser reusado.
- *
- * CUSTO FIXO continua pendencia de verdade: nao ha tabela nem caso de uso, e a
- * geracao da conta do mes precisa ser idempotente por (custo fixo,
- * competencia) — rodar duas vezes nao pode duplicar. Sem isso construido,
- * nao ha como esta linha da tabela deixar de ser mock.
+ * Tudo aqui fala com a api. Lancar titulo, plano de contas e custos fixos ficam
+ * no web: as funcoes simuladas que existiam para eles (e que nenhuma tela do
+ * app chamava) sairam, para nada parecer gravar sem gravar.
  */
 
 import { chamarApi, type Resposta } from './api'
-import { contasPagar, contasReceber, planoContas, custosFixos, bancos, clientes } from './mock-data'
-import type { ContaPagar, ContaReceber, CustoFixo, PlanoContas, StatusTitulo } from './types'
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+import type { StatusTitulo } from './types'
 
 /* -------------------------------------------------------------------------- */
-/* Listas para os campos "(T)"                                                */
+/* Onde o dinheiro entrou ou saiu                                             */
 /* -------------------------------------------------------------------------- */
 
-/** SUBSTITUIR POR: GET /bancos */
-export const NOMES_BANCOS = bancos.map((b) => b.nome)
+/**
+ * Sugestoes para o campo "conta" da baixa — texto livre, que vai nas notas.
+ *
+ * Nao sao as contas da loja: essas ainda nao tem cadastro no backend (RF-073).
+ * Eram as contas de uma loja de exemplo, com agencia e saldo inventados; agora
+ * sao so nomes de instituicao, que servem a qualquer loja.
+ */
+export const NOMES_BANCOS = [
+  'Caixa da loja',
+  'Banco do Brasil',
+  'Caixa Econômica',
+  'Itaú',
+  'Bradesco',
+  'Santander',
+  'Nubank',
+  'Inter',
+  'Sicredi',
+  'Sicoob',
+]
 
-/** SUBSTITUIR POR: GET /financeiro/planos */
-export const NOMES_PLANOS = planoContas.map((p) => p.nome)
-
-/** SUBSTITUIR POR: GET /fornecedores */
-export const NOMES_FORNECEDORES = [...new Set(contasPagar.map((c) => c.fornecedor))].sort()
-
-/** SUBSTITUIR POR: GET /clientes */
-export const NOMES_CLIENTES = clientes.map((c) => c.nome)
-
-export const TIPOS_RECEBIMENTO = [
-  { valor: 'debito', rotulo: 'Cartão de débito' },
-  { valor: 'credito', rotulo: 'Cartão de crédito' },
-  { valor: 'pix', rotulo: 'Pix' },
-  { valor: 'carteira', rotulo: 'Carteira' },
-] as const
+/**
+ * As contas da LOJA — RF-073 (`GET /contas-bancarias`). A baixa as oferece no
+ * lugar das sugestoes genericas quando existe ao menos uma.
+ */
+export async function nomesDasContasDaLoja(): Promise<string[]> {
+  const r = await chamarApi<{ accounts: { name: string }[] }>('/contas-bancarias')
+  return r.ok ? r.dados.accounts.map((c) => c.name) : []
+}
 
 /* -------------------------------------------------------------------------- */
 /* Estado das listas                                                          */
@@ -198,39 +186,6 @@ export async function listarContasReceber(): Promise<Resposta<ListaDeTitulos>> {
   }
 }
 
-/** Os dados de exemplo, ainda usados pelas telas que nao tem rota. */
-export function listarContasPagarDeExemplo(): ContaPagar[] {
-  return contasPagar.map((c) => ({ ...c }))
-}
-
-export function listarContasReceberDeExemplo(): ContaReceber[] {
-  return contasReceber.map((c) => ({ ...c }))
-}
-
-/**
- * Sem chamador no momento.
- *
- * O plano de contas de VERDADE mora em `contabilidade-api.ts`
- * (`carregarPlano`, contra `GET /contas-contabeis`), e e o que a tela de
- * Plano de contas usa agora. Esta funcao fica ate custos fixos ganhar backend
- * — o "gasto no mes" por conta dela era numero inventado, e nao pode voltar a
- * ser usada sem que isso mude primeiro.
- */
-export function listarPlanos(): PlanoContas[] {
-  return planoContas.map((p) => ({ ...p }))
-}
-
-/**
- * Custo fixo recorrente NAO EXISTE no backend ainda — nem no web.
- *
- * Precisa de tabela propria e de um caso de uso que gere a conta a pagar do
- * mes de forma idempotente (rodar duas vezes no mesmo mes nao pode duplicar).
- * Ate isso ser construido, esta funcao continua mock e sem tela que a chame.
- */
-export function listarCustosFixos(): CustoFixo[] {
-  return custosFixos.map((c) => ({ ...c }))
-}
-
 /* -------------------------------------------------------------------------- */
 /* Baixa e estorno, de verdade — NR-081, RF-059, RF-066, RF-067               */
 /* -------------------------------------------------------------------------- */
@@ -332,125 +287,6 @@ export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resposta
     method: 'POST',
     body: { reason: motivo },
   })
-
-/* -------------------------------------------------------------------------- */
-/* Gravacao de titulos                                                        */
-/* -------------------------------------------------------------------------- */
-
-export type DadosTituloPagar = {
-  banco: string
-  planoContas: string
-  fornecedor: string
-  vencimento: string
-  valor: number
-  descricao: string
-}
-
-export type DadosTituloReceber = {
-  banco: string
-  cliente: string
-  emissao: string
-  vencimento: string
-  referente: string
-  tipo: string
-  valor: number
-}
-
-/** SUBSTITUIR POR: POST /financeiro/titulos */
-export async function salvarTitulo(
-  dados: DadosTituloPagar | DadosTituloReceber,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  await delay(800)
-  void dados
-  return { ok: true, id: `tit-${Date.now()}` }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Plano de contas e custos fixos                                             */
-/* -------------------------------------------------------------------------- */
-
-/** SUBSTITUIR POR: POST/PUT /financeiro/planos */
-export async function salvarPlanoContas(
-  nome: string,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  await delay(600)
-  if (!nome.trim()) return { ok: false, error: 'Informe o nome do plano de conta.' }
-  return { ok: true, id: `pc-${Date.now()}` }
-}
-
-export type DadosCustoFixo = {
-  id?: string
-  nome: string
-  diaVencimento: number
-  valor: number
-  planoContasNome: string
-  bancoNome: string
-}
-
-/** SUBSTITUIR POR: POST/PUT /financeiro/custos-fixos */
-export async function salvarCustoFixo(
-  dados: DadosCustoFixo,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  await delay(700)
-
-  if (!dados.nome.trim()) return { ok: false, error: 'Informe o nome do custo fixo.' }
-  if (dados.diaVencimento < 1 || dados.diaVencimento > 31) {
-    return { ok: false, error: 'O dia do vencimento deve estar entre 1 e 31.' }
-  }
-  if (dados.valor <= 0) return { ok: false, error: 'Informe um valor maior que zero.' }
-
-  return { ok: true, id: dados.id ?? `cf-${Date.now()}` }
-}
-
-/** SUBSTITUIR POR: DELETE /financeiro/custos-fixos/:id */
-export async function excluirCustoFixo(id: string): Promise<{ ok: true }> {
-  await delay(500)
-  void id
-  return { ok: true }
-}
-
-/**
- * SUBSTITUIR POR: POST /financeiro/custos-fixos/gerar
- *
- * Gera as contas a pagar do mes a partir dos custos fixos. O servidor
- * precisa ser idempotente por (custo fixo, competencia): rodar duas vezes
- * no mesmo mes nao pode duplicar a conta.
- */
-export async function gerarContasDeCustosFixos(
-  custos: CustoFixo[],
-  competencia: string,
-): Promise<{ ok: true; geradas: number; jaExistiam: number }> {
-  await delay(1100)
-  void competencia
-
-  /* No exemplo, os que ja tem conta lancada no mes ficam de fora. */
-  const jaLancados = new Set(contasPagar.map((c) => c.fornecedor.toLowerCase()))
-  const geradas = custos.filter((c) => !jaLancados.has(c.nome.toLowerCase())).length
-
-  return { ok: true, geradas, jaExistiam: custos.length - geradas }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Exportacao (previsto, ainda nao implementado)                              */
-/* -------------------------------------------------------------------------- */
-
-export type FormatoExportacao = 'csv' | 'pdf'
-
-/**
- * SUBSTITUIR POR: GET /financeiro/titulos/export?formato=
- *
- * A estrutura ja existe para que a exportacao entre sem mexer nas telas: o
- * botao chama esta funcao e o servidor devolve o arquivo pronto. Gerar CSV
- * no cliente daria pressa, mas PDF nao — e ter dois caminhos diferentes
- * para a mesma acao acaba divergindo.
- */
-export async function exportar(formato: FormatoExportacao): Promise<{ ok: false; error: string }> {
-  await delay(400)
-  return {
-    ok: false,
-    error: `Exportação em ${formato.toUpperCase()} entra quando o backend expuser o endpoint.`,
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Utilitarios de status                                                      */

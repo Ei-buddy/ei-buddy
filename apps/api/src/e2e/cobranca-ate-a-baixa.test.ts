@@ -168,6 +168,12 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
     await app?.close()
   })
 
+  /* Ids de aviso proprios desta rodada. A caixa de entrada guarda os ids ja
+     processados, e com ids fixos a segunda rodada no mesmo banco via tudo
+     como "repetido" — o teste so passava com o banco zerado. */
+  const rodada = randomUUID().slice(0, 8)
+  const evento = (n: number) => `evt_e2e_${rodada}_${n}`
+
   /* O corpo como o Asaas manda: `event` em caixa alta e valor DECIMAL. */
   const avisoDePagamento = (eventId: string) =>
     JSON.stringify({
@@ -193,7 +199,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
     })
 
   it('o pagamento do link baixa os dois titulos, no banco', async () => {
-    const r = await postar(avisoDePagamento('evt_e2e_1'))
+    const r = await postar(avisoDePagamento(evento(1)))
 
     expect(r.statusCode).toBe(200)
     expect(JSON.parse(r.body)).toMatchObject({ status: 'settled', titulosBaixados: 2 })
@@ -206,7 +212,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
   })
 
   it('a reentrega do mesmo aviso nao baixa de novo', async () => {
-    const r = await postar(avisoDePagamento('evt_e2e_1'))
+    const r = await postar(avisoDePagamento(evento(1)))
 
     expect(JSON.parse(r.body)).toMatchObject({ repetido: true })
 
@@ -217,7 +223,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
   })
 
   it('um aviso NOVO para a mesma cobranca tambem nao baixa de novo', async () => {
-    const r = await postar(avisoDePagamento('evt_e2e_2'))
+    const r = await postar(avisoDePagamento(evento(2)))
 
     /* A caixa de entrada nao pega este: o id e outro. Quem pega e o estado da
        cobranca, que ja saiu de `pending`. */
@@ -233,7 +239,7 @@ describe.skipIf(!DATABASE_URL)('cobranca a distancia ate a baixa — NR-049', ()
       method: 'POST',
       url: '/webhooks/asaas/lojas',
       headers: { 'content-type': 'application/json', 'asaas-access-token': 'token-forjado' },
-      payload: avisoDePagamento('evt_e2e_3'),
+      payload: avisoDePagamento(evento(3)),
     })
 
     /* Sem isto, qualquer um postaria "pagamento recebido" e o titulo baixaria

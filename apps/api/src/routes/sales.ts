@@ -1,6 +1,7 @@
 import {
   cancelSaleInputSchema,
   createSaleInputSchema,
+  returnSaleItemsInputSchema,
   saleHistoryInputSchema,
 } from '@na-regua/contracts'
 import {
@@ -12,6 +13,8 @@ import {
   type ListSalesDeps,
   type RegisterSaleDeps,
   registerSale,
+  returnSaleItems,
+  type ReturnSaleItemsDeps,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { IDEMPOTENCY_HEADER, requireContext } from '../plugins/execution-context.js'
@@ -29,7 +32,7 @@ import { validate } from '../plugins/validate.js'
  * Recebe `deps` em vez de importar a composicao: e o que permite testar a rota
  * com repositorio em memoria, sem Postgres.
  */
-export type SaleRouteDeps = RegisterSaleDeps & ListSalesDeps & CancelSaleDeps
+export type SaleRouteDeps = RegisterSaleDeps & ListSalesDeps & CancelSaleDeps & ReturnSaleItemsDeps
 
 export function registerSaleRoutes(app: FastifyInstance, deps: SaleRouteDeps): void {
   /**
@@ -128,6 +131,27 @@ export function registerSaleRoutes(app: FastifyInstance, deps: SaleRouteDeps): v
       await cancelSale(deps, ctx, input)
 
       return reply.code(204).send()
+    },
+  )
+  /**
+   * Devolve parte da venda — RF-044, NR-122.
+   *
+   * O corpo diz os produtos e quantidades; o valor quem calcula e o servidor.
+   * A resposta diz quanto sai do caixa (`paidBackCents`) e quanto so deixa de
+   * ser recebido (`uncollectedCents`) — o operador precisa saber o que entregar.
+   */
+  app.post(
+    '/sales/:id/devolucao',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(returnSaleItemsInputSchema, {
+        saleId: id,
+        ...(request.body as Record<string, unknown>),
+      })
+
+      return reply.code(200).send(await returnSaleItems(deps, ctx, input))
     },
   )
 }

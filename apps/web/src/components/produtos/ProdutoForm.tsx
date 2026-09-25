@@ -2,30 +2,23 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
+import { carregarCustosVariaveis } from '@/lib/financeiro-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Card, Field, FormGrid, Input, PageHeader } from '@/components/ui/UI'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
-import { IconBarcode, IconTrash } from '@/components/Icons'
+import { IconBarcode } from '@/components/Icons'
 import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './produtoForm.module.css'
-
-/** Converte "12,90" ou "12.90" em numero. */
-function paraNumero(valor: string): number {
-  const limpo = valor.replace(/\./g, '').replace(',', '.')
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : 0
-}
+import { reaisDoTexto } from '@/lib/valor'
 
 export default function ProdutoForm() {
   const router = useRouter()
 
-  const [codigo, setCodigo] = useState('')
   const [descricao, setDescricao] = useState('')
   const [ean, setEan] = useState('')
   const [ncm, setNcm] = useState('')
@@ -47,10 +40,13 @@ export default function ProdutoForm() {
   const [estoque, setEstoque] = useState('0')
   const [estoqueMinimo, setEstoqueMinimo] = useState('0')
   const [motivoAjuste, setMotivoAjuste] = useState('')
-  const [imagem, setImagem] = useState<string | null>(null)
 
   const [categorias, setCategorias] = useState<string[]>([])
   const [fornecedores, setFornecedores] = useState<string[]>([])
+  /* Soma dos custos variaveis da empresa, em pontos percentuais. Falha ao
+     carregar vira zero: a tela so deixa de mostrar a linha, e o cadastro
+     segue. */
+  const [percentualVariavel, setPercentualVariavel] = useState(0)
 
   /* Categoria/fornecedor ja usados pela propria loja — nao mais uma lista de
      exemplo igual para toda empresa. */
@@ -62,6 +58,10 @@ export default function ProdutoForm() {
         setFornecedores(r.dados.fornecedores)
       }
     })()
+    void (async () => {
+      const r = await carregarCustosVariaveis()
+      if (r.ok) setPercentualVariavel(r.dados.reduce((acc, c) => acc + c.percentual, 0))
+    })()
   }, [])
 
   const [erros, setErros] = useState<Record<string, FieldError>>({})
@@ -70,27 +70,14 @@ export default function ProdutoForm() {
   const [salvando, setSalvando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
-  const custo = paraNumero(precoCusto)
-  const venda = paraNumero(precoVenda)
+  const custo = reaisDoTexto(precoCusto)
+  const venda = reaisDoTexto(precoVenda)
   const margem = calcularMargem(custo, venda)
   const lucro = venda - custo
-
-  /* ---------------------------------------------------------------- *
-   * Imagem
-   * ---------------------------------------------------------------- */
-
-  function receberImagem(arquivo: File) {
-    if (!arquivo.type.startsWith('image/')) {
-      setToast({ msg: 'Envie um arquivo de imagem.', tone: 'error' })
-      return
-    }
-
-    /* Previa local via data URL. No envio real o arquivo vai para o
-       storage e o cadastro guarda so a URL. */
-    const reader = new FileReader()
-    reader.onload = () => setImagem(String(reader.result))
-    reader.readAsDataURL(arquivo)
-  }
+  /* O que sobra depois de tarifa, imposto, comissao — os custos que crescem
+     com a venda. E a margem que o lojista de fato leva para casa. */
+  const variavel = (venda * percentualVariavel) / 100
+  const sobra = lucro - variavel
 
   /* ---------------------------------------------------------------- *
    * Gravacao
@@ -100,7 +87,6 @@ export default function ProdutoForm() {
     event.preventDefault()
 
     const novos: Record<string, FieldError> = {
-      codigo: validateRequired(codigo, 'o codigo'),
       descricao: validateRequired(descricao, 'a descrição'),
       categoria: validateRequired(categoria, 'a categoria'),
       precoVenda: venda > 0 ? null : 'Informe um preço de venda maior que zero.',
@@ -114,9 +100,7 @@ export default function ProdutoForm() {
 
     setSalvando(true)
 
-    /* SUBSTITUIR POR: POST /produtos */
     const r = await salvarProduto({
-      codigo,
       descricao,
       ean,
       ncm,
@@ -128,11 +112,11 @@ export default function ProdutoForm() {
       precoVenda: venda,
       estoque: Number(estoque) || 0,
       estoqueMinimo: Number(estoqueMinimo) || 0,
-      imagem,
     })
     setSalvando(false)
 
     if (!r.ok) {
+      setErros(r.campos)
       setToast({ msg: r.error, tone: 'error' })
       return
     }
@@ -164,7 +148,7 @@ export default function ProdutoForm() {
         {/* ---------------- Identificacao ---------------- */}
         <Card title="Identificacao">
           <FormGrid>
-            <Field label="Código de barras (EAN)" span={6}>
+            <Field label="Código de barras (EAN)" span={12}>
               <div className={styles.inline}>
                 <Input
                   value={ean}
@@ -183,15 +167,10 @@ export default function ProdutoForm() {
               </div>
             </Field>
 
-            <Field label="Código interno" span={6}>
-              <Input
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                placeholder="CAF500"
-                aria-invalid={Boolean(erros.codigo)}
-              />
-              {erroDe('codigo')}
-            </Field>
+            {/* Sem campo de codigo interno: o servidor gera PROD-0001,
+                PROD-0002... para todo produto (RF-019). O campo que havia aqui
+                era obrigatorio e nunca enviado — quem digitava "CAF500"
+                recebia PROD-0001. O codigo gerado aparece na lista e na ficha. */}
 
             <Field label="Descrição" span={12}>
               <Input
@@ -211,6 +190,7 @@ export default function ProdutoForm() {
                 onCriar={(nova) => setCategorias((c) => [...c, nova])}
                 placeholder="Buscar ou criar categoria"
                 ariaLabel="Categoria"
+                invalido={Boolean(erros.categoria)}
               />
               {erroDe('categoria')}
             </Field>
@@ -231,35 +211,40 @@ export default function ProdutoForm() {
         {/* ---------------- NCM ---------------- */}
         <Card title="Classificação fiscal">
           <FormGrid>
-            <Field label="NCM" span={4}>
+            {/*
+              Os tres textos de ajuda sao CURTOS de proposito: numa coluna de
+              4/12 um texto longo quebra de linha ao lado do rotulo, a linha do
+              rotulo cresce e a caixa daquele campo desce — era o "campo NCM
+              mais alto que os outros" do TXT. O NCM, sem ajuda, ficava em cima.
+            */}
+            <Field label="NCM" span={4} hint="8 dígitos, na nota de compra">
               <Input
                 value={ncm}
                 onChange={(e) => setNcm(e.target.value)}
                 placeholder="0000.00.00"
               />
+              {erroDe('ncm')}
             </Field>
 
-            <Field
-              label="CFOP"
-              span={4}
-              hint="5102 é revenda comum. Bebida e cigarro com imposto já recolhido usam 5405."
-            >
+            <Field label="CFOP" span={4} hint="5102 revenda; 5405 com ST">
               <Input
                 value={cfop}
                 onChange={(e) => setCfop(e.target.value)}
                 placeholder="5102"
                 inputMode="numeric"
               />
+              {erroDe('cfop')}
             </Field>
 
             <Field
-              label="CST ou CSOSN"
+              label="CSOSN"
               span={4}
-              /* A dica NAO deduz o codigo a partir do regime: substituicao
-                 tributaria depende do produto E do estado, muda por convenio, e
-                 errar para menos e sonegacao. Dizer como o codigo se parece e
-                 ajudar; escolher por ele seria dar conselho fiscal. */
-              hint="Empresa do Simples usa CSOSN (3 dígitos, ex. 102). Regime normal usa CST (2, ex. 00)."
+              /* So CSOSN: o produto atende Simples Nacional e MEI, e nao o
+                 regime normal (CST). A dica NAO deduz o codigo: substituicao
+                 tributaria depende do produto E do estado, e errar para menos
+                 e sonegacao. Dizer como o codigo se parece e ajudar; escolher
+                 por ele seria dar conselho fiscal. */
+              hint="3 dígitos, ex. 102"
             >
               <Input
                 value={situacaoTributaria}
@@ -267,6 +252,7 @@ export default function ProdutoForm() {
                 placeholder="102"
                 inputMode="numeric"
               />
+              {erroDe('situacaoTributaria')}
             </Field>
           </FormGrid>
         </Card>
@@ -281,6 +267,7 @@ export default function ProdutoForm() {
                 placeholder="0,00"
                 inputMode="decimal"
               />
+              {erroDe('precoCusto')}
             </Field>
 
             <Field label="Preço de venda" span={4}>
@@ -315,6 +302,21 @@ export default function ProdutoForm() {
                 )}
               </div>
             </Field>
+
+            {percentualVariavel > 0 && venda > 0 ? (
+              <Field label="Depois dos custos variáveis" span={12}>
+                <div
+                  className={`${styles.margemBox} ${sobra < 0 ? styles.margemNegativa : ''}`}
+                  aria-live="polite"
+                >
+                  <strong>{formatMoney(sobra)} por unidade</strong>
+                  <span>
+                    custos variáveis de {formatPercent(percentualVariavel)} levam{' '}
+                    {formatMoney(variavel)} de cada venda
+                  </span>
+                </div>
+              </Field>
+            ) : null}
           </FormGrid>
         </Card>
 
@@ -355,42 +357,23 @@ export default function ProdutoForm() {
           </FormGrid>
         </Card>
 
-        {/* ---------------- Imagem ---------------- */}
-        <Card title="Imagem do produto">
-          <div className={styles.imagemBloco}>
-            {imagem ? (
-              <div className={styles.previaWrap}>
-                {/* unoptimized: e um data URL local, nao passa pelo otimizador */}
-                <Image
-                  src={imagem}
-                  alt="Prévia da imagem do produto"
-                  className={styles.previa}
-                  width={160}
-                  height={160}
-                  unoptimized
-                />
-                <Button variant="secondary" size="sm" onClick={() => setImagem(null)}>
-                  <IconTrash size={15} />
-                  Remover
-                </Button>
-              </div>
-            ) : (
-              <label className={styles.imagemUpload}>
-                <strong>Escolher imagem</strong>
-                <span>JPG ou PNG</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className={styles.imagemInput}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) receberImagem(f)
-                  }}
-                />
-              </label>
-            )}
-          </div>
-        </Card>
+        {/*
+          A IMAGEM DO PRODUTO saiu daqui — RF-017, NR-015.
+
+          Havia um cartao "Imagem do produto" com upload, previa e botao de
+          remover. O arquivo virava data URL, ia junto no `salvarProduto` — e a
+          funcao NAO o enviava. O lojista escolhia a foto, via a previa, lia
+          "Produto cadastrado." e a foto sumia; reabrir o produto nao mostrava
+          nada.
+
+          Guardar de verdade depende de armazenamento de objeto, que e a
+          NR-015: a tabela `attachments` ja existe e guarda `storage_path` —
+          um caminho, nao bytes —, e nenhum repositorio escreve nela.
+
+          Campo que finge funcionar e pior que campo ausente: o primeiro faz o
+          lojista acreditar que cadastrou, o segundo so nao existe ainda.
+          Quando a NR-015 fechar, isto volta com o upload de verdade atras.
+        */}
 
         <div className={styles.rodape}>
           <ButtonLink href="/app/produtos" variant="secondary">

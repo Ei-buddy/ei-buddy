@@ -52,6 +52,7 @@ function clienteSaida(over: Partial<CustomerOutput> = {}): CustomerOutput {
   return {
     id: 'cli-1',
     name: 'Joao',
+    tradeName: null,
     document: null,
     phone: '11988887777',
     email: null,
@@ -69,6 +70,7 @@ function clienteSaida(over: Partial<CustomerOutput> = {}): CustomerOutput {
     },
     createdAt: agora.toISOString(),
     anonymizedAt: null,
+    deletedAt: null,
     ...over,
   }
 }

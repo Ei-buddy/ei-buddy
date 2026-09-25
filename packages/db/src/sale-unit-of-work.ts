@@ -115,6 +115,21 @@ function escopo(tx: TransactionSql, companyId: string): SaleTransaction {
       `
       return linha === undefined ? undefined : vendaGravada(linha)
     },
+
+    /**
+     * Soma no que o cliente deve — RF-013.
+     *
+     * Incremento no proprio UPDATE, e nao ler-somar-gravar: duas vendas no
+     * fiado ao mesmo tempo, para o mesmo cliente, gravariam o saldo de uma so.
+     */
+    adjustCustomerBalance: async (customerId, deltaCents) => {
+      await tx`
+        UPDATE customers
+           SET wallet_balance_cents = wallet_balance_cents + ${deltaCents},
+               updated_at = now()
+         WHERE id = ${customerId}
+      `
+    },
   }
 }
 
@@ -220,6 +235,7 @@ async function inserirVenda(
           due_date: recebivel.dueDate,
           installment_number: recebivel.installmentNumber,
           installment_count: recebivel.installmentCount,
+          is_customer_debt: recebivel.isCustomerDebt,
           /* `settled_at` e `status` andam juntos — o CHECK
              `receivables_liquidado_completo` recusa um sem o outro. */
           status: recebivel.settledAt === undefined ? 'open' : 'settled',

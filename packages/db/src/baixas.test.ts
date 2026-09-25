@@ -104,9 +104,12 @@ describe.skipIf(!DATABASE_URL)('baixa e estorno — NR-029', () => {
       (tx) => tx`
         INSERT INTO receivables
           (id, company_id, customer_id, origin, description, amount_cents,
-           net_amount_cents, due_date)
+           net_amount_cents, due_date, is_customer_debt)
         VALUES (${id}, ${empresa}, ${clienteId}, 'manual', 'Venda fiado', ${valorCents},
-                ${valorCents}, ${HOJE})
+                ${valorCents}, ${HOJE},
+                /* Com cliente, e divida dele — a mesma regra de
+                   "nasceComoDividaDoCliente" para recebivel avulso. */
+                ${clienteId !== null})
       `,
     )
     return id

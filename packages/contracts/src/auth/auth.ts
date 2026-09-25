@@ -8,7 +8,8 @@ import {
   roleSchema,
 } from '../common/primitives.js'
 import { cnpjSchema } from '../common/document.js'
-import { partnerAccountFieldsSchema } from '../partners/partner.js'
+import { couponCodeInputSchema } from '../billing/subscription.js'
+import { partnerAccountFieldsSchema, pixCombinaComTipo } from '../partners/partner.js'
 
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
 
@@ -147,7 +148,10 @@ export const signupAccountSchema = z.discriminatedUnion('type', [
   z
     .object({ type: z.literal('parceiro') })
     .strict()
-    .extend(partnerAccountFieldsSchema.shape),
+    .extend(partnerAccountFieldsSchema.shape)
+    /* `.shape` copia os campos e deixa a regra do objeto para tras: a chave
+       PIX que combina com o tipo precisa ser conferida aqui tambem. */
+    .superRefine(pixCombinaComTipo),
 ])
 
 export type SignupAccount = z.infer<typeof signupAccountSchema>
@@ -185,6 +189,15 @@ export const signupInputSchema = z
      * como lojista, so o cupom de indicacao fica inativo ate a aprovacao.
      */
     account: signupAccountSchema.optional(),
+
+    /**
+     * Cupom de quem INDICOU esta loja — RF-114, ADR-0013.
+     *
+     * Grava o vinculo indicador -> indicado no cadastro. O desconto na fatura
+     * espera o preco (QST-002); o vinculo nao pode esperar, ou a indicacao
+     * feita hoje se perde.
+     */
+    referralCode: couponCodeInputSchema.optional(),
 
     /**
      * Aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1.
@@ -312,3 +325,39 @@ export const platformUsersOutputSchema = z.object({
 })
 
 export type PlatformUsersOutput = z.infer<typeof platformUsersOutputSchema>
+
+/**
+ * Pedir o link de redefinicao de senha — NR-014, RF-119.
+ *
+ * So e-mail: o link viaja por e-mail. Quem so tem telefone depende do canal de
+ * WhatsApp (NR-046) para receber um codigo, e isso entra com ele.
+ */
+export const passwordResetRequestSchema = z.object({ email: emailSchema }).strict()
+
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>
+
+/** Trocar a senha pelo link. O minimo e o mesmo do cadastro. */
+export const passwordResetInputSchema = z
+  .object({
+    token: z.string().min(20, 'Link inválido.').max(200, 'Link inválido.'),
+    secret: z.string().min(8, 'A senha precisa de ao menos 8 caracteres.').max(200),
+  })
+  .strict()
+
+export type PasswordResetInput = z.infer<typeof passwordResetInputSchema>
+
+/**
+ * Trocar o celular — RF-132, ADR-0012.
+ *
+ * Pede a SENHA atual: o celular do dono e quem opera a loja pelo WhatsApp, e
+ * uma sessao esquecida aberta num computador nao pode bastar para entregar o
+ * canal a outro numero.
+ */
+export const changePhoneInputSchema = z
+  .object({
+    phone: phoneSchema,
+    secret: z.string().min(1, 'Informe a sua senha atual.').max(200),
+  })
+  .strict()
+
+export type ChangePhoneInput = z.infer<typeof changePhoneInputSchema>

@@ -24,6 +24,7 @@
  * inventario que ninguem consegue explicar depois.
  */
 
+import { pedir } from './http'
 import type { PixCharge, PixChargeStatus } from './auth-api'
 import type { FormaPagamento } from './types'
 
@@ -151,13 +152,22 @@ export const FORMAS: {
   rotulo: string
   /** Taxa da operadora, em % — descontada do valor liquido. */
   taxa: number
-  /** Precisa de link/QR para o cliente pagar. */
+  /**
+   * Abre cobranca com QR para o cliente pagar — nenhuma forma, por enquanto.
+   *
+   * No balcao o pagamento e REGISTRADO (ADR-0004: o Asaas nao tem captura
+   * presencial). Cartao passa na maquininha; Pix cai na chave do lojista; o
+   * operador confirma quando ve o dinheiro. A cobranca Pix com QR dinamico
+   * do PDV ainda e simulada (`criarCobrancaVenda`), e sem o botao de
+   * demonstracao, que nao existe em producao, uma venda em Pix nunca
+   * fechava. Volta a ser `true` quando a cobranca real existir.
+   */
   online: boolean
 }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
-  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: true },
-  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: true },
-  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: true },
+  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: false },
+  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
+  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
   { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },
 ]
 
@@ -166,13 +176,32 @@ export type Pagamento = {
   forma: FormaPagamento
   valor: number
   status: 'pendente' | 'confirmado' | 'falhou'
+  /** So no credito. Ausente = a vista. */
+  parcelas?: number
+}
+
+/** Ate quantas vezes o balcao parcela no credito — a tabela da api cobre 1x a 12x. */
+export const PARCELAS_MAXIMAS = 12
+
+/**
+ * Taxa estimada do credito por numero de parcelas, em %.
+ *
+ * A mesma escada da tabela padrao da api (`default-settings`): quem calcula o
+ * liquido de verdade e o servidor. Aqui e so a previsao que o operador ve
+ * antes de fechar, e parcelar tem de parecer mais caro na tela tambem.
+ */
+export function taxaDoCredito(parcelas: number): number {
+  if (parcelas <= 1) return FORMAS.find((f) => f.valor === 'credito')?.taxa ?? 0
+  if (parcelas === 2) return 5
+  return 6 + (parcelas - 3) * 1.5
 }
 
 /** Taxa cobrada pela operadora sobre um pagamento. */
 export function taxaDoPagamento(pagamento: Pagamento): number {
   const forma = FORMAS.find((f) => f.valor === pagamento.forma)
   if (!forma) return 0
-  return (pagamento.valor * forma.taxa) / 100
+  const taxa = pagamento.forma === 'credito' ? taxaDoCredito(pagamento.parcelas ?? 1) : forma.taxa
+  return (pagamento.valor * taxa) / 100
 }
 
 /**
@@ -243,6 +272,12 @@ const METODO: Record<FormaPagamento, 'cash' | 'pix' | 'debit' | 'credit' | 'wall
   carteira: 'wallet',
 }
 
+/* O caminho de volta: a api devolve `cash` e a tela procura `dinheiro` em
+   FORMAS. Sem isto o detalhe da venda mostrava "cash" cru. */
+const FORMA_DO_METODO = Object.fromEntries(
+  Object.entries(METODO).map(([forma, metodo]) => [metodo, forma]),
+) as Record<string, FormaPagamento>
+
 /** Reais para centavos. Arredondar aqui evita 1990.0000000000002 no corpo. */
 const emCentavos = (reais: number): number => Math.round(reais * 100)
 
@@ -296,6 +331,8 @@ export async function criarVenda(
     payments: dados.pagamentos.map((pg) => ({
       method: METODO[pg.forma],
       amountCents: emCentavos(pg.valor),
+      /* 1x vai sem o campo: a vista e a ausencia de parcelamento no contrato. */
+      ...(pg.forma === 'credito' && (pg.parcelas ?? 1) > 1 ? { installments: pg.parcelas } : {}),
     })),
     /* O desconto vai em CENTAVOS mesmo quando a tela o pediu em percentual: a
        api guarda o valor concedido, nao a regra que o produziu. */
@@ -432,8 +469,12 @@ export type VendaHistorico = {
  * parece certo e o pior tipo de errado.
  */
 export type ItemDaVenda = {
+  /** Nulo no item avulso: esse nao se devolve por produto. */
+  produtoId: string | null
   descricao: string
   quantidade: number
+  /** Ja devolvido em devolucoes anteriores — RF-044. */
+  devolvido: number
   precoUnitario: number
   total: number
 }
@@ -454,9 +495,14 @@ export type VendaDoHistorico = {
   status: 'open' | 'settled' | 'cancelled' | 'returned'
   bruto: number
   desconto: number
+  /** O que o cliente pagou: bruto menos desconto. */
   total: number
+  /** O que fica para a loja: sem imposto e sem tarifa de cartao. */
+  liquido: number
   imposto: number
   taxaCartao: number
+  /** Ja devolvido ao cliente, somando as devolucoes — RF-044. */
+  devolvidoValor: number
   itens: ItemDaVenda[]
   pagamentos: PagamentoDaVenda[]
   notaNumero: number | null
@@ -491,7 +537,15 @@ type VendaDaApi = {
   netAmountCents: number
   taxAmountCents: number
   cardFeeAmountCents: number
-  items: { description: string; quantity: number; unitPriceCents: number; totalCents: number }[]
+  returnedAmountCents: number
+  items: {
+    productId: string | null
+    description: string
+    quantity: number
+    returnedQuantity: number
+    unitPriceCents: number
+    totalCents: number
+  }[]
   payments: { method: FormaPagamento; amountCents: number; installments: number | null }[]
   invoiceNumber: number | null
   invoiceAccessKey: string | null
@@ -508,17 +562,23 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
   status: v.status,
   bruto: reais(v.grossAmountCents),
   desconto: reais(v.discountCents),
-  total: reais(v.netAmountCents),
+  /* `netAmountCents` e o LIQUIDO (sem imposto e sem tarifa). Mostra-lo como
+     total fazia a venda de R$ 28,90 aparecer como R$ 27,17. */
+  total: reais(v.grossAmountCents - v.discountCents),
+  liquido: reais(v.netAmountCents),
   imposto: reais(v.taxAmountCents),
   taxaCartao: reais(v.cardFeeAmountCents),
+  devolvidoValor: reais(v.returnedAmountCents),
   itens: v.items.map((i) => ({
+    produtoId: i.productId,
     descricao: i.description,
     quantidade: i.quantity,
+    devolvido: i.returnedQuantity,
     precoUnitario: reais(i.unitPriceCents),
     total: reais(i.totalCents),
   })),
   pagamentos: v.payments.map((p) => ({
-    forma: p.method,
+    forma: FORMA_DO_METODO[p.method] ?? (p.method as FormaPagamento),
     valor: reais(p.amountCents),
     parcelas: p.installments,
   })),
@@ -565,6 +625,7 @@ export async function carregarHistorico(
     pageSize?: number
     summary?: {
       salesCount: number
+      grossCents: number
       netCents: number
       netAfterFeesCents: number
       averageTicketCents: number | null
@@ -585,7 +646,9 @@ export async function carregarHistorico(
       porPagina: json.pageSize ?? 20,
       resumo: {
         quantidade: json.summary.salesCount,
-        faturamento: reais(json.summary.netCents),
+        /* Faturamento e o bruto — o que os clientes pagaram. O liquido ja vem
+           sem imposto e sem tarifa. */
+        faturamento: reais(json.summary.grossCents),
         liquido: reais(json.summary.netAfterFeesCents),
         ticketMedio:
           json.summary.averageTicketCents === null ? null : reais(json.summary.averageTicketCents),
@@ -595,34 +658,68 @@ export async function carregarHistorico(
 }
 
 /**
- * O estorno ainda NAO existe — RF-043.
+ * Estorna (cancela) a venda inteira — RF-043, NR-122.
  *
- * Recusa em vez de fingir. Antes esta funcao esperava 1,2 s e devolvia
- * `{ ok: true }` com uma contagem tirada de `lib/mock-data`: a tela dizia "3
- * itens devolvidos ao estoque" e nada tinha sido devolvido, nem estornado, nem
- * cancelado. Um estorno que parece ter acontecido e pior que um botao que
- * recusa, porque o furo de inventario so aparece na contagem seguinte.
+ * O servidor devolve os itens ao estoque e reverte o recebivel na mesma
+ * transacao, e guarda o motivo. Ele RECUSA, com a mensagem de por que, venda
+ * com nota emitida (cancele a nota antes), venda com recebimento ja baixado
+ * (estorne a baixa antes) e venda ja cancelada — a mensagem vai direto para a
+ * tela.
  *
- * O que falta nao e a rota: e o caso de uso, e ele tem de cobrir TRES coisas na
- * mesma transacao — devolver o item ao estoque (movimento de `sale_cancelled`,
- * que a trilha ja preve), estornar o titulo em contas a receber, e cancelar a
- * nota fiscal ou emitir a de devolucao. Se uma falhar, nenhuma pode valer.
- *
- * As tres pecas ja existem em separado: a trilha de estoque ganhou
- * implementacao no banco, o estorno de baixa esta em `core`
- * (`reverseSettlement`) e o cancelamento de nota esta no emissor fiscal. Falta
- * a transacao que as junta.
+ * Ate aqui esta funcao recusava sempre, com "ainda nao esta disponivel",
+ * enquanto o caso de uso ja existia e o assistente ja o usava.
  */
 export async function estornarVenda(
   id: string,
-): Promise<{ ok: true; itensDevolvidos: number } | { ok: false; error: string }> {
-  void id
+  motivo: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await pedir(`/api/vendas/${encodeURIComponent(id)}/cancelar`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: motivo.trim() }),
+  })
+  return r.ok ? { ok: true } : { ok: false, error: r.erro }
+}
 
+/** O que a devolucao fez com o dinheiro, em reais. */
+export type ResultadoDaDevolucao = {
+  devolvido: number
+  /** Sai do caixa: entregar ao cliente. */
+  entregarAoCliente: number
+  /** Estava em aberto (fiado, parcelas): so deixa de ser recebido. */
+  deixaDeReceber: number
+  venda: 'open' | 'settled' | 'returned'
+}
+
+/**
+ * Devolve parte da venda — RF-044. A tela diz produtos e quantidades; o valor
+ * quem calcula e o servidor, proporcional ao que foi cobrado por item.
+ */
+export async function devolverItens(
+  id: string,
+  motivo: string,
+  itens: { produtoId: string; quantidade: number }[],
+): Promise<{ ok: true; dados: ResultadoDaDevolucao } | { ok: false; error: string }> {
+  const r = await pedir<{
+    refundCents: number
+    paidBackCents: number
+    uncollectedCents: number
+    status: ResultadoDaDevolucao['venda']
+  }>(`/api/vendas/${encodeURIComponent(id)}/devolucao`, {
+    method: 'POST',
+    body: JSON.stringify({
+      reason: motivo.trim(),
+      items: itens.map((i) => ({ productId: i.produtoId, quantity: i.quantidade })),
+    }),
+  })
+  if (!r.ok) return { ok: false, error: r.erro }
   return {
-    ok: false,
-    error:
-      'O estorno de venda ainda não está disponível. Para corrigir agora, ajuste o estoque ' +
-      'pelo produto e cancele a nota pela tela da venda.',
+    ok: true,
+    dados: {
+      devolvido: reais(r.dados.refundCents),
+      entregarAoCliente: reais(r.dados.paidBackCents),
+      deixaDeReceber: reais(r.dados.uncollectedCents),
+      venda: r.dados.status,
+    },
   }
 }
 

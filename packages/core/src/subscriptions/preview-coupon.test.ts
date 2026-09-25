@@ -17,6 +17,7 @@ const consulta = (over: Partial<CouponLookup> = {}): CouponLookup => ({
 
 const repositorio = (por: Record<string, CouponLookup>): CouponRepository => ({
   lookup: async (code) => por[code],
+  recordRedemption: async () => undefined,
 })
 
 const deps = (por: Record<string, CouponLookup>) => ({

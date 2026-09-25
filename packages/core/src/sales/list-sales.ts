@@ -26,6 +26,7 @@ export async function listSales(
     ...(input.from === undefined ? {} : { from: input.from }),
     ...(input.to === undefined ? {} : { to: input.to }),
     ...(input.q === undefined || input.q === '' ? {} : { termo: input.q }),
+    ...(input.customerId === undefined ? {} : { customerId: input.customerId }),
     offset: (input.page - 1) * input.pageSize,
     limite: input.pageSize,
   })
@@ -40,14 +41,18 @@ export async function listSales(
     pageSize: input.pageSize,
     summary: {
       ...resumo,
-      /* O liquido de verdade: o que entra depois da tarifa da maquininha. */
-      netAfterFeesCents: resumo.netCents - resumo.cardFeeCents,
+      /* `netCents` JA vem sem imposto e sem tarifa: o dominio calcula o liquido
+         como bruto - imposto - tarifa. Subtrair a tarifa aqui de novo contava
+         a maquininha duas vezes. O campo fica pelo contrato. */
+      netAfterFeesCents: resumo.netCents,
       /*
        * Nulo, e nao zero, quando nao houve venda. "Ticket medio R$ 0,00" diria
        * que houve venda de valor nenhum; o travessao diz que nao houve venda.
        */
       averageTicketCents:
-        resumo.salesCount === 0 ? null : Math.round(resumo.netCents / resumo.salesCount),
+        /* Pelo BRUTO: ticket medio e quanto o cliente gasta por compra, e nao
+           o que sobra depois do imposto. */
+        resumo.salesCount === 0 ? null : Math.round(resumo.grossCents / resumo.salesCount),
     },
   }
 }

@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { chamarApi } from '@/lib/api-server'
+import { corpoDe, encaminhar } from '@/lib/bff'
 import { SESSION_COOKIE } from '@/lib/session'
 
 /**
@@ -32,4 +33,32 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     : NextResponse.json(r.corpo ?? { error: { code: r.code, message: r.message } }, {
         status: r.status,
       })
+}
+
+/**
+ * Excluir o cliente da lista — RF-009.
+ *
+ * `encaminhar` e nao `chamarApi` a mao como o GET acima: o GET veio antes do
+ * helper e nao foi reescrito. Este ja nasce com ele, que trata o 204 sem corpo
+ * — `NextResponse.json` recusa esse status.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  return encaminhar(`/clientes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+/**
+ * Editar o cadastro — RF-009.
+ *
+ * `PATCH` e nao `PUT`: a tela manda o que mudou, e o que nao veio fica como
+ * esta. `PUT` prometeria substituir a ficha inteira.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  return encaminhar(`/clientes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: await corpoDe(request),
+  })
 }

@@ -12,7 +12,6 @@
  * `/contas-a-receber/exportar` — o ultimo botao que ainda so simulava.
  */
 
-import { bancos } from './mock-data'
 import { pedir, type Resultado } from './http'
 import type { StatusTitulo } from './types'
 
@@ -20,8 +19,19 @@ import type { StatusTitulo } from './types'
 /* Listas para os campos "(T)"                                                */
 /* -------------------------------------------------------------------------- */
 
-/** SUBSTITUIR POR: GET /bancos. Continua em uso na BAIXA — ver BaixaDialog. */
-export const NOMES_BANCOS = bancos.map((b) => b.nome)
+/** Sugestoes genericas para a BAIXA, quando a loja ainda nao cadastrou contas (RF-073). */
+export const NOMES_BANCOS = [
+  'Caixa da loja',
+  'Banco do Brasil',
+  'Caixa Econômica',
+  'Itaú',
+  'Bradesco',
+  'Santander',
+  'Nubank',
+  'Inter',
+  'Sicredi',
+  'Sicoob',
+]
 
 /* -------------------------------------------------------------------------- */
 /* Exportacao — NR-074                                                        */
@@ -391,7 +401,7 @@ export type DadosDaBaixa = {
   /** Em CENTAVOS. A tela mostra reais; a fronteira converte uma vez so. */
   amountCents: number
   settledOn: string
-  /** So em conta a pagar: de qual conta o dinheiro saiu. */
+  /** A pagar: de qual conta saiu (obrigatorio). A receber: onde entrou (opcional, RF-073). */
   bankAccount?: string
   /** So em recebivel: como o dinheiro entrou. */
   method?: FormaDeRecebimento
@@ -428,3 +438,39 @@ export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resultad
     method: 'POST',
     body: JSON.stringify({ reason: motivo }),
   })
+
+/* -------------------------------------------------------------------------- */
+/* Custos variaveis — percentual sobre o preco de venda                       */
+/* -------------------------------------------------------------------------- */
+
+export type CustoVariavel = {
+  id: string
+  nome: string
+  /** Pontos percentuais: 3.5 = 3,5% do preco de venda. */
+  percentual: number
+}
+
+type CustoVariavelDaApi = { id: string; name: string; ratePercent: number }
+
+const paraCustoVariavel = (c: CustoVariavelDaApi): CustoVariavel => ({
+  id: c.id,
+  nome: c.name,
+  percentual: c.ratePercent,
+})
+
+export const carregarCustosVariaveis = (): Promise<Resultado<CustoVariavel[]>> =>
+  pedir<{ variableCosts: CustoVariavelDaApi[] }>('/api/custos-variaveis').then((r) =>
+    r.ok ? { ok: true, dados: r.dados.variableCosts.map(paraCustoVariavel) } : r,
+  )
+
+export const criarCustoVariavel = (
+  nome: string,
+  percentual: number,
+): Promise<Resultado<CustoVariavel>> =>
+  pedir<CustoVariavelDaApi>('/api/custos-variaveis', {
+    method: 'POST',
+    body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
+  }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
+
+export const excluirCustoVariavel = (id: string): Promise<Resultado<unknown>> =>
+  pedir(`/api/custos-variaveis/${encodeURIComponent(id)}`, { method: 'DELETE' })

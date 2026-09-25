@@ -36,7 +36,7 @@ import type { Sql } from 'postgres'
  */
 const TAMANHO_DO_TOKEN = 32
 
-const gerarToken = (): string => randomBytes(TAMANHO_DO_TOKEN).toString('base64url')
+export const gerarToken = (): string => randomBytes(TAMANHO_DO_TOKEN).toString('base64url')
 
 /**
  * O que vai para o banco.

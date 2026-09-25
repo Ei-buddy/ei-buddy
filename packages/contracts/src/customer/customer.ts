@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { addressOutputSchema, addressSchema, documentSchema } from '../common/document.js'
+import {
+  addressOutputSchema,
+  addressSchema,
+  documentSchema,
+  tipoDePessoa,
+} from '../common/document.js'
 import {
   emailSchema,
   idSchema,
@@ -13,7 +18,34 @@ import {
  * para cliente HTTP.
  */
 
-export const createCustomerInputSchema = z
+/**
+ * A regra de PJ, escrita uma vez e aplicada nos dois schemas.
+ *
+ * `.partial()` do zod recusa um schema que ja tenha `.refine`, entao a
+ * alternativa era duplicar o predicado — e predicado duplicado e predicado que
+ * diverge. Aqui ele e uma funcao, e cada schema a aplica depois de decidir
+ * quais campos sao obrigatorios.
+ */
+function pjTemFantasia(c: {
+  readonly document?: string | undefined
+  readonly tradeName?: string | undefined
+}): boolean {
+  return tipoDePessoa(c.document ?? null) !== 'juridica' || Boolean(c.tradeName?.trim())
+}
+
+const EXIGE_FANTASIA = {
+  message: 'Informe o nome fantasia do cliente pessoa juridica.',
+  path: ['tradeName'],
+}
+
+/**
+ * Os campos, sem regra composta.
+ *
+ * Existe separado porque `.partial()` do zod recusa qualquer schema que
+ * carregue `.refine` — inclusive indiretamente. Os dois schemas de verdade
+ * saem daqui e aplicam a regra DEPOIS de decidir o que e obrigatorio.
+ */
+const camposDoCliente = z
   .object({
     name: nameSchema,
     /**
@@ -22,6 +54,14 @@ export const createCustomerInputSchema = z
      * o lojista de volta para o caderno.
      */
     document: documentSchema.optional(),
+    /**
+     * Nome fantasia — obrigatorio quando o cliente e PJ (regra logo abaixo).
+     *
+     * `name` guarda a RAZAO SOCIAL, que e o que sai na nota. O fantasia e como
+     * a loja conhece o cliente, e e por ele que o lojista procura no balcao:
+     * "a padaria do Ze", nao "ZE SILVA COMERCIO DE ALIMENTOS LTDA".
+     */
+    tradeName: nameSchema.optional(),
     phone: phoneSchema.optional(),
     email: emailSchema.optional(),
     notes: z.string().trim().max(500, 'Observacao muito longa.').optional(),
@@ -39,9 +79,36 @@ export const createCustomerInputSchema = z
   })
   .strict()
 
+/**
+ * Cadastro — RF-009.
+ *
+ * PJ precisa de nome fantasia.
+ *
+ * A regra mora no CONTRATO, e nao num CHECK no banco, porque ela depende de
+ * saber que o documento e um CNPJ. Essa leitura ja existe em `tipoDePessoa`;
+ * reimplementa-la em SQL criaria duas respostas para a mesma pergunta, e a
+ * primeira mudanca deixaria uma das duas para tras.
+ *
+ * Sem documento nao ha PJ conhecida, e a regra nao se aplica: o balcao cadastra
+ * com nome e telefone e completa depois (RF-009).
+ */
+export const createCustomerInputSchema = camposDoCliente.refine(pjTemFantasia, EXIGE_FANTASIA)
+
 export type CreateCustomerInput = z.infer<typeof createCustomerInputSchema>
 
-export const updateCustomerInputSchema = createCustomerInputSchema.partial().strict()
+/**
+ * Edicao — os mesmos campos, todos opcionais, e a MESMA regra de PJ.
+ *
+ * Ela vale aqui pelo payload que chega: quem manda um CNPJ nesta atualizacao
+ * precisa mandar o fantasia junto. O que ela NAO alcanca e a atualizacao que
+ * so mexe noutro campo de um cliente que ja esta PJ sem fantasia — para isso
+ * seria preciso ler o valor guardado, e schema nao le banco. Esse caso nao
+ * existe hoje: a regra entrou junto com a coluna, e todo PJ nasce com
+ * fantasia.
+ */
+export const updateCustomerInputSchema = camposDoCliente
+  .partial()
+  .refine(pjTemFantasia, EXIGE_FANTASIA)
 export type UpdateCustomerInput = z.infer<typeof updateCustomerInputSchema>
 
 /** Busca textual de cliente para a consulta conversacional de fiado — NR-115. */
@@ -56,6 +123,8 @@ export type CheckCustomerWalletInput = z.infer<typeof checkCustomerWalletInputSc
 export const customerOutputSchema = z.object({
   id: idSchema,
   name: z.string(),
+  /** Nulo em pessoa fisica, que nao tem fantasia. */
+  tradeName: z.string().nullable(),
   document: z.string().nullable(),
   phone: z.string().nullable(),
   email: z.string().nullable(),
@@ -85,9 +154,98 @@ export const customerOutputSchema = z.object({
    * anterior nao foi atendido.
    */
   anonymizedAt: z.string().nullable(),
+  /**
+   * Quando o cliente foi excluido da lista — RF-009.
+   *
+   * Exclusao aqui e reversivel: a linha continua existindo, e o historico de
+   * vendas continua apontando para ela (dados.md#exclusão). Nulo = ativo.
+   *
+   * CUIDADO com a palavra "inativo": o filtro `inativos` da lista significa
+   * outra coisa — cliente que nao compra ha `DIAS_PARA_INATIVO` dias. Um e
+   * decisao do lojista, o outro e observacao sobre o comportamento de compra.
+   */
+  deletedAt: z.string().nullable(),
 })
 
 export type CustomerOutput = z.infer<typeof customerOutputSchema>
+
+/**
+ * O historico de contatos da ficha — RF-011, NR-072.
+ *
+ * A ficha mostrava esta lista desde que a tela existe, vinda de dados de
+ * exemplo, e o botao de lancar abria um aviso ("entra com o modulo de CRM").
+ * O CRM que existe e um quadro de oportunidades da loja — outra pergunta.
+ *
+ * As chaves sao em ingles, como o resto do vocabulario; o texto que o lojista
+ * le mora na tela. Gravar a prosa faria a primeira mudanca de redacao virar
+ * migration.
+ */
+/**
+ * Consentimento de WhatsApp — RF-016.
+ *
+ * Duas datas e nao um booleano: `null` em ambas quer dizer NUNCA HOUVE
+ * manifestacao, que e diferente de recusa. Uma exige pedir o aceite; a outra
+ * proibe pedir de novo. Um booleano achataria as duas em "false".
+ */
+export const whatsappConsentDecisionSchema = z.enum(['opt_in', 'opt_out'])
+
+export const recordWhatsappConsentInputSchema = z
+  .object({ decision: whatsappConsentDecisionSchema })
+  .strict()
+
+export type RecordWhatsappConsentInput = z.infer<typeof recordWhatsappConsentInputSchema>
+
+export const whatsappConsentOutputSchema = z.object({
+  optedInAt: z.string().nullable(),
+  optedOutAt: z.string().nullable(),
+})
+
+export type WhatsappConsentOutput = z.infer<typeof whatsappConsentOutputSchema>
+
+export const customerContactKindSchema = z.enum(['call', 'whatsapp', 'visit', 'note'])
+
+export type CustomerContactKind = z.infer<typeof customerContactKindSchema>
+
+export const createCustomerContactInputSchema = z
+  .object({
+    kind: customerContactKindSchema,
+    description: z
+      .string()
+      .trim()
+      .min(3, 'Descreva o contato em pelo menos tres caracteres.')
+      .max(500, 'Descricao muito longa.'),
+    /**
+     * O dia do FATO, e nao o do registro — o lojista lanca hoje a ligacao de
+     * ontem, e a ficha ordena pelo que aconteceu.
+     *
+     * Ausente = hoje, resolvido pelo caso de uso com `ctx.now`. O schema nao
+     * usa `.default()` porque a data de hoje NAO e conhecida por um schema:
+     * um default aqui seria o relogio do processo que carregou o modulo.
+     */
+    happenedOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe a data no formato AAAA-MM-DD.')
+      .optional(),
+  })
+  .strict()
+
+export type CreateCustomerContactInput = z.infer<typeof createCustomerContactInputSchema>
+
+export const customerContactOutputSchema = z.object({
+  id: idSchema,
+  kind: customerContactKindSchema,
+  description: z.string(),
+  happenedOn: z.string(),
+  createdAt: z.string(),
+})
+
+export type CustomerContactOutput = z.infer<typeof customerContactOutputSchema>
+
+export const customerContactListOutputSchema = z.object({
+  contacts: z.array(customerContactOutputSchema),
+})
+
+export type CustomerContactListOutput = z.infer<typeof customerContactListOutputSchema>
 
 /**
  * Importacao de clientes em lote — NR-072, US-008.

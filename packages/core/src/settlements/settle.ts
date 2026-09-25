@@ -108,7 +108,7 @@ export async function settleReceivable(
       receivableId: titulo.id,
       amountCents: input.amountCents,
       method: input.method,
-      bankAccount: null,
+      bankAccount: input.bankAccount ?? null,
       settledOn: input.settledOn,
       notes: input.notes ?? null,
       reversesId: null,

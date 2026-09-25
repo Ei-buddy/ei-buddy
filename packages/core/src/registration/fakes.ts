@@ -1,15 +1,19 @@
 import type {
   Address,
   CompanyOutput,
+  CustomerContactOutput,
   CustomerListItem,
   CustomerOutput,
   ProductOutput,
 } from '@na-regua/contracts'
-import type { CompanyId } from '../context.js'
+import type { CompanyId, UserId } from '../context.js'
 import type { CepAddress, CepLookup } from '../ports/cep-lookup.js'
+import type { CnpjCompany, CnpjLookup } from '../ports/cnpj-lookup.js'
+import type { CustomerContactRepository, NewCustomerContact } from '../ports/customer-contacts.js'
 import type {
   CompanyChanges,
   CompanyRepository,
+  CustomerPatch,
   CustomerRepository,
   NewCompany,
   NewCustomer,
@@ -141,6 +145,23 @@ export class InMemoryCepLookup implements CepLookup {
   }
 }
 
+/**
+ * Consulta de CNPJ em memoria. Mesma forma do fake de CEP, de proposito: os
+ * dois respondem a mesma pergunta ("o provedor conhece isto?") e um CNPJ nao
+ * semeado devolve `undefined`, como o provedor real faria.
+ */
+export class InMemoryCnpjLookup implements CnpjLookup {
+  private readonly registros = new Map<string, CnpjCompany>()
+
+  registrar(cnpj: string, empresa: CnpjCompany): void {
+    this.registros.set(cnpj, empresa)
+  }
+
+  async lookup(cnpj: string): Promise<CnpjCompany | undefined> {
+    return this.registros.get(cnpj)
+  }
+}
+
 export class InMemoryCustomerRepository implements CustomerRepository {
   private readonly registros = new Map<string, CustomerOutput & { companyId: CompanyId }>()
   private sequencia = 0
@@ -158,6 +179,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       walletLimitCents: customer.walletLimitCents ?? 0,
       /* Nao deve nada e zero, nao nulo: nulo obrigaria todo calculo de fiado
          a tratar ausencia. */
+      tradeName: customer.tradeName ?? null,
       walletBalanceCents: 0,
       /* O endereco do que veio, campo a campo: `undefined` na entrada vira
          `null` na saida, porque "nao informou" e um valor e nao um buraco. */
@@ -173,6 +195,8 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       createdAt: customer.createdAt.toISOString(),
       /* Cliente nasce sem pedido de exclusao atendido — RF-127. */
       anonymizedAt: null,
+      /* E nasce na lista. */
+      deletedAt: null,
     }
     this.registros.set(gravado.id, gravado)
     return this.semTenant(gravado)
@@ -191,8 +215,10 @@ export class InMemoryCustomerRepository implements CustomerRepository {
   ): Promise<readonly CustomerOutput[]> {
     if (criteria.phone === undefined && criteria.document === undefined) return []
 
+    /* Excluido nao conta como parecido: cadastrar de novo alguem que saiu da
+       lista e o caminho normal, e oferecer "ja existe" ali confundiria. */
     return [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           (criteria.phone !== undefined && c.phone === criteria.phone) ||
@@ -226,7 +252,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     const casam = [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           termo === '' ||
@@ -256,7 +282,7 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((c) => c.companyId === companyId)
+      .filter((c) => c.companyId === companyId && c.deletedAt === null)
       .filter(
         (c) =>
           termo === '' ||
@@ -267,6 +293,72 @@ export class InMemoryCustomerRepository implements CustomerRepository {
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, criterio.limite)
       .map((c) => this.semTenant(c))
+  }
+
+  /**
+   * Edita so o que veio — RF-009.
+   *
+   * `?? atual` campo a campo, que e o `COALESCE` do SQL escrito em JavaScript:
+   * ausente nao mexe. Espalhar o patch com `{ ...atual, ...patch }` daria o
+   * mesmo resultado hoje e mentiria amanha — bastaria o contrato passar a
+   * aceitar `null` para o espalhamento gravar nulo onde o banco manteria o
+   * valor.
+   */
+  async update(
+    companyId: CompanyId,
+    customerId: string,
+    patch: CustomerPatch,
+    _updatedBy: UserId,
+  ): Promise<CustomerOutput | undefined> {
+    const atual = this.registros.get(customerId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+
+    const e = patch.address
+
+    const atualizado = {
+      ...atual,
+      name: patch.name ?? atual.name,
+      tradeName: patch.tradeName ?? atual.tradeName,
+      document: patch.document ?? atual.document,
+      phone: patch.phone ?? atual.phone,
+      email: patch.email ?? atual.email,
+      notes: patch.notes ?? atual.notes,
+      walletLimitCents: patch.walletLimitCents ?? atual.walletLimitCents,
+      address: {
+        zipCode: e?.zipCode ?? atual.address.zipCode,
+        street: e?.street ?? atual.address.street,
+        number: e?.number ?? atual.address.number,
+        complement: e?.complement ?? atual.address.complement,
+        district: e?.district ?? atual.address.district,
+        city: e?.city ?? atual.address.city,
+        state: e?.state ?? atual.address.state,
+      },
+    }
+
+    this.registros.set(customerId, atualizado)
+    return this.semTenant(atualizado)
+  }
+
+  /**
+   * Exclui ou reativa — RF-009.
+   *
+   * `findById` continua achando o excluido de proposito, como no banco: e a
+   * ficha dele que carrega o botao de reativar.
+   */
+  async setDeletedAt(
+    companyId: CompanyId,
+    customerId: string,
+    deletedAt: Date | null,
+    _updatedBy: UserId,
+  ): Promise<boolean> {
+    const achado = this.registros.get(customerId)
+    if (achado === undefined || achado.companyId !== companyId) return false
+
+    this.registros.set(customerId, {
+      ...achado,
+      deletedAt: deletedAt === null ? null : deletedAt.toISOString(),
+    })
+    return true
   }
 
   /** Ajusta saldo em carteira nos testes — o cadastro nasce zerado de proposito. */
@@ -454,5 +546,63 @@ export class InMemoryProductRepository implements ProductRepository {
   private semTenant(registro: ProductOutput & { companyId: CompanyId }): ProductOutput {
     const { companyId: _omitido, ...resto } = registro
     return resto
+  }
+}
+
+/**
+ * Contatos do cliente em memoria — RF-011.
+ *
+ * Recebe o repositorio de clientes para poder recusar id de outra empresa, que
+ * e exatamente o que o adapter de verdade faz antes de inserir: a RLS nao
+ * pegaria isso sozinha, porque a linha nova levaria o `company_id` do
+ * contexto ainda que o cliente fosse de outra loja.
+ */
+export class InMemoryCustomerContacts implements CustomerContactRepository {
+  private readonly registros: (NewCustomerContact & { id: string; createdAt: string })[] = []
+  private sequencia = 0
+
+  constructor(private readonly customers: InMemoryCustomerRepository) {}
+
+  async create(contact: NewCustomerContact): Promise<CustomerContactOutput | undefined> {
+    const cliente = await this.customers.findById(contact.companyId, contact.customerId)
+    if (cliente === undefined) return undefined
+
+    this.sequencia += 1
+    const gravado = {
+      ...contact,
+      id: `ctt-${this.sequencia}`,
+      createdAt: new Date(0).toISOString(),
+    }
+    this.registros.push(gravado)
+
+    return this.paraSaida(gravado)
+  }
+
+  async listByCustomer(
+    companyId: string,
+    customerId: string,
+    limite: number,
+  ): Promise<readonly CustomerContactOutput[]> {
+    return (
+      this.registros
+        .filter((c) => c.companyId === companyId && c.customerId === customerId)
+        /* Mais recente primeiro, como a ficha mostra — e por `happenedOn`, que e
+         o dia do FATO, nao o do registro. */
+        .sort((a, b) => b.happenedOn.localeCompare(a.happenedOn))
+        .slice(0, limite)
+        .map((c) => this.paraSaida(c))
+    )
+  }
+
+  private paraSaida(
+    c: NewCustomerContact & { id: string; createdAt: string },
+  ): CustomerContactOutput {
+    return {
+      id: c.id,
+      kind: c.kind,
+      description: c.description,
+      happenedOn: c.happenedOn,
+      createdAt: c.createdAt,
+    }
   }
 }

@@ -22,6 +22,8 @@ export { createSubscriptionRepository } from './subscription-repository.js'
 export { createCouponRepository } from './coupon-repository.js'
 export { createWebhookInbox } from './webhook-inbox-repository.js'
 export { createCustomerChargeRepository } from './customer-charge-repository.js'
+export { createCustomerContactRepository } from './customer-contacts-repository.js'
+export { createWhatsappConsentRepository } from './whatsapp-consent-repository.js'
 export { createRetrievalStore } from './retrieval-repository.js'
 export { createPeerDirectory } from './peer-directory-repository.js'
 export { createConfirmationStore } from './confirmation-repository.js'
@@ -40,6 +42,8 @@ export {
   createFixedCostPayableGenerator,
   createFixedCostRepository,
 } from './fixed-cost-repository.js'
+export { createVariableCostRepository } from './variable-cost-repository.js'
+export { createBankAccountRepository } from './bank-account-repository.js'
 export { createWaitlistRepository } from './waitlist-repository.js'
 export { createInvoiceStore } from './invoice-repository.js'
 export {
@@ -48,7 +52,10 @@ export {
   createReconciliationUnitOfWork,
 } from './bank-transaction-repository.js'
 export { createSaleUnitOfWork } from './sale-unit-of-work.js'
-export { createSaleCancellationUnitOfWork } from './sale-cancellation.js'
+export {
+  createSaleCancellationUnitOfWork,
+  createSaleReturnUnitOfWork,
+} from './sale-cancellation.js'
 
 /* Diretorio de usuarios — NR-014. Le por fora da RLS, pelas funcoes auth_* da
    migration 0003; ver user-directory.ts sobre por que isso e necessario. */
@@ -107,6 +114,8 @@ export {
 
 /* Sessao persistente e desaceleracao de login — NR-083, ADR-0002. */
 export { createLoginThrottle, createSessionIssuer } from './session-repository.js'
+export { createPasswordResetTokens } from './password-reset-repository.js'
+export { createUserContacts } from './user-contacts.js'
 export { createPlatformAdminAccess } from './platform-admin-repository.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
 /* Conta de Parceiro — NR-115, ADR-0013. */

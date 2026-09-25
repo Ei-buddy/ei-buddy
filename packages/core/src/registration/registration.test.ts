@@ -18,8 +18,12 @@ import { getCompany, updateCompany } from './manage-company.js'
 import {
   assertIdentifiable,
   checkCustomerWalletByQuery,
+  deleteCustomer,
   getCustomer,
+  listCustomers,
   registerCustomer,
+  restoreCustomer,
+  updateCustomer,
 } from './register-customer.js'
 import {
   catalogSummary,
@@ -30,6 +34,7 @@ import {
   listCatalog,
   productSuggestions,
   registerProduct,
+  registerProductWithStock,
 } from './register-product.js'
 
 const AGORA = new Date('2026-09-02T13:00:00.000Z')
@@ -328,6 +333,161 @@ describe('getCustomer — RF-011', () => {
     const erro = await getCustomer({ customers }, contexto(), 'cli-inexistente').catch(
       (e: unknown) => e,
     )
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+})
+
+describe('excluir e reativar cliente — RF-009', () => {
+  async function comCliente(sobrescreve: Record<string, unknown> = {}) {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+      ...sobrescreve,
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    return { customers, id: r.customer.id }
+  }
+
+  const PAGINA = { filter: 'todos' as const, page: 1, pageSize: 24 }
+
+  it('cliente nasce ativo', async () => {
+    const { customers, id } = await comCliente()
+
+    const ficha = await getCustomer({ customers }, contexto(), id)
+
+    expect(ficha.deletedAt).toBeNull()
+  })
+
+  it('excluido sai da lista', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    const lista = await listCustomers({ customers }, contexto(), PAGINA)
+
+    expect(lista.total).toBe(0)
+    expect(lista.customers).toHaveLength(0)
+  })
+
+  /*
+   * A ficha continua abrindo, e e isso que torna a exclusao reversivel: e nela
+   * que mora o botao de trazer de volta. Se `findById` escondesse o excluido,
+   * "desfazer" so existiria por SQL a mao.
+   */
+  it('a ficha do excluido continua abrindo, com a data', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    const ficha = await getCustomer({ customers }, contexto(), id)
+
+    expect(ficha.deletedAt).toBe(AGORA.toISOString())
+  })
+
+  it('reativar traz de volta para a lista', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    await restoreCustomer({ customers }, contexto(), id)
+
+    const lista = await listCustomers({ customers }, contexto(), PAGINA)
+    expect(lista.total).toBe(1)
+
+    const ficha = await getCustomer({ customers }, contexto(), id)
+    expect(ficha.deletedAt).toBeNull()
+  })
+
+  /*
+   * Sumir da lista um cliente que deve e esconder a divida de quem precisa
+   * cobra-la: o saldo continuaria somando no relatorio, sem ninguem para
+   * associar a ele.
+   */
+  it('recusa excluir quem tem fiado em aberto', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), { name: 'Devedor' })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    /* O falso nao movimenta fiado; o saldo entra direto, que e o estado que o
+       caso de uso le. */
+    customers.definirSaldoCarteira(r.customer.id, 5000)
+
+    const erro = await deleteCustomer({ customers }, contexto(), r.customer.id).catch(
+      (e: unknown) => e,
+    )
+
+    expect(isAppError(erro) && erro.code).toBe('CONFLICT')
+  })
+
+  /* Dois cliques no botao nao viram erro na tela: o estado pedido ja e o atual. */
+  it('excluir duas vezes e sucesso, nao conflito', async () => {
+    const { customers, id } = await comCliente()
+
+    await deleteCustomer({ customers }, contexto(), id)
+    await expect(deleteCustomer({ customers }, contexto(), id)).resolves.toBeUndefined()
+  })
+
+  it('cliente de outra empresa responde NOT_FOUND', async () => {
+    const { customers, id } = await comCliente()
+
+    const erro = await deleteCustomer({ customers }, contexto({ companyId: 'emp-2' }), id).catch(
+      (e: unknown) => e,
+    )
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+
+  /*
+   * Excluido nao conta como parecido: cadastrar de novo alguem que saiu da
+   * lista e o caminho normal, e oferecer "ja existe" ali confundiria.
+   */
+  it('excluido nao aparece como duplicado num cadastro novo', async () => {
+    const { customers, id } = await comCliente()
+    await deleteCustomer({ customers }, contexto(), id)
+
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+    })
+
+    expect(r.status).toBe('created')
+  })
+})
+
+describe('editar cliente — RF-009', () => {
+  async function comCliente() {
+    const customers = new InMemoryCustomerRepository()
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Joao do Bar',
+      phone: '41999990000',
+      email: 'joao@antigo.local',
+    })
+    if (r.status !== 'created') throw new Error('esperava created')
+
+    return { customers, id: r.customer.id }
+  }
+
+  /*
+   * O que o COALESCE do SQL garante, escrito como teste: mandar so o e-mail
+   * nao pode apagar o telefone. Um UPDATE com `?? null` em toda coluna
+   * limparia tudo que a tela nao mandou.
+   */
+  it('campo ausente fica como esta', async () => {
+    const { customers, id } = await comCliente()
+
+    const c = await updateCustomer({ customers }, contexto(), id, { email: 'joao@novo.local' })
+
+    expect(c.email).toBe('joao@novo.local')
+    expect(c.phone).toBe('41999990000')
+    expect(c.name).toBe('Joao do Bar')
+  })
+
+  it('cliente de outra empresa responde NOT_FOUND', async () => {
+    const { customers, id } = await comCliente()
+
+    const erro = await updateCustomer({ customers }, contexto({ companyId: 'emp-2' }), id, {
+      name: 'Nao deveria gravar',
+    }).catch((e: unknown) => e)
 
     expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
@@ -981,6 +1141,30 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     expect(movimento?.reason).toMatch(/inicial/i)
   })
 
+  it('recusa NCM que a tabela oficial diz que nao existe, no campo ncm', async () => {
+    const c = cenario()
+    const deps = {
+      ...c.deps,
+      ncmLookup: { consultar: async () => ({ status: 'inexistente' as const }) },
+    }
+
+    await expect(
+      registerProduct(deps, contexto(), linha('Cafe', { ncm: '99999999' })),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', fields: [{ path: 'ncm' }] })
+  })
+
+  it('provedor de NCM fora do ar nao trava o cadastro', async () => {
+    const c = cenario()
+    const deps = {
+      ...c.deps,
+      ncmLookup: { consultar: async () => ({ status: 'indisponivel' as const }) },
+    }
+
+    const produto = await registerProduct(deps, contexto(), linha('Cafe', { ncm: '09011110' }))
+
+    expect(produto.ncm).toBe('09011110')
+  })
+
   it('estoque zero nao gera movimento de zero unidade', async () => {
     const c = cenario()
 
@@ -988,6 +1172,30 @@ describe('importacao de catalogo — NR-072, US-008', () => {
 
     /* Movimento que nao move nada e ruido na trilha, e o CHECK do schema o
        recusa de qualquer jeito. */
+    expect(c.inventario.movimentos).toHaveLength(0)
+  })
+
+  it('o cadastro avulso tambem grava o saldo inicial, e nao o descarta', async () => {
+    const c = cenario()
+
+    /*
+     * A tela pedia "Quantidade atual" e o produto nascia zerado: so a
+     * importacao lancava o saldo. Tela, planilha e assistente passam agora pela
+     * mesma funcao.
+     */
+    const produto = await registerProductWithStock(c.deps, contexto(), linha('Cafe', { stock: 12 }))
+
+    const [movimento] = c.inventario.movimentos
+    expect(movimento?.productId).toBe(produto.id)
+    expect(movimento?.quantityDelta).toBe(12)
+    expect(movimento?.reason).toBe('Saldo inicial do cadastro')
+  })
+
+  it('cadastro avulso sem estoque nao gera movimento', async () => {
+    const c = cenario()
+
+    await registerProductWithStock(c.deps, contexto(), linha('Cafe', { stock: 0 }))
+
     expect(c.inventario.movimentos).toHaveLength(0)
   })
 

@@ -62,7 +62,8 @@ type VendaDaApi = {
   number: number
   soldAt: string
   customerName: string | null
-  netAmountCents: number
+  grossAmountCents: number
+  discountCents: number
 }
 
 const reais = (centavos: number) =>
@@ -114,7 +115,7 @@ export async function buscar(termo: string): Promise<Resultado[]> {
         tipo: 'venda',
         id: v.id,
         titulo: `Venda #${v.number}`,
-        apoio: `${dia(v.soldAt)} · ${v.customerName ?? 'balcao'} · ${reais(v.netAmountCents)}`,
+        apoio: `${dia(v.soldAt)} · ${v.customerName ?? 'balcao'} · ${reais(v.grossAmountCents - v.discountCents)}`,
         href: `/app/vendas/${v.id}`,
       })
     }

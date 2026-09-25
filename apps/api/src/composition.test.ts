@@ -28,6 +28,8 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSaleHistoryRepository: vi.fn(vazio),
       createCompanyRepository: vi.fn(vazio),
       createConfirmationStore: vi.fn(vazio),
+      createWhatsappConsentRepository: vi.fn(vazio),
+      createCustomerContactRepository: vi.fn(vazio),
       createCustomerRepository: vi.fn(vazio),
       createProductRepository: vi.fn(vazio),
       createChartOfAccountsRepository: vi.fn(vazio),
@@ -35,6 +37,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       /* NR-118: o agente passou a usar baixa de titulo, e `buildBaixasDeps`
          pede estes dois. Sem eles o mock derruba todo o arquivo. */
       createSaleCancellationUnitOfWork: vi.fn(vazio),
+      createSaleReturnUnitOfWork: vi.fn(vazio),
       createSettlementUnitOfWork: vi.fn(vazio),
       createSettlementQueries: vi.fn(vazio),
       /* NR-119: e a agenda, pelo mesmo motivo. */

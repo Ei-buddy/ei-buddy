@@ -364,6 +364,7 @@ describe('studio-harness — US2 identidade forjada', () => {
           customer: {
             id: 'cli-1',
             name: input.name,
+            tradeName: input.tradeName ?? null,
             document: null,
             phone: input.phone ?? null,
             email: null,
@@ -381,6 +382,7 @@ describe('studio-harness — US2 identidade forjada', () => {
             },
             createdAt: agora.toISOString(),
             anonymizedAt: null,
+            deletedAt: null,
           },
         }
       },
@@ -501,6 +503,7 @@ describe('studio-harness — US3 durationMs', () => {
         customer: {
           id: 'cli-1',
           name: input.name,
+          tradeName: input.tradeName ?? null,
           document: null,
           phone: input.phone ?? null,
           email: null,
@@ -518,6 +521,7 @@ describe('studio-harness — US3 durationMs', () => {
           },
           createdAt: agora.toISOString(),
           anonymizedAt: null,
+          deletedAt: null,
         },
       }),
     })

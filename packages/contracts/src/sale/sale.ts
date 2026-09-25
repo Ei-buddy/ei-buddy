@@ -115,6 +115,8 @@ export const saleHistoryInputSchema = z
     to: dateSchema.optional(),
     /** Numero da venda, nome do cliente ou descricao de item. */
     q: z.string().trim().max(120).optional(),
+    /** So as vendas deste cliente — a ficha do cliente (RF-011). */
+    customerId: idSchema.optional(),
     page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
     pageSize: z.coerce
       .number()
@@ -132,8 +134,12 @@ export const saleHistoryInputSchema = z
 export type SaleHistoryInput = z.infer<typeof saleHistoryInputSchema>
 
 export const saleHistoryItemSchema = z.object({
+  /** Nulo no item avulso, sem produto — esse nao se devolve por produto. */
+  productId: idSchema.nullable(),
   description: z.string(),
   quantity: z.number().int(),
+  /** Ja devolvido — RF-044. A tela oferece devolver `quantity - returnedQuantity`. */
+  returnedQuantity: z.number().int(),
   unitPriceCents: z.number().int(),
   totalCents: z.number().int(),
 })
@@ -157,6 +163,8 @@ export const saleHistoryEntrySchema = z.object({
   netAmountCents: z.number().int(),
   taxAmountCents: z.number().int(),
   cardFeeAmountCents: z.number().int(),
+  /** Quanto ja foi devolvido ao cliente — RF-044. O bruto nao muda. */
+  returnedAmountCents: z.number().int(),
   items: z.array(saleHistoryItemSchema),
   payments: z.array(saleHistoryPaymentSchema),
   invoiceNumber: z.number().int().nullable(),
@@ -218,3 +226,50 @@ export const cancelSaleInputSchema = z
   .strict()
 
 export type CancelSaleInput = z.infer<typeof cancelSaleInputSchema>
+
+/**
+ * Devolucao parcial — RF-044, NR-122.
+ *
+ * Diz QUAIS produtos voltam e quantos. O valor nao vem da tela: quem calcula e
+ * o servidor, proporcional ao que foi cobrado por item — mandar o valor daqui
+ * seria deixar a tela decidir quanto dinheiro sai do caixa.
+ */
+export const returnSaleItemsInputSchema = z
+  .object({
+    saleId: idSchema,
+    reason: z.string().trim().min(3, 'Diga o motivo da devolução.').max(280, 'Motivo muito longo.'),
+    items: z
+      .array(
+        z
+          .object({
+            productId: idSchema,
+            quantity: z
+              .number()
+              .int()
+              .positive('A quantidade devolvida precisa ser maior que zero.'),
+          })
+          .strict(),
+      )
+      .min(1, 'Escolha ao menos um item para devolver.')
+      .max(200),
+  })
+  .strict()
+
+export type ReturnSaleItemsInput = z.infer<typeof returnSaleItemsInputSchema>
+
+/** O que a devolucao fez com o dinheiro. */
+export const saleReturnOutputSchema = z.object({
+  /** O valor devolvido, somado dos itens. */
+  refundCents: z.number().int(),
+  /**
+   * A parte que JA tinha entrado (dinheiro, Pix, cartao a receber liquidado):
+   * sai do caixa e volta para a mao do cliente.
+   */
+  paidBackCents: z.number().int(),
+  /** A parte que ainda estava em aberto (fiado, parcelas, cartao a receber): deixa de ser recebida. */
+  uncollectedCents: z.number().int(),
+  /** `returned` quando nao sobrou nada da venda. */
+  status: z.enum(['open', 'settled', 'returned']),
+})
+
+export type SaleReturnOutput = z.infer<typeof saleReturnOutputSchema>

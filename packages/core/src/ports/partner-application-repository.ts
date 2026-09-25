@@ -34,6 +34,13 @@ export type PartnerApplicationRepository = {
   }): Promise<{ partnerId: string; couponCode: string }>
 
   /** Reabre uma candidatura RECUSADA para pending. Lanca em qualquer outro estado. */
+  /**
+   * O nome de cupom ja esta em uso? Sem empresa no contexto: o cadastro
+   * pergunta ANTES de criar a conta, para que um nome repetido nao deixe para
+   * tras uma conta criada sem candidatura.
+   */
+  couponCodeTaken(code: string): Promise<boolean>
+
   resend(input: {
     ownerCompanyId: CompanyId
     pixKey: string
