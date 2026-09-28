@@ -1,7 +1,10 @@
-eibuddy.com.br, www.eibuddy.com.br {
+# Os enderecos vem do compose (SITE_WEB / SITE_API), com os de producao como
+# padrao. A VM de dev define outros em `infra/.env` — sem isso, o Caddy de la
+# pediria certificado para os dominios de producao, que nem apontam para ela.
+{$SITE_WEB} {
 	reverse_proxy web:3000
 }
 
-api.eibuddy.com.br {
+{$SITE_API} {
 	reverse_proxy api:3333
 }

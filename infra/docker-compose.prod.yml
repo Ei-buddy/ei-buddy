@@ -129,6 +129,12 @@ services:
     image: caddy:2-alpine
     container_name: naregua-caddy
     restart: unless-stopped
+    # O padrao e producao. Outra maquina (a VM de dev) troca os dois em
+    # `infra/.env`, que o compose le sozinho para interpolar — assim o
+    # `deploy.sh` e o mesmo nas duas, sem flag nenhuma.
+    environment:
+      SITE_WEB: ${SITE_WEB:-eibuddy.com.br, www.eibuddy.com.br}
+      SITE_API: ${SITE_API:-api.eibuddy.com.br}
     ports:
       - '80:80'
       - '443:443'

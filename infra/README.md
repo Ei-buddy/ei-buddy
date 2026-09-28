@@ -148,6 +148,41 @@ A diferença de comportamento é só o gatilho:
 | Quando roda | **todo push** na branch | à mão, ou ao publicar a tag   |
 | Aprovação   | nenhuma                 | a do Environment `production` |
 
+Hoje a VM de teste mora num homelab, atrás de NAT e sem porta aberta. O runner
+chega nela pela **tailnet** (Tailscale), como nó efêmero com a tag `tag:ci`, e a
+ACL da tailnet só deixa essa tag abrir SSH na `tag:eibuddy-dev`. Para isso, o
+Environment `dev` tem, além dos quatro acima:
+
+| Nome                 | Tipo     | O que é                                                               |
+| -------------------- | -------- | --------------------------------------------------------------------- |
+| `VPS_VIA_TAILSCALE`  | variable | `sim` liga o passo "Entrar na tailnet". Produção não tem, e não entra |
+| `TS_OAUTH_CLIENT_ID` | segredo  | OAuth client do Tailscale, escopo de auth keys, tag `tag:ci`          |
+| `TS_OAUTH_SECRET`    | segredo  | o segredo desse client                                                |
+
+`VPS_HOST` é o IP `100.x` da VM na tailnet.
+
+Na própria VM, `infra/.env` (fora do git; o compose o lê sozinho) troca os
+endereços do Caddy, que por padrão são os de produção:
+
+```bash
+SITE_WEB=http://<nome-da-vm>.<tailnet>.ts.net   # http:// = sem pedir certificado
+SITE_API=http://:8081                           # api não exposta na dev, por ora
+```
+
+**A primeira subida numa máquina nova é à mão**, como foi na produção. O
+`deploy.sh` roda `db:migrate`, que cria o schema `identidade` (Better Auth) sem
+`GRANT` — de propósito, ver `0003_identidade.sql` — e as tabelas dele vêm de
+outro comando. Então, uma vez, na VM:
+
+```bash
+DEPLOY_TAG=$(git rev-parse HEAD) ./infra/deploy.sh
+docker compose -f infra/docker-compose.prod.yml exec postgres \
+  psql -U naregua -d naregua -c 'GRANT USAGE, CREATE ON SCHEMA identidade TO naregua_app;'
+docker compose -f infra/docker-compose.prod.yml run --rm api pnpm migrar:identidade
+```
+
+Sem os dois últimos, a api sobe e o `/health` passa, mas login e cadastro falham.
+
 **Sem o Environment `dev` configurado, o deploy automático falha — e falha
 alto, o que é o certo.** Ele não cai em produção por engano: a expressão de
 `environment` no workflow trata `dev` explicitamente, antes do `|| 'production'`.
