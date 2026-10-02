@@ -54,6 +54,7 @@ import type {
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
+  PartnerApplicationAlert,
   PasswordSetter,
 } from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
@@ -370,6 +371,7 @@ export function buildAuthDeps(): AuthRouteDeps {
      * logo abaixo: nao abre uma segunda conexao so para repetir os mesmos dois campos.
      */
     partners: createPartnerApplicationRepository(sql),
+    ...comAvisoDeParceiro(),
 
     /*
      * Prova de aceite dos documentos legais — RF-02/RF-03, migration 0015.
@@ -536,6 +538,42 @@ export function buildCadastroDeps(): CadastroDeps {
  * Mas nao cai em silencio — o aviso diz o que faltou, e o adapter de log em
  * producao repete a cada tentativa que nada foi enviado.
  */
+/**
+ * Aviso de nova candidatura de Parceiro — NR-114.
+ *
+ * Sem `AVISO_PARCEIRO_EMAIL`, nao ha aviso: a fila do painel do Super Admin
+ * continua sendo a fonte. Com ele, sai pelo mesmo envio de e-mail da troca de
+ * senha (SMTP ou log), sem segundo provedor para configurar.
+ */
+function montarAvisoDeParceiro(): PartnerApplicationAlert | undefined {
+  const destino = env.AVISO_PARCEIRO_EMAIL
+  if (destino === undefined) return undefined
+  const email = montarEnvioDeEmail()
+
+  return {
+    candidaturaRecebida: (c) =>
+      email.send({
+        to: destino,
+        subject: `Nova candidatura de Parceiro: ${c.companyName}`,
+        text: [
+          `${c.companyName} se candidatou a Parceiro.`,
+          `E-mail: ${c.email}`,
+          `Cupom pretendido: ${c.couponCode ?? 'sugerido pelo sistema'}`,
+          '',
+          c.message,
+          '',
+          `Aprovar ou recusar: ${env.WEB_URL}/app/plataforma/parceiros`,
+        ].join('\n'),
+      }),
+  }
+}
+
+/** `partnerAlert` so quando ha destino — campo opcional nao recebe `undefined`. */
+function comAvisoDeParceiro(): { partnerAlert?: PartnerApplicationAlert } {
+  const aviso = montarAvisoDeParceiro()
+  return aviso === undefined ? {} : { partnerAlert: aviso }
+}
+
 function montarEnvioDeEmail() {
   const producao = env.NODE_ENV === 'production'
 
