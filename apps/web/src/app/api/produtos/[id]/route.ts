@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { chamarApi } from '@/lib/api-server'
+import { corpoDe, encaminhar } from '@/lib/bff'
 import { SESSION_COOKIE } from '@/lib/session'
 
 /**
@@ -31,4 +32,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     : NextResponse.json(r.corpo ?? { error: { code: r.code, message: r.message } }, {
         status: r.status,
       })
+}
+
+/**
+ * Editar o cadastro do produto — RF-017.
+ *
+ * `encaminhar` e nao `chamarApi` a mao como o GET acima: o GET veio antes do
+ * helper e nao foi reescrito.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  return encaminhar(`/produtos/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: await corpoDe(request),
+  })
 }

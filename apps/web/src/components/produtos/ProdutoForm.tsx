@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
+import { buscarProduto } from '@/lib/catalogo-api'
 import { carregarCustosVariaveis } from '@/lib/financeiro-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
@@ -16,8 +17,19 @@ import CampoTag from '@/components/app/CampoTag'
 import styles from './produtoForm.module.css'
 import { reaisDoTexto } from '@/lib/valor'
 
-export default function ProdutoForm() {
+/**
+ * Cadastro e EDICAO de produto — RF-017.
+ *
+ * Com `produtoId`, carrega o produto e salva so o cadastro (`PATCH`): preco
+ * errado precisa de conserto, e ate aqui nao havia nenhum. A quantidade nao e
+ * editada aqui — saldo so muda por movimento (RF-124), pelo "Ajustar estoque"
+ * da ficha, que exige motivo e deixa rastro.
+ */
+export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) {
   const router = useRouter()
+  const editando = produtoId !== undefined
+  const [carregando, setCarregando] = useState(editando)
+  const [erroAoCarregar, setErroAoCarregar] = useState<string | null>(null)
 
   const [descricao, setDescricao] = useState('')
   const [ean, setEan] = useState('')
@@ -39,7 +51,31 @@ export default function ProdutoForm() {
   const [precoVenda, setPrecoVenda] = useState('')
   const [estoque, setEstoque] = useState('0')
   const [estoqueMinimo, setEstoqueMinimo] = useState('0')
-  const [motivoAjuste, setMotivoAjuste] = useState('')
+
+  /* Na edicao, os campos nascem com o produto como ele esta. */
+  useEffect(() => {
+    if (produtoId === undefined) return
+    void (async () => {
+      const r = await buscarProduto(produtoId)
+      setCarregando(false)
+      if (!r.ok) {
+        setErroAoCarregar(r.erro)
+        return
+      }
+      const p = r.dados
+      setDescricao(p.descricao)
+      setEan(p.ean ?? '')
+      setNcm(p.ncm ?? '')
+      setCfop(p.cfop ?? '')
+      setSituacaoTributaria(p.cst ?? '')
+      setCategoria(p.categoria ?? '')
+      setFornecedor(p.fornecedor ?? '')
+      setPrecoCusto(p.precoCusto.toFixed(2).replace('.', ','))
+      setPrecoVenda(p.precoVenda.toFixed(2).replace('.', ','))
+      setEstoque(String(p.estoque))
+      setEstoqueMinimo(String(p.estoqueMinimo))
+    })()
+  }, [produtoId])
 
   const [categorias, setCategorias] = useState<string[]>([])
   const [fornecedores, setFornecedores] = useState<string[]>([])
@@ -101,6 +137,7 @@ export default function ProdutoForm() {
     setSalvando(true)
 
     const r = await salvarProduto({
+      ...(produtoId === undefined ? {} : { id: produtoId }),
       descricao,
       ean,
       ncm,
@@ -121,8 +158,21 @@ export default function ProdutoForm() {
       return
     }
 
-    setToast({ msg: 'Produto cadastrado.', tone: 'success' })
-    router.push('/app/produtos')
+    setToast({ msg: editando ? 'Alterações salvas.' : 'Produto cadastrado.', tone: 'success' })
+    router.push(editando ? `/app/produtos/${r.id}` : '/app/produtos')
+  }
+
+  const voltarPara = editando ? `/app/produtos/${produtoId}` : '/app/produtos'
+
+  if (erroAoCarregar !== null) {
+    return (
+      <>
+        <PageHeader title="Editar produto" subtitle={erroAoCarregar} />
+        <ButtonLink href="/app/produtos" variant="secondary">
+          Voltar para produtos
+        </ButtonLink>
+      </>
+    )
   }
 
   const erroDe = (campo: string) =>
@@ -135,16 +185,22 @@ export default function ProdutoForm() {
   return (
     <>
       <PageHeader
-        title="Novo produto"
-        subtitle="Cadastro, preço e estoque"
+        title={editando ? 'Editar produto' : 'Novo produto'}
+        subtitle={editando ? 'Cadastro e preço' : 'Cadastro, preço e estoque'}
         actions={
-          <ButtonLink href="/app/produtos" variant="secondary">
+          <ButtonLink href={voltarPara} variant="secondary">
             Cancelar
           </ButtonLink>
         }
       />
 
-      <form onSubmit={salvar} noValidate className={styles.form}>
+      <form
+        onSubmit={salvar}
+        noValidate
+        className={styles.form}
+        aria-busy={carregando}
+        style={carregando ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+      >
         {/* ---------------- Identificacao ---------------- */}
         <Card title="Identificacao">
           <FormGrid>
@@ -323,11 +379,21 @@ export default function ProdutoForm() {
         {/* ---------------- Estoque ---------------- */}
         <Card title="Estoque">
           <FormGrid>
-            <Field label="Quantidade atual" span={4}>
+            <Field
+              label={editando ? 'Quantidade atual' : 'Quantidade inicial'}
+              span={4}
+              hint={
+                editando
+                  ? 'Para corrigir, use "Ajustar estoque" na ficha do produto: o ajuste pede motivo e fica registrado.'
+                  : undefined
+              }
+            >
               <Input
                 value={estoque}
                 onChange={(e) => setEstoque(e.target.value.replace(/\D/g, ''))}
                 inputMode="numeric"
+                readOnly={editando}
+                aria-readonly={editando}
               />
             </Field>
 
@@ -340,18 +406,6 @@ export default function ProdutoForm() {
                 value={estoqueMinimo}
                 onChange={(e) => setEstoqueMinimo(e.target.value.replace(/\D/g, ''))}
                 inputMode="numeric"
-              />
-            </Field>
-
-            <Field
-              label="Motivo do ajuste"
-              span={4}
-              hint="Obrigatório ao corrigir a quantidade de um produto já cadastrado."
-            >
-              <Input
-                value={motivoAjuste}
-                onChange={(e) => setMotivoAjuste(e.target.value)}
-                placeholder="Contagem, avaria, perda..."
               />
             </Field>
           </FormGrid>
@@ -376,15 +430,17 @@ export default function ProdutoForm() {
         */}
 
         <div className={styles.rodape}>
-          <ButtonLink href="/app/produtos" variant="secondary">
+          <ButtonLink href={voltarPara} variant="secondary">
             Cancelar
           </ButtonLink>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando || carregando}>
             {salvando ? (
               <>
                 <Spinner size={15} />
                 Salvando...
               </>
+            ) : editando ? (
+              'Salvar alterações'
             ) : (
               'Cadastrar produto'
             )}

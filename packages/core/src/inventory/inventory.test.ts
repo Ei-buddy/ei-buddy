@@ -108,6 +108,10 @@ function repositorioBusca(
         stockValueCents: 0,
       }),
       listSuggestions: async () => ({ categories: [], suppliers: [] }),
+      /* Esta suite e sobre CONSULTA de estoque; editar produto nao entra nela. */
+      update: async () => {
+        throw new Error('nao deveria editar')
+      },
     } satisfies ProductRepository,
     inventory: inv,
   }

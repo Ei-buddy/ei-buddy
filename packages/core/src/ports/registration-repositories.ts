@@ -263,6 +263,31 @@ export type NewProduct = {
   readonly taxSituationCode: string | null
 }
 
+/**
+ * O que a edicao de produto pode mudar — RF-017.
+ *
+ * Espelha `updateProductInputSchema` de `contracts`: tudo opcional, nada
+ * anulavel — o contrato aceita omitir ou mandar valor, nunca `null`.
+ *
+ * Sem `stock`: saldo so muda por movimento (RF-124). Sem `internalCode`: ele
+ * e gerado uma vez e e por ele que o lojista chama o produto quando o leitor
+ * nao le.
+ */
+export type ProductPatch = {
+  readonly description?: string | undefined
+  readonly barcode?: string | undefined
+  readonly unitOfMeasure?: ProductOutput['unitOfMeasure'] | undefined
+  readonly salePriceCents?: number | undefined
+  readonly costPriceCents?: number | undefined
+  readonly taxRate?: number | undefined
+  readonly minStock?: number | undefined
+  readonly category?: string | undefined
+  readonly supplier?: string | undefined
+  readonly ncm?: string | undefined
+  readonly cfop?: string | undefined
+  readonly taxSituationCode?: string | undefined
+}
+
 export type ProductRepository = {
   create(product: NewProduct): Promise<ProductOutput>
 
@@ -332,6 +357,24 @@ export type ProductRepository = {
     readonly outOfStock: number
     readonly stockValueCents: number
   }>
+
+  /**
+   * Edita o que veio, e so o que veio — RF-017.
+   *
+   * Mesma forma de `CustomerRepository.update`: ausente nao mexe. O estoque
+   * NAO esta aqui de proposito — saldo so muda por MOVIMENTO (RF-124), e
+   * deixar editar o numero abriria um caminho para corrigir contagem sem
+   * deixar rastro de quem corrigiu e por que.
+   *
+   * `undefined` quando nao ha o que atualizar: inexistente ou de outra
+   * empresa, indistinguiveis daqui por causa da RLS.
+   */
+  update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
 
   /**
    * Quantos produtos a empresa tem, para gerar o proximo codigo interno.

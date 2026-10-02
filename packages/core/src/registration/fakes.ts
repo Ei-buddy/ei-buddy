@@ -14,6 +14,7 @@ import type {
   CompanyChanges,
   CompanyRepository,
   CustomerPatch,
+  ProductPatch,
   CustomerRepository,
   NewCompany,
   NewCustomer,
@@ -520,6 +521,44 @@ export class InMemoryProductRepository implements ProductRepository {
     const registro = this.registros.get(id)
     if (registro === undefined) throw new Error(`produto ${id} nao existe no falso`)
     this.registros.set(id, { ...registro, stock: quantidade })
+  }
+
+  /**
+   * Edita so o que veio — RF-017.
+   *
+   * `?? atual` campo a campo, que e o `COALESCE` do SQL escrito em JavaScript.
+   * Espalhar o patch com `{ ...atual, ...patch }` daria o mesmo resultado hoje
+   * e mentiria no dia em que o contrato aceitasse `null`.
+   */
+  async update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+
+    const atualizado = {
+      ...atual,
+      description: patch.description ?? atual.description,
+      barcode: patch.barcode ?? atual.barcode,
+      unitOfMeasure: patch.unitOfMeasure ?? atual.unitOfMeasure,
+      salePriceCents: patch.salePriceCents ?? atual.salePriceCents,
+      costPriceCents: patch.costPriceCents ?? atual.costPriceCents,
+      taxRate: patch.taxRate ?? atual.taxRate,
+      minStock: patch.minStock ?? atual.minStock,
+      category: patch.category ?? atual.category,
+      supplier: patch.supplier ?? atual.supplier,
+      ncm: patch.ncm ?? atual.ncm,
+      cfop: patch.cfop ?? atual.cfop,
+      taxSituationCode: patch.taxSituationCode ?? atual.taxSituationCode,
+    }
+
+    this.registros.set(productId, atualizado)
+
+    const { companyId: _fora, ...semTenant } = atualizado
+    return semTenant
   }
 
   async countAll(companyId: CompanyId): Promise<number> {

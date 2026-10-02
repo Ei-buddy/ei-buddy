@@ -146,9 +146,14 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         title={produto.descricao}
         subtitle={`${produto.codigo} · ${produto.unidade}`}
         actions={
-          <ButtonLink href="/app/produtos" variant="secondary">
-            Voltar ao catalogo
-          </ButtonLink>
+          <>
+            <ButtonLink href="/app/produtos" variant="secondary">
+              Voltar ao catalogo
+            </ButtonLink>
+            {/* Preco, descricao e fiscais — RF-017. A quantidade segue no
+                "Ajustar estoque" abaixo, que pede motivo. */}
+            <ButtonLink href={`/app/produtos/${produtoId}/editar`}>Editar</ButtonLink>
+          </>
         }
       />
 
