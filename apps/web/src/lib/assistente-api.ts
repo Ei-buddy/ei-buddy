@@ -266,6 +266,10 @@ const somarDias = (dia: string, n: number): string => {
   return diaLocal(d)
 }
 
+/** `2026-10-02` → `02/10/2026`; o que ja vier formatado passa intacto. */
+const diaBr = (dia: string): string =>
+  /^d{4}-d{2}-d{2}/.test(dia) ? dia.slice(0, 10).split('-').reverse().join('/') : dia
+
 const inicioDoMes = (dia: string): string => `${dia.slice(0, 8)}01`
 
 const fimDoMes = (dia: string): string => {
@@ -442,7 +446,7 @@ export async function responder(
         colunas: ['Mes', 'Faturamento', 'Vendas'],
         linhas: f.dados.months.map((m) => [
           rotuloDoMes(m.month),
-          centavos(m.netCents),
+          centavos(m.grossCents),
           String(m.salesCount),
         ]),
       },
@@ -474,7 +478,7 @@ export async function responder(
                 colunas: ['Mes', 'Faturamento', 'Vendas'],
                 linhas: [...f.dados.months]
                   .reverse()
-                  .map((m) => [rotuloDoMes(m.month), centavos(m.netCents), String(m.salesCount)]),
+                  .map((m) => [rotuloDoMes(m.month), centavos(m.grossCents), String(m.salesCount)]),
               },
             ]
           : []),
@@ -892,7 +896,7 @@ export async function responder(
                 titulo: `Em aberto de ${nomeDoCliente}`,
                 itens: pend.dados.map((x) => ({
                   rotulo: x.referente,
-                  valor: `${formatMoney(x.valor)} · ${x.vencimento}`,
+                  valor: `${formatMoney(x.valor)} · vence ${diaBr(x.vencimento)}`,
                   destaque: x.status === 'vencido',
                 })),
               },
@@ -917,7 +921,7 @@ export async function responder(
         'ultima_compra',
         ultima === undefined
           ? `${nomeDoCliente} ainda nao comprou.`
-          : `A ultima compra de ${nomeDoCliente} foi em ${ultima.data}, de ${formatMoney(ultima.valor)}.`,
+          : `A ultima compra de ${nomeDoCliente} foi em ${diaBr(ultima.data)}, de ${formatMoney(ultima.valor)}.`,
       )
     }
 
@@ -935,7 +939,7 @@ export async function responder(
               colunas: ['Venda', 'Data', 'Itens', 'Total'],
               linhas: compras.dados
                 .slice(0, 10)
-                .map((v) => [v.numero, v.data, String(v.itens), formatMoney(v.valor)]),
+                .map((v) => [v.numero, diaBr(v.data), String(v.itens), formatMoney(v.valor)]),
             },
           ],
     )
