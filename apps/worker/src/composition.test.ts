@@ -68,5 +68,11 @@ describe('composicao do expurgo — T056', () => {
     expect(listCompanyIds).toHaveBeenCalledTimes(1)
     expect(listCompanyIds).toHaveBeenCalledWith({ mockSql: true })
     expect(ids).toEqual(['empresa-a', 'empresa-b'])
-  })
+    /*
+     * Prazo largo de proposito: o `import()` de `composition.js` carrega a
+     * arvore inteira do worker na primeira vez. Sozinho leva ~1 s; com o
+     * `pnpm test` rodando todos os pacotes em paralelo, passou dos 5 s padrao
+     * e o teste caiu por tempo, sem nada errado na composicao.
+     */
+  }, 30_000)
 })
