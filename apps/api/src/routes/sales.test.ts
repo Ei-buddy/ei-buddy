@@ -95,6 +95,7 @@ function unitOfWorkEmMemoria() {
             id: `venda-${sequencia}`,
             number: sequencia,
             grossAmountCents: 1_000,
+            discountCents: 0,
             costAmountCents: 600,
             taxAmountCents: 0,
             cardFeeAmountCents: 0,

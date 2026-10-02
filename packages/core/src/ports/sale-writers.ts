@@ -139,6 +139,8 @@ export type RegisteredSale = {
   readonly id: string
   readonly number: number
   readonly grossAmountCents: number
+  /** Desconto no total — RF-031. Zero quando nao houve. */
+  readonly discountCents: number
   readonly costAmountCents: number
   readonly taxAmountCents: number
   readonly cardFeeAmountCents: number

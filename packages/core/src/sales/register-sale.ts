@@ -1,5 +1,6 @@
 import type { CreateSaleInput, PaymentMethod } from '@na-regua/contracts'
 import {
+  applyDiscount,
   calculateCardFeeAmount,
   calculateChange,
   calculateInstallmentPlan,
@@ -76,22 +77,10 @@ export async function registerSale(
   assertCanWrite(ctx)
 
   /*
-   * Desconto e acrescimo recusados, e nao ignorados em silencio.
-   *
-   * `applyDiscount` existe em `domain` (NR-024) e `calculateSaleTotals`
-   * tambem — mas o segundo nao recebe desconto: ele exige que a soma dos
-   * pagamentos seja exatamente o bruto dos itens. Compor os dois hoje daria
-   * total errado, e total errado numa venda e dinheiro errado.
-   *
-   * A integracao pede `calculateSaleTotals` aceitar o desconto, que e mudanca
-   * em `domain`. Recusar aqui e a alternativa honesta a calcular errado.
+   * Acrescimo recusado, e nao ignorado em silencio: o PDV nao oferece, e
+   * aceitar o campo sem calcular daria total errado. O desconto, que o PDV
+   * oferece, entra abaixo — RF-031.
    */
-  if (input.discountCents !== undefined && input.discountCents > 0) {
-    throw AppError.validation(
-      'Desconto na venda ainda nao esta disponivel. Registre a venda sem desconto.',
-      [{ path: 'discountCents', message: 'Desconto indisponivel nesta versao.' }],
-    )
-  }
   if (input.surchargeRate !== undefined && input.surchargeRate > 0) {
     throw AppError.validation(
       'Acrescimo na venda ainda nao esta disponivel. Registre a venda sem acrescimo.',
@@ -177,7 +166,23 @@ export async function registerSale(
      * bruto. Com R$ 50 em dinheiro numa venda de R$ 30, os dois nao podem
      * receber a mesma lista — o troco de R$ 20 nao e receita.
      */
-    const troco = comErroDeDominio(() => calculateChange(bruto, pagamentosDaEntrada))
+    /* Desconto no total, dentro da alcada do papel de quem vende — RF-031.
+       `applyDiscount` recusa o que passa do teto (staff: 10%) e o que passa
+       da propria venda. */
+    const desconto =
+      input.discountCents === undefined || input.discountCents === 0
+        ? Money.zero()
+        : comErroDeDominio(
+            () =>
+              applyDiscount(
+                bruto,
+                { kind: 'amount', amount: Money.fromCents(input.discountCents!) },
+                settings.discountPolicy,
+              ).discountAmount,
+          )
+    const cobrado = bruto.subtract(desconto)
+
+    const troco = comErroDeDominio(() => calculateChange(cobrado, pagamentosDaEntrada))
 
     const pagamentos = troco.isZero()
       ? pagamentosDaEntrada
@@ -190,6 +195,7 @@ export async function registerSale(
         settings.taxRules,
         settings.cardFees,
         ctx.now,
+        desconto,
       ),
     )
 
@@ -227,7 +233,7 @@ export async function registerSale(
       customerId: input.customerId,
       channel: ctx.channel,
       grossAmountCents: Number(totais.grossAmount.cents),
-      discountCents: 0,
+      discountCents: Number(desconto.cents),
       taxAmountCents: Number(totais.taxAmount.cents),
       cardFeeAmountCents: Number(totais.cardFeeAmount.cents),
       costAmountCents: Number(totais.costAmount.cents),
