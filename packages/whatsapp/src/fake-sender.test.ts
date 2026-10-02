@@ -283,6 +283,34 @@ describe('falha de infraestrutura', () => {
   })
 })
 
+describe('presenca — lido e digitando', () => {
+  it('registra lido e digitando na ordem das chamadas', async () => {
+    const remetente = createFakeMessageSender()
+
+    await remetente.markRead('wamid.a')
+    await remetente.showTyping('wamid.b')
+    await remetente.markRead('wamid.c')
+
+    expect(remetente.sinais).toEqual([
+      { messageId: 'wamid.a', kind: 'read' },
+      { messageId: 'wamid.b', kind: 'typing' },
+      { messageId: 'wamid.c', kind: 'read' },
+    ])
+  })
+
+  it('falha de presenca registra a tentativa e nao lanca', async () => {
+    const remetente = createFakeMessageSender({ falhaDePresenca: true })
+
+    await expect(remetente.markRead('wamid.in1')).resolves.toBeUndefined()
+    await expect(remetente.showTyping('wamid.in1')).resolves.toBeUndefined()
+
+    expect(remetente.sinais).toEqual([
+      { messageId: 'wamid.in1', kind: 'read' },
+      { messageId: 'wamid.in1', kind: 'typing' },
+    ])
+  })
+})
+
 describe('registro de entrega', () => {
   it('guarda o que foi entregue, em ordem', async () => {
     const remetente = createFakeMessageSender()

@@ -28,6 +28,13 @@ substituida_por: null
 > como harness de engenharia** ([NR-121](../../processo/task-ledger.md)):
 > substitui o WhatsApp no desenvolvimento, chama o mesmo `processMessage`, com
 > preset/número forjado e observabilidade. Não é canal de produção.
+>
+> **Revisão parcial (2026-10-01):** a exigência de subir o local em
+> `AGENT_PROVIDER=fake` foi **retirada**. O processo que serve mensagem monta
+> só o Mastra quando `OPENAI_API_KEY` existe; sem a chave a API sobe e o
+> assistente responde indisponível. Runtime Mastra, modelo inicial
+> `openai/gpt-4o-mini` e a regra “tools + `domain` calculam” permanecem. O
+> dublê da CI é `script()`, não um reconhecedor de frases.
 
 ## Contexto
 
@@ -126,8 +133,9 @@ Contrato: [`integracoes/mastra.md`](../../arquitetura/integracoes/mastra.md).
   [DEC-011](../README.md#dec-011) / [ADR-0016](0016-memoria-da-conversa-tabelas-nossas.md).
 - Tools nascem de Zod. A regra "não escreva definição de tool à mão" cabe no
   `createTool` do Mastra: `inputSchema` é o schema de `contracts`.
-- Modo `AGENT_PROVIDER=fake` continua obrigatório no local — ninguém precisa de
-  chave da OpenAI para subir o sistema.
+- ~~Modo `AGENT_PROVIDER=fake` continua obrigatório no local — ninguém precisa de
+  chave da OpenAI para subir o sistema.~~ Retirado em 2026-10-01: o sistema sobe
+  sem chave; o assistente servido só monta com `OPENAI_API_KEY`.
 
 ### Negativas
 
@@ -149,7 +157,8 @@ Contrato: [`integracoes/mastra.md`](../../arquitetura/integracoes/mastra.md).
 ### Neutras
 
 - `ANTHROPIC_API_KEY` sai do exemplo de ambiente. `OPENAI_API_KEY` entra.
-- `AGENT_PROVIDER=fake|mastra`. `AGENT_MODEL=openai/gpt-4o-mini`.
+- ~~`AGENT_PROVIDER=fake|mastra`.~~ `AGENT_MODEL=openai/gpt-4o-mini`. A chave
+  `OPENAI_API_KEY` é opcional no parse e obrigatória só para o assistente montar.
 - Confirmação de ação sensível ([RF-103](../../produto/requisitos-funcionais.md),
   [RF-104](../../produto/requisitos-funcionais.md)) **não** é feature do
   Mastra: é máquina de estados nossa sobre a tabela `confirmations`.

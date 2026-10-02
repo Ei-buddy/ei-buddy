@@ -203,6 +203,13 @@ async function generateNoRele(
 ) {
   const dir = over.directory ?? directory
   const llm = over.llm ?? new FakeLlm()
+  if (text === 'quanto vendi hoje?') {
+    llm.script(text, {
+      type: 'tool',
+      name: 'list_sales',
+      args: { from: '2026-09-11', to: '2026-09-11' },
+    })
+  }
   const decide = vi.spyOn(llm, 'decide')
   const runtime =
     over.runtime ??
@@ -249,7 +256,13 @@ describe('studio-harness — US1 conversar no harness', () => {
         }
       },
     })
-    const runtimeHttp = createAgentRuntime({ useCases, peers: directory })
+    const llmHttp = new FakeLlm()
+    llmHttp.script('quanto vendi hoje?', {
+      type: 'tool',
+      name: 'list_sales',
+      args: { from: '2026-09-11', to: '2026-09-11' },
+    })
+    const runtimeHttp = createAgentRuntime({ useCases, peers: directory, llm: llmHttp })
     const http = await processMessage(runtimeHttp, {
       text: 'quanto vendi hoje?',
       requestId: 'req-app',

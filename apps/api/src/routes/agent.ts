@@ -11,8 +11,8 @@ import { validate } from '../plugins/validate.js'
  * Harness de engenharia: a mesma `processMessage` do webhook futuro. O
  * contexto vem da sessao autenticada da fixture (`channel: 'app'`), nunca de
  * `companyId` no body (schema strict so aceita `text` e `image`). Nao e canal de
- * produto do lojista nesta fatia — producao fica 503 ate NR-113 / NR-121,
- * salvo `AGENT_HARNESS=1` em staging.
+ * produto do lojista nesta fatia. Sem `OPENAI_API_KEY`, ou em producao sem
+ * `AGENT_HARNESS=1`, a rota responde 503 `UNAVAILABLE` e o processo segue.
  */
 
 export type AgentRouteDeps = {

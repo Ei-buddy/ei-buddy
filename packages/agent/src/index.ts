@@ -5,7 +5,8 @@
  * core. NUNCA calcula valor — quem calcula e domain (RF-101).
  *
  * Runtime: Mastra + gpt-4o-mini (ADR-0010). Sem WhatsApp, o canal e HTTP
- * autenticado (`POST /agent/messages`) e `AGENT_PROVIDER=fake`.
+ * autenticado (`POST /agent/messages`) quando ha `OPENAI_API_KEY`. O `FakeLlm`
+ * exportado abaixo e duble de teste (`script()`), nao modo de servidor.
  */
 export { bytesFromMarker, FakeBarcodeDecoder } from './barcode-decoder.js'
 export { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'

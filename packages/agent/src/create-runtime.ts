@@ -27,7 +27,8 @@ export type CreateRuntimeOptions = {
 }
 
 /**
- * Monta o runtime. Sem `llm`, usa o falso — o modo local, sem OpenAI.
+ * Monta o runtime. Sem `llm`, usa o duble de teste.
+ * `apps/api/src/composition.ts` nao deve servir mensagem por esse default.
  */
 export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
   const tools = createToolCatalog(opcoes.useCases)

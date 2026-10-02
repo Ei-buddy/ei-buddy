@@ -71,9 +71,18 @@ contracts (Zod)  ──→  createTool (Mastra)     → só escolhe intenção +
                  ──→  rota HTTP               → mesmo schema
 ```
 
-Porta `LlmPort`: `AGENT_PROVIDER=fake` (local, default) ou `mastra` (OpenAI).
-Sem chave, sobe no falso. FakeLlm reconhece consultas, recusas e “resumo do
-mês”; mutações (cadastro, venda, cobrança) entram por `script()` nos testes.
+Porta `LlmPort`: o processo que serve monta só `createMastraLlm` quando
+`OPENAI_API_KEY` existe e o porteiro está aberto. Sem a chave a API sobe e o
+assistente fica indisponível (503). A CI não chama a OpenAI: o dublê `FakeLlm`
+só devolve o que o teste gravou com `script()`. Frase sem roteiro é `unknown`.
+
+| Ambiente     | Chave    | `AGENT_HARNESS` | Runtime |
+| ------------ | -------- | --------------- | ------- |
+| Não produção | presente | irrelevante     | Mastra  |
+| Não produção | ausente  | irrelevante     | Ausente |
+| Produção     | presente | `1`             | Mastra  |
+| Produção     | presente | desligado       | Ausente |
+| Produção     | ausente  | qualquer        | Ausente |
 
 ## Catálogo mínimo (NR-060)
 
@@ -118,10 +127,10 @@ A sessão é de **fixture** (criar usuário/empresa de teste, popular dados,
 autenticar); `companyId` nunca vem no body. Serve em não-produção; em staging,
 `AGENT_HARNESS=1`. Produção: `POST /agent/messages` desligado até NR-113;
 o Studio (NR-121) é só harness de engenharia e **não** monta o adapter.
-`AGENT_PROVIDER=fake` é barrado mesmo com a flag. Teto de IA:
+Sem chave, o mesmo endpoint responde 503 mesmo com a flag. Teto de IA:
 `AGENT_MONTHLY_BUDGET_CENTS` (degradação avisada; não executa tool que muta
-valor). Smoke FakeLlm:
-[quickstart](../../../specs/002-agent-mastra-runtime/quickstart.md).
+valor). A CI prova o laço com `script()`, sem OpenAI:
+[quickstart](../../../specs/010-assistente-sempre-openai/quickstart.md).
 Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 
 ## Primitivos Mastra: o que entra e o que não
@@ -134,7 +143,7 @@ Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 | Harness Studio de eng. ([NR-121](../../processo/task-ledger.md)) → mesmo `processMessage`                     | Studio que desvie do laço (confirmação/memória/`core` paralelos)                                                                                                        |
 | Modelo `openai/gpt-4o-mini` via `AGENT_MODEL` (`provedor/modelo`)                                             | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                                                                           |
 | RAG sobre store **nosso** com `company_id` + RLS ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)) | Índice vetorial sem tenant; Memory/Storage padrão do Mastra em `public`                                                                                                 |
-| `AGENT_PROVIDER=fake` no local                                                                                | Chave da OpenAI obrigatória para `pnpm dev`                                                                                                                             |
+| Sem `OPENAI_API_KEY` a API sobe e o assistente fica 503                                                       | Chave da OpenAI obrigatória para `pnpm dev` subir o processo inteiro                                                                                                    |
 | Confirmação na tabela `confirmations` (Postgres + stub em `conversations`; NR-061)                            | HITL do Mastra (`requireApproval` / `requireToolApproval` / `approveToolCall`) — não isola por empresa nem expira como RF-103 pede                                      |
 | —                                                                                                             | **Workflow** Mastra — canal e confirmação não são pipeline do framework ([ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md))                           |
 | —                                                                                                             | **Memory / Storage** do Mastra em `public` — fechado na [ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md): histórico de turnos é tabelas nossas |
@@ -166,14 +175,13 @@ processor Mastra.
 
 ## Modelo
 
-| Variável                     | Valor inicial                        | Notas                                                                    |
-| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
-| `AGENT_PROVIDER`             | `fake` no local, `mastra` com chave  | Sem chave, o sistema sobe no falso; prod não serve `fake`                |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`                                         |
-| `AGENT_HARNESS`              | ausente                              | `1` libera HTTP + Studio fora do `development` (staging). Mesmo porteiro |
-| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default           |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês (RNF-073)                                     |
-| `OPENAI_API_KEY`             | vazia no local                       | Obrigatória só com `AGENT_PROVIDER=mastra`                               |
+| Variável                     | Valor inicial                        | Notas                                                              |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe  |
+| `AGENT_HARNESS`              | ausente                              | `1` libera HTTP + Studio em produção (staging). Mesmo porteiro     |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default     |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês (RNF-073)                               |
+| `OPENAI_API_KEY`             | vazia no parse                       | Opcional para a API subir; obrigatória só para o assistente montar |
 
 Trocar o modelo (tamanho ou provedor que o Mastra roteie) é configuração. Trocar
 o framework reabre a [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md).
@@ -260,7 +268,7 @@ O provedor WhatsApp é a Cloud API
 A identidade do canal fechou na [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md):
 não há Workflow Mastra, Channel adapter nem auth Mastra no webhook. Sem o
 adapter real o runtime se exercita pelo `POST /agent/messages` (sessão de
-fixture, `AGENT_PROVIDER=fake`, porteiro FR-001b) e pelo **Mastra Studio**
+fixture, com `OPENAI_API_KEY` e o porteiro FR-001b) e pelo **Mastra Studio**
 ([NR-121](../../processo/task-ledger.md)) como substituto do Zap em
 engenharia. O webhook Meta (NR-046), depois do E11 + RAG + PeerDirectory
 (NR-113), entra atrás da mesma `processMessage`.
@@ -276,8 +284,9 @@ arquivo de presets carregou. Produção e lojista: adapter **não** monta
 A instância Mastra do harness registra **um** agent, `studio-harness`. A
 única tool é `process_message`. O `execute` chama `processMessage` com
 `channel: 'whatsapp'` e o peer forjado resolvido no servidor. O generate do
-Studio **não** chama OpenAI: o model do relé só encaminha o texto. FakeLlm
-(ou `gpt-4o-mini`) vive **só** dentro do laço.
+Studio **não** chama OpenAI: o model do relé só encaminha o texto. A chamada
+ao modelo, quando a chave existe, ocorre dentro de `processMessage`. A CI
+grava a decisão com `script()` e não manda a frase ao `gpt-4o-mini`.
 
 **Não há `/api/agents` de negócio.** O `erp-agent` (tools de catálogo com
 `execute` identidade) continua atrás de `LlmPort.decide()` — não aparece na

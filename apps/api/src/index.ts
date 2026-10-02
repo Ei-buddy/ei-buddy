@@ -157,7 +157,7 @@ async function registrarRotas(): Promise<void> {
    */
   const motivoDoAgente = motivoDoAgenteIndisponivel()
   if (motivoDoAgente !== undefined) {
-    app.log.warn({ motivo: motivoDoAgente }, 'assistente desligado — ver AGENT_PROVIDER')
+    app.log.warn({ motivo: motivoDoAgente }, `assistente desligado — ${motivoDoAgente}`)
   }
   const agentDeps = await buildAgentDeps()
   registerAgentRoutes(app, agentDeps, motivoDoAgente)

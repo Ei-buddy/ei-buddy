@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { InMemoryConfirmations } from '@na-regua/agent'
+import { FakeLlm, InMemoryConfirmations } from '@na-regua/agent'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -68,6 +68,16 @@ const coreConsultas = vi.hoisted(() => ({
   buildDre: vi.fn(),
 }))
 
+const mastra = vi.hoisted(() => ({
+  createMastraLlm: vi.fn(() => ({
+    decide: async () => ({ type: 'unknown' as const }),
+  })),
+}))
+
+vi.mock('@na-regua/agent/mastra', () => ({
+  createMastraLlm: mastra.createMastraLlm,
+}))
+
 vi.mock('@na-regua/db', () => db)
 
 vi.mock('@na-regua/core', async (importOriginal) => {
@@ -109,7 +119,6 @@ const AMBIENTE = {
   DATABASE_URL: 'postgresql://app:app@localhost:5432/naregua',
   REDIS_URL: 'redis://localhost:6379',
   JWT_SECRET: 'apenas-para-teste',
-  AGENT_PROVIDER: 'fake',
 }
 
 /*
@@ -248,12 +257,10 @@ describe('assertAuthUsavelEmProducao — ADR-0002', () => {
 /**
  * O assistente desliga a rota, nao a api — ADR-0010, FR-001b.
  *
- * Servir `AGENT_PROVIDER=fake` em producao publicaria um reconhecedor de tres
- * frases no lugar do modelo, entao ele continua barrado. Harness em producao
- * so com `AGENT_HARNESS=1` (staging). O teste que mais importa aqui e o
- * ultimo: nenhum destes casos pode voltar a ser excecao.
+ * Sem `OPENAI_API_KEY` o runtime nao monta. Producao sem `AGENT_HARNESS=1`
+ * continua desligada mesmo com a chave. Nenhum destes casos derruba o processo.
  */
-describe('motivoDoAgenteIndisponivel — ADR-0010 / FR-001b', () => {
+describe('motivoDoAgenteIndisponivel — chave e harness', () => {
   async function comAmbiente(over: Record<string, string>) {
     vi.resetModules()
     vi.unstubAllEnvs()
@@ -263,93 +270,108 @@ describe('motivoDoAgenteIndisponivel — ADR-0010 / FR-001b', () => {
     return import('./composition.js')
   }
 
-  it('recusa servir o provedor falso em producao', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'fake',
-    })
+  it.each(['development', 'test'])(
+    '%s sem OPENAI_API_KEY devolve motivo e nao monta',
+    async (NODE_ENV) => {
+      const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({ NODE_ENV })
+      expect(() => motivoDoAgenteIndisponivel()).not.toThrow()
+      const motivo = motivoDoAgenteIndisponivel()
+      expect(motivo).toMatch(/OPENAI_API_KEY/)
+      expect(motivo).not.toMatch(/AGENT_PROVIDER/)
+      expect(await buildAgentDeps()).toBeNull()
+    },
+  )
 
-    expect(motivoDoAgenteIndisponivel()).toMatch(/nao serve em producao/)
-  })
-
-  it('o motivo diz o que configurar', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'fake',
-    })
-
-    expect(motivoDoAgenteIndisponivel()).toMatch(/AGENT_PROVIDER=mastra/)
-  })
-
-  it('fake em producao continua barrado mesmo com AGENT_HARNESS=1', async () => {
+  it('chave em branco e o mesmo que ausente', async () => {
     const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'fake',
-      AGENT_HARNESS: '1',
+      OPENAI_API_KEY: '   ',
     })
-
-    expect(motivoDoAgenteIndisponivel()).toMatch(/nao serve em producao/)
-    expect(await buildAgentDeps()).toBeNull()
-  })
-
-  it('producao sem harness nao serve o canal de produto — FR-001b', async () => {
-    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'mastra',
-      OPENAI_API_KEY: 'sk-de-teste',
-    })
-
-    expect(motivoDoAgenteIndisponivel()).toMatch(/Harness do assistente desligado/)
-    expect(await buildAgentDeps()).toBeNull()
-  })
-
-  it('Mastra sem chave tambem nao serve — em vez de estourar na construcao', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'mastra',
-      OPENAI_API_KEY: '',
-      AGENT_HARNESS: '1',
-    })
-
-    expect(motivoDoAgenteIndisponivel()).toMatch(/exige OPENAI_API_KEY/)
-  })
-
-  it('aceita producao com harness, Mastra e chave (caminho de fixture)', async () => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER: 'mastra',
-      OPENAI_API_KEY: 'sk-de-teste',
-      AGENT_HARNESS: '1',
-    })
-
-    expect(motivoDoAgenteIndisponivel()).toBeUndefined()
-  })
-
-  it.each(['development', 'test'])('aceita %s com o provedor falso sem flag', async (NODE_ENV) => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({ NODE_ENV, AGENT_PROVIDER: 'fake' })
-
-    expect(motivoDoAgenteIndisponivel()).toBeUndefined()
-  })
-
-  /*
-   * A regressao que este arquivo existe para impedir a partir de agora.
-   *
-   * Producao sem chave nenhuma foi exatamente o estado que deixou a api em
-   * laco de reinicio com o front no ar: assistente ausente parando gravacao de
-   * venda. Nao ha configuracao de IA que justifique derrubar o processo.
-   */
-  it.each([
-    ['fake', ''],
-    ['mastra', ''],
-  ])('%s sem chave devolve motivo, e nunca lanca', async (AGENT_PROVIDER, OPENAI_API_KEY) => {
-    const { motivoDoAgenteIndisponivel } = await comAmbiente({
-      NODE_ENV: 'production',
-      AGENT_PROVIDER,
-      OPENAI_API_KEY,
-    })
-
     expect(() => motivoDoAgenteIndisponivel()).not.toThrow()
-    expect(motivoDoAgenteIndisponivel()).toBeTypeOf('string')
+    expect(motivoDoAgenteIndisponivel()).toMatch(/OPENAI_API_KEY/)
+    expect(await buildAgentDeps()).toBeNull()
+  })
+
+  it('AGENT_PROVIDER=fake no ambiente nao religa o assistente sem chave', async () => {
+    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
+      AGENT_PROVIDER: 'fake',
+    })
+    expect(motivoDoAgenteIndisponivel()).toMatch(/OPENAI_API_KEY/)
+    expect(motivoDoAgenteIndisponivel()).not.toMatch(/AGENT_PROVIDER=fake/)
+    expect(await buildAgentDeps()).toBeNull()
+  })
+
+  it.each([
+    ['ausente', undefined],
+    ['vazio', ''],
+    ['zero', '0'],
+  ] as const)('producao com chave e harness %s continua no porteiro', async (_rotulo, harness) => {
+    const over: Record<string, string> = {
+      NODE_ENV: 'production',
+      OPENAI_API_KEY: 'sk-de-teste',
+    }
+    if (harness !== undefined) over.AGENT_HARNESS = harness
+    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente(over)
+    expect(motivoDoAgenteIndisponivel()).toMatch(/Harness do assistente desligado/)
+    expect(motivoDoAgenteIndisponivel()).not.toMatch(/AGENT_PROVIDER/)
+    expect(await buildAgentDeps()).toBeNull()
+  })
+
+  it('producao com harness ligado e sem chave cita a chave, nao um modo falso', async () => {
+    const { motivoDoAgenteIndisponivel, buildAgentDeps } = await comAmbiente({
+      NODE_ENV: 'production',
+      AGENT_HARNESS: '1',
+      OPENAI_API_KEY: '',
+    })
+    expect(() => motivoDoAgenteIndisponivel()).not.toThrow()
+    expect(motivoDoAgenteIndisponivel()).toMatch(/OPENAI_API_KEY/)
+    expect(motivoDoAgenteIndisponivel()).not.toMatch(/AGENT_PROVIDER=fake/)
+    expect(await buildAgentDeps()).toBeNull()
+  })
+
+  it('producao com harness e chave libera o assistente', async () => {
+    const { motivoDoAgenteIndisponivel } = await comAmbiente({
+      NODE_ENV: 'production',
+      OPENAI_API_KEY: 'sk-de-teste',
+      AGENT_HARNESS: '1',
+    })
+    expect(motivoDoAgenteIndisponivel()).toBeUndefined()
+  })
+})
+
+describe('buildAgentDeps — OpenAI quando a chave existe', () => {
+  it('fora de producao, com chave, monta Mastra e nao o duble', async () => {
+    const marcador = { decide: async () => ({ type: 'unknown' as const }) }
+    mastra.createMastraLlm.mockReturnValueOnce(marcador)
+    const { buildAgentDeps } = await carregar({
+      NODE_ENV: 'development',
+      OPENAI_API_KEY: 'sk-de-teste',
+    })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+    expect(deps.runtime.llm).toBe(marcador)
+    expect(deps.runtime.llm).not.toBeInstanceOf(FakeLlm)
+    expect(mastra.createMastraLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'openai/gpt-4o-mini',
+        apiKey: 'sk-de-teste',
+      }),
+    )
+  })
+
+  it('producao com AGENT_HARNESS=1 e chave tambem monta Mastra', async () => {
+    const marcador = { decide: async () => ({ type: 'unknown' as const }) }
+    mastra.createMastraLlm.mockReturnValueOnce(marcador)
+    const { buildAgentDeps } = await carregar({
+      NODE_ENV: 'production',
+      AGENT_HARNESS: '1',
+      OPENAI_API_KEY: 'sk-de-teste',
+    })
+    const deps = await buildAgentDeps()
+    expect(deps).not.toBeNull()
+    if (deps === null) return
+    expect(deps.runtime.llm).toBe(marcador)
+    expect(deps.runtime.llm).not.toBeInstanceOf(FakeLlm)
   })
 })
 
@@ -378,7 +400,7 @@ describe('buildAgentDeps — US2 list_sales / list_receivables', () => {
   })
 
   it('tools do catalogo chamam listSales e listReceivables de core', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -477,7 +499,7 @@ describe('buildAgentDeps — US4 registerSale idempotencia agent:requestId', () 
   })
 
   it('injeta idempotencyKey agent:requestId quando o contexto nao trouxe chave', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -498,7 +520,7 @@ describe('buildAgentDeps — US4 registerSale idempotencia agent:requestId', () 
   })
 
   it('preserva idempotencyKey ja presente no contexto', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -532,7 +554,7 @@ describe('buildAgentDeps — US5 sendCustomerCharge + MessageSender fake', () =>
   })
 
   it('tool send_charge chama sendCustomerCharge de core', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -580,7 +602,7 @@ describe('buildAgentDeps — US6 period_summary / buildDre', () => {
   })
 
   it('tool period_summary chama buildDre de core', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -610,7 +632,7 @@ describe('buildAgentDeps — US2 ConfirmationStore Postgres', () => {
     const store = { put: vi.fn(), getOpen: vi.fn(), resolve: vi.fn() }
     db.createConfirmationStore.mockReturnValue(store)
 
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return
@@ -651,7 +673,7 @@ describe('buildAgentDeps — FixturePeerDirectory (NR-121)', () => {
     )
 
     const { buildAgentDeps } = await carregar({
-      AGENT_PROVIDER: 'fake',
+      OPENAI_API_KEY: 'sk-de-teste',
       AGENT_STUDIO_PRESETS: caminho,
     })
     const deps = await buildAgentDeps()
@@ -668,7 +690,7 @@ describe('buildAgentDeps — FixturePeerDirectory (NR-121)', () => {
 
   it('arquivo ausente: runtime HTTP segue sem peers e sem studioDirectory', async () => {
     const { buildAgentDeps } = await carregar({
-      AGENT_PROVIDER: 'fake',
+      OPENAI_API_KEY: 'sk-de-teste',
       AGENT_STUDIO_PRESETS: join(tmpdir(), 'nao-existe-studio-presets.json'),
     })
     const deps = await buildAgentDeps()
@@ -685,7 +707,7 @@ describe('buildAgentDeps — NR-062 ConversationStore', () => {
   })
 
   it('injeta o store Postgres no runtime, nao InMemory — T043', async () => {
-    const { buildAgentDeps } = await carregar({ AGENT_PROVIDER: 'fake' })
+    const { buildAgentDeps } = await carregar({ OPENAI_API_KEY: 'sk-de-teste' })
     const deps = await buildAgentDeps()
     expect(deps).not.toBeNull()
     if (deps === null) return

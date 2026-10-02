@@ -137,12 +137,14 @@ PAYMENTS_PROVIDER=fake
 WHATSAPP_PROVIDER=fake
 FISCAL_PROVIDER=fake
 BANKING_PROVIDER=fake
-AGENT_PROVIDER=fake
 ```
 
 **O sistema sobe e funciona localmente sem nenhuma credencial.** Isso é
 deliberado: nenhum desenvolvedor precisa de conta em fornecedor para trabalhar,
-e ninguém tem motivo para colocar credencial de produção na máquina.
+e ninguém tem motivo para colocar credencial de produção na máquina. O
+assistente é a exceção de rota: `OPENAI_API_KEY` é opcional no parse e só
+é necessária para o harness montar. Sem ela a API escuta e
+`POST /agent/messages` responde 503.
 
 ### Testar webhook local
 

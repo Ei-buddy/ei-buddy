@@ -94,32 +94,38 @@ describe('BETTER_AUTH_SECRET', () => {
 })
 
 /**
- * Assistente — ADR-0010.
+ * Assistente — ADR-0010 revisada em 2026-10-01.
  *
- * O falso e o padrao para `pnpm dev` subir sem chave da OpenAI. `mastra`
- * exige a chave na composicao, nao neste schema: exigir aqui barraria o
- * boot local, onde o provedor e o falso.
+ * `OPENAI_API_KEY` e opcional no parse: sem ela a API sobe e o assistente
+ * fica desligado. `AGENT_PROVIDER` nao e campo. Valor antigo no ambiente
+ * nao falha o parse e nao cria um modo de servidor.
  */
 describe('agente — ADR-0010', () => {
-  it('aplica o provedor falso e o modelo inicial', () => {
+  it('nao expoe AGENT_PROVIDER e deixa a chave opcional', () => {
     const env = loadApiEnv(base)
-    expect(env.AGENT_PROVIDER).toBe('fake')
+    expect(env).not.toHaveProperty('AGENT_PROVIDER')
     expect(env.AGENT_MODEL).toBe('openai/gpt-4o-mini')
     expect(env.OPENAI_API_KEY).toBeUndefined()
     expect(env.AGENT_MONTHLY_BUDGET_CENTS).toBeUndefined()
     expect(env.AGENT_HARNESS).toBe(false)
   })
 
-  it('aceita o provedor Mastra e a chave', () => {
+  it('aceita a chave e o modelo', () => {
     const env = loadApiEnv({
       ...base,
-      AGENT_PROVIDER: 'mastra',
       OPENAI_API_KEY: 'sk-teste',
       AGENT_MODEL: 'openai/gpt-4o',
     })
-    expect(env.AGENT_PROVIDER).toBe('mastra')
+    expect(env).not.toHaveProperty('AGENT_PROVIDER')
     expect(env.OPENAI_API_KEY).toBe('sk-teste')
     expect(env.AGENT_MODEL).toBe('openai/gpt-4o')
+  })
+
+  it('AGENT_PROVIDER legado nao falha o parse nem cria modo', () => {
+    const env = loadApiEnv({ ...base, AGENT_PROVIDER: 'fake' })
+    expect(env).not.toHaveProperty('AGENT_PROVIDER')
+    expect(env.OPENAI_API_KEY).toBeUndefined()
+    expect(env.AGENT_MODEL).toBe('openai/gpt-4o-mini')
   })
 
   it('converte o teto mensal', () => {
@@ -130,10 +136,6 @@ describe('agente — ADR-0010', () => {
 
   it('trata chave vazia como ausente', () => {
     expect(loadApiEnv({ ...base, OPENAI_API_KEY: '' }).OPENAI_API_KEY).toBeUndefined()
-  })
-
-  it('recusa provedor desconhecido', () => {
-    expect(() => loadApiEnv({ ...base, AGENT_PROVIDER: 'langchain' })).toThrow()
   })
 
   it('trata AGENT_HARNESS ausente, vazio e 0 como desligado', () => {

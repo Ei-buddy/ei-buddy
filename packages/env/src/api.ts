@@ -98,19 +98,13 @@ export const apiEnvSchema = baseEnvSchema.extend({
   SECRETS_KEY: opcionalNaoVazia,
 
   /**
-   * Runtime do assistente — ADR-0010.
+   * Assistente — ADR-0010, revisada em 2026-10-01.
    *
-   * `fake` nao chama a OpenAI e reconhece so as consultas da US-047, o bastante
-   * para o POST /agent/messages funcionar local sem chave. `mastra` e o
-   * provedor real, e exige `OPENAI_API_KEY`.
-   *
-   * Em producao o `fake` nao e servido — publicar um reconhecedor de tres
-   * frases como se fosse o assistente seria mentir para o lojista. Mas a api
-   * SOBE assim: quem decide e `motivoDoAgenteIndisponivel` (em
-   * `apps/api/composition.ts`), e o efeito e 503 em `/agent/messages`, nao
-   * processo fora do ar. Mesmo criterio de `SECRETS_KEY` logo acima.
+   * `OPENAI_API_KEY` ausente nao e erro de parse: a API sobe e o assistente
+   * fica desligado (`motivoDoAgenteIndisponivel` em `apps/api`). Nao ha
+   * reconhecedor no lugar do modelo. Um `AGENT_PROVIDER` antigo no ambiente
+   * e ignorado pelo Zod (o schema nao e strict) e nao religa modo nenhum.
    */
-  AGENT_PROVIDER: z.enum(['fake', 'mastra']).default('fake'),
   OPENAI_API_KEY: opcionalNaoVazia,
   AGENT_MODEL: z.string().min(1).default('openai/gpt-4o-mini'),
   /**
@@ -118,8 +112,8 @@ export const apiEnvSchema = baseEnvSchema.extend({
    *
    * `1` libera `POST /agent/messages` quando `NODE_ENV=production` (staging
    * com env proximo de prod). Ausente, vazio ou `0` = desligado em producao.
-   * Nao-producao nao precisa desta flag. `fake` continua barrado em producao
-   * mesmo com a flag — o canal nao e produto do lojista nesta fatia.
+   * Nao-producao nao precisa desta flag. Sem a chave o assistente nao monta
+   * em ambiente nenhum. O canal nao e produto do lojista nesta fatia.
    */
   AGENT_HARNESS: z.preprocess((v) => {
     if (v === undefined || v === '' || v === '0') return false

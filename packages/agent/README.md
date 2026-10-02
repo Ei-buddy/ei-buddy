@@ -6,7 +6,7 @@ Runtime do assistente: tools, memória e confirmações.
 (Mastra + `openai/gpt-4o-mini`) · identidade do canal
 [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)
 (`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
-com `AGENT_PROVIDER=fake` · harness **Mastra Studio** (eng.) é `NR-121` ·
+quando há `OPENAI_API_KEY` · a CI usa `script()` no `FakeLlm` · harness **Mastra Studio** (eng.) é `NR-121` ·
 webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
 persistente é `NR-061` (tabela `confirmations`) · memória da conversa **entregue**
@@ -153,27 +153,30 @@ Canal de engenharia: `POST /agent/messages` com sessão de **fixture**
 (criar usuário + empresa de teste, popular dados, autenticar). Não é o
 canal de produto do lojista. Opera em não-produção, ou com
 `AGENT_HARNESS=1` quando o `NODE_ENV` está próximo de prod (staging).
-Produção não serve `AGENT_PROVIDER=fake` e o endpoint permanece desligado
-para o lojista até NR-113. O Studio (NR-121) é harness de engenharia, não
-canal de produto.
+Sem `OPENAI_API_KEY` o endpoint responde 503 e o restante da API segue.
+Produção sem `AGENT_HARNESS=1` continua desligada mesmo com a chave. O Studio
+(NR-121) é harness de engenharia, não canal de produto.
 
-Smoke passo a passo (FakeLlm, sem OpenAI):
-[quickstart da feature](../../specs/002-agent-mastra-runtime/quickstart.md).
+A CI não chama a OpenAI. Cada turno que precisa de tool grava a decisão com
+`script()`. Frase sem roteiro é `unknown`. Passo a passo:
+[quickstart](../../specs/010-assistente-sempre-openai/quickstart.md).
 
 ### Harness Studio (NR-121)
 
 O painel do Mastra Studio conversa com o agent **`studio-harness`**, um relé
 que chama o mesmo `processMessage` do POST (`channel: 'whatsapp'`, número
 forjado). O generate do Studio **não** chama OpenAI: o modelo do relé só
-encaminha o texto; FakeLlm (ou o provedor real) vive só dentro do laço.
+encaminha o texto. A chamada ao modelo, se a chave existe, vive só dentro do
+laço. Sem a chave o adapter do Studio não monta.
 
 Fluxo mínimo:
 
 1. Copiar `packages/agent/studio/presets.example.json` → `presets.json`
    (gitignored) **ou** apontar `AGENT_STUDIO_PRESETS` no `.env` para outro
    arquivo. Preencher `companyId` / `userId` com os UUIDs da fixture.
-2. Subir a API em não-produção (`pnpm --filter @na-regua/api dev`,
-   `AGENT_PROVIDER=fake`). Sem a API na 3333 o painel relata Failed to fetch.
+2. Subir a API em não-produção com `OPENAI_API_KEY`
+   (`pnpm --filter @na-regua/api dev`). Sem a chave o Studio não monta. Sem a
+   API na 3333 o painel relata Failed to fetch.
 3. **Outro terminal:** `pnpm studio` — SPA em `http://localhost:3000` contra
    `API_URL` (`http://localhost:3333`), prefixo `/api`. URL da instância no
    painel: `http://localhost:3333`; prefixo `/api`; sem headers.
@@ -192,7 +195,7 @@ de 5 s / 8 s medem-se **no painel**, com provedor real — não rode isto no
 GitHub Actions nem em job que chame OpenAI.
 
 ```bash
-AGENT_PROVIDER=mastra OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
 ```
 
 1. Subir a API em não-produção e `pnpm studio`. Preset de fixture (número
@@ -256,7 +259,7 @@ mensagem (+ image?) → processMessage
         → AgentTool.execute → core
 ```
 
-Na CI e com `AGENT_PROVIDER=fake`, só entra `FakeBarcodeDecoder` (mapa de
+Na CI só entra `FakeBarcodeDecoder` (mapa de
 fixture → 0, 1 ou N códigos). **Não** há ZXing real no pipeline de teste.
 
 | Situação                                                    | Rota                                                                    | Confirma? |
@@ -285,11 +288,11 @@ Três tools de escrita geradas de `contracts`, com `mutatesValue: true` e o mesm
 caso de uso das telas (`registerProduct`, `createPayable`, `createReceivable` em
 `core`):
 
-| Tool                | Confirma? | Exemplo de frase (FakeLlm / quickstart)           |
-| ------------------- | :-------: | ------------------------------------------------- |
-| `create_product`    |    ✅     | `cadastra camiseta M custo 20 vende 49,90`        |
-| `create_payable`    |    ✅     | `lança aluguel 1800 vence dia 10`                 |
-| `create_receivable` |    ✅     | `a receber 500 do João na sexta, aluguel vitrine` |
+| Tool                | Confirma? | Exemplo de frase (quickstart, decisão via `script()`) |
+| ------------------- | :-------: | ----------------------------------------------------- |
+| `create_product`    |    ✅     | `cadastra camiseta M custo 20 vende 49,90`            |
+| `create_payable`    |    ✅     | `lança aluguel 1800 vence dia 10`                     |
+| `create_receivable` |    ✅     | `a receber 500 do João na sexta, aluguel vitrine`     |
 
 Proposta → `sim` / `não` / TTL segue a máquina de confirmação da NR-061. Valor,
 vencimento, fornecedor e descrição **não** são inventados: pedido incompleto vira
@@ -314,7 +317,7 @@ pnpm --filter @na-regua/api test -- src/e2e/agent-mutations-nr117.test.ts
 ```
 
 O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
-linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
+linha do DoD está coberta pelos testes acima, com `script()` e sem OpenAI:
 
 | #   | Mensagem                           | Teste                                                                                                    |
 | --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -331,34 +334,33 @@ linha do DoD está coberta pelos testes FakeLlm acima (sem OpenAI):
 | 9   | certificado / OFX / “emite a nota” | `process-message.test.ts` (`refuse_*`; zero efeito)                                                      |
 | 10  | mutação sem `sim` / TTL            | `process-message.test.ts` (não grava; expiração)                                                         |
 
-## Fumaça opcional — Mastra real (SC-006, fora da CI)
+## Fumaça opcional — Mastra real (fora da CI)
 
-Com chave e `AGENT_PROVIDER=mastra` (mesmo contrato de `POST /agent/messages`):
+Com `OPENAI_API_KEY` (mesmo contrato de `POST /agent/messages`):
 
 ```bash
-AGENT_PROVIDER=mastra OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
 ```
 
 1. Subir a API em não-produção (ou `AGENT_HARNESS=1` em staging). Produção
-   não serve `fake` e o endpoint permanece desligado para o lojista.
+   sem a flag deixa o endpoint desligado para o lojista.
 2. Autenticar como fixture.
 3. Repetir **uma consulta** (`quanto vendi hoje?`) e **uma venda**
-   (proposta → `sim`). Só a origem da intenção muda (`Agent.generate`);
-   tools → `core` é o mesmo laço do FakeLlm.
+   (proposta → `sim`). A intenção vem de `Agent.generate`; tools → `core`
+   é o mesmo laço que a CI prova com `script()`.
 
-Não rode isto na CI. Sem chave, o runtime permanece em `fake`. Não subir
-Studio (NR-121) nem webhook Meta (NR-046) nesta fumaça.
+Não rode isto na CI. Sem chave, o assistente responde 503 e o restante da
+API segue. Esta fumaça não cobre o webhook Meta (NR-046).
 
 ## Variáveis de ambiente
 
 Cópia para `.env`: [`.env.example`](../../.env.example) na raiz. Matriz
 completa: [`ambientes.md`](../../docs/engenharia/ambientes.md).
 
-| Variável                     | Local                                | Função                                                                                       |
-| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `AGENT_PROVIDER`             | `fake` \| `mastra`                   | Porta LLM (`FakeLlm` ou Mastra). Default `fake`; em produção só `mastra` é servido.          |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só entra com `mastra`.                                     |
-| `AGENT_HARNESS`              | ausente \| `1`                       | Porteiro (FR-001b): `1` libera HTTP **e** Studio fora do `development`. Default off em prod. |
-| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                              |
-| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).     |
-| `OPENAI_API_KEY`             | vazia                                | Obrigatória só com `AGENT_PROVIDER=mastra`.                                                  |
+| Variável                     | Local                                | Função                                                                                           |
+| ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `OPENAI_API_KEY`             | vazia no parse                       | Opcional para a API subir. Obrigatória só para o assistente montar. Sem ela, 503 no harness.     |
+| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe.                               |
+| `AGENT_HARNESS`              | ausente \| `1`                       | Porteiro (FR-001b): `1` libera HTTP **e** Studio em produção. Ausente, vazio ou `0` = desligado. |
+| `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                                  |
+| `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).         |

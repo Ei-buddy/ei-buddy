@@ -212,8 +212,6 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
     vi.stubEnv('API_URL', process.env.API_URL ?? 'http://localhost:3333')
     vi.stubEnv('JWT_SECRET', process.env.JWT_SECRET ?? 'segredo-que-o-e2e-nao-usa')
     vi.stubEnv('REDIS_URL', process.env.REDIS_URL ?? 'redis://localhost:6379')
-    vi.stubEnv('AGENT_PROVIDER', 'fake')
-
     composicao = await import('../composition.js')
     await migrate(MIGRATION_URL!)
 

@@ -177,6 +177,39 @@ export function criarRemetenteMeta(opcoes: MetaOptions) {
     return resultado
   }
 
+  /**
+   * Lido e digitando no mesmo URL do envio, sem `to`.
+   *
+   * Nao passa por `enviar`: aquele sempre poe o destinatario e grava o
+   * resultado em `enviadas`. Estes sinais podem repetir; uma mensagem de
+   * texto repetida nao. Timeout, rede, HTTP ruim ou corpo sem `success`
+   * sao engolidos — a resposta em texto segue, e daqui nao sai telefone,
+   * corpo da mensagem nem token.
+   */
+  async function presenca(messageId: string, digitando: boolean): Promise<void> {
+    try {
+      const resposta = await buscar(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${opcoes.apiToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId,
+          ...(digitando ? { typing_indicator: { type: 'text' } } : {}),
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+
+      const dados = (await resposta.json().catch(() => ({}))) as Record<string, unknown>
+      if (!resposta.ok || dados.success !== true) return
+    } catch {
+      /* Timeout ou rede. O turno de texto nao pode parar por causa disto. */
+    }
+  }
+
   return {
     sendText: async (request: SendTextRequest): Promise<SendResult> =>
       enviar(
@@ -205,6 +238,10 @@ export function criarRemetenteMeta(opcoes: MetaOptions) {
 
       return enviar(midia, request.to, request.idempotencyKey)
     },
+
+    markRead: (messageId: string): Promise<void> => presenca(messageId, false),
+
+    showTyping: (messageId: string): Promise<void> => presenca(messageId, true),
 
     readInbound: (rawBody: string, signature: string): InboundReadResult => {
       /* Segredo ausente recusa TUDO. Aceitar sem conferir seria transformar

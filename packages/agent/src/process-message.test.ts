@@ -269,6 +269,62 @@ function msg(over: Partial<IncomingMessage> = {}): IncomingMessage {
   }
 }
 
+/** Decisao gravada no duble. Sem `script()` a frase fica `unknown`. */
+const ROTEIROS: Record<string, { readonly name: string; readonly args: unknown }> = {
+  'quanto vendi hoje?': {
+    name: 'list_sales',
+    args: { from: '2026-09-11', to: '2026-09-11' },
+  },
+  'quem esta me devendo?': { name: 'list_receivables', args: {} },
+  'resumo do mes': {
+    name: 'period_summary',
+    args: { from: '2026-09-01', to: '2026-09-30' },
+  },
+  'quanto tem de camiseta?': { name: 'check_stock', args: { query: 'camiseta' } },
+  'qual o estoque de camiseta?': { name: 'check_stock', args: { query: 'camiseta' } },
+  'quanto tem de xyz?': { name: 'check_stock', args: { query: 'xyz' } },
+  'o que vence essa semana?': { name: 'list_payables', args: {} },
+  'quanto tenho a pagar?': { name: 'list_payables', args: {} },
+  'quanto o joao deve?': { name: 'check_customer_wallet', args: { query: 'joao' } },
+  'qual o saldo do maria?': { name: 'check_customer_wallet', args: { query: 'maria' } },
+  'quanto deve o inexistente?': { name: 'check_customer_wallet', args: { query: 'inexistente' } },
+  'fiado da maria': { name: 'check_customer_wallet', args: { query: 'maria' } },
+  'lança aluguel 1800 vence dia 10': {
+    name: 'create_payable',
+    args: {
+      supplier: 'Aluguel',
+      description: 'Aluguel',
+      amountCents: 180_000,
+      dueDate: '2026-10-10',
+    },
+  },
+  'a receber 500 do João na sexta, aluguel vitrine': {
+    name: 'create_receivable',
+    args: {
+      description: 'aluguel vitrine',
+      amountCents: 50_000,
+      dueDate: '2026-09-18',
+    },
+  },
+  'envia o certificado A1': { name: 'refuse_certificate', args: {} },
+  'importa o OFX': { name: 'refuse_banking', args: {} },
+  'emite a nota': { name: 'refuse_invoice_command', args: {} },
+  'cancela a nota': { name: 'refuse_invoice_command', args: {} },
+}
+
+function gravarRoteiro(llm: FakeLlm, frases: readonly string[]): FakeLlm {
+  for (const frase of frases) {
+    const tool = ROTEIROS[frase]
+    if (tool === undefined) throw new Error(`frase sem roteiro de teste: ${frase}`)
+    llm.script(frase, { type: 'tool', name: tool.name, args: tool.args })
+  }
+  return llm
+}
+
+function roteirar(frases: readonly string[]): FakeLlm {
+  return gravarRoteiro(new FakeLlm(), frases)
+}
+
 describe('processMessage — consultas (RF-096, RF-097)', () => {
   it('totais de "quanto vendi hoje?" batem com listSales do mesmo fixture', async () => {
     const listSales = vi.fn(async (c: ExecutionContext, i: SaleHistoryInput) =>
@@ -277,7 +333,10 @@ describe('processMessage — consultas (RF-096, RF-097)', () => {
     const revenueByMonth = vi.fn(async (c: ExecutionContext, i: RevenueByMonthInput) =>
       casos().revenueByMonth(c, i),
     )
-    const runtime = createAgentRuntime({ useCases: casos({ listSales, revenueByMonth }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ listSales, revenueByMonth }),
+      llm: roteirar(['quanto vendi hoje?']),
+    })
     const r = await processMessage(runtime, msg())
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('3 vendas')
@@ -293,7 +352,10 @@ describe('processMessage — consultas (RF-096, RF-097)', () => {
     const revenueByMonth = vi.fn(async (c: ExecutionContext, i: RevenueByMonthInput) =>
       casos().revenueByMonth(c, i),
     )
-    const runtime = createAgentRuntime({ useCases: casos({ listReceivables, revenueByMonth }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ listReceivables, revenueByMonth }),
+      llm: roteirar(['quem esta me devendo?']),
+    })
     const r = await processMessage(runtime, msg({ text: 'quem esta me devendo?' }))
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('Joao')
@@ -343,7 +405,10 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
         belowMinimum: false,
       },
     }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkStockByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkStockByQuery }),
+      llm: roteirar(['quanto tem de camiseta?']),
+    })
     const put = vi.spyOn(runtime.confirmations, 'put')
 
     const r = await processMessage(runtime, msg({ text: 'quanto tem de camiseta?' }))
@@ -396,7 +461,10 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
         },
       ],
     }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkStockByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkStockByQuery }),
+      llm: roteirar(['qual o estoque de camiseta?']),
+    })
 
     const r = await processMessage(runtime, msg({ text: 'qual o estoque de camiseta?' }))
 
@@ -411,6 +479,7 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
     const registerCustomer = vi.fn(casos().registerCustomer)
     const runtime = createAgentRuntime({
       useCases: casos({ checkStockByQuery, registerCustomer }),
+      llm: roteirar(['quanto tem de xyz?']),
     })
 
     const r = await processMessage(runtime, msg({ text: 'quanto tem de xyz?' }))
@@ -458,6 +527,7 @@ describe('processMessage — consultar contas a pagar (US2 / NR-115)', () => {
     const registerCustomer = vi.fn(casos().registerCustomer)
     const runtime = createAgentRuntime({
       useCases: casos({ listPayables, registerSale, registerCustomer }),
+      llm: roteirar(['o que vence essa semana?']),
     })
     const put = vi.spyOn(runtime.confirmations, 'put')
 
@@ -476,7 +546,10 @@ describe('processMessage — consultar contas a pagar (US2 / NR-115)', () => {
 
   it('sem contas abertas declara ausencia de vencimentos', async () => {
     const listPayables = vi.fn(async () => payablesSaida())
-    const runtime = createAgentRuntime({ useCases: casos({ listPayables }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ listPayables }),
+      llm: roteirar(['quanto tenho a pagar?']),
+    })
 
     const r = await processMessage(runtime, msg({ text: 'quanto tenho a pagar?' }))
 
@@ -493,7 +566,10 @@ describe('processMessage — consultar fiado (US3 / NR-115)', () => {
       customerName: 'Joao Devedor',
       walletBalanceCents: 2_500,
     }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkCustomerWalletByQuery }),
+      llm: roteirar(['quanto o joao deve?']),
+    })
     const put = vi.spyOn(runtime.confirmations, 'put')
 
     const r = await processMessage(runtime, msg({ text: 'quanto o joao deve?' }))
@@ -511,7 +587,10 @@ describe('processMessage — consultar fiado (US3 / NR-115)', () => {
       customerName: 'Maria Quitada',
       walletBalanceCents: 0,
     }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkCustomerWalletByQuery }),
+      llm: roteirar(['qual o saldo do maria?']),
+    })
 
     const r = await processMessage(runtime, msg({ text: 'qual o saldo do maria?' }))
 
@@ -522,7 +601,10 @@ describe('processMessage — consultar fiado (US3 / NR-115)', () => {
 
   it('cliente ausente nao inventa saldo', async () => {
     const checkCustomerWalletByQuery = vi.fn(async () => ({ status: 'not_found' as const }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkCustomerWalletByQuery }),
+      llm: roteirar(['quanto deve o inexistente?']),
+    })
 
     const r = await processMessage(runtime, msg({ text: 'quanto deve o inexistente?' }))
 
@@ -539,7 +621,10 @@ describe('processMessage — consultar fiado (US3 / NR-115)', () => {
         clienteSaida({ id: 'cli-b', name: 'Maria Souza', phone: '41999992222' }),
       ],
     }))
-    const runtime = createAgentRuntime({ useCases: casos({ checkCustomerWalletByQuery }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ checkCustomerWalletByQuery }),
+      llm: roteirar(['fiado da maria']),
+    })
 
     const r = await processMessage(runtime, msg({ text: 'fiado da maria' }))
 
@@ -604,6 +689,7 @@ describe('processMessage — consultas NR-115 cross-tool (T021)', () => {
           registerSale,
           sendCustomerCharge,
         }),
+        llm: roteirar([text]),
       })
       const put = vi.spyOn(runtime.confirmations, 'put')
 
@@ -627,7 +713,7 @@ describe('processMessage — consulta sem atrito (US4 / FR-002)', () => {
     ['quem esta me devendo?', 'Joao'],
     ['resumo do mes', 'Faturamento'],
   ])('"%s" responde sem put nem confirmation', async (text, trecho) => {
-    const runtime = createAgentRuntime({ useCases: casos() })
+    const runtime = createAgentRuntime({ useCases: casos(), llm: roteirar([text]) })
     const put = vi.spyOn(runtime.confirmations, 'put')
     const r = await processMessage(runtime, msg({ text }))
     expect(r.kind).toBe('answer')
@@ -1169,6 +1255,7 @@ describe('processMessage — lancar conta a pagar (US2 / US-070 / NR-117)', () =
     let chamadas = 0
     let recebido: unknown
     const llm = new FakeLlm()
+    gravarRoteiro(llm, [pedidoAluguel])
     const runtime = createAgentRuntime({
       useCases: casos({
         createPayable: async (_c, i) => {
@@ -1199,6 +1286,7 @@ describe('processMessage — lancar conta a pagar (US2 / US-070 / NR-117)', () =
   it('nao e TTL nao chamam createPayable', async () => {
     let chamadas = 0
     const llm = new FakeLlm()
+    gravarRoteiro(llm, [pedidoAluguel])
     const runtime = createAgentRuntime({
       useCases: casos({
         createPayable: async (_c, i) => {
@@ -1236,6 +1324,7 @@ describe('processMessage — lancar conta a pagar (US2 / US-070 / NR-117)', () =
     let criado = false
     const llm = new FakeLlm()
     llm.script(pedido, { type: 'tool', name: 'create_payable', args: argsVencida })
+    gravarRoteiro(llm, ['quanto tenho a pagar?'])
     const listPayables = vi.fn(async () => {
       if (!criado) {
         return {
@@ -1409,6 +1498,7 @@ describe('processMessage — lancar recebivel avulso (US3 / US-071 / NR-117)', (
     let chamadas = 0
     let recebido: unknown
     const llm = new FakeLlm()
+    gravarRoteiro(llm, [pedidoRecebivel])
     const runtime = createAgentRuntime({
       useCases: casos({
         createReceivable: async (_c, i) => {
@@ -1788,7 +1878,10 @@ describe('processMessage — resumo do periodo (US6 / RF-108)', () => {
     const revenueByMonth = vi.fn(async (c: ExecutionContext, i: RevenueByMonthInput) =>
       casos().revenueByMonth(c, i),
     )
-    const runtime = createAgentRuntime({ useCases: casos({ buildDre, revenueByMonth }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ buildDre, revenueByMonth }),
+      llm: roteirar(['resumo do mes']),
+    })
     const r = await processMessage(runtime, msg({ text: 'resumo do mes' }))
 
     expect(r.kind).toBe('answer')
@@ -1825,6 +1918,7 @@ describe('processMessage — resumo do periodo (US6 / RF-108)', () => {
             })),
           }),
       }),
+      llm: roteirar(['resumo do mes']),
     })
     const r = await processMessage(runtime, msg({ text: 'resumo do mes' }))
 
@@ -1863,6 +1957,7 @@ describe('processMessage — WhatsApp sem vinculo (RF-095)', () => {
       peers: {
         resolve: async () => ({ companyId: 'emp-1', userId: 'user-1', role: 'owner' }),
       },
+      llm: roteirar(['quanto vendi hoje?']),
     })
     const r = await processMessage(runtime, {
       text: 'quanto vendi hoje?',
@@ -1927,6 +2022,7 @@ describe('processMessage — desfechos restantes', () => {
     )
     const llm = new FakeLlm()
     llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    gravarRoteiro(llm, ['quanto vendi hoje?'])
     const runtime = createAgentRuntime({
       useCases: casos({
         listSales,
@@ -2023,6 +2119,7 @@ describe('processMessage — desfechos restantes', () => {
           ])
         },
       }),
+      llm: roteirar(['quanto vendi hoje?']),
     })
     const r = await processMessage(runtime, msg())
     expect(r.kind).toBe('clarify')
@@ -2037,6 +2134,7 @@ describe('processMessage — desfechos restantes', () => {
           throw new Error('ECONNREFUSED')
         },
       }),
+      llm: roteirar(['quanto vendi hoje?']),
     })
     const r = await processMessage(runtime, msg())
     expect(r.text).toMatch(/tente de novo/i)
@@ -2064,311 +2162,7 @@ describe('processMessage — desfechos restantes', () => {
   })
 })
 
-describe('FakeLlm', () => {
-  const tools = [
-    { id: 'list_sales', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'list_receivables', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'list_payables', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'check_customer_wallet', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'period_summary', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'revenue_by_month', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'refuse_certificate', description: '', inputSchema: {} as never, mutatesValue: false },
-    { id: 'refuse_banking', description: '', inputSchema: {} as never, mutatesValue: false },
-    {
-      id: 'refuse_invoice_command',
-      description: '',
-      inputSchema: {} as never,
-      mutatesValue: false,
-    },
-    { id: 'create_sale', description: '', inputSchema: {} as never, mutatesValue: true },
-  ]
-
-  it('roteiro ganha de palavra-chave', async () => {
-    const llm = new FakeLlm()
-    llm.script('quanto vendi hoje?', { type: 'unknown' })
-    const d = await llm.decide({
-      text: 'quanto vendi hoje?',
-      tools,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  it.each(['quanto vendi hoje?', 'faturamento de hoje', 'ticket medio'])(
-    'reconhece "%s" como list_sales — US-047',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({ text, tools, today: '2026-09-11' })
-      expect(d).toEqual({
-        type: 'tool',
-        name: 'list_sales',
-        args: { from: '2026-09-11', to: '2026-09-11' },
-      })
-    },
-  )
-
-  it.each(['quem esta me devendo?', 'quem me deve', 'inadimplentes'])(
-    'reconhece "%s" como list_receivables — US-047',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({ text, tools, today: '2026-09-11' })
-      expect(d).toEqual({ type: 'tool', name: 'list_receivables', args: {} })
-    },
-  )
-
-  it('consultas US-047 nao dependem de revenue_by_month nem de period_summary', async () => {
-    const semResumo = tools.filter((t) => t.id !== 'revenue_by_month' && t.id !== 'period_summary')
-    const llm = new FakeLlm()
-    const vendas = await llm.decide({
-      text: 'quanto vendi hoje?',
-      tools: semResumo,
-      today: '2026-09-11',
-    })
-    const divida = await llm.decide({
-      text: 'quem esta me devendo?',
-      tools: semResumo,
-      today: '2026-09-11',
-    })
-    const resumo = await llm.decide({
-      text: 'resumo do mes',
-      tools: semResumo,
-      today: '2026-09-11',
-    })
-    expect(vendas).toEqual({
-      type: 'tool',
-      name: 'list_sales',
-      args: { from: '2026-09-11', to: '2026-09-11' },
-    })
-    expect(divida).toEqual({ type: 'tool', name: 'list_receivables', args: {} })
-    expect(resumo).toEqual({ type: 'unknown' })
-  })
-
-  it.each(['resumo do mes', 'resultado do mes'])(
-    'reconhece "%s" como period_summary — US-053 / RF-108',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({ text, tools, today: '2026-09-11' })
-      expect(d).toEqual({
-        type: 'tool',
-        name: 'period_summary',
-        args: { from: '2026-09-01', to: '2026-09-30' },
-      })
-    },
-  )
-
-  it('resumo do mes nao cai em revenue_by_month', async () => {
-    const semPeriodo = tools.filter((t) => t.id !== 'period_summary')
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'resumo do mes',
-      tools: semPeriodo,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  it.each(['quanto tem de camiseta?', 'qual o estoque de camiseta?'])(
-    'reconhece "%s" como check_stock — US-065',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({
-        text,
-        tools: [
-          { id: 'check_stock', description: '', inputSchema: {} as never, mutatesValue: false },
-        ],
-        today: '2026-09-11',
-      })
-      expect(d).toEqual({ type: 'tool', name: 'check_stock', args: { query: 'camiseta' } })
-    },
-  )
-
-  it.each(['o que vence essa semana?', 'quais contas a pagar vencem?', 'quanto tenho a pagar?'])(
-    'reconhece "%s" como list_payables — US2 / NR-115',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({ text, tools, today: '2026-09-11' })
-      expect(d).toEqual({ type: 'tool', name: 'list_payables', args: {} })
-    },
-  )
-
-  it.each(['qual o saldo do joao?', 'quanto o joao deve?', 'fiado do joao'])(
-    'reconhece "%s" como check_customer_wallet — US3 / NR-115',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({
-        text,
-        tools: [
-          ...tools,
-          {
-            id: 'check_customer_wallet',
-            description: '',
-            inputSchema: {} as never,
-            mutatesValue: false,
-          },
-        ],
-        today: '2026-09-11',
-      })
-      expect(d).toEqual({ type: 'tool', name: 'check_customer_wallet', args: { query: 'joao' } })
-    },
-  )
-
-  it.each(['me conta uma piada', 'asdfghjkl', 'saldo da carteira'])(
-    'nao reconhece "%s" — unknown para o laco listar capacidades',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({
-        text,
-        tools: [
-          ...tools,
-          {
-            id: 'check_customer_wallet',
-            description: '',
-            inputSchema: {} as never,
-            mutatesValue: false,
-          },
-        ],
-        today: '2026-09-11',
-      })
-      expect(d).toEqual({ type: 'unknown' })
-    },
-  )
-
-  it.each([
-    ['envia o certificado A1', 'refuse_certificate'],
-    ['cadastrar emitente', 'refuse_certificate'],
-    ['importa o OFX', 'refuse_banking'],
-    ['conciliar o extrato', 'refuse_banking'],
-    ['emite a nota', 'refuse_invoice_command'],
-    ['emite a NFC-e da venda X', 'refuse_invoice_command'],
-    ['cancela a nota', 'refuse_invoice_command'],
-  ] as const)('reconhece "%s" como %s — RF-149–151', async (text, name) => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({ text, tools, today: '2026-09-11' })
-    expect(d).toEqual({ type: 'tool', name, args: {} })
-  })
-
-  it('cancela a venda nao e refuse_invoice_command', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({ text: 'cancela a venda', tools, today: '2026-09-11' })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  const toolsNr117 = [
-    ...tools,
-    { id: 'create_product', description: '', inputSchema: {} as never, mutatesValue: true },
-    { id: 'create_payable', description: '', inputSchema: {} as never, mutatesValue: true },
-    { id: 'create_receivable', description: '', inputSchema: {} as never, mutatesValue: true },
-  ]
-
-  it('reconhece cadastro de produto — NR-117 / quickstart', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'cadastra camiseta M custo 20 vende 49,90',
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({
-      type: 'tool',
-      name: 'create_product',
-      args: {
-        description: 'camiseta m',
-        unitOfMeasure: 'un',
-        costPriceCents: 2_000,
-        salePriceCents: 4_990,
-        stock: 0,
-        minStock: 0,
-      },
-    })
-  })
-
-  it('reconhece conta a pagar — NR-117 / quickstart', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'lança aluguel 1800 vence dia 10',
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({
-      type: 'tool',
-      name: 'create_payable',
-      args: {
-        supplier: 'Aluguel',
-        description: 'Aluguel',
-        amountCents: 180_000,
-        dueDate: '2026-10-10',
-      },
-    })
-  })
-
-  it('reconhece recebivel avulso — NR-117 / quickstart', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'a receber 500 do João na sexta, aluguel vitrine',
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({
-      type: 'tool',
-      name: 'create_receivable',
-      args: {
-        description: 'aluguel vitrine',
-        amountCents: 50_000,
-        dueDate: '2026-09-18',
-      },
-    })
-  })
-
-  it('nao reconhece conta a pagar incompleta — NR-117', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'lança conta a pagar',
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  it.each([
-    'venda pro joao: 2 camisetas M a 49,90, pagou no Pix',
-    'vende no fiado',
-    'lanca a venda',
-    '2 camisetas no pix',
-  ])('nao reconhece venda por regex — so script() — "%s"', async (text) => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text,
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  it('frase de venda nao cai em create_receivable — NR-117', async () => {
-    const llm = new FakeLlm()
-    const d = await llm.decide({
-      text: 'venda pro joao: 2 camisetas M a 49,90, pagou no Pix',
-      tools: toolsNr117,
-      today: '2026-09-11',
-    })
-    expect(d).toEqual({ type: 'unknown' })
-  })
-
-  it.each(['manda a cobranca pro Joao', 'cobra o joao', 'enviar cobranca'])(
-    'nao reconhece cobranca por regex — so script() — "%s"',
-    async (text) => {
-      const llm = new FakeLlm()
-      const d = await llm.decide({
-        text,
-        tools: [
-          ...tools,
-          { id: 'send_charge', description: '', inputSchema: {} as never, mutatesValue: true },
-        ],
-        today: '2026-09-11',
-      })
-      expect(d).toEqual({ type: 'unknown' })
-    },
-  )
-
+describe('confirmacao compacta', () => {
   it('reconhece sim e nao compactos', () => {
     expect(eSim('Sim!')).toBe(true)
     expect(eNao('cancela')).toBe(true)
@@ -2443,6 +2237,7 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
         listDayAppointments,
         cancelSale,
       },
+      llm: roteirar([text]),
     })
 
     const r = await processMessage(runtime, msg({ text }))
@@ -2475,7 +2270,10 @@ describe('processMessage — recusas RF-149–151 (US7 / SC-004)', () => {
 
   it('cancela a nota recusa; cancela a venda nao vira comando de nota — RF-151', async () => {
     const registerSale = vi.fn(casos().registerSale)
-    const runtime = createAgentRuntime({ useCases: casos({ registerSale }) })
+    const runtime = createAgentRuntime({
+      useCases: casos({ registerSale }),
+      llm: roteirar(['cancela a nota']),
+    })
 
     const nota = await processMessage(runtime, msg({ text: 'cancela a nota' }))
     expect(nota.kind).toBe('answer')
@@ -2582,7 +2380,11 @@ describe('processMessage — teto de IA (RNF-073, FR-020)', () => {
 
   it('abaixo do teto ainda consulta e registra unidades', async () => {
     const aiUsage = new InMemoryAiUsageCounter({ budgetCents: 5 })
-    const runtime = createAgentRuntime({ useCases: casos(), aiUsage })
+    const runtime = createAgentRuntime({
+      useCases: casos(),
+      aiUsage,
+      llm: roteirar(['quanto vendi hoje?']),
+    })
     const r = await processMessage(runtime, msg())
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('3 vendas')
@@ -2765,8 +2567,11 @@ describe('processMessage — anafora no fio ativo (US1 / RF-105)', () => {
     expect(hist2.some((h) => h.role === 'assistant')).toBe(true)
   })
 
-  it('consulta "quanto vendi hoje?" pelo FakeLlm continua igual — T013 regressao', async () => {
-    const runtime = createAgentRuntime({ useCases: casos() })
+  it('consulta roteirada de vendas continua com os mesmos centavos — T013 regressao', async () => {
+    const runtime = createAgentRuntime({
+      useCases: casos(),
+      llm: roteirar(['quanto vendi hoje?']),
+    })
     const r = await processMessage(runtime, msg())
     expect(r.kind).toBe('answer')
     expect(r.text).toContain('3 vendas')
@@ -2789,7 +2594,10 @@ describe('processMessage — anafora no fio ativo (US1 / RF-105)', () => {
     const hist = visto[0]
     expect(hist === undefined || hist.length === 0).toBe(true)
 
-    const consulta = createAgentRuntime({ useCases: casos() })
+    const consulta = createAgentRuntime({
+      useCases: casos(),
+      llm: roteirar(['quanto vendi hoje?']),
+    })
     const nr060 = await processMessage(consulta, msg())
     expect(nr060.kind).toBe('answer')
     expect(nr060.text).toContain('3 vendas')
@@ -3405,7 +3213,10 @@ describe('processMessage — venda por foto (NR-116 US1 / T008)', () => {
 
   it('mensagem que nao e pagamento descarta o rascunho e atende a consulta', async () => {
     const registerSale = vi.fn(casos().registerSale)
-    const runtime = createAgentRuntime({ useCases: casosFoto({ registerSale }) })
+    const runtime = createAgentRuntime({
+      useCases: casosFoto({ registerSale }),
+      llm: roteirar(['quanto vendi hoje?']),
+    })
 
     await processMessage(runtime, fotoMsg())
     const consulta = await processMessage(runtime, msg({ text: 'quanto vendi hoje?' }))
@@ -3808,6 +3619,8 @@ describe('processMessage — NR-117 polish (RF-010 / FR-012)', () => {
     let gravacoesB = 0
     const llmA = new FakeLlm()
     const llmB = new FakeLlm()
+    gravarRoteiro(llmA, [pedidoAluguel])
+    gravarRoteiro(llmB, [pedidoAluguel])
     const runtimeA = createAgentRuntime({
       useCases: casos({
         createPayable: async () => {
@@ -3851,6 +3664,8 @@ describe('processMessage — NR-117 polish (RF-010 / FR-012)', () => {
     let gravacoesB = 0
     const llmA = new FakeLlm()
     const llmB = new FakeLlm()
+    gravarRoteiro(llmA, [pedidoRecebivel])
+    gravarRoteiro(llmB, [pedidoRecebivel])
     const runtimeA = createAgentRuntime({
       useCases: casos({
         createReceivable: async () => {

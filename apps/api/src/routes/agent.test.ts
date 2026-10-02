@@ -1,6 +1,7 @@
 import { agentReplySchema } from '@na-regua/contracts'
 import { createAgentRuntime, FakeLlm, type AgentUseCases } from '@na-regua/agent'
 import Fastify, { type FastifyInstance } from 'fastify'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import type { AuthenticatedPrincipal } from '../plugins/execution-context.js'
@@ -108,7 +109,13 @@ function buildApp(
 
 describe('POST /agent/messages', () => {
   it('responde consulta autenticada sem WhatsApp', async () => {
-    const app = buildApp()
+    const llm = new FakeLlm()
+    llm.script('quanto vendi hoje?', {
+      type: 'tool',
+      name: 'list_sales',
+      args: { from: '2026-09-11', to: '2026-09-11' },
+    })
+    const app = buildApp(PRINCIPAL, createAgentRuntime({ useCases, llm }))
     const res = await app.inject({
       method: 'POST',
       url: '/agent/messages',
@@ -168,8 +175,11 @@ describe('POST /agent/messages', () => {
       totalCents: 7_000,
       temVencidas: true,
     })
+    const llm = new FakeLlm()
+    llm.script('o que vence essa semana?', { type: 'tool', name: 'list_payables', args: {} })
     const runtime = createAgentRuntime({
       useCases: { ...useCases, listPayables },
+      llm,
     })
     const app = buildApp(PRINCIPAL, runtime)
     const res = await app.inject({
@@ -186,6 +196,11 @@ describe('POST /agent/messages', () => {
 
   it('consulta de estoque responde pelo harness — US-065 / NR-115', async () => {
     const llm = new FakeLlm()
+    llm.script('quanto tem de camiseta?', {
+      type: 'tool',
+      name: 'check_stock',
+      args: { query: 'camiseta' },
+    })
     const checkStockByQuery = async () => ({
       status: 'found' as const,
       view: {
@@ -222,8 +237,15 @@ describe('POST /agent/messages', () => {
       customerName: 'Joao Devedor',
       walletBalanceCents: 2_500,
     })
+    const llm = new FakeLlm()
+    llm.script('quanto o joao deve?', {
+      type: 'tool',
+      name: 'check_customer_wallet',
+      args: { query: 'joao' },
+    })
     const runtime = createAgentRuntime({
       useCases: { ...useCases, checkCustomerWalletByQuery },
+      llm,
     })
     const app = buildApp(PRINCIPAL, runtime)
     const res = await app.inject({
@@ -287,6 +309,30 @@ describe('POST /agent/messages', () => {
       payload: { text: 'quanto vendi hoje?', channel: 'whatsapp' },
     })
     expect(comCanal.statusCode).toBe(400)
+    await app.close()
+  })
+
+  it('devolve o texto do modelo numa string so, sem formatar para o WhatsApp', async () => {
+    const llm = new FakeLlm()
+    const texto = '**Total**\n- a\n- b'
+    llm.script('resumo', { type: 'text', text: texto })
+    const app = buildApp(PRINCIPAL, createAgentRuntime({ useCases, llm }))
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agent/messages',
+      payload: { text: 'resumo' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const bruto = JSON.parse(res.body) as { text?: unknown; messages?: unknown }
+    expect(Array.isArray(bruto)).toBe(false)
+    expect(bruto.messages).toBeUndefined()
+    const corpo = agentReplySchema.parse(bruto)
+    expect(corpo.text).toBe(texto)
+    expect(corpo.text).not.toBe('*Total*\n- a\n- b')
+
+    const fonte = readFileSync(new URL('./agent.ts', import.meta.url), 'utf8')
+    expect(fonte).not.toContain('formatarTextoWhatsApp')
     await app.close()
   })
 })
@@ -446,6 +492,17 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
   it('create_payable pede confirmacao para conta a pagar — NR-117 / US-070', async () => {
     let chamadas = 0
     const pedidoAluguel = 'lança aluguel 1800 vence dia 10'
+    const llm = new FakeLlm()
+    llm.script(pedidoAluguel, {
+      type: 'tool',
+      name: 'create_payable',
+      args: {
+        supplier: 'Aluguel',
+        description: 'Aluguel',
+        amountCents: 180_000,
+        dueDate: '2026-10-10',
+      },
+    })
     const app = buildAppConfirmacao(
       {
         createPayable: async () => {
@@ -469,7 +526,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
           ]
         },
       },
-      new FakeLlm(),
+      llm,
     )
 
     const proposta = await app.inject({
@@ -489,6 +546,16 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
   it('create_receivable pede confirmacao para recebivel avulso — NR-117 / US-071', async () => {
     let chamadas = 0
     const pedidoRecebivel = 'a receber 500 do João na sexta, aluguel vitrine'
+    const llm = new FakeLlm()
+    llm.script(pedidoRecebivel, {
+      type: 'tool',
+      name: 'create_receivable',
+      args: {
+        description: 'aluguel vitrine',
+        amountCents: 50_000,
+        dueDate: '2026-09-18',
+      },
+    })
     const app = buildAppConfirmacao(
       {
         createReceivable: async () => {
@@ -510,7 +577,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
           }
         },
       },
-      new FakeLlm(),
+      llm,
     )
 
     const proposta = await app.inject({

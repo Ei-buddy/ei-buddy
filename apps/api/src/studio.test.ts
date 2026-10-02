@@ -1,4 +1,9 @@
-import { createAgentRuntime, FixturePeerDirectory, type AgentUseCases } from '@na-regua/agent'
+import {
+  createAgentRuntime,
+  FakeLlm,
+  FixturePeerDirectory,
+  type AgentUseCases,
+} from '@na-regua/agent'
 import { agentReplySchema } from '@na-regua/contracts'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { describe, expect, it } from 'vitest'
@@ -97,8 +102,18 @@ const directory = new FixturePeerDirectory([
   },
 ])
 
+function llmVendas(): FakeLlm {
+  const llm = new FakeLlm()
+  llm.script('quanto vendi hoje?', {
+    type: 'tool',
+    name: 'list_sales',
+    args: { from: '2026-09-11', to: '2026-09-11' },
+  })
+  return llm
+}
+
 function runtime() {
-  return createAgentRuntime({ useCases, peers: directory })
+  return createAgentRuntime({ useCases, peers: directory, llm: llmVendas() })
 }
 
 async function appComStudio(over: Parameters<typeof montarStudio>[1]): Promise<FastifyInstance> {
@@ -109,14 +124,15 @@ async function appComStudio(over: Parameters<typeof montarStudio>[1]): Promise<F
 }
 
 describe('montarStudio — porteiro', () => {
-  it('producao/fake: adapter nao monta e /api/agents e 404', async () => {
+  it('sem chave: adapter nao monta, /api/agents e 404 e nao lista studio-harness', async () => {
     const app = await appComStudio({
-      motivo: 'AGENT_PROVIDER=fake nao chama modelo nenhum e nao serve em producao.',
+      motivo: 'OPENAI_API_KEY ausente: o assistente nao monta.',
       runtime: runtime(),
       directory,
     })
     const res = await app.inject({ method: 'GET', url: '/api/agents' })
     expect(res.statusCode).toBe(404)
+    expect(res.body).not.toContain('studio-harness')
     await app.close()
   })
 
@@ -281,7 +297,7 @@ describe('montarStudio — generate US1', () => {
       },
     }
     const dir = directory
-    const rt = createAgentRuntime({ useCases: useCasesEmpresa, peers: dir })
+    const rt = createAgentRuntime({ useCases: useCasesEmpresa, peers: dir, llm: llmVendas() })
     const principal: AuthenticatedPrincipal = {
       companyId: UUID_A,
       userId: USER_A,

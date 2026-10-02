@@ -60,7 +60,7 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     minStock: 0,
   }
 
-  /** Frase de uma palavra após `lanca` — bate com `reconhecerCreatePayable` e com `script()`. */
+  /** Frase curta apos `lanca`. A decisao entra por `script()`, nao por regex. */
   const PEDIDO_PAGAR_VENCIDA = 'lanca aluguel 1500 vence dia 1'
   const ARGS_PAGAR_VENCIDA = {
     supplier: 'Aluguel',
@@ -113,8 +113,6 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     vi.stubEnv('API_URL', process.env.API_URL ?? 'http://localhost:3333')
     vi.stubEnv('JWT_SECRET', process.env.JWT_SECRET ?? 'segredo-que-o-e2e-nao-usa')
     vi.stubEnv('REDIS_URL', process.env.REDIS_URL ?? 'redis://localhost:6379')
-    vi.stubEnv('AGENT_PROVIDER', 'fake')
-
     composicao = await import('../composition.js')
     await migrate(MIGRATION_URL!)
 
