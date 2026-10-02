@@ -36,6 +36,7 @@ import {
   productSuggestions,
   registerProduct,
   registerProductWithStock,
+  updateProduct,
 } from './register-product.js'
 
 const AGORA = new Date('2026-09-02T13:00:00.000Z')
@@ -1104,6 +1105,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       catalogSummary: (c) => produtos.catalogSummary(c),
       countAll: (c) => produtos.countAll(c),
       listSuggestions: (c) => produtos.listSuggestions(c),
+      update: (empresa, id, patch, autor) => produtos.update(empresa, id, patch, autor),
     }
 
     return {
@@ -1393,5 +1395,59 @@ describe('o cadastro da propria loja — RF-003', () => {
     await expect(
       updateCompany({ companies: c.companies, cepLookup }, leitor, { tradeName: 'Outro' }),
     ).rejects.toThrow(/somente de leitura/i)
+  })
+})
+
+describe('editar produto — RF-017', () => {
+  const produto = {
+    description: 'Cafe torrado 500g',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 1890,
+    costPriceCents: 1275,
+    stock: 0,
+    minStock: 0,
+    ncm: '09012100',
+  }
+
+  /* Corrigir o preco nao pode apagar o que ninguem tocou. */
+  it('troca o preco e mantem o resto, deixando rastro', async () => {
+    const products = new InMemoryProductRepository()
+    const audit = new InMemoryAuditTrail()
+    const criado = await registerProduct({ products }, contexto(), produto)
+
+    const r = await updateProduct({ products, audit }, contexto(), criado.id, {
+      salePriceCents: 1990,
+    })
+
+    expect(r.salePriceCents).toBe(1990)
+    expect(r.ncm).toBe('09012100')
+    expect(audit.daEmpresa('emp-1')[0]).toMatchObject({
+      entity: 'Product',
+      action: 'updated',
+      before: { salePriceCents: 1890 },
+      after: { campos: ['salePriceCents'] },
+    })
+  })
+
+  it('recusa custo novo acima do preco de venda', async () => {
+    const products = new InMemoryProductRepository()
+    const criado = await registerProduct({ products }, contexto(), produto)
+
+    const erro = await updateProduct({ products }, contexto(), criado.id, {
+      costPriceCents: 2000,
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+  })
+
+  it('produto de outra empresa responde NOT_FOUND', async () => {
+    const products = new InMemoryProductRepository()
+    const criado = await registerProduct({ products }, contexto({ companyId: 'emp-2' }), produto)
+
+    const erro = await updateProduct({ products }, contexto(), criado.id, {
+      salePriceCents: 1,
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 })

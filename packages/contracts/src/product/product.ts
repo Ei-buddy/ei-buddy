@@ -94,6 +94,16 @@ export const updateProductInputSchema = z
     minStock: z.number().int().nonnegative(),
     category: z.string().trim().max(80),
     supplier: z.string().trim().max(120),
+    /*
+     * Os fiscais entraram no cadastro depois deste schema — RF-046, NR-042.
+     *
+     * Ficaram de fora por ordem de escrita, nao por decisao: sem eles, um NCM
+     * digitado errado no cadastro nao teria conserto, e a nota travaria por um
+     * dado que o lojista ACHA que pode corrigir.
+     */
+    ncm: ncmSchema,
+    cfop: cfopSchema,
+    taxSituationCode: csosnSchema,
   })
   .partial()
   .strict()

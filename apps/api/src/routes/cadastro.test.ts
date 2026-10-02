@@ -313,6 +313,27 @@ function cadastroEmMemoria() {
         suppliers: distintosEmOrdem(meus.map((p) => p.supplier)),
       }
     },
+
+    /* Edita so o que veio, como o COALESCE do SQL. */
+    update: async (companyId, productId, patch) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return undefined
+
+      alvo.description = patch.description ?? alvo.description
+      alvo.barcode = patch.barcode ?? alvo.barcode
+      alvo.unitOfMeasure = patch.unitOfMeasure ?? alvo.unitOfMeasure
+      alvo.salePriceCents = patch.salePriceCents ?? alvo.salePriceCents
+      alvo.costPriceCents = patch.costPriceCents ?? alvo.costPriceCents
+      alvo.taxRate = patch.taxRate ?? alvo.taxRate
+      alvo.minStock = patch.minStock ?? alvo.minStock
+      alvo.category = patch.category ?? alvo.category
+      alvo.supplier = patch.supplier ?? alvo.supplier
+      alvo.ncm = patch.ncm ?? alvo.ncm
+      alvo.cfop = patch.cfop ?? alvo.cfop
+      alvo.taxSituationCode = patch.taxSituationCode ?? alvo.taxSituationCode
+
+      return alvo
+    },
   }
 
   /* O onboarding semeia o plano de contas (RF-081, NR-077), entao a rota

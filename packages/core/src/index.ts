@@ -65,6 +65,7 @@ export type {
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
 export type { CustomerPatch } from './ports/registration-repositories.js'
+export type { ProductPatch } from './ports/registration-repositories.js'
 export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
@@ -321,6 +322,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  updateProduct,
   registerProductWithStock,
   searchProducts,
   TETO_DO_CATALOGO,
