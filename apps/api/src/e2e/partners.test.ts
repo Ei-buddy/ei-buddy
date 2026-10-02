@@ -192,15 +192,26 @@ describe.skipIf(!DATABASE_URL)('conta de parceiro, ponta a ponta — NR-115', ()
     const rMinhaAntes = await comToken(sessao.token, { method: 'GET', url: '/parceiros/mim' })
     const partnerId = (rMinhaAntes.json().application as { partnerId: string }).partnerId
 
-    const rRecusar = await comToken(adminToken, {
+    /* Sem motivo, nao recusa: o parceiro ficaria sem saber o que corrigir. */
+    const rSemMotivo = await comToken(adminToken, {
       method: 'POST',
       url: `/admin/parceiros/${partnerId}/recusar`,
       payload: {},
+    })
+    expect(rSemMotivo.statusCode).toBe(400)
+    const rAindaPendente = await comToken(sessao.token, { method: 'GET', url: '/parceiros/mim' })
+    expect(rAindaPendente.json().application.status).toBe('pending')
+
+    const rRecusar = await comToken(adminToken, {
+      method: 'POST',
+      url: `/admin/parceiros/${partnerId}/recusar`,
+      payload: { note: 'Faltou contar onde voce divulga.' },
     })
     expect(rRecusar.statusCode).toBe(200)
 
     const rMinhaDepois = await comToken(sessao.token, { method: 'GET', url: '/parceiros/mim' })
     expect(rMinhaDepois.json().application.status).toBe('rejected')
+    expect(rMinhaDepois.json().application.reviewNote).toBe('Faltou contar onde voce divulga.')
 
     const rReenviar = await comToken(sessao.token, {
       method: 'POST',
