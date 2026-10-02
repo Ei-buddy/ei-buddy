@@ -110,7 +110,7 @@ function unitOfWorkEmMemoria() {
 
         /* O saldo do fiado — RF-013. O teste da rota afirma status e corpo;
            quanto subiu tem cobertura em core. */
-        adjustCustomerBalance: async () => {},
+        chargeCustomerWallet: async () => ({ outcome: 'charged' as const }),
       }
       return fn(tx)
     },

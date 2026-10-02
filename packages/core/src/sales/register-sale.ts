@@ -257,7 +257,18 @@ export async function registerSale(
       .reduce((soma, r) => soma + r.amountCents, 0)
 
     if (dividaNova > 0 && input.customerId !== undefined) {
-      await tx.adjustCustomerBalance(input.customerId, dividaNova)
+      /* Lancar e conferir o teto juntos — RF-013. Recusar aqui desfaz a
+         transacao inteira: venda, itens e recebiveis somem com ela. */
+      const fiado = await tx.chargeCustomerWallet(input.customerId, dividaNova)
+      if (fiado.outcome === 'customer_not_found') {
+        throw AppError.notFound('Cliente da venda nao encontrado. Escolha o cliente de novo.')
+      }
+      if (fiado.outcome === 'over_limit') {
+        throw AppError.validation(
+          mensagemDeLimite(fiado.limitCents, fiado.balanceCents, dividaNova),
+          [{ path: 'payments', message: 'Fiado acima do limite do cliente.' }],
+        )
+      }
     }
 
     /* A baixa carrega autoria para virar linha na trilha de estoque — RF-024.
@@ -279,6 +290,17 @@ export async function registerSale(
  * handler de erro tratar regra de negocio como falha inesperada — e responder
  * 500 para "faltam R$ 10 para fechar a venda".
  */
+const reais = (centavos: number): string => `R$ ${(centavos / 100).toFixed(2).replace('.', ',')}`
+
+/** A recusa do fiado diz o numero que o operador precisa para resolver no balcao. */
+function mensagemDeLimite(limiteCents: number, saldoCents: number, novaCents: number): string {
+  if (limiteCents === 0) {
+    return 'Este cliente nao tem fiado liberado. Defina um limite no cadastro dele ou receba de outra forma.'
+  }
+  const disponivel = Math.max(limiteCents - saldoCents, 0)
+  return `Fiado acima do limite: o limite e ${reais(limiteCents)}, o cliente ja deve ${reais(saldoCents)} e ainda cabem ${reais(disponivel)}. Esta venda poe ${reais(novaCents)} no fiado.`
+}
+
 function comErroDeDominio<T>(calcular: () => T): T {
   try {
     return calcular()
