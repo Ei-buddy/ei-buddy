@@ -17,6 +17,8 @@ import {
   listReceivables,
   type ListReceivablesDeps,
   type ManualReceivableUnitOfWork,
+  settledInMonth,
+  type SettlementTotals,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -50,6 +52,12 @@ export type ContasDeps = CreatePayableDeps &
     readonly receivablesUow: ManualReceivableUnitOfWork
     /** So para resolver o NOME do plano de conta na exportacao de pagar. */
     readonly accounts: ChartOfAccountsRepository
+    /**
+     * O cartao "Pago/Recebido no mes" — pela data da baixa. Opcional: sem ela,
+     * a lista sai sem `settledThisMonth` e a tela mostra o travessao.
+     */
+    readonly settlementTotals?: SettlementTotals
+    readonly timeZone?: string
   }
 
 /** CSV ou PDF, com os cabecalhos de download — o resto das duas rotas e igual. */
@@ -108,7 +116,7 @@ export function registerContasRoutes(app: FastifyInstance, deps: ContasDeps): vo
 
     const agrupadas = await listPayables(deps.queries, ctx)
 
-    return reply.code(200).send(agrupadas)
+    return reply.code(200).send({ ...agrupadas, ...(await quitadoNoMes(deps, ctx, 'payable')) })
   })
 
   /**
@@ -172,9 +180,17 @@ export function registerContasRoutes(app: FastifyInstance, deps: ContasDeps): vo
     /* `?cliente=` — so as pendencias de um cliente, para a ficha dele. */
     const { cliente } = validate(receivablesFilterSchema, request.query ?? {})
 
-    return reply
-      .code(200)
-      .send(await listReceivables(deps, ctx, cliente === undefined ? {} : { customerId: cliente }))
+    const agrupadas = await listReceivables(
+      deps,
+      ctx,
+      cliente === undefined ? {} : { customerId: cliente },
+    )
+
+    /* Na ficha do cliente nao ha cartao do mes: so a lista geral leva o total. */
+    return reply.code(200).send({
+      ...agrupadas,
+      ...(cliente === undefined ? await quitadoNoMes(deps, ctx, 'receivable') : {}),
+    })
   })
 
   /** Exportar em CSV ou PDF — mesma ideia de `/contas-a-pagar/exportar`. */
@@ -248,4 +264,23 @@ export function registerContasRoutes(app: FastifyInstance, deps: ContasDeps): vo
       return reply.code(200).send(r)
     },
   )
+}
+
+/**
+ * `settledThisMonth` da lista — o cartao "Pago/Recebido no mes" (achado do QA:
+ * a tela o montava com os titulos pagos, que a lista nem traz, e marcava zero).
+ */
+async function quitadoNoMes(
+  deps: ContasDeps,
+  ctx: Parameters<typeof settledInMonth>[1],
+  kind: 'payable' | 'receivable',
+): Promise<{ settledThisMonth?: { totalCents: number; count: number } }> {
+  if (deps.settlementTotals === undefined) return {}
+  return {
+    settledThisMonth: await settledInMonth(
+      { settlementTotals: deps.settlementTotals, timeZone: deps.timeZone ?? 'America/Sao_Paulo' },
+      ctx,
+      kind,
+    ),
+  }
 }

@@ -8,7 +8,11 @@ import {
 import postgres, { type Sql } from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { migrate } from './migrate.js'
-import { createSettlementQueries, createSettlementUnitOfWork } from './settlement-repository.js'
+import {
+  createSettlementQueries,
+  createSettlementTotals,
+  createSettlementUnitOfWork,
+} from './settlement-repository.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
 import { withTenant } from './tenant.js'
 
@@ -366,6 +370,79 @@ describe.skipIf(!DATABASE_URL)('baixa e estorno — NR-029', () => {
    * nada: e a unica consulta de baixa que nasce FORA da transacao de escrita, e
    * uma que esquecesse `withTenant` devolveria a loja errada em silencio.
    */
+  /*
+   * O cartao "Pago/Recebido no mes" — achado do QA: a tela somava titulos
+   * pagos que a lista nem traz, e marcava zero. Dezembro, para nao misturar com
+   * as baixas de setembro dos outros testes.
+   */
+  describe('quitado no periodo, pela data da baixa', () => {
+    const DEZ = ['2026-12-01', '2026-12-31'] as const
+
+    it('soma as baixas do periodo e deixa a estornada de fora', async () => {
+      const totais = createSettlementTotals(sql, 'America/Sao_Paulo')
+      const conta = await criarPagavel(empresaB, 50_000)
+      await settlePayable(deps(), contexto(empresaB), {
+        payableId: conta,
+        amountCents: 20_000,
+        settledOn: '2026-12-10',
+        bankAccount: 'Itau',
+      })
+      const estornada = await settlePayable(deps(), contexto(empresaB), {
+        payableId: conta,
+        amountCents: 5_000,
+        settledOn: '2026-12-11',
+        bankAccount: 'Itau',
+      })
+      await reverseSettlement(deps(), contexto(empresaB), {
+        settlementId: estornada.id,
+        reason: 'Lancada em duplicidade',
+      })
+
+      expect(await totais.totalBetween(empresaB, 'payable', ...DEZ)).toEqual({
+        totalCents: 20_000,
+        count: 1,
+      })
+    })
+
+    it('recebido inclui a venda que ja nasceu paga, sem contar duas vezes', async () => {
+      const totais = createSettlementTotals(sql, 'America/Sao_Paulo')
+      const fiado = await criarRecebivel(empresaB, 8_000, null)
+      await settleReceivable(deps(), contexto(empresaB), {
+        receivableId: fiado,
+        amountCents: 8_000,
+        settledOn: '2026-12-05',
+        method: 'pix',
+      })
+      /* Dinheiro no balcao: nasce quitado, sem baixa. 23h de Brasilia do dia
+         31 ainda e dezembro, embora ja seja janeiro em UTC. */
+      await withTenant(
+        sql,
+        empresaB,
+        (tx) => tx`
+          INSERT INTO receivables
+            (company_id, origin, description, amount_cents, net_amount_cents,
+             settled_amount_cents, due_date, status, settled_at)
+          VALUES (${empresaB}, 'manual', 'Venda em dinheiro', 1990, 1990,
+                  1990, '2026-12-31', 'settled', '2027-01-01T02:00:00Z')
+        `,
+      )
+
+      expect(await totais.totalBetween(empresaB, 'receivable', ...DEZ)).toEqual({
+        totalCents: 9_990,
+        count: 2,
+      })
+    })
+
+    it('nao enxerga outra loja', async () => {
+      const totais = createSettlementTotals(sql, 'America/Sao_Paulo')
+
+      expect(await totais.totalBetween(empresaA, 'payable', ...DEZ)).toEqual({
+        totalCents: 0,
+        count: 0,
+      })
+    })
+  })
+
   describe('historico de baixas — RF-067', () => {
     it('lista as baixas de uma conta a pagar, com o estorno junto', async () => {
       const conta = await criarPagavel(empresaA, 30_000)
