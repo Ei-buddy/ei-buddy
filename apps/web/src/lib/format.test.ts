@@ -18,7 +18,14 @@
  * repositorios de `db`, segundo o comentario do vitest.config de la.
  */
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { daysUntil, describeDueDate, diaLocal, hoje, mesDeHoje } from './format'
+import {
+  daysUntil,
+  describeDueDate,
+  diaLocal,
+  formaPagamentoLabel,
+  hoje,
+  mesDeHoje,
+} from './format'
 
 /* Import estatico e `TZ` depois, como em `agenda-api.test.ts`: as funcoes leem
    o fuso na CHAMADA, e nao na carga do modulo. */
@@ -167,5 +174,14 @@ describe('describeDueDate', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('formaPagamentoLabel', () => {
+  /* O painel recebe o codigo da API e mostrava "cash" e "wallet" crus. */
+  it('traduz os codigos da api', () => {
+    expect(['cash', 'pix', 'debit', 'credit', 'wallet'].map((m) => formaPagamentoLabel[m])).toEqual(
+      ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado'],
+    )
   })
 })
