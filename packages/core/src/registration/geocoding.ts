@@ -1,5 +1,5 @@
 import type { Address } from '@na-regua/contracts'
-import type { CepLookup } from '../ports/cep-lookup.js'
+import type { AddressGeocoder, CepLookup } from '../ports/cep-lookup.js'
 import type { CompanyCoordinates } from '../ports/registration-repositories.js'
 
 /**
@@ -21,8 +21,25 @@ import type { CompanyCoordinates } from '../ports/registration-repositories.js'
 export async function resolveCoordinates(
   cepLookup: CepLookup,
   address: Address | undefined,
+  /**
+   * Opcional: com ele, a coordenada sai do endereco completo, e o CEP so entra
+   * se o endereco nao for achado. Ver `AddressGeocoder`.
+   */
+  geocoder?: AddressGeocoder,
 ): Promise<CompanyCoordinates | undefined> {
   if (address?.zipCode === undefined) return undefined
+
+  if (geocoder !== undefined && address.street && address.city && address.state) {
+    const pelaRua = await geocoder
+      .geocode({
+        street: address.street,
+        number: address.number,
+        city: address.city,
+        state: address.state,
+      })
+      .catch(() => undefined)
+    if (pelaRua !== undefined) return pelaRua
+  }
 
   const encontrado = await cepLookup.lookup(address.zipCode).catch(() => undefined)
   if (encontrado === undefined) return undefined
