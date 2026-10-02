@@ -31,11 +31,21 @@ export const ncmSchema = z
   .transform((v) => v.replace(/\D/g, ''))
   .refine((d) => d.length === 8, { message: 'NCM invalido. Deve ter 8 digitos.' })
 
-/** CFOP — 4 digitos, a natureza da operacao. */
+/**
+ * CFOP — 4 digitos, a natureza da operacao.
+ *
+ * O primeiro digito e o tipo (1/2/3 entrada, 5/6/7 saida) e o segundo, o
+ * grupo (1 a 9). "9999" ou "4102" nao existem em tabela nenhuma — a nota
+ * voltaria rejeitada (achado do QA). A lista completa muda por ajuste SINIEF;
+ * a estrutura, nao.
+ */
 export const cfopSchema = z
   .string()
   .transform((v) => v.replace(/\D/g, ''))
   .refine((d) => d.length === 4, { message: 'CFOP invalido. Deve ter 4 digitos.' })
+  .refine((d) => /^[123567][1-9]\d{2}$/.test(d), {
+    message: 'CFOP invalido. Use um CFOP de saida como 5102 (venda dentro do estado).',
+  })
 
 /**
  * CST ou CSOSN — 2 ou 3 digitos.
@@ -67,6 +77,23 @@ export const csosnSchema = z
   .refine((d) => d.length === 3, {
     message: 'CSOSN invalido. Deve ter 3 digitos, por exemplo 102.',
   })
+  .refine((d) => CSOSN_VALIDOS.includes(d), {
+    message: 'CSOSN inexistente. Os validos sao 101, 102, 103, 201, 202, 203, 300, 400, 500 e 900.',
+  })
+
+/** A tabela do CSOSN — dez codigos, fixos desde o Ajuste SINIEF 03/2010. */
+const CSOSN_VALIDOS: readonly string[] = [
+  '101',
+  '102',
+  '103',
+  '201',
+  '202',
+  '203',
+  '300',
+  '400',
+  '500',
+  '900',
+]
 
 /**
  * Chave de acesso — os 44 digitos que identificam a nota — RF-045.
