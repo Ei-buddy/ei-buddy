@@ -14,9 +14,14 @@ import {
 } from '@/lib/connections-api'
 import styles from './fornecedores.module.css'
 
+/*
+ * A coordenada vem do CEP, e o provedor muitas vezes devolve o centro da
+ * cidade: duas lojas a 1 km apareciam a "0 m" (achado do QA). Abaixo de 1 km
+ * a tela nao finge precisao que o dado nao tem.
+ */
 const formatarDistancia = (km: number | null): string | null => {
   if (km === null) return null
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
+  return km < 1 ? 'menos de 1 km' : `${km.toFixed(1).replace('.', ',')} km`
 }
 
 const plural = (n: number, um: string, muitos: string) => (n === 1 ? um : muitos)
