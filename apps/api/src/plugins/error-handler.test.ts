@@ -26,6 +26,15 @@ function buildApp(): FastifyInstance {
   app.get('/explode', async () => {
     throw new Error('relation "users" does not exist')
   })
+  /* Os erros do Postgres como o driver os entrega: `code` e o SQLSTATE. */
+  app.get('/id-malformado', async () => {
+    throw Object.assign(new Error('invalid input syntax for type uuid: "abc"'), { code: '22P02' })
+  })
+  app.get('/referencia-inexistente', async () => {
+    throw Object.assign(new Error('violates foreign key constraint "receivables_customer_fk"'), {
+      code: '23503',
+    })
+  })
 
   return app
 }
@@ -63,6 +72,24 @@ describe('erro esperado', () => {
     const res = await app.inject({ method: 'GET', url: '/nao-encontrado' })
 
     expect(res.json().error.message).toBe('Cliente nao encontrado.')
+  })
+})
+
+describe('registro citado que nao existe', () => {
+  it('id malformado vira 404, nao 500', async () => {
+    app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/id-malformado' })
+
+    expect(res.statusCode).toBe(404)
+    expect(JSON.stringify(res.json())).not.toContain('uuid')
+  })
+
+  it('chave estrangeira violada vira 404 sem vazar o nome da constraint', async () => {
+    app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/referencia-inexistente' })
+
+    expect(res.statusCode).toBe(404)
+    expect(JSON.stringify(res.json())).not.toContain('receivables_customer_fk')
   })
 })
 

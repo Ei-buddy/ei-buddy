@@ -651,6 +651,7 @@ function vendaRegistrada(over: Partial<RegisterSaleResult['sale']> = {}): Regist
       id: 's1',
       number: 1042,
       grossAmountCents: 9_980,
+      discountCents: 0,
       costAmountCents: 4_000,
       taxAmountCents: 0,
       cardFeeAmountCents: 480,

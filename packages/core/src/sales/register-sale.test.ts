@@ -47,6 +47,8 @@ function venda(sobrescreve: Partial<CreateSaleInput> = {}): CreateSaleInput {
 beforeEach(() => {
   unitOfWork = new InMemoryUnitOfWork(new InMemoryAuditTrail())
   unitOfWork.adicionarProduto(EMPRESA, CAFE)
+  /* Cliente com fiado liberado ate R$ 50,00. */
+  unitOfWork.definirLimite('cli-1', 5000)
 })
 
 describe('registerSale — o caminho comum', () => {
@@ -192,6 +194,46 @@ describe('o saldo do fiado — RF-013', () => {
     await registerSale(deps(), contexto(), venda())
 
     expect(unitOfWork.saldoDe('cli-1')).toBe(0)
+  })
+})
+
+describe('o limite do fiado — RF-013', () => {
+  const fiado = (amountCents: number) =>
+    venda({
+      customerId: 'cli-1',
+      items: [{ productId: CAFE.id, quantity: 1, unitPriceCents: amountCents }],
+      payments: [{ method: 'wallet', amountCents }],
+    })
+
+  it('recusa a venda que passa do limite e nao grava nada', async () => {
+    await registerSale(deps(), contexto(), fiado(4000))
+
+    const erro = await registerSale(deps(), contexto(), fiado(1990)).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+    expect(String(erro.message)).toContain('ainda cabem R$ 10,00')
+    expect(unitOfWork.saldoDe('cli-1')).toBe(4000)
+    expect(unitOfWork.vendas).toHaveLength(1)
+  })
+
+  it('cliente sem limite nao vende no fiado', async () => {
+    unitOfWork.definirLimite('cli-2', 0)
+
+    const erro = await registerSale(deps(), contexto(), {
+      ...fiado(1990),
+      customerId: 'cli-2',
+    }).catch((e) => e)
+
+    expect(String(erro.message)).toContain('nao tem fiado liberado')
+  })
+
+  it('cliente que nao existe da 404, nao 500', async () => {
+    const erro = await registerSale(deps(), contexto(), {
+      ...fiado(1990),
+      customerId: 'cli-x',
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 })
 
@@ -418,22 +460,45 @@ describe('estoque e produto', () => {
   })
 })
 
-describe('o que ainda nao existe, recusado em vez de calculado errado', () => {
-  it('recusa desconto dizendo que nao esta disponivel', async () => {
-    const erro = await registerSale(deps(), contexto(), venda({ discountCents: 500 })).catch(
-      (e) => e,
+describe('desconto no total — RF-031', () => {
+  /* O PDV oferecia "Dar desconto" e a venda era recusada no fechamento. */
+  it('grava o desconto e o bruto, e os pagamentos fecham o total com desconto', async () => {
+    const r = await registerSale(
+      deps(),
+      contexto(),
+      venda({ discountCents: 100, payments: [{ method: 'cash', amountCents: 1890 }] }),
     )
 
-    /*
-     * `applyDiscount` existe em domain e `calculateSaleTotals` nao o recebe:
-     * compor os dois hoje daria total errado. Recusar e a alternativa honesta
-     * a calcular errado — total errado numa venda e dinheiro errado.
-     */
-    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
-    expect(isAppError(erro) && erro.message).toMatch(/desconto/i)
+    expect(r.sale.grossAmountCents).toBe(1990)
+    expect(r.sale.discountCents).toBe(100)
+    /* Imposto sobre os 18,90 cobrados: 6% = 1,13. */
+    expect(r.sale.taxAmountCents).toBe(113)
   })
 
-  it('recusa acrescimo pelo mesmo motivo', async () => {
+  it('recusa desconto acima da alcada do papel', async () => {
+    /* Teto do falso: 10%. R$ 5,00 em R$ 19,90 sao 25%. */
+    const erro = await registerSale(
+      deps(),
+      contexto(),
+      venda({ discountCents: 500, payments: [{ method: 'cash', amountCents: 1490 }] }),
+    ).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+  })
+
+  it('recusa pagamento que ignora o desconto', async () => {
+    const erro = await registerSale(
+      deps(),
+      contexto(),
+      venda({ discountCents: 100, payments: [{ method: 'pix', amountCents: 1990 }] }),
+    ).catch((e) => e)
+
+    expect(isAppError(erro) && erro.message).toMatch(/desconto/i)
+  })
+})
+
+describe('o que ainda nao existe, recusado em vez de calculado errado', () => {
+  it('recusa acrescimo', async () => {
     const erro = await registerSale(deps(), contexto(), venda({ surchargeRate: 5 })).catch((e) => e)
 
     expect(isAppError(erro) && erro.message).toMatch(/acrescimo/i)

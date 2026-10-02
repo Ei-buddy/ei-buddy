@@ -139,6 +139,8 @@ export type RegisteredSale = {
   readonly id: string
   readonly number: number
   readonly grossAmountCents: number
+  /** Desconto no total — RF-031. Zero quando nao houve. */
+  readonly discountCents: number
   readonly costAmountCents: number
   readonly taxAmountCents: number
   readonly cardFeeAmountCents: number
@@ -223,9 +225,21 @@ export type SaleTransaction = TransactionalAuditTrail & {
    * cancelamento e na devolucao. Vender no fiado nao somava nada, entao o
    * filtro "Fiado" da lista (`wallet_balance_cents > 0`) nunca casava com
    * ninguem, e cancelar uma venda fiada deixava o saldo NEGATIVO.
+   *
+   * So soma se a divida nova COUBER no limite do cliente — a conferencia e a
+   * soma no mesmo UPDATE, pelo mesmo motivo do incremento: duas vendas fiadas
+   * simultaneas, cada uma cabendo sozinha, nao podem passar juntas do teto.
+   * Limite 0 e "sem fiado liberado" (o cadastro grava 0 quando o campo vem
+   * vazio).
    */
-  adjustCustomerBalance(customerId: string, deltaCents: number): Promise<void>
+  chargeCustomerWallet(customerId: string, deltaCents: number): Promise<WalletCharge>
 }
+
+/** O que aconteceu ao lancar divida no fiado do cliente. */
+export type WalletCharge =
+  | { readonly outcome: 'charged' }
+  | { readonly outcome: 'customer_not_found' }
+  | { readonly outcome: 'over_limit'; readonly limitCents: number; readonly balanceCents: number }
 
 export type UnitOfWork = {
   /**

@@ -64,7 +64,7 @@ type LinhaLancamento = {
 }
 
 const paraLancamento = (l: LinhaLancamento): LancamentoClassificado => ({
-  entryKind: l.entry_kind as EntryKind,
+  entryKind: l.entry_kind as EntryKind | 'sale',
   entryId: l.entry_id,
   accountId: l.account_id,
   /* Nome vazio quando nao ha conta: quem escolhe o rotulo de "sem
@@ -76,7 +76,11 @@ const paraLancamento = (l: LinhaLancamento): LancamentoClassificado => ({
   occurredOn: paraDia(l.occurred_on),
 })
 
-export function createChartOfAccountsRepository(sql: Sql): ChartOfAccountsRepository & {
+export function createChartOfAccountsRepository(
+  sql: Sql,
+  /** Fuso da loja: a venda das 23h de dia 31 e do mes que acaba. */
+  timeZone = 'America/Sao_Paulo',
+): ChartOfAccountsRepository & {
   /** Semeia o plano padrao no fim do onboarding — RF-081. */
   insertDefaults(
     companyId: string,
@@ -285,6 +289,48 @@ export function createChartOfAccountsRepository(sql: Sql): ChartOfAccountsReposi
           LEFT JOIN ledger_accounts a ON a.id = r.account_id
           WHERE r.due_date BETWEEN ${from} AND ${to}
             AND r.status <> 'cancelled'
+            /* O recebivel da VENDA nao e receita: a venda e. Somar os dois
+               contaria a receita duas vezes; e a parcela do credito vencendo
+               no mes seguinte jogava a receita no mes errado. */
+            AND r.sale_id IS NULL
+
+          UNION ALL
+
+          /*
+           * A venda, na data dela — competencia, como o relatorio de
+           * faturamento. Cada venda abre em ate seis linhas (bruto, desconto,
+           * devolucao, imposto, custo da mercadoria, tarifa de cartao). O
+           * account_name e um CODIGO: o rotulo e de core, como o de
+           * "sem classificacao".
+           */
+          SELECT 'sale'::text AS entry_kind,
+                 s.id AS entry_id,
+                 NULL::uuid AS account_id,
+                 linha.codigo AS account_name,
+                 linha.tipo AS account_type,
+                 linha.valor AS amount_cents,
+                 (s.created_at AT TIME ZONE ${timeZone})::date AS occurred_on
+          FROM sales s
+          CROSS JOIN LATERAL (
+            SELECT COALESCE(SUM(i.returned_quantity * i.cost_price_cents), 0) AS custo_devolvido
+            FROM sale_items i
+            WHERE i.sale_id = s.id
+          ) dev
+          CROSS JOIN LATERAL (
+            VALUES
+              ('vendas', 'revenue', s.gross_amount_cents),
+              ('descontos', 'deduction', s.discount_cents),
+              ('devolucoes', 'deduction', s.returned_amount_cents),
+              ('impostos', 'deduction',
+                 ROUND(s.tax_amount_cents * (s.gross_amount_cents - s.returned_amount_cents)::numeric
+                       / NULLIF(s.gross_amount_cents, 0))::bigint),
+              ('cmv', 'cost', s.cost_amount_cents - dev.custo_devolvido),
+              ('tarifas_cartao', 'expense', s.card_fee_amount_cents)
+          ) AS linha(codigo, tipo, valor)
+          WHERE s.status NOT IN ('cancelled', 'returned')
+            AND s.created_at >= (${from}::date)::timestamp AT TIME ZONE ${timeZone}
+            AND s.created_at <  (${to}::date + 1)::timestamp AT TIME ZONE ${timeZone}
+            AND linha.valor > 0
 
           ORDER BY occurred_on, entry_id
         `,

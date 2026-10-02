@@ -573,7 +573,10 @@ export { resendPartnerApplication } from './partners/resend-partner-application.
 export type { ResendPartnerApplicationDeps } from './partners/resend-partner-application.js'
 export { getMyPartnerApplication } from './partners/my-partner-application.js'
 export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
-export type { PartnerApplicationRepository } from './ports/partner-application-repository.js'
+export type {
+  PartnerApplicationAlert,
+  PartnerApplicationRepository,
+} from './ports/partner-application-repository.js'
 export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'
 
 /* Consentimento dos documentos legais — RF-02, RF-03, LGPD art. 8 §1. */

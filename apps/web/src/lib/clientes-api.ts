@@ -722,6 +722,7 @@ export type ListaDeClientes = {
 type ClienteDaApi = {
   id: string
   name: string
+  tradeName: string | null
   document: string | null
   phone: string | null
   email: string | null
@@ -755,7 +756,8 @@ export async function listarClientes(opcoes: {
     dados: {
       clientes: r.dados.customers.map((c) => ({
         id: c.id,
-        nome: c.name,
+        /* PJ aparece pelo fantasia: e por ele que o balcao procura. */
+        nome: c.tradeName ?? c.name,
         documento: c.document,
         celular: c.phone,
         email: c.email,
