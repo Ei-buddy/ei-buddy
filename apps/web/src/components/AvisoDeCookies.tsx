@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import styles from './avisoDeCookies.module.css'
 
 /**
@@ -71,6 +71,28 @@ const dispensaNoServidor = (): boolean => true
 
 export default function AvisoDeCookies() {
   const dispensado = useSyncExternalStore(assinar, lerDispensa, dispensaNoServidor)
+  const aviso = useRef<HTMLElement>(null)
+
+  /*
+   * Enquanto o aviso esta na tela, a pagina ganha um rodape do tamanho dele.
+   * Fixo no rodape, ele cobria o botao 'Salvar cliente' e o 'Finalizar' do PDV
+   * ate a pessoa clicar em Entendi (achado do QA): sem o espaco, nao havia
+   * como rolar o botao para cima do aviso.
+   */
+  useEffect(() => {
+    const el = aviso.current
+    if (dispensado || el === null) return
+    const reservar = () => {
+      document.body.style.paddingBottom = `${el.offsetHeight + 32}px`
+    }
+    reservar()
+    const observador = new ResizeObserver(reservar)
+    observador.observe(el)
+    return () => {
+      observador.disconnect()
+      document.body.style.paddingBottom = ''
+    }
+  }, [dispensado])
 
   function dispensar() {
     try {
@@ -93,7 +115,7 @@ export default function AvisoDeCookies() {
      * lendo a pagina para informar sobre um cookie de sessao seria interromper
      * sem motivo.
      */
-    <section className={styles.aviso} role="region" aria-label="Aviso sobre cookies">
+    <section ref={aviso} className={styles.aviso} role="region" aria-label="Aviso sobre cookies">
       <p className={styles.texto}>
         Usamos um cookie, e ele é necessário para manter você autenticado. Não usamos cookie de
         análise, de publicidade ou de rastreamento.{' '}

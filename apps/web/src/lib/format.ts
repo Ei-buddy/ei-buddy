@@ -114,6 +114,12 @@ export const formaPagamentoLabel: Record<string, string> = {
   credito: 'Crédito',
   dinheiro: 'Dinheiro',
   carteira: 'Carteira',
+  /* Os codigos da API, como chegam no painel — sem eles a tela mostrava
+     "cash" e "wallet" crus (achado do QA). */
+  cash: 'Dinheiro',
+  debit: 'Débito',
+  credit: 'Crédito',
+  wallet: 'Fiado',
 }
 
 export const statusTituloLabel: Record<string, string> = {
