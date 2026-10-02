@@ -123,6 +123,7 @@ export class InMemoryUnitOfWork implements UnitOfWork {
           id: `venda-${this.sequencia}`,
           number: this.proximoNumeroDaEmpresa(companyId),
           grossAmountCents: venda.grossAmountCents,
+          discountCents: venda.discountCents,
           costAmountCents: venda.costAmountCents,
           taxAmountCents: venda.taxAmountCents,
           cardFeeAmountCents: venda.cardFeeAmountCents,
