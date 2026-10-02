@@ -339,7 +339,7 @@ export function buildAuthDeps(): AuthRouteDeps {
     provider: identidade,
     registrar: identidade,
     companies: createCompanyRepository(sql),
-    accounts: createChartOfAccountsRepository(sql),
+    accounts: createChartOfAccountsRepository(sql, env.TZ),
     users: createUserDirectory(sql),
     /*
      * Sessao e desaceleracao no POSTGRES — NR-083.
@@ -507,7 +507,7 @@ export function buildCadastroDeps(): CadastroDeps {
     /* NCM que nao existe na tabela oficial e recusado no cadastro. */
     ncmLookup: createBrasilApiNcmLookup(),
     /* O onboarding semeia o plano de contas padrao — RF-081, NR-077. */
-    accounts: createChartOfAccountsRepository(sql),
+    accounts: createChartOfAccountsRepository(sql, env.TZ),
     /*
      * A importacao de planilha grava o saldo inicial, e saldo so muda por
      * MOVIMENTO (RF-124). Por isso o cadastro precisa do estoque: sem ele, o
@@ -783,7 +783,7 @@ export function buildPrivacidadeDeps(): PrivacidadeDeps {
 export function buildContabilidadeDeps(): ContabilidadeDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
-    accounts: createChartOfAccountsRepository(sql),
+    accounts: createChartOfAccountsRepository(sql, env.TZ),
     /* Mesma pendencia das outras: `db` nao expoe repositorio de auditoria. */
     audit: createAuditTrail(sql),
   }
@@ -933,7 +933,7 @@ export function buildContasDeps(): ContasDeps {
     queries: createPayableQueries(sql),
     receivables: createReceivableRepository(sql),
     receivablesUow: createManualReceivableUnitOfWork(sql),
-    accounts: createChartOfAccountsRepository(sql),
+    accounts: createChartOfAccountsRepository(sql, env.TZ),
     ids: { next: () => randomUUID() },
     /* Mesma pendencia da autenticacao: `db` nao expoe repositorio de
        auditoria, entao a trilha do lancamento fica em memoria. */

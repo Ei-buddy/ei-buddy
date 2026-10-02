@@ -14,6 +14,20 @@ export type BuildDreDeps = {
 const SEM_CLASSIFICACAO = 'Sem classificacao'
 
 /**
+ * As linhas que a VENDA abre no DRE. Sem elas, o DRE so via titulos: imposto,
+ * tarifa e custo da mercadoria ficavam de fora e a margem bruta saia 100%
+ * (achado do QA).
+ */
+const ROTULO_DA_VENDA: Readonly<Record<string, string>> = {
+  vendas: 'Vendas',
+  descontos: 'Descontos concedidos',
+  devolucoes: 'Devolucoes',
+  impostos: 'Impostos sobre vendas',
+  cmv: 'Custo das mercadorias vendidas',
+  tarifas_cartao: 'Tarifas de cartao',
+}
+
+/**
  * DRE do periodo, com as linhas que compoem cada total — RF-085, RF-086.
  *
  * Leitura: nao passa por `assertCanWrite`. `accountant` e somente leitura, e e
@@ -69,14 +83,23 @@ function agruparPorConta(lancamentos: readonly LancamentoClassificado[]): DreLin
 
   for (const l of lancamentos) {
     /* `null` vira uma chave propria por TIPO: sem isso, uma despesa e uma
-       receita nao classificadas cairiam na mesma linha. */
-    const chave = l.accountId ?? `sem-conta:${l.accountType}`
+       receita nao classificadas cairiam na mesma linha. A venda abre uma
+       linha por componente (bruto, imposto, custo...). */
+    const chave =
+      l.entryKind === 'sale'
+        ? `venda:${l.accountName}`
+        : (l.accountId ?? `sem-conta:${l.accountType}`)
     const atual = porConta.get(chave)
 
     if (atual === undefined) {
       porConta.set(chave, {
         accountId: l.accountId,
-        accountName: l.accountId === null ? SEM_CLASSIFICACAO : l.accountName,
+        accountName:
+          l.entryKind === 'sale'
+            ? (ROTULO_DA_VENDA[l.accountName] ?? l.accountName)
+            : l.accountId === null
+              ? SEM_CLASSIFICACAO
+              : l.accountName,
         type: l.accountType,
         amountCents: l.amountCents,
         entryCount: 1,

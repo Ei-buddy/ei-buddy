@@ -324,6 +324,42 @@ describe('DRE do periodo — RF-085, RF-086', () => {
     expect(dre.grossMarginPoints).toBe(32)
   })
 
+  /* Achado do QA: margem bruta 100% porque a venda nao entrava no DRE. */
+  it('a venda abre linhas proprias, com imposto e custo da mercadoria', async () => {
+    const venda = (
+      accountName: string,
+      accountType: LancamentoClassificado['accountType'],
+      amountCents: number,
+    ) =>
+      lanc({
+        entryKind: 'sale',
+        entryId: 'v1',
+        accountId: null,
+        accountName,
+        accountType,
+        amountCents,
+      })
+    const c = comLancamentos(
+      venda('vendas', 'revenue', 10_000),
+      venda('impostos', 'deduction', 600),
+      venda('cmv', 'cost', 6_000),
+      venda('tarifas_cartao', 'expense', 300),
+    )
+
+    const dre = await buildDre(c.deps, contexto(), periodo)
+
+    expect(dre.lines.map((l) => [l.accountName, l.amountCents])).toEqual(
+      expect.arrayContaining([
+        ['Vendas', 10_000],
+        ['Impostos sobre vendas', 600],
+        ['Custo das mercadorias vendidas', 6_000],
+        ['Tarifas de cartao', 300],
+      ]),
+    )
+    expect(dre.resultCents).toBe(3_100)
+    expect(dre.grossMarginPoints).not.toBe(100)
+  })
+
   it('nao traz lancamento de fora do periodo', async () => {
     const c = comLancamentos(
       lanc({ accountType: 'revenue', amountCents: 100_000, occurredOn: '2026-09-15' }),
