@@ -127,9 +127,23 @@ em Repository secrets — assim um PR de fork não os alcança):
 | `VPS_USER`        | usuário do SSH, com permissão de `docker`                                                                     |
 | `VPS_SSH_KEY`     | chave privada correspondente à pública no `authorized_keys` da VM                                             |
 | `VPS_KNOWN_HOSTS` | opcional, e recomendado: `ssh-keyscan <host>`. Sem ele, o deploy confia em quem responder na primeira conexão |
+| `SMTP_PASSWORD`   | opcional: senha do SMTP (no Gmail, a **senha de app**). Com ele, o deploy grava o e-mail no `.env.production` |
 
 E, se a máquina fugir do padrão, as **variables** `VPS_SSH_PORT` (padrão `22`)
 e `VPS_DEPLOY_PATH` (padrão `/opt/na-regua`).
+
+### E-mail
+
+Com o secret `SMTP_PASSWORD` no Environment, cada deploy troca no
+`.env.production` do servidor só as linhas de e-mail (`EMAIL_PROVIDER`,
+`SMTP_*`, `AVISO_PARCEIRO_EMAIL`) — o resto do arquivo continua sendo do
+servidor. Sem o secret, o arquivo fica intocado.
+
+Os valores que não são segredo têm padrão no workflow (o Gmail
+`eibuddyerp@gmail.com`) e podem ser trocados por **variables** do Environment:
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_FROM`,
+`AVISO_PARCEIRO_EMAIL`. Sem as variáveis de e-mail, produção não envia nada —
+nem redefinir senha, nem o aviso de candidatura de Parceiro.
 
 O clone na VM precisa conseguir `git fetch` sozinho — deploy key de leitura no
 repositório, ou credencial já configurada na máquina.

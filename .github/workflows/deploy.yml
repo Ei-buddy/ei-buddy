@@ -53,6 +53,10 @@ on:
         required: false
       TS_OAUTH_SECRET:
         required: false
+      # Senha do SMTP. Opcional: sem ela, o `.env.production` do servidor
+      # fica como esta. Ver o passo "Configurar o e-mail".
+      SMTP_PASSWORD:
+        required: false
 
 concurrency:
   # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
@@ -143,6 +147,68 @@ jobs:
             "cd '$CAMINHO' && git rev-parse HEAD")
           echo "Hoje no ar: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # O e-mail do servidor vem daqui, e nao de alguem editando o arquivo na
+      # mao: sem as variaveis de e-mail, producao nao envia nada (nem
+      # redefinir senha, nem o aviso de candidatura de Parceiro).
+      #
+      # So as linhas de e-mail sao trocadas — o resto do `.env.production`
+      # continua sendo do servidor. Sem o secret `SMTP_PASSWORD`, o passo nao
+      # roda e o arquivo fica intocado.
+      #
+      # A senha vai pela ENTRADA do ssh, dentro de um heredoc com delimitador
+      # entre aspas (nada se expande), e nao na linha de comando: argumento de
+      # processo aparece no `ps` da maquina. O GitHub mascara o secret no log.
+      #
+      # Valores que nao sao segredo vem de variables do Environment, com os do
+      # Gmail da EiBuddy como padrao.
+      - name: Configurar o e-mail
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE || 'false' }}
+          SMTP_USER: ${{ vars.SMTP_USER || 'eibuddyerp@gmail.com' }}
+          SMTP_FROM: ${{ vars.SMTP_FROM || 'EiBuddy <eibuddyerp@gmail.com>' }}
+          AVISO_PARCEIRO_EMAIL: ${{ vars.AVISO_PARCEIRO_EMAIL || 'eibuddyerp@gmail.com' }}
+        run: |
+          if [ -z "$SMTP_PASSWORD" ]; then
+            echo "::notice::Secret SMTP_PASSWORD ausente — e-mail do servidor nao foi alterado."
+            exit 0
+          fi
+
+          # O Google exibe a senha de app em quatro blocos com espaco; colada
+          # assim no secret, o Gmail recusa (535). Senha de app nao tem espaco.
+          case "$SMTP_HOST" in
+            *gmail*) SMTP_PASSWORD=${SMTP_PASSWORD// /} ;;
+          esac
+
+          {
+            echo "set -eu"
+            echo "cd '$CAMINHO'"
+            echo "umask 077"
+            echo "cat > .email.env.novo <<'FIM_DO_EMAIL'"
+            printf '%s\n' \
+              "EMAIL_PROVIDER=smtp" \
+              "SMTP_HOST=$SMTP_HOST" \
+              "SMTP_PORT=$SMTP_PORT" \
+              "SMTP_SECURE=$SMTP_SECURE" \
+              "SMTP_USER=$SMTP_USER" \
+              "SMTP_PASSWORD=$SMTP_PASSWORD" \
+              "SMTP_FROM=$SMTP_FROM" \
+              "AVISO_PARCEIRO_EMAIL=$AVISO_PARCEIRO_EMAIL"
+            echo "FIM_DO_EMAIL"
+            cat <<'TROCA'
+          touch .env.production
+          chaves=$(cut -d= -f1 .email.env.novo | paste -sd'|')
+          grep -Ev "^(${chaves})=" .env.production > .env.production.novo || true
+          cat .email.env.novo >> .env.production.novo
+          mv .env.production.novo .env.production
+          chmod 600 .env.production
+          rm -f .email.env.novo
+          echo "e-mail configurado: $(echo "$chaves" | tr '|' ' ')"
+          TROCA
+          } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
 
       - name: Subir ${{ github.sha }}
         run: |
