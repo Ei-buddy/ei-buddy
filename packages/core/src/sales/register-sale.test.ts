@@ -47,6 +47,8 @@ function venda(sobrescreve: Partial<CreateSaleInput> = {}): CreateSaleInput {
 beforeEach(() => {
   unitOfWork = new InMemoryUnitOfWork(new InMemoryAuditTrail())
   unitOfWork.adicionarProduto(EMPRESA, CAFE)
+  /* Cliente com fiado liberado ate R$ 50,00. */
+  unitOfWork.definirLimite('cli-1', 5000)
 })
 
 describe('registerSale — o caminho comum', () => {
@@ -183,6 +185,46 @@ describe('o saldo do fiado — RF-013', () => {
     await registerSale(deps(), contexto(), venda())
 
     expect(unitOfWork.saldoDe('cli-1')).toBe(0)
+  })
+})
+
+describe('o limite do fiado — RF-013', () => {
+  const fiado = (amountCents: number) =>
+    venda({
+      customerId: 'cli-1',
+      items: [{ productId: CAFE.id, quantity: 1, unitPriceCents: amountCents }],
+      payments: [{ method: 'wallet', amountCents }],
+    })
+
+  it('recusa a venda que passa do limite e nao grava nada', async () => {
+    await registerSale(deps(), contexto(), fiado(4000))
+
+    const erro = await registerSale(deps(), contexto(), fiado(1990)).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+    expect(String(erro.message)).toContain('ainda cabem R$ 10,00')
+    expect(unitOfWork.saldoDe('cli-1')).toBe(4000)
+    expect(unitOfWork.vendas).toHaveLength(1)
+  })
+
+  it('cliente sem limite nao vende no fiado', async () => {
+    unitOfWork.definirLimite('cli-2', 0)
+
+    const erro = await registerSale(deps(), contexto(), {
+      ...fiado(1990),
+      customerId: 'cli-2',
+    }).catch((e) => e)
+
+    expect(String(erro.message)).toContain('nao tem fiado liberado')
+  })
+
+  it('cliente que nao existe da 404, nao 500', async () => {
+    const erro = await registerSale(deps(), contexto(), {
+      ...fiado(1990),
+      customerId: 'cli-x',
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 })
 

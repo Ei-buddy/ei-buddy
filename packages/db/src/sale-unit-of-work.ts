@@ -121,14 +121,31 @@ function escopo(tx: TransactionSql, companyId: string): SaleTransaction {
      *
      * Incremento no proprio UPDATE, e nao ler-somar-gravar: duas vendas no
      * fiado ao mesmo tempo, para o mesmo cliente, gravariam o saldo de uma so.
+     * A condicao do limite fica no mesmo UPDATE pela mesma razao.
      */
-    adjustCustomerBalance: async (customerId, deltaCents) => {
-      await tx`
+    chargeCustomerWallet: async (customerId, deltaCents) => {
+      const somou = await tx`
         UPDATE customers
            SET wallet_balance_cents = wallet_balance_cents + ${deltaCents},
                updated_at = now()
          WHERE id = ${customerId}
+           AND deleted_at IS NULL
+           AND wallet_balance_cents + ${deltaCents} <= wallet_limit_cents
+        RETURNING id
       `
+      if (somou.length > 0) return { outcome: 'charged' }
+
+      const [cliente] = await tx<{ wallet_limit_cents: string; wallet_balance_cents: string }[]>`
+        SELECT wallet_limit_cents, wallet_balance_cents
+          FROM customers
+         WHERE id = ${customerId} AND deleted_at IS NULL
+      `
+      if (cliente === undefined) return { outcome: 'customer_not_found' }
+      return {
+        outcome: 'over_limit',
+        limitCents: Number(cliente.wallet_limit_cents),
+        balanceCents: Number(cliente.wallet_balance_cents),
+      }
     },
   }
 }

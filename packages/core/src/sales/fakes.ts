@@ -91,6 +91,13 @@ export class InMemoryUnitOfWork implements UnitOfWork {
   }
 
   private readonly saldos = new Map<string, number>()
+  /** Teto do fiado por cliente. Cliente fora do mapa nao existe. */
+  private readonly limites = new Map<string, number>()
+
+  /** Cadastra o cliente com o teto do fiado — 0 e "sem fiado". */
+  definirLimite(customerId: string, limitCents: number): void {
+    this.limites.set(customerId, limitCents)
+  }
 
   private escopo(companyId: CompanyId): SaleTransaction {
     return {
@@ -168,8 +175,15 @@ export class InMemoryUnitOfWork implements UnitOfWork {
        * Guardado por cliente, para o teste poder afirmar QUANTO subiu: um
        * espiao que so conta chamadas passaria com o valor errado.
        */
-      adjustCustomerBalance: async (customerId, deltaCents) => {
-        this.saldos.set(customerId, (this.saldos.get(customerId) ?? 0) + deltaCents)
+      chargeCustomerWallet: async (customerId, deltaCents) => {
+        const limite = this.limites.get(customerId)
+        if (limite === undefined) return { outcome: 'customer_not_found' }
+        const saldo = this.saldos.get(customerId) ?? 0
+        if (saldo + deltaCents > limite) {
+          return { outcome: 'over_limit', limitCents: limite, balanceCents: saldo }
+        }
+        this.saldos.set(customerId, saldo + deltaCents)
+        return { outcome: 'charged' }
       },
     }
   }

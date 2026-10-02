@@ -31,9 +31,31 @@ export type ErrorBody = {
   requestId: string
 }
 
+/**
+ * Erros do Postgres que sao do PEDIDO, nao do servidor.
+ *
+ * Um id que nao e uuid (`22P02`) ou que aponta para registro inexistente
+ * (`23503`, chave estrangeira) chegavam aqui crus e viravam 500 — "algo deu
+ * errado do nosso lado" para um cliente que nao existe. Os dois dizem a mesma
+ * coisa a quem chamou: o registro citado nao existe. Reconhecidos pelo codigo
+ * SQLSTATE, sem a api depender do driver.
+ */
+const REGISTRO_INEXISTENTE = new Set(['22P02', '23503'])
+
+function erroDoPedidoNoBanco(error: unknown): AppError | undefined {
+  const codigo = (error as { code?: unknown } | null)?.code
+  if (typeof codigo === 'string' && REGISTRO_INEXISTENTE.has(codigo)) {
+    return AppError.notFound('Um dos registros informados nao existe. Confira e tente de novo.')
+  }
+  return undefined
+}
+
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: unknown, request: FastifyRequest, reply: FastifyReply) => {
     const requestId = request.id
+
+    const traduzido = erroDoPedidoNoBanco(error)
+    if (traduzido !== undefined) error = traduzido
 
     if (isAppError(error)) {
       const status = STATUS[error.code]

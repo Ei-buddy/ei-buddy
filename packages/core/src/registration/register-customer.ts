@@ -71,6 +71,7 @@ export async function registerCustomer(
   const customer = await deps.customers.create({
     companyId: ctx.companyId,
     name: input.name,
+    tradeName: input.tradeName,
     document: input.document,
     phone: input.phone,
     email: input.email,
