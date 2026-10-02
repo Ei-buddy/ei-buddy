@@ -12,10 +12,43 @@ import {
 import { AppError, isAppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import type { AuditTrail } from '../ports/audit-trail.js'
 import type { CustomerRepository } from '../ports/registration-repositories.js'
 
 export type RegisterCustomerDeps = {
   readonly customers: CustomerRepository
+  /**
+   * Trilha de auditoria — RF-123. Opcional para o cadastro seguir funcionando
+   * onde nao ha trilha (testes de regra pura); a composicao sempre entrega.
+   */
+  readonly audit?: AuditTrail
+}
+
+/**
+ * Registra a mudanca no cliente — RF-123.
+ *
+ * Guarda QUAIS campos mudaram, e nao os valores: nome, documento e telefone
+ * sao dado pessoal, e a trilha e somente-insercao. Copiados aqui, sobreviveriam
+ * a anonimizacao da LGPD (RF-125), que nao pode apagar linha de auditoria.
+ */
+async function auditarCliente(
+  deps: RegisterCustomerDeps,
+  ctx: ExecutionContext,
+  customerId: string,
+  action: 'created' | 'updated' | 'deleted',
+  after: Record<string, unknown>,
+): Promise<void> {
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Customer',
+    entityId: customerId,
+    action,
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: null,
+    after,
+  })
 }
 
 export type RegisterCustomerOptions = {
@@ -79,6 +112,11 @@ export async function registerCustomer(
     address: input.address,
     createdBy: ctx.userId,
     createdAt: ctx.now,
+  })
+
+  await auditarCliente(deps, ctx, customer.id, 'created', {
+    tipo: customer.document !== null && customer.document.length === 14 ? 'juridica' : 'fisica',
+    walletLimitCents: customer.walletLimitCents,
   })
 
   return { status: 'created', customer }
@@ -204,7 +242,7 @@ export async function getCustomer(
  * de uma correcao de telefone atrapalharia o conserto em vez de evitar o erro.
  */
 export async function updateCustomer(
-  deps: { readonly customers: CustomerRepository },
+  deps: RegisterCustomerDeps,
   ctx: ExecutionContext,
   customerId: string,
   input: UpdateCustomerInput,
@@ -218,6 +256,8 @@ export async function updateCustomer(
   if (atualizado === undefined) {
     throw AppError.notFound('Cliente nao encontrado.')
   }
+
+  await auditarCliente(deps, ctx, customerId, 'updated', { campos: Object.keys(input).sort() })
 
   return atualizado
 }
@@ -245,7 +285,7 @@ export async function updateCustomer(
  * As duas palavras convivem na mesma tela e nao querem dizer a mesma coisa.
  */
 export async function deleteCustomer(
-  deps: { readonly customers: CustomerRepository },
+  deps: RegisterCustomerDeps,
   ctx: ExecutionContext,
   customerId: string,
 ): Promise<void> {
@@ -268,6 +308,7 @@ export async function deleteCustomer(
   }
 
   await deps.customers.setDeletedAt(ctx.companyId, customerId, ctx.now, ctx.userId)
+  await auditarCliente(deps, ctx, customerId, 'deleted', { excluido: true })
 }
 
 /**
@@ -281,7 +322,7 @@ export async function deleteCustomer(
  * botao — quem some da lista e ele, nao o registro.
  */
 export async function restoreCustomer(
-  deps: { readonly customers: CustomerRepository },
+  deps: RegisterCustomerDeps,
   ctx: ExecutionContext,
   customerId: string,
 ): Promise<void> {
@@ -296,6 +337,7 @@ export async function restoreCustomer(
   if (cliente.deletedAt === null) return
 
   await deps.customers.setDeletedAt(ctx.companyId, customerId, null, ctx.userId)
+  await auditarCliente(deps, ctx, customerId, 'updated', { excluido: false })
 }
 
 export async function listCustomers(

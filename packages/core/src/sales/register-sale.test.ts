@@ -112,6 +112,15 @@ describe('registerSale — o caminho comum', () => {
     expect(mov?.createdBy).toBe('joana')
   })
 
+  /* RF-123: a trilha mostrava a venda cancelada e nunca a venda feita. */
+  it('a venda entra na trilha', async () => {
+    const r = await registerSale(deps(), contexto(), venda())
+
+    const vendas = unitOfWork.trilha.daEmpresa(EMPRESA).filter((e) => e.entity === 'Sale')
+    expect(vendas).toHaveLength(1)
+    expect(vendas[0]).toMatchObject({ entityId: r.sale.id, action: 'created' })
+  })
+
   it('guarda o preco praticado e o custo do cadastro', async () => {
     /* O balcao negociou 15,00 num produto de 19,90. */
     await registerSale(

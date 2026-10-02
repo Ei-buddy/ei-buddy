@@ -187,6 +187,24 @@ describe('registerCustomer — RF-009, RF-010', () => {
     expect(r.customer.walletBalanceCents).toBe(0)
   })
 
+  /* RF-123 sem copiar dado pessoal: a trilha nao pode ser anonimizada. */
+  it('o cadastro do cliente entra na trilha, sem nome nem documento', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const audit = new InMemoryAuditTrail()
+
+    const r = await registerCustomer({ customers, audit }, contexto(), {
+      name: 'Ana Souza',
+      document: '12345678909',
+    })
+
+    const [entrada] = audit.daEmpresa('emp-1')
+    expect(entrada).toMatchObject({ entity: 'Customer', action: 'created' })
+    expect(r.status === 'created' && entrada?.entityId).toBe(
+      r.status === 'created' && r.customer.id,
+    )
+    expect(JSON.stringify(entrada?.after)).not.toMatch(/Ana|12345678909/)
+  })
+
   it('avisa do parecido por telefone em vez de recusar — RF-010', async () => {
     const customers = new InMemoryCustomerRepository()
     await registerCustomer({ customers }, contexto(), { name: 'Joao', phone: '41999990000' })
@@ -1189,6 +1207,16 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     expect(movimento?.productId).toBe(produto.id)
     expect(movimento?.quantityDelta).toBe(12)
     expect(movimento?.reason).toBe('Saldo inicial do cadastro')
+  })
+
+  /* RF-123: o cadastro do produto nao deixava rastro (achado do QA). */
+  it('o cadastro do produto entra na trilha', async () => {
+    const c = cenario()
+
+    const produto = await registerProductWithStock(c.deps, contexto(), linha('Cafe', { stock: 3 }))
+
+    const [entrada] = c.deps.audit.daEmpresa('emp-1').filter((e) => e.entity === 'Product')
+    expect(entrada).toMatchObject({ entityId: produto.id, action: 'created' })
   })
 
   it('cadastro avulso sem estoque nao gera movimento', async () => {
