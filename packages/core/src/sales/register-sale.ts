@@ -284,6 +284,28 @@ export async function registerSale(
       { saleId: venda.id, createdBy: ctx.userId, createdAt: ctx.now },
     )
 
+    /* A venda na trilha, na mesma transacao — RF-123. O escopo sempre teve
+       `record`, mas so o cancelamento e a devolucao chamavam: a auditoria
+       mostrava a venda cancelada e nunca a venda feita (achado do QA). */
+    await tx.record({
+      companyId: ctx.companyId,
+      entity: 'Sale',
+      entityId: venda.id,
+      action: 'created',
+      actorId: ctx.userId,
+      channel: ctx.channel,
+      occurredAt: ctx.now,
+      before: null,
+      after: {
+        number: venda.number,
+        customerId: input.customerId ?? null,
+        grossAmountCents: venda.grossAmountCents,
+        netAmountCents: venda.netAmountCents,
+        payments: input.payments.map((p) => p.method).join(','),
+        items: input.items.length,
+      },
+    })
+
     return { sale: venda, replayed: false, stockWarnings: avisos }
   })
 }
