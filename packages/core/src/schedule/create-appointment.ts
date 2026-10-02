@@ -3,11 +3,14 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { AppointmentRepository } from '../ports/appointment-repository.js'
+import type { AuditTrail } from '../ports/audit-trail.js'
 import type { ReminderScheduler } from '../ports/reminder-scheduler.js'
 
 export type CreateAppointmentDeps = {
   readonly appointments: AppointmentRepository
   readonly reminders: ReminderScheduler
+  /** Trilha — RF-123. Opcional para os testes de regra; a composicao entrega. */
+  readonly audit?: AuditTrail
 }
 
 /**
@@ -61,6 +64,18 @@ export async function createAppointment(
       fireAt: reminderFireAt(startsAt, input.reminderMinutesBefore),
     })
   }
+
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Appointment',
+    entityId: appointment.id,
+    action: 'created',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: null,
+    after: { title: appointment.title, startsAt: appointment.startsAt },
+  })
 
   return appointment
 }

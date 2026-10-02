@@ -1340,6 +1340,22 @@ describe('o cadastro da propria loja — RF-003', () => {
     expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })
 
+  it('a atualizacao entra na trilha com os campos alterados', async () => {
+    const c = await comEmpresa()
+    const audit = new InMemoryAuditTrail()
+
+    await updateCompany({ companies: c.companies, cepLookup, audit }, c.ctx, {
+      tradeName: 'Mercearia Sol',
+      phone: '41987650000',
+    })
+
+    expect(audit.daEmpresa(c.ctx.companyId)[0]).toMatchObject({
+      entity: 'Company',
+      action: 'updated',
+      after: { campos: ['phone', 'tradeName'] },
+    })
+  })
+
   it('atualiza o que veio', async () => {
     const c = await comEmpresa()
 
