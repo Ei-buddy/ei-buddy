@@ -167,4 +167,44 @@ describe('cliente citado na pergunta', () => {
 
     expect(termo).toBe('Ana Souza')
   })
+
+  it('a divida sai com data em dd/mm/aaaa', async () => {
+    const r = await responder(
+      'O que o cliente Ana Souza está devendo',
+      CONTEXTO_VAZIO,
+      fontes({
+        clientes: async () => ({
+          ok: true,
+          dados: [
+            {
+              id: 'c1',
+              nome: 'Ana Souza',
+              documento: null,
+              celular: null,
+              email: null,
+              saldoFiado: 16.98,
+              ultimaCompra: HOJE,
+              totalCompras: 1,
+              valorTotal: 16.98,
+            },
+          ],
+        }),
+        pendenciasDoCliente: async () => ({
+          ok: true,
+          dados: [
+            {
+              id: 'p1',
+              referente: 'Fiado',
+              vencimento: '2026-10-02',
+              valor: 16.98,
+              status: 'aberto',
+            },
+          ],
+        }),
+      }),
+      HOJE,
+    )
+
+    expect(texto(r)).toContain('vence 02/10/2026')
+  })
 })

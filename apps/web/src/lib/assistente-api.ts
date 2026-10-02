@@ -268,7 +268,7 @@ const somarDias = (dia: string, n: number): string => {
 
 /** `2026-10-02` → `02/10/2026`; o que ja vier formatado passa intacto. */
 const diaBr = (dia: string): string =>
-  /^d{4}-d{2}-d{2}/.test(dia) ? dia.slice(0, 10).split('-').reverse().join('/') : dia
+  /^\d{4}-\d{2}-\d{2}/.test(dia) ? dia.slice(0, 10).split('-').reverse().join('/') : dia
 
 const inicioDoMes = (dia: string): string => `${dia.slice(0, 8)}01`
 
