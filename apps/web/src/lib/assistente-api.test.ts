@@ -148,3 +148,23 @@ describe('assistente com os dados da loja', () => {
     expect(texto(r)).not.toContain('Torrefacao')
   })
 })
+
+describe('cliente citado na pergunta', () => {
+  /* "está" com acento nao fechava o nome: a busca recebia "Ana Souza está". */
+  it('acha o nome antes de "está devendo"', async () => {
+    let termo = ''
+    await responder(
+      'O que o cliente Ana Souza está devendo',
+      CONTEXTO_VAZIO,
+      fontes({
+        clientes: async (o) => {
+          termo = o.termo ?? ''
+          return { ok: true, dados: [] }
+        },
+      }),
+      HOJE,
+    )
+
+    expect(termo).toBe('Ana Souza')
+  })
+})

@@ -234,7 +234,12 @@ function normalizar(texto: string): string {
  * nome de verdade, a resposta pergunta qual cliente.
  */
 function nomeCitado(texto: string): string | null {
-  const m = /cliente\s+(.+?)(?:\s+(?:esta|está|deve|devendo|comprou|foi)\b|\?|$)/i.exec(texto)
+  /* Fim de palavra por espaco/pontuacao, e nao `\b`: o `\b` do JavaScript nao
+     reconhece letra acentuada como letra, e "está" nunca fechava o nome —
+     "Ana Souza está" ia para a busca (achado na rodada de uso). O nome fica
+     com o acento original: a busca do banco (ILIKE) nao ignora acento. */
+  const m =
+    /cliente\s+(.+?)(?:\s+(?:esta|está|deve|devendo|comprou|foi)(?=\s|[?!.,]|$)|\?|$)/i.exec(texto)
   const nome = m?.[1]?.trim() ?? ''
   if (nome.length < 2 || /^x$/i.test(nome) || /^(dizendo|para|que)\b/i.test(nome)) return null
   return nome
