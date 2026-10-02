@@ -3,6 +3,7 @@ import type { SettlementOutput } from '@na-regua/contracts'
 import type {
   NewSettlement,
   SettlementQueries,
+  SettlementTotals,
   SettlementTransaction,
   SettlementUnitOfWork,
   TituloSnapshot,
@@ -325,5 +326,60 @@ export function createSettlementQueries(sql: Sql): SettlementQueries {
 export function createSettlementUnitOfWork(sql: Sql): SettlementUnitOfWork {
   return {
     transaction: (companyId, fn) => withTenant(sql, companyId, (tx) => fn(escopo(tx, companyId))),
+  }
+}
+
+/**
+ * O que foi pago ou recebido num periodo — o cartao "Pago/Recebido no mes".
+ *
+ * Pela data da BAIXA (`settled_on`; nas antigas sem ela, o dia da gravacao no
+ * fuso da loja). Baixa estornada fica de fora, e o proprio estorno tambem.
+ *
+ * Recebivel que ja NASCEU pago (venda em dinheiro e Pix) nao tem baixa: entra
+ * pelo `settled_at` dele, desde que nao tenha baixa nenhuma — senao contaria
+ * duas vezes o que foi quitado por baixa.
+ */
+export function createSettlementTotals(sql: Sql, timeZone: string): SettlementTotals {
+  type Linha = { total_cents: string | null; titulos: string }
+
+  return {
+    totalBetween: (companyId, kind, from, to) =>
+      withTenant(sql, companyId, async (tx) => {
+        const [linha] =
+          kind === 'payable'
+            ? await tx<Linha[]>`
+                SELECT COALESCE(SUM(s.amount_cents), 0) AS total_cents,
+                       COUNT(DISTINCT s.payable_id)      AS titulos
+                  FROM settlements s
+                 WHERE s.payable_id IS NOT NULL
+                   AND s.reverses_id IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM settlements e WHERE e.reverses_id = s.id)
+                   AND COALESCE(s.settled_on, (s.settled_at AT TIME ZONE ${timeZone})::date)
+                       BETWEEN ${from} AND ${to}
+              `
+            : await tx<Linha[]>`
+                WITH por_baixa AS (
+                  SELECT s.amount_cents, s.receivable_id
+                    FROM settlements s
+                   WHERE s.receivable_id IS NOT NULL
+                     AND s.reverses_id IS NULL
+                     AND NOT EXISTS (SELECT 1 FROM settlements e WHERE e.reverses_id = s.id)
+                     AND COALESCE(s.settled_on, (s.settled_at AT TIME ZONE ${timeZone})::date)
+                         BETWEEN ${from} AND ${to}
+                ),
+                nascido_pago AS (
+                  SELECT r.settled_amount_cents AS amount_cents, r.id AS receivable_id
+                    FROM receivables r
+                   WHERE r.status = 'settled'
+                     AND NOT EXISTS (SELECT 1 FROM settlements s WHERE s.receivable_id = r.id)
+                     AND (r.settled_at AT TIME ZONE ${timeZone})::date BETWEEN ${from} AND ${to}
+                )
+                SELECT COALESCE(SUM(amount_cents), 0) AS total_cents,
+                       COUNT(DISTINCT receivable_id)  AS titulos
+                  FROM (SELECT * FROM por_baixa UNION ALL SELECT * FROM nascido_pago) t
+              `
+
+        return { totalCents: Number(linha?.total_cents ?? 0), count: Number(linha?.titulos ?? 0) }
+      }),
   }
 }

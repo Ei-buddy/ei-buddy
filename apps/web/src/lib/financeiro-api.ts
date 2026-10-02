@@ -248,6 +248,8 @@ export type ContasAPagarAgrupadas = {
   totalCents: number
   /** RF-062: o destaque na abertura do sistema. */
   temVencidas: boolean
+  /** Pago/recebido no mes, pela data da baixa. Ausente = o servidor nao calculou. */
+  settledThisMonth?: { totalCents: number; count: number }
 }
 
 /**
@@ -317,6 +319,8 @@ export type ContasAReceberAgrupadas = {
   grupos: GrupoDeRecebimento[]
   totalCents: number
   temVencidas: boolean
+  /** Pago/recebido no mes, pela data da baixa. Ausente = o servidor nao calculou. */
+  settledThisMonth?: { totalCents: number; count: number }
 }
 
 export const carregarContasAReceber = (): Promise<ResultadoContas<ContasAReceberAgrupadas>> =>

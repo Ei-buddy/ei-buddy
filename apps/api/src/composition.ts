@@ -90,6 +90,7 @@ import {
   createPlatformAdminAccess,
   createSessionIssuer,
   createSettlementQueries,
+  createSettlementTotals,
   createSettlementUnitOfWork,
   createSupportRepository,
   createTeamRepository,
@@ -973,6 +974,8 @@ export function buildContasDeps(): ContasDeps {
     receivables: createReceivableRepository(sql),
     receivablesUow: createManualReceivableUnitOfWork(sql),
     accounts: createChartOfAccountsRepository(sql, env.TZ),
+    settlementTotals: createSettlementTotals(sql, env.TZ),
+    timeZone: env.TZ,
     ids: { next: () => randomUUID() },
     /* Mesma pendencia da autenticacao: `db` nao expoe repositorio de
        auditoria, entao a trilha do lancamento fica em memoria. */
