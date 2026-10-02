@@ -320,6 +320,10 @@ export function createReconciliationQueries(sql: Sql): ReconciliationQueries {
      * cai como R$ 97,50), e regra em SQL e regra que nenhum teste de `core`
      * enxerga: um `COALESCE(net_amount_cents, amount_cents)` escondido aqui
      * funcionaria e mudaria de comportamento sem ninguem perceber.
+     *
+     * A janela vale para o vencimento OU para a baixa: conta paga antes (ou
+     * depois) do vencimento sai do banco na data da BAIXA, e so pelo
+     * vencimento ela nunca era sugerida — achado do QA.
      */
     findCandidates: async (companyId, entryKind, de, ate) => {
       const linhas = await withTenant(sql, companyId, (tx) =>
@@ -334,6 +338,13 @@ export function createReconciliationQueries(sql: Sql): ReconciliationQueries {
                      ) AS reconciled
               FROM payables p
               WHERE p.due_date BETWEEN ${de} AND ${ate}
+                 OR EXISTS (
+                      SELECT 1 FROM settlements s
+                       WHERE s.payable_id = p.id
+                         AND s.reverses_id IS NULL
+                         AND s.settled_on BETWEEN ${de} AND ${ate}
+                         AND NOT EXISTS (SELECT 1 FROM settlements e WHERE e.reverses_id = s.id)
+                    )
               ORDER BY p.due_date
             `
           : tx<LinhaCandidato[]>`
@@ -347,6 +358,13 @@ export function createReconciliationQueries(sql: Sql): ReconciliationQueries {
               FROM receivables r
               LEFT JOIN customers c ON c.id = r.customer_id
               WHERE r.due_date BETWEEN ${de} AND ${ate}
+                 OR EXISTS (
+                      SELECT 1 FROM settlements s
+                       WHERE s.receivable_id = r.id
+                         AND s.reverses_id IS NULL
+                         AND s.settled_on BETWEEN ${de} AND ${ate}
+                         AND NOT EXISTS (SELECT 1 FROM settlements e WHERE e.reverses_id = s.id)
+                    )
               ORDER BY r.due_date
             `,
       )
