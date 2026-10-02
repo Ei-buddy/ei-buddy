@@ -8,11 +8,35 @@ import type {
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import type { AuditTrail } from '../ports/audit-trail.js'
 import type { CrmRepository } from '../ports/crm-repository.js'
 import type { TeamRepository } from '../ports/team-repository.js'
 
 export type CrmDeps = {
   readonly crm: CrmRepository
+  /** Trilha — RF-123. Opcional para os testes de regra; a composicao entrega. */
+  readonly audit?: AuditTrail
+}
+
+/** O card na trilha: titulo e coluna, que e o que alguem pergunta depois. */
+async function auditarCard(
+  deps: CrmDeps,
+  ctx: ExecutionContext,
+  cardId: string,
+  action: 'created' | 'updated',
+  after: Record<string, unknown>,
+): Promise<void> {
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'CrmCard',
+    entityId: cardId,
+    action,
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: null,
+    after,
+  })
 }
 
 /**
@@ -30,7 +54,7 @@ export async function createCrmCard(
 ): Promise<CrmCardOutput> {
   assertCanWrite(ctx)
 
-  return deps.crm.create({
+  const card = await deps.crm.create({
     companyId: ctx.companyId,
     title: input.title,
     description: input.description,
@@ -41,6 +65,9 @@ export async function createCrmCard(
     createdBy: ctx.userId,
     createdAt: ctx.now,
   })
+
+  await auditarCard(deps, ctx, card.id, 'created', { title: card.title, column: card.column })
+  return card
 }
 
 /**
@@ -76,7 +103,9 @@ export async function moveCrmCard(
     throw AppError.notFound('Card nao encontrado.')
   }
 
-  return deps.crm.move(ctx.companyId, cardId, column)
+  const movido = await deps.crm.move(ctx.companyId, cardId, column)
+  await auditarCard(deps, ctx, cardId, 'updated', { column, from: existe.column })
+  return movido
 }
 
 /**
@@ -98,13 +127,16 @@ export async function commentOnCrmCard(
     throw AppError.notFound('Card nao encontrado.')
   }
 
-  return deps.crm.addComment({
+  const comentario = await deps.crm.addComment({
     companyId: ctx.companyId,
     cardId,
     authorId: ctx.userId,
     text,
     createdAt: ctx.now,
   })
+  /* So que houve comentario: o texto fica no card, e pode citar dado pessoal. */
+  await auditarCard(deps, ctx, cardId, 'updated', { comentario: true })
+  return comentario
 }
 
 export type TeamDeps = {

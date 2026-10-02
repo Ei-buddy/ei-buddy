@@ -10,6 +10,7 @@ import {
   createCustomerContactInputSchema,
   recordWhatsappConsentInputSchema,
   updateCustomerInputSchema,
+  updateProductInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
@@ -34,6 +35,7 @@ import {
   type RegisterCompanyDeps,
   restoreCustomer,
   updateCustomer,
+  updateProduct,
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
@@ -333,6 +335,27 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
       await restoreCustomer(deps, ctx, id)
 
       return reply.code(204).send()
+    },
+  )
+
+  /**
+   * Editar o cadastro do produto — RF-017.
+   *
+   * `PATCH` e nao `PUT`, como em clientes: a tela manda o que mudou, e o que
+   * nao veio fica como esta.
+   *
+   * O ESTOQUE nao entra por aqui — `POST /produtos/:id/estoque` e o caminho, e
+   * ele exige motivo e deixa rastro. Saldo so muda por movimento (RF-124).
+   */
+  app.patch(
+    '/produtos/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateProductInputSchema, request.body)
+
+      return reply.code(200).send(await updateProduct(deps, ctx, id, input))
     },
   )
 

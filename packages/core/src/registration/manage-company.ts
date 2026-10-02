@@ -2,6 +2,7 @@ import type { CompanyOutput, UpdateCompanyInput } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import type { AuditTrail } from '../ports/audit-trail.js'
 import type { AddressGeocoder, CepLookup } from '../ports/cep-lookup.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 import { resolveCoordinates } from './geocoding.js'
@@ -11,6 +12,8 @@ export type ManageCompanyDeps = {
   readonly cepLookup: CepLookup
   /** Posicao pela rua e numero; sem ele, so o CEP. */
   readonly geocoder?: AddressGeocoder
+  /** Trilha — RF-123. Opcional para os testes de regra; a composicao entrega. */
+  readonly audit?: AuditTrail
 }
 
 /**
@@ -79,8 +82,23 @@ export async function updateCompany(
 
   const coordinates = await resolveCoordinates(deps.cepLookup, input.address, deps.geocoder)
 
-  return deps.companies.update(ctx.companyId, {
+  const atualizada = await deps.companies.update(ctx.companyId, {
     ...input,
     ...(coordinates === undefined ? {} : { coordinates }),
   })
+
+  /* Quais campos mudaram — "quem trocou o endereco da loja?". */
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Company',
+    entityId: ctx.companyId,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: null,
+    after: { campos: Object.keys(input).sort() },
+  })
+
+  return atualizada
 }

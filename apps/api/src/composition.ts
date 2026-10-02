@@ -90,6 +90,7 @@ import {
   createPlatformAdminAccess,
   createSessionIssuer,
   createSettlementQueries,
+  createSettlementTotals,
   createSettlementUnitOfWork,
   createSupportRepository,
   createTeamRepository,
@@ -670,9 +671,12 @@ export function buildConnectionsDeps(): ConnectionsRouteDeps {
  * mas nao e RF-091 fechada.
  */
 export function buildAgendaDeps(): AgendaDeps {
+  const sql = getClient(env.DATABASE_URL)
   return {
-    appointments: createAppointmentRepository(getClient(env.DATABASE_URL)),
+    appointments: createAppointmentRepository(sql),
     reminders: createReminderScheduler(getRedis()),
+    /* Marcar e cancelar entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -899,6 +903,8 @@ export function buildCrmDeps(): CrmRouteDeps {
   return {
     crm: createCrmRepository(sql),
     team: createTeamRepository(sql),
+    /* Criar, mover e comentar card entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -977,6 +983,8 @@ export function buildContasDeps(): ContasDeps {
     receivables: createReceivableRepository(sql),
     receivablesUow: createManualReceivableUnitOfWork(sql),
     accounts: createChartOfAccountsRepository(sql, env.TZ),
+    settlementTotals: createSettlementTotals(sql, env.TZ),
+    timeZone: env.TZ,
     ids: { next: () => randomUUID() },
     /* Mesma pendencia da autenticacao: `db` nao expoe repositorio de
        auditoria, entao a trilha do lancamento fica em memoria. */

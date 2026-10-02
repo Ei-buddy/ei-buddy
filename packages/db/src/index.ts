@@ -124,7 +124,11 @@ export { createPartnerApplicationRepository } from './partner-application-reposi
 export { createLegalConsentRepository } from './legal-consent-repository.js'
 
 /* Baixa e estorno de titulo — NR-029, RF-063 a RF-067. */
-export { createSettlementQueries, createSettlementUnitOfWork } from './settlement-repository.js'
+export {
+  createSettlementQueries,
+  createSettlementTotals,
+  createSettlementUnitOfWork,
+} from './settlement-repository.js'
 
 /* Quadro de CRM e equipe — NR-109. */
 export { createCrmRepository } from './crm-repository.js'

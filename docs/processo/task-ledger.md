@@ -80,8 +80,10 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 > - **NR-063** — porta, estado, repositorio, cupom, varredura, adapter real,
 >   evento e rota estao na `main`. O que falta depende do PRECO e dos prazos:
 >   **QST-002**. Sem eles o teste nao comeca e a varredura responde `skipped`.
-> - **NR-049** — o fluxo 3 vai do link ate o titulo baixado (#256). Os fluxos
->   1 e 2 existem pela api; o navegador continua de fora ate haver BFF.
+> - **NR-049** — os tres fluxos rodam na CI: 1 e 2 pela TELA (`e2e/`, job
+>   "E2E navegador"), e o 3 pela api, do link ate o titulo baixado (#256) — o
+>   navegador nao dirige o WhatsApp. O que falta e a etapa 4 do fluxo 1, o Pix
+>   da mensalidade, que espera o PRECO: **QST-002**.
 >
 > A **NR-044** entra como ✅ **neste PR** (branch
 > `feat/NR-044-cartao-tokenizado`): o adapter passa a cobrir os cinco meios

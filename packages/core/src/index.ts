@@ -65,6 +65,7 @@ export type {
 export type { AddressGeocoder, CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
 export type { CustomerPatch } from './ports/registration-repositories.js'
+export type { ProductPatch } from './ports/registration-repositories.js'
 export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
@@ -249,6 +250,8 @@ export { listSettlements } from './settlements/list-settlements.js'
 export type { ListSettlementsDeps } from './settlements/list-settlements.js'
 export { reverseSettlement } from './settlements/reverse-settlement.js'
 export { settlePayable, settleReceivable } from './settlements/settle.js'
+export { settledInMonth } from './settlements/settled-in-month.js'
+export type { SettlementTotals, TotalQuitado } from './settlements/settled-in-month.js'
 export { empresaDaReferencia, referenciaDaCobranca } from './receivables/referencia-da-cobranca.js'
 export { ATOR_DO_SISTEMA, usuarioReal } from './system-actor.js'
 export { settleCustomerCharge } from './receivables/settle-customer-charge.js'
@@ -321,6 +324,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  updateProduct,
   registerProductWithStock,
   searchProducts,
   TETO_DO_CATALOGO,
