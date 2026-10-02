@@ -85,12 +85,29 @@ describe('baixa em conta a pagar — RF-059', () => {
     expect(b.settledOn).toBe('2026-09-02')
   })
 
-  it('recusa pagar mais do que se deve', async () => {
+  /* `rejects.toThrow()` deixava passar o DomainError cru, que a api
+     respondia como 500. A recusa precisa ser erro de validacao. */
+  it('recusa pagar mais do que se deve, como erro de validacao', async () => {
     const c = cenario()
 
-    await expect(
-      settlePayable(c.deps, contexto(), { ...baixaPagar, amountCents: 10_001 }),
-    ).rejects.toThrow()
+    const erro = await settlePayable(c.deps, contexto(), {
+      ...baixaPagar,
+      amountCents: 10_001,
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+  })
+
+  it('baixa em conta ja quitada e conflito', async () => {
+    const c = cenario()
+    await settlePayable(c.deps, contexto(), { ...baixaPagar, amountCents: 10_000 })
+
+    const erro = await settlePayable(c.deps, contexto(), {
+      ...baixaPagar,
+      amountCents: 100,
+    }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('CONFLICT')
   })
 
   it('conta de outra empresa responde NOT_FOUND', async () => {
