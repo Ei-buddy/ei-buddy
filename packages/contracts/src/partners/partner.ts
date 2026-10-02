@@ -141,6 +141,23 @@ export const reviewPartnerApplicationInputSchema = z
 
 export type ReviewPartnerApplicationInput = z.infer<typeof reviewPartnerApplicationInputSchema>
 
+/**
+ * Recusa EXIGE motivo. O parceiro le o `reviewNote` para saber o que corrigir
+ * antes de reenviar; recusar em branco deixava a pessoa sem saber por que
+ * (achado do QA).
+ */
+export const rejectPartnerApplicationInputSchema = z
+  .object({
+    note: z
+      .string()
+      .trim()
+      .min(10, 'Diga ao parceiro por que a candidatura foi recusada.')
+      .max(500, 'Motivo muito longo.'),
+  })
+  .strict()
+
+export type RejectPartnerApplicationInput = z.infer<typeof rejectPartnerApplicationInputSchema>
+
 export const resendPartnerApplicationInputSchema = z
   .object({
     pixKey: z.string().trim().min(1, 'Informe a chave PIX.').max(140),
