@@ -3,7 +3,7 @@ import { AppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
-import type { CepLookup } from '../ports/cep-lookup.js'
+import type { AddressGeocoder, CepLookup } from '../ports/cep-lookup.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 import { startTrial, type StartTrialDeps } from '../subscriptions/start-trial.js'
 import { resolveCoordinates } from './geocoding.js'
@@ -12,6 +12,8 @@ export type RegisterCompanyDeps = {
   readonly companies: CompanyRepository
   readonly accounts: ChartOfAccountsRepository
   readonly cepLookup: CepLookup
+  /** Posicao pela rua e numero; sem ele, so o CEP. */
+  readonly geocoder?: AddressGeocoder
   /**
    * Comeca o periodo de teste junto com a empresa — RF-110.
    *
@@ -56,7 +58,7 @@ export async function registerCompany(
     )
   }
 
-  const coordinates = await resolveCoordinates(deps.cepLookup, input.address)
+  const coordinates = await resolveCoordinates(deps.cepLookup, input.address, deps.geocoder)
 
   const empresa = await deps.companies.create({
     legalName: input.legalName,

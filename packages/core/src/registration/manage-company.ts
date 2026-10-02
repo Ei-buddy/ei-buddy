@@ -3,13 +3,15 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
-import type { CepLookup } from '../ports/cep-lookup.js'
+import type { AddressGeocoder, CepLookup } from '../ports/cep-lookup.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 import { resolveCoordinates } from './geocoding.js'
 
 export type ManageCompanyDeps = {
   readonly companies: CompanyRepository
   readonly cepLookup: CepLookup
+  /** Posicao pela rua e numero; sem ele, so o CEP. */
+  readonly geocoder?: AddressGeocoder
   /** Trilha — RF-123. Opcional para os testes de regra; a composicao entrega. */
   readonly audit?: AuditTrail
 }
@@ -78,7 +80,7 @@ export async function updateCompany(
     ])
   }
 
-  const coordinates = await resolveCoordinates(deps.cepLookup, input.address)
+  const coordinates = await resolveCoordinates(deps.cepLookup, input.address, deps.geocoder)
 
   const atualizada = await deps.companies.update(ctx.companyId, {
     ...input,

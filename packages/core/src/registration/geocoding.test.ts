@@ -64,3 +64,56 @@ describe('resolveCoordinates — ADR-0008', () => {
     expect(await resolveCoordinates(cepLookup, ENDERECO_COM_CEP)).toBeUndefined()
   })
 })
+
+describe('coordenada pela rua e numero — achado do QA', () => {
+  /* O CEP devolve o centro da cidade: lojas vizinhas ficavam a 0 km. */
+  const CENTRO = { latitude: -25.4277, longitude: -49.273 }
+  const QUADRA = { latitude: -25.4298656, longitude: -49.2672914 }
+  const ENDERECO = {
+    zipCode: '80010010',
+    street: 'Rua XV de Novembro',
+    number: '700',
+    city: 'Curitiba',
+    state: 'PR' as const,
+  }
+  const comCentro = () => {
+    const cep = new InMemoryCepLookup()
+    cep.registrar('80010010', {
+      street: null,
+      district: null,
+      city: 'Curitiba',
+      state: 'PR',
+      ...CENTRO,
+    })
+    return cep
+  }
+
+  it('prefere a posicao do endereco completo', async () => {
+    let pedido: unknown
+    const geocoder = {
+      geocode: async (e: unknown) => {
+        pedido = e
+        return QUADRA
+      },
+    }
+
+    expect(await resolveCoordinates(comCentro(), ENDERECO, geocoder)).toEqual(QUADRA)
+    expect(pedido).toMatchObject({ street: 'Rua XV de Novembro', number: '700', city: 'Curitiba' })
+  })
+
+  it('cai no CEP quando o endereco nao e achado', async () => {
+    const geocoder = { geocode: async () => undefined }
+
+    expect(await resolveCoordinates(comCentro(), ENDERECO, geocoder)).toEqual(CENTRO)
+  })
+
+  it('cai no CEP quando o servico de mapa falha', async () => {
+    const geocoder = {
+      geocode: async () => {
+        throw new Error('fora do ar')
+      },
+    }
+
+    expect(await resolveCoordinates(comCentro(), ENDERECO, geocoder)).toEqual(CENTRO)
+  })
+})

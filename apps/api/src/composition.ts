@@ -159,6 +159,7 @@ import type { CrmRouteDeps } from './routes/crm.js'
 import { createInvoiceQueue } from './invoice-queue.js'
 import { createConnectionNotifier } from './connection-notifier.js'
 import { createBrasilApiCepLookup } from './cep-lookup.js'
+import { createNominatimGeocoder } from './geocoder-nominatim.js'
 import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
 import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
@@ -522,6 +523,9 @@ export function buildCadastroDeps(): CadastroDeps {
     /* Geocodifica o endereco ao salvar — ADR-0008. A mesma porta atende
        `GET /enderecos/cep/:cep`, em `buildConsultasDeps`. */
     cepLookup: createBrasilApiCepLookup(),
+    /* A posicao pela rua e numero; o CEP vira so o reserva (achado do QA:
+       lojas vizinhas apareciam a 0 km). */
+    geocoder: createNominatimGeocoder(),
     /* Periodo de teste junto com a empresa — RF-110. `undefined` sem os
        prazos configurados, e o cadastro segue funcionando. */
     assinatura: montarInicioDoTeste(),

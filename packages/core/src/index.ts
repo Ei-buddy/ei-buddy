@@ -62,7 +62,7 @@ export type {
   NewProduct,
   ProductRepository,
 } from './ports/registration-repositories.js'
-export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
+export type { AddressGeocoder, CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
 export type { CustomerPatch } from './ports/registration-repositories.js'
 export type { ProductPatch } from './ports/registration-repositories.js'
