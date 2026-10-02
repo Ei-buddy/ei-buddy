@@ -3,11 +3,14 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { AppointmentRepository } from '../ports/appointment-repository.js'
+import type { AuditTrail } from '../ports/audit-trail.js'
 import type { ReminderScheduler } from '../ports/reminder-scheduler.js'
 
 export type CancelAppointmentDeps = {
   readonly appointments: AppointmentRepository
   readonly reminders: ReminderScheduler
+  /** Trilha — RF-123. Opcional para os testes de regra; a composicao entrega. */
+  readonly audit?: AuditTrail
 }
 
 /**
@@ -51,6 +54,19 @@ export async function cancelAppointment(
    * e pior que nao ter lembrete — a pessoa perde a confianca no aviso.
    */
   await deps.reminders.cancel(ctx.companyId, input.appointmentId)
+
+  /* O motivo entra na trilha: e ele que responde "por que sumiu da agenda". */
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Appointment',
+    entityId: input.appointmentId,
+    action: 'cancelled',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { status: existente.status },
+    after: { status: 'cancelled', reason: input.reason ?? null },
+  })
 
   return cancelado
 }

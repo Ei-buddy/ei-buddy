@@ -3,6 +3,7 @@ import { isAppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import { cancelAppointment } from './cancel-appointment.js'
 import { createAppointment, reminderFireAt } from './create-appointment.js'
+import { InMemoryAuditTrail } from '../audit/fakes.js'
 import { InMemoryAppointmentRepository, InMemoryReminderScheduler } from './fakes.js'
 import { listDayAppointments } from './list-day-appointments.js'
 
@@ -119,6 +120,21 @@ describe('lembrete — RF-091', () => {
 })
 
 describe('cancelar compromisso — RF-092', () => {
+  /* RF-123: o motivo responde "por que sumiu da agenda". */
+  it('marcar e cancelar entram na trilha, com o motivo', async () => {
+    const audit = new InMemoryAuditTrail()
+    const d = { ...deps(), audit }
+    const apt = await createAppointment(d, contexto(), { title: 'Entrega', startsAt: amanha })
+
+    await cancelAppointment(d, contexto(), { appointmentId: apt.id, reason: 'Fornecedor adiou' })
+
+    expect(audit.daEmpresa('empresa-1').map((e) => [e.entity, e.action])).toEqual([
+      ['Appointment', 'created'],
+      ['Appointment', 'cancelled'],
+    ])
+    expect(audit.daEmpresa('empresa-1')[1]?.after).toMatchObject({ reason: 'Fornecedor adiou' })
+  })
+
   it('marca como cancelado em vez de apagar — RNF-040', async () => {
     const d = deps()
     const apt = await createAppointment(d, contexto(), { title: 'Entrega', startsAt: amanha })

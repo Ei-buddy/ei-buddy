@@ -667,9 +667,12 @@ export function buildConnectionsDeps(): ConnectionsRouteDeps {
  * mas nao e RF-091 fechada.
  */
 export function buildAgendaDeps(): AgendaDeps {
+  const sql = getClient(env.DATABASE_URL)
   return {
-    appointments: createAppointmentRepository(getClient(env.DATABASE_URL)),
+    appointments: createAppointmentRepository(sql),
     reminders: createReminderScheduler(getRedis()),
+    /* Marcar e cancelar entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -896,6 +899,8 @@ export function buildCrmDeps(): CrmRouteDeps {
   return {
     crm: createCrmRepository(sql),
     team: createTeamRepository(sql),
+    /* Criar, mover e comentar card entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
