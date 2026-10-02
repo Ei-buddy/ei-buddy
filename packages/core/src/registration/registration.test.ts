@@ -20,6 +20,7 @@ import {
   checkCustomerWalletByQuery,
   deleteCustomer,
   getCustomer,
+  importCustomers,
   listCustomers,
   registerCustomer,
   restoreCustomer,
@@ -185,6 +186,40 @@ describe('registerCustomer — RF-009, RF-010', () => {
     expect(r.customer.phone).toBeNull()
     /* Nao deve nada e zero, nao nulo. */
     expect(r.customer.walletBalanceCents).toBe(0)
+  })
+
+  /* O fantasia era aceito e descartado no cadastro e na importacao — QA. */
+  it('guarda o nome fantasia do cliente PJ', async () => {
+    const customers = new InMemoryCustomerRepository()
+
+    const r = await registerCustomer({ customers }, contexto(), {
+      name: 'Padaria Sol LTDA',
+      tradeName: 'Padaria do Sol',
+      document: '11222333000181',
+    })
+
+    expect(r.status === 'created' && r.customer.tradeName).toBe('Padaria do Sol')
+  })
+
+  it('a importacao tambem guarda o fantasia', async () => {
+    const customers = new InMemoryCustomerRepository()
+
+    await importCustomers({ customers }, contexto(), {
+      customers: [{ name: 'Bar do Ze ME', tradeName: 'Bar do Ze', document: '11222333000181' }],
+    })
+
+    const [gravado] = (
+      await listCustomers({ customers }, contexto(), { filter: 'todos', page: 1, pageSize: 24 })
+    ).customers
+    expect(gravado?.tradeName).toBe('Bar do Ze')
+  })
+
+  it('pessoa fisica fica sem fantasia', async () => {
+    const customers = new InMemoryCustomerRepository()
+
+    const r = await registerCustomer({ customers }, contexto(), { name: 'Ana Souza' })
+
+    expect(r.status === 'created' && r.customer.tradeName).toBeNull()
   })
 
   it('avisa do parecido por telefone em vez de recusar — RF-010', async () => {
