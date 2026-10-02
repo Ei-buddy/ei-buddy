@@ -679,6 +679,7 @@ export function buildConciliacaoDeps(): ConciliacaoDeps {
       parser: createFileStatementReader(),
       transactions: createBankTransactionWriter(sql),
       audit,
+      ids: { next: () => randomUUID() },
     },
   }
 }
