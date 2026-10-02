@@ -23,6 +23,7 @@ import {
   describeDueDate,
   diaLocal,
   formaPagamentoLabel,
+  formatCentavos,
   hoje,
   mesDeHoje,
 } from './format'
@@ -174,6 +175,24 @@ describe('describeDueDate', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('formatCentavos', () => {
+  /* Intl separa o simbolo com espaco nao quebravel. */
+  const limpo = (t: string) => t.replace(/\s/g, ' ')
+
+  it('le centavos, nao reais', () => {
+    expect(limpo(formatCentavos(97770))).toBe('R$ 977,70')
+  })
+
+  it('formata milhar e zero', () => {
+    expect(limpo(formatCentavos(123456789))).toBe('R$ 1.234.567,89')
+    expect(limpo(formatCentavos(0))).toBe('R$ 0,00')
+  })
+
+  it('mantem o sinal do estorno', () => {
+    expect(limpo(formatCentavos(-1500))).toBe('-R$ 15,00')
   })
 })
 

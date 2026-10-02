@@ -421,6 +421,7 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
             criterio.termo === undefined
               ? tx``
               : tx`AND (c.name ILIKE ${'%' + criterio.termo + '%'}
+                     OR c.trade_name ILIKE ${'%' + criterio.termo + '%'}
                      OR c.document ILIKE ${'%' + criterio.termo + '%'}
                      OR c.phone ILIKE ${'%' + criterio.termo + '%'})`
           }
@@ -484,6 +485,7 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
             criterio.termo === undefined
               ? tx``
               : tx`AND (name ILIKE ${'%' + criterio.termo + '%'}
+                     OR trade_name ILIKE ${'%' + criterio.termo + '%'}
                      OR document ILIKE ${'%' + criterio.termo + '%'}
                      OR phone ILIKE ${'%' + criterio.termo + '%'})`
           }

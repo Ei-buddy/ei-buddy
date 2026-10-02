@@ -65,6 +65,12 @@ export function calculateSaleTotals(
   taxRules: TaxRules,
   cardFees: CardFeeTable,
   at: Date,
+  /**
+   * Desconto no total, ja validado contra a alcada (`applyDiscount`) — RF-031.
+   * Os pagamentos fecham o bruto MENOS ele, e o imposto incide sobre o que foi
+   * de fato cobrado: desconto incondicional sai da base do Simples.
+   */
+  discount: Money = Money.zero(),
 ): SaleTotals {
   assertValidItems(items)
 
@@ -76,16 +82,26 @@ export function calculateSaleTotals(
   const costAmount = sumItemField(items, 'unitCost')
   const paidAmount = Money.sum(payments.map((payment) => payment.amount))
 
-  if (!paidAmount.equals(grossAmount)) {
+  if (discount.isNegative() || discount.compare(grossAmount) === 1) {
+    throw new DomainError(
+      'DISCOUNT_EXCEEDS_TOTAL',
+      `Desconto de ${discount.format()} e maior que o total de ${grossAmount.format()}`,
+    )
+  }
+  const chargedAmount = grossAmount.subtract(discount)
+
+  if (!paidAmount.equals(chargedAmount)) {
     throw new DomainError(
       'PAYMENT_TOTAL_MISMATCH',
-      `A soma dos pagamentos (${paidAmount.format()}) deve ser igual ao bruto (${grossAmount.format()})`,
+      discount.isZero()
+        ? `A soma dos pagamentos (${paidAmount.format()}) deve ser igual ao bruto (${grossAmount.format()})`
+        : `A soma dos pagamentos (${paidAmount.format()}) deve ser igual ao total com desconto (${chargedAmount.format()})`,
     )
   }
 
-  const taxAmount = calculateTax(items, taxRules)
+  const taxAmount = proporcional(calculateTax(items, taxRules), chargedAmount, grossAmount)
   const cardFeeAmount = calculatePaymentsCardFee(payments, cardFees, at)
-  const netAmount = grossAmount.subtract(taxAmount).subtract(cardFeeAmount)
+  const netAmount = chargedAmount.subtract(taxAmount).subtract(cardFeeAmount)
   const marginAmount = netAmount.subtract(costAmount)
 
   return {
@@ -95,6 +111,18 @@ export function calculateSaleTotals(
     cardFeeAmount,
     netAmount,
     marginAmount,
-    marginRate: marginRatePercent(marginAmount, grossAmount),
+    marginRate: marginRatePercent(marginAmount, chargedAmount),
   }
+}
+
+/**
+ * `valor * parte / todo`, arredondado ao centavo mais proximo.
+ *
+ * O imposto e calculado item a item sobre o preco cheio; com desconto no
+ * total, ele cai na mesma proporcao do que foi cobrado. Sem desconto,
+ * `parte === todo` e o valor volta intacto.
+ */
+function proporcional(valor: Money, parte: Money, todo: Money): Money {
+  if (todo.isZero() || parte.equals(todo)) return valor
+  return Money.fromCents((valor.cents * parte.cents * 2n + todo.cents) / (todo.cents * 2n))
 }

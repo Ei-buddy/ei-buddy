@@ -114,3 +114,10 @@ describe('estorno — RF-060, RF-067', () => {
     expect(voltou.status).toBe('partially_settled')
   })
 })
+
+describe('mensagem da baixa acima do saldo', () => {
+  /* Saia "A baixa de 999999 passa do saldo devedor de 1698" — centavos crus na tela. */
+  it('fala em reais', () => {
+    expect(() => aplicarBaixa(1698, 0, 999999)).toThrow(/R\$\s?9\.999,99.*R\$\s?16,98/)
+  })
+})

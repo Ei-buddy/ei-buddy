@@ -35,13 +35,14 @@ export const aprovarParceiro = (
     body: JSON.stringify(note === undefined ? {} : { note }),
   })
 
+/** Recusa exige motivo: o parceiro le o motivo antes de reenviar. */
 export const recusarParceiro = (
   partnerId: string,
-  note?: string,
+  note: string,
 ): Promise<Resultado<{ ok: true }>> =>
   pedir(`/api/admin/parceiros/${partnerId}/recusar`, {
     method: 'POST',
-    body: JSON.stringify(note === undefined ? {} : { note }),
+    body: JSON.stringify({ note }),
   })
 
 export type MinhaCandidatura = {

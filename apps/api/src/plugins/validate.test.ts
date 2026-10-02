@@ -9,6 +9,44 @@ const vendaValida = {
   payments: [{ method: 'cash', amountCents: 1990 }],
 }
 
+describe('mensagem padrao do zod em portugues', () => {
+  /* Schema sem mensagens proprias: so o texto padrao da biblioteca. */
+  const schema = z.object({ nome: z.string(), estoque: z.number().min(0) }).strict()
+
+  const mensagens = (entrada: unknown): Record<string, string> => {
+    try {
+      validate(schema, entrada)
+      return {}
+    } catch (error) {
+      return isAppError(error)
+        ? Object.fromEntries(error.fields.map((f) => [f.path, f.message]))
+        : {}
+    }
+  }
+
+  it('campo ausente vira "obrigatorio" e numero baixo diz o minimo', () => {
+    expect(mensagens({ estoque: -1 })).toEqual({
+      nome: 'Campo obrigatorio.',
+      estoque: 'O valor minimo e 0.',
+    })
+  })
+
+  it('campo desconhecido diz qual e', () => {
+    expect(Object.values(mensagens({ nome: 'x', estoque: 1, foo: 1 }))).toEqual([
+      'Campo nao reconhecido: foo.',
+    ])
+  })
+
+  it('mensagem propria do schema passa intacta', () => {
+    const proprio = z.object({ nome: z.string().min(2, 'Nome muito curto.') })
+    try {
+      validate(proprio, { nome: 'a' })
+    } catch (error) {
+      expect(isAppError(error) && error.fields[0]?.message).toBe('Nome muito curto.')
+    }
+  })
+})
+
 describe('validate', () => {
   it('devolve a entrada tipada quando o schema passa', () => {
     const venda = validate(createSaleInputSchema, vendaValida)
