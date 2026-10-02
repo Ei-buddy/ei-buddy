@@ -47,6 +47,12 @@ on:
       # confia em quem responder primeiro.
       VPS_KNOWN_HOSTS:
         required: false
+      # So para maquina alcancavel apenas pela tailnet (a VM de dev). Ver o
+      # passo "Entrar na tailnet".
+      TS_OAUTH_CLIENT_ID:
+        required: false
+      TS_OAUTH_SECRET:
+        required: false
 
 concurrency:
   # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
@@ -83,6 +89,19 @@ jobs:
       COMMIT: ${{ github.sha }}
 
     steps:
+      # A VM de dev mora numa rede de casa: sem IP fixo, sem porta aberta. O
+      # runner so a alcanca entrando na tailnet, como no efemero, com a tag
+      # `tag:ci` — e a ACL da tailnet deixa essa tag falar SO com o SSH da VM
+      # de dev. Producao tem IP publico e nao passa por aqui: quem liga e a
+      # variable `VPS_VIA_TAILSCALE=sim` do Environment, nao o nome dele.
+      - name: Entrar na tailnet
+        if: vars.VPS_VIA_TAILSCALE == 'sim'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       # Segredo entra por `env`, e nao interpolado no corpo do script: chave
       # privada e multilinha, e `${{ }}` dentro do shell viraria varias linhas
       # soltas no meio do comando.

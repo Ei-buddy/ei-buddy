@@ -53,9 +53,11 @@ export const phoneSchema = z
 /**
  * Codigo de barras EAN/GTIN — 8, 12, 13 ou 14 digitos.
  *
- * Sem digito verificador aqui: leitor de balcao devolve codigo interno de
- * loja que nao segue GTIN, e recusa-lo travaria o cadastro de quem etiqueta
- * a granel.
+ * Leitor de balcao devolve codigo interno de loja que nao segue GTIN, e
+ * recusa-lo travaria o cadastro de quem etiqueta a granel. Esses codigos usam
+ * os prefixos que a GS1 reserva para circulacao restrita — e so neles o
+ * digito verificador fica sem conferencia. Fora deles, digito errado e
+ * digitacao errada, e a SEFAZ recusaria o GTIN na nota (achado do QA).
  */
 export const barcodeSchema = z
   .string()
@@ -63,6 +65,28 @@ export const barcodeSchema = z
   .refine((d) => [8, 12, 13, 14].includes(d.length), {
     message: 'Codigo de barras invalido. Deve ter 8, 12, 13 ou 14 digitos.',
   })
+  .refine((d) => circulacaoRestrita(d) || digitoGtinConfere(d), {
+    message: 'Codigo de barras invalido: o ultimo digito nao confere. Confira a digitacao.',
+  })
+
+/** Prefixos GS1 de uso interno da loja (balanca, etiqueta propria). */
+function circulacaoRestrita(d: string): boolean {
+  if (d.length === 13) return d.startsWith('2')
+  if (d.length === 12) return d.startsWith('2') || d.startsWith('4')
+  if (d.length === 8) return d.startsWith('0') || d.startsWith('2')
+  return false
+}
+
+/** Modulo 10 da GS1: pesos 3 e 1 alternados, da direita para a esquerda. */
+function digitoGtinConfere(d: string): boolean {
+  const corpo = d.slice(0, -1)
+  let soma = 0
+  for (let i = 0; i < corpo.length; i++) {
+    const peso = (corpo.length - i) % 2 === 1 ? 3 : 1
+    soma += Number(corpo[i]) * peso
+  }
+  return (10 - (soma % 10)) % 10 === Number(d[d.length - 1])
+}
 
 /** Unidade de medida — glossario `UnitOfMeasure`. */
 export const unitOfMeasureSchema = z.enum(['un', 'kg', 'g', 'l', 'ml', 'm', 'cm', 'cx', 'pct'], {

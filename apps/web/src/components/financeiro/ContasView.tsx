@@ -15,7 +15,14 @@ import {
   type SituacaoVisual,
 } from '@/lib/financeiro-api'
 import type { StatusTitulo } from '@/lib/types'
-import { daysUntil, describeDueDate, formatDate, formatMoney, mesDeHoje } from '@/lib/format'
+import {
+  daysUntil,
+  describeDueDate,
+  formatCentavos,
+  formatDate,
+  formatMoney,
+  mesDeHoje,
+} from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
@@ -361,18 +368,18 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       <div className="statRow">
         <Stat
           label={pagar ? 'Total a pagar' : 'Total a receber'}
-          value={formatMoney(totalAberto)}
+          value={formatCentavos(totalAberto)}
           hint={`${emAberto.length} titulo(s)`}
         />
         <Stat
           label="Vencido"
-          value={formatMoney(totalVencido)}
+          value={formatCentavos(totalVencido)}
           hint={vencidos.length ? `${vencidos.length} em atraso` : 'nada em atraso'}
           tone={totalVencido > 0 ? 'warning' : 'positive'}
         />
         <Stat
           label={pagar ? 'Pago no mes' : 'Recebido no mes'}
-          value={formatMoney(totalMes)}
+          value={formatCentavos(totalMes)}
           hint={`${quitadosMes.length} titulo(s)`}
           tone="positive"
         />

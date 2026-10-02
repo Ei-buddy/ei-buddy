@@ -21,12 +21,12 @@
     "@na-regua/fiscal": "workspace:*",
     "@na-regua/money": "workspace:*",
     "@na-regua/whatsapp": "workspace:*",
-    "bullmq": "^6.3.4",
+    "bullmq": "^6.3.8",
     "ioredis": "^6.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
-    "tsx": "^4.23.13",
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }

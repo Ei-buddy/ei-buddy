@@ -386,6 +386,25 @@ export async function registerProductWithStock(
 ): Promise<ProductOutput> {
   const produto = await registerProduct(deps, ctx, input)
 
+  /* O produto na trilha — RF-123. Antes so o saldo inicial aparecia (como
+     ajuste de estoque), e o cadastro em si nao deixava rastro. */
+  await deps.audit.record({
+    companyId: ctx.companyId,
+    entity: 'Product',
+    entityId: produto.id,
+    action: 'created',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: null,
+    after: {
+      description: produto.description,
+      salePriceCents: produto.salePriceCents,
+      costPriceCents: produto.costPriceCents,
+      stock: input.stock,
+    },
+  })
+
   /* Saldo inicial so quando ha saldo: movimento de zero unidade e ruido na
      trilha, e o CHECK do schema o recusa de qualquer jeito. */
   if (input.stock <= 0) return produto

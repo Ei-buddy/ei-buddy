@@ -251,6 +251,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
     .default('false')
     .transform((v) => v === 'true'),
 
+  /**
+   * Quem recebe o aviso de nova candidatura de Parceiro — NR-114.
+   *
+   * Sem ele, a candidatura so aparecia para quem abrisse o painel por conta
+   * propria (achado do QA). Vazio = sem aviso: a fila do painel continua
+   * sendo a fonte, e o cadastro nao depende de e-mail nenhum.
+   */
+  AVISO_PARCEIRO_EMAIL: opcionalNaoVazia.pipe(
+    z.email('AVISO_PARCEIRO_EMAIL precisa ser um e-mail.').optional(),
+  ),
+
   WHATSAPP_PROVIDER: z.enum(['fake', 'meta']).default('fake'),
   WHATSAPP_API_TOKEN: opcionalNaoVazia,
   WHATSAPP_PHONE_NUMBER_ID: opcionalNaoVazia,

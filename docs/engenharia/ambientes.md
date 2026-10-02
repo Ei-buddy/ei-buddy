@@ -157,6 +157,19 @@ avisa na subida. Venda, financeiro, estoque e CRM seguem normais — mesmo
 critério de `SECRETS_KEY` na emissão fiscal. Recusa de boot fica só para falha
 de segurança (RLS furada, `AUTH_PROVIDER=fake`).
 
+### E-mail — NR-014, NR-114
+
+| Variável               | Obr. | Seg. | local   | Descrição                                                                                      |
+| ---------------------- | :--: | :--: | ------- | ---------------------------------------------------------------------------------------------- |
+| `EMAIL_PROVIDER`       |      |      | `log`   | `log` \| `smtp`. Em produção com `log`, **nenhum e-mail sai** (o log nem escreve o corpo)      |
+| `SMTP_HOST`            |      |      | vazio   | obrigatório com `smtp`. Local: `localhost` com o Mailpit (perfil `full`)                       |
+| `SMTP_PORT`            |      |      | `587`   | `587` STARTTLS · `465` TLS (com `SMTP_SECURE=true`) · `1025` Mailpit                           |
+| `SMTP_USER`            |      |  🔒  | vazio   | —                                                                                              |
+| `SMTP_PASSWORD`        |      |  🔒  | vazio   | —                                                                                              |
+| `SMTP_FROM`            |      |      | vazio   | remetente; obrigatório com `smtp` — sem ele a api cai para `log` e avisa na subida             |
+| `SMTP_SECURE`          |      |      | `false` | TLS na conexão (porta 465)                                                                     |
+| `AVISO_PARCEIRO_EMAIL` |      |      | vazio   | quem recebe o aviso de nova candidatura de Parceiro. Vazio = sem aviso; a fila do painel segue |
+
 ### Webhooks em desenvolvimento
 
 | Variável             | Obr. | Seg. | local | Descrição                                     |

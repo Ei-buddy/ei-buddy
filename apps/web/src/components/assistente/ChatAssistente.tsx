@@ -121,6 +121,11 @@ export default function ChatAssistente() {
       router.push('/app/clientes/novo')
       return
     }
+    /* A resposta aponta a tela que faz o que o assistente ainda nao faz. */
+    if (acao.startsWith('/app/')) {
+      router.push(acao)
+      return
+    }
     setToast('Esta acao entra quando o assistente estiver ligado ao backend.')
   }
 
