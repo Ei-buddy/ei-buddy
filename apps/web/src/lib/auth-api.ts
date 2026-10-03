@@ -192,6 +192,20 @@ export type PixChargeStatus = 'pending' | 'paid' | 'expired'
 export const PIX_EXPIRATION_MINUTES = 15
 
 /**
+ * A cobranca Pix da mensalidade existe de verdade?
+ *
+ * Ainda nao: `createPixCharge` abaixo monta um BR Code DE EXEMPLO no navegador,
+ * e o status nunca sai de "pendente". Em producao isso deixava quem acabou de
+ * criar a conta parado num QR que banco nenhum aceita, sem saida — e o botao
+ * "Pagar com Pix" da Assinatura levava ao mesmo lugar.
+ *
+ * Com `false`, o cadastro termina sem a etapa de pagamento e a Assinatura nao
+ * oferece Pix. Vira `true` quando `POST /billing/charges` (NR-063/075, que
+ * espera o preco — QST-002) estiver ligado ao PSP.
+ */
+export const COBRANCA_DA_ASSINATURA_DISPONIVEL = false
+
+/**
  * SUBSTITUIR POR: POST /billing/charges
  *
  * O backend devolve o payload Pix (BR Code) gerado pelo PSP. O front apenas
