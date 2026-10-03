@@ -1,10 +1,14 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { createPixCharge, fetchPixChargeStatus } from '@/lib/auth-api'
+import {
+  COBRANCA_DA_ASSINATURA_DISPONIVEL,
+  createPixCharge,
+  fetchPixChargeStatus,
+} from '@/lib/auth-api'
 import CobrancaPix from '@/components/app/CobrancaPix'
 import { Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
-import { Button } from '@/components/ui/Button'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import { plan } from '@/content/site'
 import { reaisDoTexto } from '@/lib/valor'
 import { useSubscription } from './SubscriptionProvider'
@@ -52,7 +56,13 @@ export default function AssinaturaView() {
               apagado.
             </p>
           </div>
-          <Button onClick={() => setPagando(true)}>Pagar com Pix</Button>
+          {/* Sem cobranca de verdade, o Pix seria um QR de exemplo que banco
+              nenhum aceita — ver COBRANCA_DA_ASSINATURA_DISPONIVEL. */}
+          {COBRANCA_DA_ASSINATURA_DISPONIVEL ? (
+            <Button onClick={() => setPagando(true)}>Pagar com Pix</Button>
+          ) : (
+            <ButtonLink href="/app/suporte">Falar com o suporte</ButtonLink>
+          )}
         </div>
       ) : null}
 
