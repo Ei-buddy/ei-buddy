@@ -62,6 +62,9 @@ export async function agendaDoDia(dia: string): Promise<ResultadoAgenda<AgendaDo
 export async function marcarCompromisso(entrada: {
   titulo: string
   quando: Date
+  /** Fim vazio e legitimo: "pagar aluguel as 10h" nao dura nada. */
+  ate?: Date
+  local?: string
   clienteId?: string
   observacao?: string
   lembreteMinutosAntes?: number
@@ -71,6 +74,8 @@ export async function marcarCompromisso(entrada: {
     body: {
       title: entrada.titulo,
       startsAt: entrada.quando.toISOString(),
+      ...(entrada.ate === undefined ? {} : { endsAt: entrada.ate.toISOString() }),
+      ...(entrada.local === undefined ? {} : { location: entrada.local }),
       ...(entrada.clienteId === undefined ? {} : { customerId: entrada.clienteId }),
       ...(entrada.observacao === undefined ? {} : { notes: entrada.observacao }),
       ...(entrada.lembreteMinutosAntes === undefined

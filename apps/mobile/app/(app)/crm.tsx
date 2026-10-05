@@ -1,8 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { COLUNAS, listarCards, moverCard, type CardCrm, type ColunaId } from '@/lib/crm-api'
-import { formatDate, daysUntil } from '@/lib/format'
+import {
+  COLUNAS,
+  comentarCard,
+  listarCards,
+  moverCard,
+  type CardCrm,
+  type ColunaId,
+} from '@/lib/crm-api'
+import { formatDate, formatDateTime, daysUntil } from '@/lib/format'
+import NovoCardModal from '@/components/NovoCardModal'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
@@ -17,12 +33,14 @@ import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
  * Aqui cada coluna e uma sanfona, e mover o card e um toque nos botoes
  * de destino, que funciona no toque e no leitor de tela (arrastar nao).
  *
- * So LISTA e MOVE: nao ha formulario de criacao nem comentario nesta tela.
+ * Como no web: criar card (com cliente e responsavel) e comentar — tocar no
+ * card abre a descricao e os comentarios.
  */
 export default function Crm() {
   const [cards, setCards] = useState<CardCrm[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [criando, setCriando] = useState(false)
 
   const buscar = useCallback(async () => {
     const r = await listarCards()
@@ -73,6 +91,7 @@ export default function Crm() {
       <Cabecalho
         titulo="CRM"
         subtitulo={carregando ? 'carregando' : aFazer > 0 ? `${aFazer} a fazer` : 'nada pendente'}
+        acao={<Botao onPress={() => setCriando(true)}>Novo</Botao>}
       />
 
       {carregando ? (
@@ -123,6 +142,13 @@ export default function Crm() {
                       key={card.id}
                       card={card}
                       onMover={(destino) => void mover(card.id, destino)}
+                      onComentado={(c) =>
+                        setCards((atual) =>
+                          atual.map((x) =>
+                            x.id === card.id ? { ...x, comentarios: [...x.comentarios, c] } : x,
+                          ),
+                        )
+                      }
                     />
                   ))
                 )}
@@ -131,12 +157,47 @@ export default function Crm() {
           })}
         </ScrollView>
       )}
+
+      {criando ? (
+        <NovoCardModal
+          onCriado={(card) => {
+            setCriando(false)
+            setCards((atual) => [card, ...atual])
+          }}
+          onFechar={() => setCriando(false)}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
 
-function CardLinha({ card, onMover }: { card: CardCrm; onMover: (destino: ColunaId) => void }) {
+function CardLinha({
+  card,
+  onMover,
+  onComentado,
+}: {
+  card: CardCrm
+  onMover: (destino: ColunaId) => void
+  onComentado: (c: CardCrm['comentarios'][number]) => void
+}) {
   const atrasado = card.coluna !== 'concluido' && daysUntil(card.data) < 0
+  const [aberto, setAberto] = useState(false)
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function comentar() {
+    setEnviando(true)
+    setErro(null)
+    const r = await comentarCard(card.id, texto)
+    setEnviando(false)
+    if (!r.ok) {
+      setErro(r.erro)
+      return
+    }
+    setTexto('')
+    onComentado(r.dados)
+  }
 
   return (
     <View style={estilos.card}>
@@ -147,13 +208,49 @@ function CardLinha({ card, onMover }: { card: CardCrm; onMover: (destino: Coluna
         {atrasado ? <Etiqueta tom="erro">Atrasado</Etiqueta> : null}
       </View>
 
-      <Text style={estilos.cardTitulo}>{card.titulo}</Text>
+      <Pressable onPress={() => setAberto((a) => !a)} accessibilityRole="button">
+        <Text style={estilos.cardTitulo}>{card.titulo}</Text>
+      </Pressable>
       <Text style={estilos.cardApoio} numberOfLines={1}>
         {card.clienteNome ?? 'Sem cliente'} · {formatDate(card.data)}
       </Text>
       <Text style={estilos.cardOrigem}>
         {card.responsavelNome ? `Com ${card.responsavelNome.split(' ')[0]}` : 'Sem responsável'}
+        {card.comentarios.length > 0 ? ` · ${card.comentarios.length} comentário(s)` : ''}
       </Text>
+
+      {aberto ? (
+        <View style={estilos.detalhe}>
+          {card.descricao ? <Text style={estilos.cardApoio}>{card.descricao}</Text> : null}
+          {card.comentarios.map((c) => (
+            <View key={c.id} style={estilos.comentario}>
+              <Text style={estilos.cardOrigem}>
+                {c.autor} · {formatDateTime(c.data)}
+              </Text>
+              <Text style={estilos.cardApoio}>{c.texto}</Text>
+            </View>
+          ))}
+          <View style={estilos.comentar}>
+            <TextInput
+              style={estilos.comentarCampo}
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="Escreva um comentário"
+              placeholderTextColor={cores.textoFraco}
+              accessibilityLabel="Comentário"
+            />
+            <Botao
+              variante="secundario"
+              onPress={() => void comentar()}
+              carregando={enviando}
+              desabilitado={texto.trim() === ''}
+            >
+              Enviar
+            </Botao>
+          </View>
+          {erro !== null ? <Text style={estilos.erro}>{erro}</Text> : null}
+        </View>
+      ) : null}
 
       {/* Botoes de destino no lugar de arrastar: funciona no toque e e
           alcancavel pelo leitor de tela. */}
@@ -202,4 +299,20 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   moverTexto: { fontSize: fonte.micro, color: cores.textoFraco },
+
+  detalhe: { gap: espaco.sm, paddingTop: espaco.xs },
+  comentario: { gap: 2, paddingLeft: espaco.sm, borderLeftWidth: 2, borderLeftColor: cores.borda },
+  comentar: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
+  comentarCampo: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+    fontSize: fonte.pequeno,
+    color: cores.texto,
+  },
+  erro: { fontSize: fonte.micro, color: cores.erro },
 })
