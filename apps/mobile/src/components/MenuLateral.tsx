@@ -33,6 +33,8 @@ const GRUPOS: Grupo[] = [
       { rota: '/clientes', rotulo: 'Clientes' },
       { rota: '/catalogo', rotulo: 'Produtos' },
       { rota: '/empresa', rotulo: 'Empresa' },
+      { rota: '/fornecedores', rotulo: 'Fornecedores' },
+      { rota: '/conexoes', rotulo: 'Conexões' },
     ],
   },
   {
@@ -52,6 +54,7 @@ const GRUPOS: Grupo[] = [
       { rota: '/crm', rotulo: 'CRM' },
       { rota: '/assistente', rotulo: 'Assistente' },
       { rota: '/assinatura', rotulo: 'Assinatura' },
+      { rota: '/auditoria', rotulo: 'Auditoria' },
       { rota: '/suporte', rotulo: 'Suporte' },
       /* Ponto fixo de acesso aos documentos legais — RF-01. */
       { rota: '/privacidade-e-termos', rotulo: 'Privacidade e Termos' },

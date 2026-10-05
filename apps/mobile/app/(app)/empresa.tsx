@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { buscarCep, carregarEmpresa, salvarEmpresa, type DadosEmpresa } from '@/lib/empresa-api'
 import { maskCelular, maskCEP, maskCNPJ } from '@/lib/validation'
+import { CelularDoCanal, CertificadoDigital, MeusDados } from '@/components/EmpresaSecoes'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Campo from '@/components/ui/Campo'
 import Botao from '@/components/ui/Botao'
-import { Etiqueta } from '@/components/ui/Cartao'
 import { cores, espaco, fonte } from '@/theme/tokens'
 
 /**
@@ -16,8 +16,8 @@ import { cores, espaco, fonte } from '@/theme/tokens'
  * Formulario longo — no web sao quatro cartoes lado a lado. Aqui cada
  * bloco e uma sanfona, senao vira uma rolagem de trinta campos.
  *
- * O certificado digital fica so no web: enviar arquivo .pfx pelo celular
- * e trabalhoso e a senha nao deveria ser digitada em teclado de toque.
+ * Como no web: certificado digital (RF-004), o celular que opera a loja pelo
+ * WhatsApp (RF-132) e a exportacao completa dos dados (LGPD art. 18).
  */
 export default function Empresa() {
   const [campos, setCampos] = useState<DadosEmpresa | null>(null)
@@ -193,19 +193,14 @@ export default function Empresa() {
           />
         </Sanfona>
 
-        <Sanfona titulo="Certificado digital" resumo="gerenciado no site">
-          <View style={estilos.aviso}>
-            <Etiqueta tom="atencao">Só no site</Etiqueta>
-            <Text style={estilos.avisoTexto}>
-              O envio do certificado A1 é a senha ficam no site. Arquivo .pfx pelo celular é
-              trabalhoso, e senha de certificado não deveria ser digitada em teclado de toque.
-            </Text>
-          </View>
-        </Sanfona>
-
         <Botao onPress={salvar} carregando={salvando} largura>
           {salvando ? 'Salvando...' : 'Salvar alterações'}
         </Botao>
+
+        {/* Fora do formulario: cada um grava sozinho, com seu proprio botao. */}
+        <CertificadoDigital />
+        <CelularDoCanal />
+        <MeusDados />
       </ScrollView>
     </SafeAreaView>
   )
@@ -216,10 +211,4 @@ const estilos = StyleSheet.create({
   carregando: { marginTop: espaco.xl },
   erroAoCarregar: { padding: espaco.lg, fontSize: fonte.corpo, color: cores.texto },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
-  aviso: { gap: espaco.sm },
-  avisoTexto: {
-    fontSize: fonte.micro,
-    lineHeight: 19,
-    color: cores.textoFraco,
-  },
 })

@@ -13,6 +13,8 @@
     "expo": "~57.0.16",
     "expo-camera": "~57.0.4",
     "expo-constants": "57.0.14",
+    "expo-document-picker": "~57.0.3",
+    "expo-file-system": "~57.0.5",
     "expo-linking": "~57.0.8",
     "expo-router": "~57.0.17",
     "expo-secure-store": "^57.0.3",
