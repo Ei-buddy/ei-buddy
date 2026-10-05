@@ -18,6 +18,7 @@ import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
+import { CustosFixos, CustosVariaveis } from '@/components/CustosSecoes'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 const TIPOS: TipoDeConta[] = ['expense', 'cost', 'revenue', 'deduction']
@@ -190,16 +191,8 @@ export default function PlanoDeContas() {
           </View>
         ) : null}
 
-        <Sanfona
-          titulo="Custos fixos"
-          resumo="ainda não disponível aqui"
-          etiqueta={<Etiqueta tom="neutro">Web</Etiqueta>}
-        >
-          <Text style={estilos.avisoTexto}>
-            Custo fixo recorrente e a geração das contas do mês já funcionam no computador
-            (Financeiro → Plano de contas) — essa tela aqui ainda não tem o cadastro pronto.
-          </Text>
-        </Sanfona>
+        <CustosFixos contas={contas} />
+        <CustosVariaveis />
 
         <Sanfona titulo="Planos de conta" resumo={`${contas.length} cadastrados`} inicialAberta>
           {contas.length === 0 ? (
@@ -241,8 +234,6 @@ export default function PlanoDeContas() {
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
-
-  avisoTexto: { fontSize: fonte.pequeno, color: cores.textoFraco, lineHeight: 20 },
 
   linha: {
     flexDirection: 'row',
