@@ -185,9 +185,8 @@ export default function EtapaFiscal({
                   : 'Nenhum certificado digital cadastrado'}
               </strong>
               <p>
-                A emissão de NFC-e e NFS-e depende de um certificado A1 válido. A venda já está
-                registrada — assim que o certificado for enviado, dá para emitir a nota por esta
-                mesma tela.
+                A emissão da NFC-e depende de um certificado A1 válido. A venda já está registrada —
+                assim que o certificado for enviado, dá para emitir a nota por esta mesma tela.
               </p>
             </div>
 
