@@ -1,4 +1,5 @@
 import { chamarApi } from './api'
+import { centavosDoTexto } from './valor'
 
 /**
  * Clientes no app — RF-011, US-036, as mesmas rotas do web.
@@ -235,6 +236,8 @@ export type DadosCliente = {
   nomeFantasia: string
   telefone: string
   email: string
+  /** Teto do fiado em reais, como digitado; vazio = sem fiado. */
+  limiteFiado: string
   endereco: EnderecoDoCliente
 }
 
@@ -265,7 +268,18 @@ function enderecoParaApi(e: EnderecoDoCliente): Record<string, string> | undefin
   return preenchidos.length === 0 ? undefined : Object.fromEntries(preenchidos)
 }
 
-function corpoDoCliente(dados: DadosCliente): Record<string, unknown> {
+/**
+ * O limite do fiado como a api o quer. Sem limite, o servidor recusa vender na
+ * carteira para o cliente. No cadastro, vazio nao vai; na edicao, vazio vai
+ * como zero — e assim que se tira o fiado de alguem.
+ */
+function limiteParaApi(texto: string, editando: boolean): { walletLimitCents?: number } {
+  const centavos = centavosDoTexto(texto)
+  if (centavos !== null) return { walletLimitCents: centavos }
+  return editando && texto.trim() === '' ? { walletLimitCents: 0 } : {}
+}
+
+function corpoDoCliente(dados: DadosCliente, editando = false): Record<string, unknown> {
   const address = enderecoParaApi(dados.endereco)
   const documento = dados.documento.replace(/\D/g, '')
   const telefone = dados.telefone.replace(/\D/g, '')
@@ -275,6 +289,7 @@ function corpoDoCliente(dados: DadosCliente): Record<string, unknown> {
     ...(documento ? { document: documento } : {}),
     ...(telefone ? { phone: telefone } : {}),
     ...(dados.email.trim() ? { email: dados.email.trim() } : {}),
+    ...limiteParaApi(dados.limiteFiado, editando),
     ...(address === undefined ? {} : { address }),
   }
 }
@@ -304,7 +319,7 @@ export async function atualizarCliente(
 ): Promise<ResultadoSalvarCliente> {
   const r = await chamarApi<{ id: string }>(`/clientes/${id(clienteId)}`, {
     method: 'PATCH',
-    body: corpoDoCliente(dados),
+    body: corpoDoCliente(dados, true),
   })
   return r.ok ? { ok: true, id: r.dados.id } : { ok: false, erro: r.message }
 }

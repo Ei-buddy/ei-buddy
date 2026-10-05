@@ -12,7 +12,6 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { conferirCupom, criarConta, type ResultadoDoCupom } from '@/lib/auth-api'
-import { buscarCnpj } from '@/lib/empresa-api'
 import {
   maskCNPJ,
   maskPhone,
@@ -30,7 +29,7 @@ const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3100'
 /**
  * Criar conta — RF-001, a mesma rota do web.
  *
- * Voce, a loja (CNPJ com preenchimento pela Receita) e o cupom de indicacao,
+ * Voce, a loja (CNPJ e razao social) e o cupom de indicacao,
  * opcional e conferido antes de enviar. A conta nasce logada e cai na tela
  * principal.
  */
@@ -46,17 +45,8 @@ export default function CriarConta() {
   const [cupomConferido, setCupomConferido] = useState<ResultadoDoCupom | null>(null)
   const [aceitou, setAceitou] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
   const [conferindo, setConferindo] = useState(false)
   const [enviando, setEnviando] = useState(false)
-
-  async function preencherPeloCnpj(valor: string) {
-    if (valor.replace(/\D/g, '').length !== 14) return
-    setBuscandoCnpj(true)
-    const r = await buscarCnpj(valor)
-    setBuscandoCnpj(false)
-    if (r.ok && razaoSocial.trim() === '') setRazaoSocial(r.dados.razaoSocial)
-  }
 
   async function conferir() {
     setConferindo(true)
@@ -135,13 +125,8 @@ export default function CriarConta() {
           <Campo
             rotulo="CNPJ"
             valor={cnpj}
-            onChange={(v) => {
-              const m = maskCNPJ(v)
-              setCnpj(m)
-              void preencherPeloCnpj(m)
-            }}
+            onChange={(v) => setCnpj(maskCNPJ(v))}
             tipoTeclado="numeric"
-            dica={buscandoCnpj ? 'Buscando na Receita...' : undefined}
           />
           <Campo rotulo="Razão social" valor={razaoSocial} onChange={setRazaoSocial} />
 

@@ -442,6 +442,7 @@ function CadastroRapido({
       ddd: '',
       celular: digitos(celular),
       email: '',
+      limiteFiado: '',
       cep: '',
       logradouro: '',
       numero: '',
