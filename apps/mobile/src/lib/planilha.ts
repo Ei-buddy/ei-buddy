@@ -1,31 +1,12 @@
 /**
- * Leitura de planilhas para os assistentes de importacao.
- *
- * So CSV, lido no proprio navegador: a previa precisa ser instantanea.
- *
- * O .xlsx saiu. A "leitura" dele devolvia uma linha de exemplo com '—' em
- * todo campo, e a tela seguia como se tivesse lido o arquivo — o lojista
- * importaria um produto chamado "—". Abrir .xlsx de verdade pede biblioteca
- * pesada no bundle ou rota no servidor; enquanto nao houver, a tela pede CSV,
- * que o Excel e o Google Planilhas salvam em dois cliques.
+ * Leitura de CSV para as importacoes do app — a mesma regra de
+ * `apps/web/src/lib/planilha.ts`. Copia, e nao import: o app e a web nao
+ * compartilham `lib`.
  */
 
 export type PlanilhaLida = {
   colunas: string[]
   linhas: string[][]
-}
-
-export type ErroImportacao = {
-  linha: number
-  nome: string
-  motivo: string
-  tipo: 'invalido' | 'duplicado'
-}
-
-export type RelatorioImportacao = {
-  importados: number
-  ignorados: number
-  erros: ErroImportacao[]
 }
 
 /**

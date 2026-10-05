@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
-  analisarPlanilhaXlsx,
   lerCsv,
   type ErroImportacao,
   type PlanilhaLida,
@@ -96,25 +95,17 @@ export default function ImportarPlanilha({
     const nome = arquivo.name.toLowerCase()
 
     try {
-      let lida: PlanilhaLida
-
-      if (nome.endsWith('.csv')) {
-        /* CSV e lido aqui mesmo: a previa fica instantanea. */
-        lida = lerCsv(await arquivo.text())
-      } else if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
-        /* SUBSTITUIR POR: POST /importar/previa */
-        const resultado = await analisarPlanilhaXlsx(arquivo, campos)
-        if (!resultado.ok) {
-          setErro(resultado.error)
-          setLendo(false)
-          return
-        }
-        lida = resultado.planilha
-      } else {
-        setErro('Formato nao suportado. Envie um arquivo .csv ou .xlsx.')
+      if (!nome.endsWith('.csv')) {
+        setErro(
+          nome.endsWith('.xlsx') || nome.endsWith('.xls')
+            ? 'Salve a planilha como CSV (no Excel: Arquivo → Salvar como → CSV) e envie de novo.'
+            : 'Formato nao suportado. Envie um arquivo .csv.',
+        )
         setLendo(false)
         return
       }
+
+      const lida: PlanilhaLida = lerCsv(await arquivo.text())
 
       if (lida.colunas.length === 0 || lida.linhas.length === 0) {
         setErro('A planilha parece vazia. Confira se ha cabecalho e ao menos uma linha.')
@@ -272,17 +263,17 @@ export default function ImportarPlanilha({
         {etapa === 'arquivo' ? (
           <div className={styles.corpo}>
             <p className={styles.texto}>
-              Envie um arquivo <strong>.csv</strong> ou <strong>.xlsx</strong> com uma linha de
-              cabeçalho. Na próxima etapa você diz qual coluna corresponde a cada campo.
+              Envie um arquivo <strong>.csv</strong> com uma linha de cabeçalho. Na próxima etapa
+              você diz qual coluna corresponde a cada campo.
             </p>
 
             <label className={styles.dropzone}>
               <IconUpload size={26} />
               <strong>Escolher arquivo</strong>
-              <span>Aceita .csv e .xlsx</span>
+              <span>Aceita .csv (no Excel: Salvar como → CSV)</span>
               <input
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv"
                 className={styles.fileInput}
                 disabled={lendo}
                 onChange={(e) => {
