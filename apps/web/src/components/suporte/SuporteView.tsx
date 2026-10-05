@@ -15,7 +15,7 @@ import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
-import { IconPlus, IconUpload } from '@/components/Icons'
+import { IconPlus } from '@/components/Icons'
 import ChamadoDetalhe from './ChamadoDetalhe'
 import styles from './suporte.module.css'
 
@@ -195,7 +195,6 @@ function FormChamado({
   const [assunto, setAssunto] = useState('')
   const [categoria, setCategoria] = useState<CategoriaChamado>('tecnico')
   const [descricao, setDescricao] = useState('')
-  const [anexo, setAnexo] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
@@ -204,7 +203,7 @@ function FormChamado({
     setErro(null)
     setSalvando(true)
 
-    const r = await abrirChamado({ assunto, categoria, descricao, anexo })
+    const r = await abrirChamado({ assunto, categoria, descricao, anexo: null })
     setSalvando(false)
 
     if (!r.ok) {
@@ -272,27 +271,14 @@ function FormChamado({
             />
           </label>
 
-          <div className={styles.campo}>
-            <span>Anexo (opcional)</span>
-            {anexo ? (
-              <div className={styles.anexoEscolhido}>
-                <span>{anexo}</span>
-                <button type="button" onClick={() => setAnexo(null)}>
-                  Remover
-                </button>
-              </div>
-            ) : (
-              <label className={styles.anexoUpload}>
-                <IconUpload size={17} />
-                Escolher arquivo ou print
-                <input
-                  type="file"
-                  className={styles.anexoInput}
-                  onChange={(e) => setAnexo(e.target.files?.[0]?.name ?? null)}
-                />
-              </label>
-            )}
-          </div>
+          {/*
+            O seletor de anexo saiu. Ele mandava so o NOME do arquivo — o
+            arquivo nunca chegava ao suporte, e a pessoa achava que o print
+            tinha ido. Volta quando houver onde guardar o arquivo.
+          */}
+          <p className={styles.dica}>
+            Precisa mandar um print? Cole o link dele (Drive, WhatsApp Web) na descrição.
+          </p>
 
           {erro ? (
             <p className={styles.erro} role="alert">
