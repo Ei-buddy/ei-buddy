@@ -803,3 +803,46 @@ export const anonimizarCliente = (
     method: 'POST',
     body: JSON.stringify({ reason: motivo }),
   })
+
+/* -------------------------------------------------------------------------- */
+/* Inadimplentes — RF-071                                                     */
+/* -------------------------------------------------------------------------- */
+
+export type ClienteInadimplente = {
+  id: string
+  nome: string
+  celular: string | null
+  /** Vencido e nao pago, em reais. Parcela de cartao nao entra. */
+  vencido: number
+  venceuEm: string
+  diasDeAtraso: number
+  titulos: number
+}
+
+/** Do maior valor vencido para o menor — e por onde a cobranca comeca. */
+export async function listarInadimplentes(): Promise<Resultado<ClienteInadimplente[]>> {
+  const r = await pedir<{
+    customers: {
+      customerId: string
+      name: string
+      phone: string | null
+      overdueCents: number
+      oldestDueOn: string
+      daysOverdue: number
+      receivablesCount: number
+    }[]
+  }>('/api/clientes/inadimplentes')
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.customers.map((c) => ({
+      id: c.customerId,
+      nome: c.name,
+      celular: c.phone,
+      vencido: c.overdueCents / 100,
+      venceuEm: c.oldestDueOn,
+      diasDeAtraso: c.daysOverdue,
+      titulos: c.receivablesCount,
+    })),
+  }
+}

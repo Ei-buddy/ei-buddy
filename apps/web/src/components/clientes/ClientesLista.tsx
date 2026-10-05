@@ -7,6 +7,8 @@ import {
   confirmarImportacaoClientes,
   type FiltroDeCliente,
   listarClientes,
+  listarInadimplentes,
+  type ClienteInadimplente,
 } from '@/lib/clientes-api'
 import { isValidCNPJ, isValidCPF } from '@/lib/validation'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -63,7 +65,7 @@ const CAMPOS_PLANILHA = [
  * vem". Duas copias divergem no dia em que uma das duas mudar.
  */
 
-type Filtro = 'todos' | 'pendencia' | 'inativos'
+type Filtro = 'todos' | 'pendencia' | 'inativos' | 'inadimplentes'
 
 export default function ClientesLista() {
   const [busca, setBusca] = useState('')
@@ -71,6 +73,7 @@ export default function ClientesLista() {
   const [importando, setImportando] = useState(false)
 
   const [listaFiltrada, setListaFiltrada] = useState<ClienteDaLista[]>([])
+  const [inadimplentes, setInadimplentes] = useState<ClienteInadimplente[] | null>(null)
   const [total, setTotal] = useState(0)
   const [carregando, setCarregando] = useState(true)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
@@ -87,6 +90,24 @@ export default function ClientesLista() {
    * conta repetida aqui e no CRM.
    */
   const buscar = useCallback(async (termo: string, qual: Filtro) => {
+    /* Inadimplentes tem consulta propria (RF-071): o que importa e o valor
+       VENCIDO e os dias de atraso, que a lista geral nao traz. A busca filtra
+       por nome aqui mesmo — a lista ja vem curta, so de quem deve. */
+    if (qual === 'inadimplentes') {
+      const d = await listarInadimplentes()
+      setCarregando(false)
+      if (!d.ok) {
+        setErroCarga(d.erro)
+        return
+      }
+      const t = termo.trim().toLowerCase()
+      const filtrados = d.dados.filter((c) => t === '' || c.nome.toLowerCase().includes(t))
+      setErroCarga(null)
+      setInadimplentes(filtrados)
+      setTotal(filtrados.length)
+      return
+    }
+    setInadimplentes(null)
     const r = await listarClientes({
       termo,
       filtro: (qual === 'pendencia' ? 'fiado' : qual) as FiltroDeCliente,
@@ -180,6 +201,7 @@ export default function ClientesLista() {
                 ['todos', 'Todos'],
                 ['pendencia', 'Com pendência'],
                 ['inativos', 'Sem compras recentes'],
+                ['inadimplentes', 'Inadimplentes'],
               ] as const
             ).map(([valor, rotulo]) => (
               <button
@@ -215,6 +237,41 @@ export default function ClientesLista() {
               </Button>
             }
           />
+        ) : inadimplentes !== null ? (
+          inadimplentes.length === 0 ? (
+            <EmptyState
+              title="Ninguém em atraso"
+              description="Nenhum cliente com conta vencida e não paga."
+            />
+          ) : (
+            <ul className={styles.lista}>
+              {inadimplentes.map((c) => (
+                <li key={c.id}>
+                  <Link href={`/app/clientes/${c.id}`} className={styles.item}>
+                    <span className={styles.avatar} aria-hidden="true">
+                      {c.nome.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className={styles.itemPrincipal}>
+                      <strong>{c.nome}</strong>
+                      <span>
+                        {c.titulos} {c.titulos === 1 ? 'conta vencida' : 'contas vencidas'}
+                      </span>
+                    </span>
+                    <span className={styles.itemContato}>{c.celular ?? 'sem telefone'}</span>
+                    <span className={styles.itemUltima}>
+                      Vencido desde {formatDate(c.venceuEm)}
+                    </span>
+                    <span className={styles.itemStatus}>
+                      <Badge tone="danger">
+                        {formatMoney(c.vencido)} · {c.diasDeAtraso}{' '}
+                        {c.diasDeAtraso === 1 ? 'dia' : 'dias'}
+                      </Badge>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )
         ) : listaFiltrada.length === 0 ? (
           /* Sem a base inteira em memoria, quem distingue "nenhum cadastro" de
              "nenhum resultado" e a busca estar vazia — e a diferenca importa: a

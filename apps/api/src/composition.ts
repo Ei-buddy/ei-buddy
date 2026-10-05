@@ -76,6 +76,7 @@ import {
   createFixedCostRepository,
   createVariableCostRepository,
   createBankAccountRepository,
+  createDelinquencyQueries,
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
@@ -498,6 +499,8 @@ export function buildCadastroDeps(): CadastroDeps {
   return {
     companies: createCompanyRepository(sql),
     customers: createCustomerRepository(sql),
+    /* Inadimplentes — RF-071. "Hoje" no fuso da loja, como os relatorios. */
+    delinquency: createDelinquencyQueries(sql, env.TZ),
     /* O diario de contatos da ficha — RF-011, NR-072. Porta propria: a de
        clientes responde "quem e este", esta responde "o que ja falamos". */
     contacts: createCustomerContactRepository(sql),

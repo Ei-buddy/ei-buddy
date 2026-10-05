@@ -44,6 +44,7 @@ export {
 } from './fixed-cost-repository.js'
 export { createVariableCostRepository } from './variable-cost-repository.js'
 export { createBankAccountRepository } from './bank-account-repository.js'
+export { createDelinquencyQueries } from './delinquency-queries.js'
 export { createWaitlistRepository } from './waitlist-repository.js'
 export { createInvoiceStore } from './invoice-repository.js'
 export {

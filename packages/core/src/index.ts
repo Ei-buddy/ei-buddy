@@ -269,6 +269,9 @@ export type { BankAccountRepository, NewBankAccount } from './ports/bank-account
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export { returnSaleItems } from './sales/return-sale-items.js'
+export { listDelinquentCustomers } from './receivables/list-delinquents.js'
+export type { ListDelinquentsDeps } from './receivables/list-delinquents.js'
+export type { DelinquencyQueries } from './ports/delinquency-queries.js'
 export type { ReturnSaleItemsDeps } from './sales/return-sale-items.js'
 export type {
   LinhaDevolvivel,

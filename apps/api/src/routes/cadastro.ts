@@ -43,6 +43,8 @@ import {
   type RegisterProductDeps,
   type WhatsappConsentDeps,
   searchProducts,
+  listDelinquentCustomers,
+  type ListDelinquentsDeps,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -59,6 +61,7 @@ import { validate } from '../plugins/validate.js'
  */
 
 export type CadastroDeps = CustomerContactDeps &
+  ListDelinquentsDeps &
   WhatsappConsentDeps &
   ImportProductsDeps &
   ManageCompanyDeps &
@@ -181,6 +184,15 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
    * linha, e busca-lo por cliente daria vinte e cinco idas ao banco para uma
    * pagina.
    */
+  /**
+   * Clientes inadimplentes, do maior valor vencido para o menor — RF-071.
+   * Registrada antes de `/clientes/:id`: o Fastify prefere a rota estatica.
+   */
+  app.get('/clientes/inadimplentes', async (request, reply) => {
+    const ctx = requireContext(request)
+    return reply.code(200).send({ customers: await listDelinquentCustomers(deps, ctx) })
+  })
+
   app.get('/clientes', async (request, reply) => {
     const ctx = requireContext(request)
 
