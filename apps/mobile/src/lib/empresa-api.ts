@@ -50,6 +50,53 @@ export async function buscarCep(cep: string): Promise<Resultado<EnderecoCep>> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* CNPJ                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export type DadosDoCnpj = {
+  razaoSocial: string
+  nomeFantasia: string
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+/** Preenche cadastro pelo CNPJ — Receita via BrasilAPI, pelo nosso backend. */
+export async function buscarCnpj(cnpj: string): Promise<Resultado<DadosDoCnpj>> {
+  const digitos = cnpj.replace(/\D/g, '')
+  if (digitos.length !== 14) return { ok: false, erro: 'Informe o CNPJ completo antes de buscar.' }
+
+  const r = await chamarApi<{
+    legalName: string
+    tradeName: string | null
+    zipCode: string | null
+    street: string | null
+    streetNumber: string | null
+    district: string | null
+    city: string | null
+    state: string | null
+  }>(`/empresas/cnpj/${digitos}`)
+  if (!r.ok) return { ok: false, erro: r.message }
+
+  return {
+    ok: true,
+    dados: {
+      razaoSocial: r.dados.legalName,
+      nomeFantasia: r.dados.tradeName ?? '',
+      cep: r.dados.zipCode ?? '',
+      logradouro: r.dados.street ?? '',
+      numero: r.dados.streetNumber ?? '',
+      bairro: r.dados.district ?? '',
+      cidade: r.dados.city ?? '',
+      uf: r.dados.state ?? '',
+    },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Cadastro da loja                                                           */
 /* -------------------------------------------------------------------------- */
 

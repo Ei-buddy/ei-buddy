@@ -1,17 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
-import { linkDoWhatsApp, listarClientes, type ClienteDaLista } from '@/lib/clientes-api'
+import {
+  linkDoWhatsApp,
+  listarClientes,
+  listarInadimplentes,
+  type ClienteDaLista,
+  type ClienteInadimplente,
+  type FiltroDeCliente,
+} from '@/lib/clientes-api'
 import { daysUntil, formatDate, formatMoney } from '@/lib/format'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Botao from '@/components/ui/Botao'
@@ -23,30 +32,61 @@ const INATIVO_APOS_DIAS = 60
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
 const ESPERA_DA_BUSCA_MS = 400
 
+type Filtro = FiltroDeCliente | 'inadimplentes'
+
+const FILTROS: [Filtro, string][] = [
+  ['todos', 'Todos'],
+  ['fiado', 'Com fiado'],
+  ['inadimplentes', 'Inadimplentes'],
+  ['inativos', 'Sem comprar'],
+]
+
 /**
- * Consulta rapida de clientes.
- *
- * Somente leitura de proposito: cadastro completo e edicao ficam no web.
- * O que se precisa no balcao e responder "quem e essa pessoa e ela deve
- * alguma coisa?" — e conseguir ligar ou mandar mensagem na hora.
+ * Clientes — RF-011, US-036, RF-071.
  *
  * Busca e filtro sao do SERVIDOR (`GET /clientes`): filtrar no aparelho so
- * enxergaria a primeira pagina.
+ * enxergaria a primeira pagina. "Inadimplentes" e outra lista — quem tem
+ * titulo vencido, do maior atraso para o menor — porque e a lista de cobranca.
  */
 export default function Clientes() {
+  const router = useRouter()
   const [busca, setBusca] = useState('')
-  const [soFiado, setSoFiado] = useState(false)
+  const [filtro, setFiltro] = useState<Filtro>('todos')
   const [lista, setLista] = useState<ClienteDaLista[]>([])
+  const [inadimplentes, setInadimplentes] = useState<ClienteInadimplente[]>([])
   const [total, setTotal] = useState(0)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
 
+  /* Voltar da ficha ou do cadastro recarrega: o saldo ou o nome podem ter mudado. */
+  useFocusEffect(
+    useCallback(() => {
+      setTentativa((n) => n + 1)
+    }, []),
+  )
+
   useEffect(() => {
     let cancelado = false
     async function carregar() {
       setCarregando(true)
-      const r = await listarClientes({ termo: busca.trim(), soFiado })
+      if (filtro === 'inadimplentes') {
+        const r = await listarInadimplentes()
+        if (cancelado) return
+        setCarregando(false)
+        if (!r.ok) {
+          setErro(r.erro)
+          return
+        }
+        setErro(null)
+        const termo = busca.trim().toLowerCase()
+        setInadimplentes(
+          termo === '' ? r.dados : r.dados.filter((c) => c.nome.toLowerCase().includes(termo)),
+        )
+        return
+      }
+
+      const r = await listarClientes({ termo: busca.trim(), filtro })
       if (cancelado) return
       setCarregando(false)
       if (!r.ok) {
@@ -63,7 +103,10 @@ export default function Clientes() {
       cancelado = true
       clearTimeout(t)
     }
-  }, [busca, soFiado, tentativa])
+  }, [busca, filtro, tentativa])
+
+  const abrir = (id: string) => router.push({ pathname: '/cliente', params: { id } })
+  const devendo = inadimplentes.reduce((soma, c) => soma + c.vencido, 0)
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
@@ -72,8 +115,11 @@ export default function Clientes() {
         subtitulo={
           carregando
             ? 'Carregando...'
-            : `${total} ${soFiado ? 'com fiado em aberto' : 'cadastrados'}`
+            : filtro === 'inadimplentes'
+              ? `${inadimplentes.length} com ${formatMoney(devendo)} vencido`
+              : `${total} ${filtro === 'fiado' ? 'com fiado em aberto' : filtro === 'inativos' ? 'sem comprar há 60 dias' : 'cadastrados'}`
         }
+        acao={<Botao onPress={() => router.push('/cliente-form')}>Novo</Botao>}
       />
 
       <View style={estilos.barra}>
@@ -87,20 +133,26 @@ export default function Clientes() {
         />
       </View>
 
-      <View style={estilos.filtros}>
-        <Pressable
-          onPress={() => setSoFiado(false)}
-          style={[estilos.chip, !soFiado && estilos.chipAtivo]}
-        >
-          <Text style={[estilos.chipTexto, !soFiado && estilos.chipTextoAtivo]}>Todos</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setSoFiado(true)}
-          style={[estilos.chip, soFiado && estilos.chipAtivo]}
-        >
-          <Text style={[estilos.chipTexto, soFiado && estilos.chipTextoAtivo]}>Com fiado</Text>
-        </Pressable>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={estilos.filtrosRolagem}
+        contentContainerStyle={estilos.filtros}
+      >
+        {FILTROS.map(([valor, rotulo]) => (
+          <Pressable
+            key={valor}
+            onPress={() => setFiltro(valor)}
+            style={[estilos.chip, filtro === valor && estilos.chipAtivo]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filtro === valor }}
+          >
+            <Text style={[estilos.chipTexto, filtro === valor && estilos.chipTextoAtivo]}>
+              {rotulo}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       {erro ? (
         <Vazio
@@ -112,30 +164,50 @@ export default function Clientes() {
             </Botao>
           }
         />
-      ) : carregando && lista.length === 0 ? (
+      ) : carregando && lista.length === 0 && inadimplentes.length === 0 ? (
         <ActivityIndicator style={estilos.carregando} color={cores.acento} />
+      ) : filtro === 'inadimplentes' ? (
+        <FlatList
+          data={inadimplentes}
+          keyExtractor={(c) => c.id}
+          contentContainerStyle={estilos.lista}
+          renderItem={({ item }) => (
+            <LinhaInadimplente cliente={item} onAbrir={() => abrir(item.id)} />
+          )}
+          ListEmptyComponent={
+            <Vazio titulo="Ninguém em atraso" descricao="Nenhum cliente com título vencido." />
+          }
+        />
       ) : (
         <FlatList
           data={lista}
           keyExtractor={(c) => c.id}
           contentContainerStyle={estilos.lista}
-          renderItem={({ item }) => <LinhaCliente cliente={item} />}
+          renderItem={({ item }) => <LinhaCliente cliente={item} onAbrir={() => abrir(item.id)} />}
           ListEmptyComponent={
-            <Vazio
-              titulo="Nenhum cliente encontrado"
-              descricao="Tente outro termo ou limpe o filtro."
-              acao={
-                <Botao
-                  variante="secundario"
-                  onPress={() => {
-                    setBusca('')
-                    setSoFiado(false)
-                  }}
-                >
-                  Limpar
-                </Botao>
-              }
-            />
+            busca === '' && filtro === 'todos' ? (
+              <Vazio
+                titulo="Nenhum cliente cadastrado"
+                descricao="Cadastre o primeiro cliente. Leva menos de um minuto."
+                acao={<Botao onPress={() => router.push('/cliente-form')}>Cadastrar</Botao>}
+              />
+            ) : (
+              <Vazio
+                titulo="Nenhum cliente encontrado"
+                descricao="Tente outro termo ou limpe o filtro."
+                acao={
+                  <Botao
+                    variante="secundario"
+                    onPress={() => {
+                      setBusca('')
+                      setFiltro('todos')
+                    }}
+                  >
+                    Limpar
+                  </Botao>
+                }
+              />
+            )
           }
         />
       )}
@@ -143,13 +215,51 @@ export default function Clientes() {
   )
 }
 
-function LinhaCliente({ cliente }: { cliente: ClienteDaLista }) {
+function LinhaInadimplente({
+  cliente,
+  onAbrir,
+}: {
+  cliente: ClienteInadimplente
+  onAbrir: () => void
+}) {
+  const whatsapp = linkDoWhatsApp(cliente.celular)
+  return (
+    <Pressable style={estilos.cliente} onPress={onAbrir} accessibilityRole="button">
+      <View style={estilos.clienteTopo}>
+        <View style={estilos.clienteInfo}>
+          <Text style={estilos.clienteNome} numberOfLines={1}>
+            {cliente.nome}
+          </Text>
+          <Text style={estilos.clienteDoc}>
+            {cliente.titulos} título(s) · venceu em {formatDate(cliente.venceuEm)}
+          </Text>
+        </View>
+        <Etiqueta tom="erro">{formatMoney(cliente.vencido)}</Etiqueta>
+      </View>
+      <View style={estilos.clienteRodape}>
+        <Text style={estilos.clienteUltima}>{cliente.diasDeAtraso} dia(s) de atraso</Text>
+        {whatsapp ? (
+          <Pressable
+            onPress={() => void Linking.openURL(whatsapp)}
+            style={estilos.acao}
+            accessibilityRole="button"
+            accessibilityLabel={`Enviar WhatsApp para ${cliente.nome}`}
+          >
+            <Text style={estilos.acaoTexto}>Cobrar no WhatsApp</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </Pressable>
+  )
+}
+
+function LinhaCliente({ cliente, onAbrir }: { cliente: ClienteDaLista; onAbrir: () => void }) {
   const inativo =
     cliente.ultimaCompra !== null && Math.abs(daysUntil(cliente.ultimaCompra)) > INATIVO_APOS_DIAS
   const whatsapp = linkDoWhatsApp(cliente.celular)
 
   return (
-    <View style={estilos.cliente}>
+    <Pressable style={estilos.cliente} onPress={onAbrir} accessibilityRole="button">
       <View style={estilos.clienteTopo}>
         <View style={estilos.avatar}>
           <Text style={estilos.avatarTexto}>{cliente.nome.slice(0, 2).toUpperCase()}</Text>
@@ -190,7 +300,7 @@ function LinhaCliente({ cliente }: { cliente: ClienteDaLista }) {
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   )
 }
 
@@ -213,6 +323,7 @@ const estilos = StyleSheet.create({
     fontSize: fonte.corpo,
   },
 
+  filtrosRolagem: { flexGrow: 0 },
   filtros: { flexDirection: 'row', gap: espaco.sm, paddingHorizontal: espaco.lg },
   chip: {
     paddingHorizontal: espaco.lg,
