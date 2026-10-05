@@ -17,7 +17,7 @@ import { lerToken } from './session'
  * "variavel de servidor" aqui, e fingir que existe seria pior: alguem guardaria
  * um segredo achando que ele nao vaza.
  */
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3333'
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3333'
 
 type EnvelopeDeErro = {
   error?: { code?: string; message?: string }
