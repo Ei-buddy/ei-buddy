@@ -255,7 +255,15 @@ export type VendaHistorico = {
   numero: string
   data: string
   clienteNome: string
-  itens: { descricao: string; quantidade: number; precoUnitario: number }[]
+  itens: {
+    /** Nulo em item avulso: sem produto, nao volta ao estoque nem se devolve. */
+    produtoId: string | null
+    descricao: string
+    quantidade: number
+    precoUnitario: number
+    /** Quantas unidades ja voltaram numa devolucao parcial. */
+    devolvido: number
+  }[]
   subtotal: number
   desconto: number
   total: number
@@ -264,6 +272,8 @@ export type VendaHistorico = {
   imposto: number
   nota: { tipo: TipoNotaFiscal; numero: string } | null
   status: 'concluida' | 'estornada'
+  /** Quanto ja foi devolvido em devolucoes parciais, em reais. */
+  devolvidoValor: number
 }
 
 /**
@@ -283,9 +293,27 @@ export function listarVendas(): VendaHistorico[] {
       data: '2026-08-24T14:32:00',
       clienteNome: 'Joana Ribeiro',
       itens: [
-        { descricao: 'Cafe torrado e moido 500g', quantidade: 2, precoUnitario: 21.9 },
-        { descricao: 'Filtro de papel n103', quantidade: 1, precoUnitario: 8.9 },
-        { descricao: 'Acucar mascavo 1kg', quantidade: 3, precoUnitario: 12.9 },
+        {
+          produtoId: null,
+          descricao: 'Cafe torrado e moido 500g',
+          quantidade: 2,
+          precoUnitario: 21.9,
+          devolvido: 0,
+        },
+        {
+          produtoId: null,
+          descricao: 'Filtro de papel n103',
+          quantidade: 1,
+          precoUnitario: 8.9,
+          devolvido: 0,
+        },
+        {
+          produtoId: null,
+          descricao: 'Acucar mascavo 1kg',
+          quantidade: 3,
+          precoUnitario: 12.9,
+          devolvido: 0,
+        },
       ],
       subtotal: 91.4,
       desconto: 4.5,
@@ -295,13 +323,22 @@ export function listarVendas(): VendaHistorico[] {
       imposto: 3.12,
       nota: { tipo: 'nfce', numero: '4187' },
       status: 'concluida',
+      devolvidoValor: 0,
     },
     {
       id: 'ven-2',
       numero: '1841',
       data: '2026-08-24T13:58:00',
       clienteNome: 'Venda sem cliente',
-      itens: [{ descricao: 'Azeite extra virgem 500ml', quantidade: 1, precoUnitario: 39.9 }],
+      itens: [
+        {
+          produtoId: null,
+          descricao: 'Azeite extra virgem 500ml',
+          quantidade: 1,
+          precoUnitario: 39.9,
+          devolvido: 0,
+        },
+      ],
       subtotal: 39.9,
       desconto: 0,
       total: 39.9,
@@ -310,6 +347,7 @@ export function listarVendas(): VendaHistorico[] {
       imposto: 1.44,
       nota: { tipo: 'nfce', numero: '4186' },
       status: 'concluida',
+      devolvidoValor: 0,
     },
     {
       id: 'ven-3',
@@ -317,8 +355,20 @@ export function listarVendas(): VendaHistorico[] {
       data: '2026-08-24T11:20:00',
       clienteNome: 'Marcos Dias',
       itens: [
-        { descricao: 'Leite integral 1L', quantidade: 12, precoUnitario: 5.99 },
-        { descricao: 'Biscoito integral 200g', quantidade: 6, precoUnitario: 7.5 },
+        {
+          produtoId: null,
+          descricao: 'Leite integral 1L',
+          quantidade: 12,
+          precoUnitario: 5.99,
+          devolvido: 0,
+        },
+        {
+          produtoId: null,
+          descricao: 'Biscoito integral 200g',
+          quantidade: 6,
+          precoUnitario: 7.5,
+          devolvido: 0,
+        },
       ],
       subtotal: 116.88,
       desconto: 0,
@@ -328,13 +378,22 @@ export function listarVendas(): VendaHistorico[] {
       imposto: 4.21,
       nota: { tipo: 'nfce', numero: '4185' },
       status: 'concluida',
+      devolvidoValor: 0,
     },
     {
       id: 'ven-4',
       numero: '1839',
       data: '2026-08-23T17:05:00',
       clienteNome: 'Padaria Sol LTDA',
-      itens: [{ descricao: 'Cafe torrado e moido 500g', quantidade: 8, precoUnitario: 19.5 }],
+      itens: [
+        {
+          produtoId: null,
+          descricao: 'Cafe torrado e moido 500g',
+          quantidade: 8,
+          precoUnitario: 19.5,
+          devolvido: 0,
+        },
+      ],
       subtotal: 156.0,
       desconto: 0,
       total: 156.0,
@@ -343,13 +402,22 @@ export function listarVendas(): VendaHistorico[] {
       imposto: 5.62,
       nota: { tipo: 'nfce', numero: '4181' },
       status: 'concluida',
+      devolvidoValor: 0,
     },
     {
       id: 'ven-5',
       numero: '1838',
       data: '2026-08-23T09:44:00',
       clienteNome: 'Restaurante Boa Mesa',
-      itens: [{ descricao: 'Azeite extra virgem 500ml', quantidade: 2, precoUnitario: 39.2 }],
+      itens: [
+        {
+          produtoId: null,
+          descricao: 'Azeite extra virgem 500ml',
+          quantidade: 2,
+          precoUnitario: 39.2,
+          devolvido: 0,
+        },
+      ],
       subtotal: 78.4,
       desconto: 0,
       total: 78.4,
@@ -358,6 +426,7 @@ export function listarVendas(): VendaHistorico[] {
       imposto: 0,
       nota: null,
       status: 'estornada',
+      devolvidoValor: 0,
     },
   ]
 }
@@ -381,31 +450,85 @@ type VendaDaApi = {
   discountCents: number
   netAmountCents: number
   taxAmountCents: number
-  items: { description: string; quantity: number; unitPriceCents: number }[]
+  returnedAmountCents: number
+  items: {
+    productId: string | null
+    description: string
+    quantity: number
+    unitPriceCents: number
+    returnedQuantity: number
+  }[]
   payments: { method: string; amountCents: number }[]
   invoiceNumber: number | null
   invoiceAccessKey: string | null
 }
 
+export type FiltroDoHistorico = {
+  termo?: string
+  /** AAAA-MM-DD; ausente = sem limite. */
+  de?: string
+  ate?: string
+  pagina?: number
+}
+
+export type ResumoDoHistorico = {
+  quantidade: number
+  faturamento: number
+  liquido: number
+  ticketMedio: number | null
+}
+
+/** Mais que a pagina do web: no celular a lista rola, e "carregar mais" pede menos toques. */
+const VENDAS_POR_PAGINA = 30
+
 /**
- * O historico de vendas de VERDADE — RF-036, US-021.
+ * O historico de vendas — RF-036, US-021, `GET /sales`.
  *
- * A tela mostrava cinco vendas de exemplo, sempre as mesmas, com faturamento e
- * ticket medio somados sobre elas — numeros que pareciam reais e nao eram.
- *
- * So a primeira pagina (as mais recentes): a tela de historico do celular nao
- * tem paginacao ainda, e trazer tudo de uma vez custaria caro numa loja com
- * meses de venda. Ampliar o filtro fica para quando a tela pedir.
+ * Busca, periodo e paginas no SERVIDOR, como no web. O resumo do topo
+ * (faturamento, liquido, ticket) tambem vem de la, sobre o filtro inteiro —
+ * somar so a pagina carregada daria um faturamento que muda conforme a pessoa
+ * rola a tela.
  */
-export async function listarHistoricoDeVendas(): Promise<
-  { ok: true; vendas: VendaHistorico[] } | { ok: false; erro: string }
+export async function listarHistoricoDeVendas(
+  filtro: FiltroDoHistorico = {},
+): Promise<
+  | { ok: true; vendas: VendaHistorico[]; total: number; resumo: ResumoDoHistorico }
+  | { ok: false; erro: string }
 > {
-  const r = await chamarApi<{ sales: VendaDaApi[] }>('/sales')
+  const query = new URLSearchParams({
+    page: String(filtro.pagina ?? 1),
+    pageSize: String(VENDAS_POR_PAGINA),
+  })
+  const termo = filtro.termo?.trim() ?? ''
+  if (termo !== '') query.set('q', termo)
+  if (filtro.de) query.set('from', filtro.de)
+  if (filtro.ate) query.set('to', filtro.ate)
+
+  const r = await chamarApi<{
+    sales: VendaDaApi[]
+    total: number
+    summary: {
+      salesCount: number
+      grossCents: number
+      netAfterFeesCents: number
+      averageTicketCents: number | null
+    }
+  }>(`/sales?${query.toString()}`)
 
   if (!r.ok) return { ok: false, erro: r.message }
 
   return {
     ok: true,
+    total: r.dados.total,
+    resumo: {
+      quantidade: r.dados.summary.salesCount,
+      faturamento: r.dados.summary.grossCents / 100,
+      liquido: r.dados.summary.netAfterFeesCents / 100,
+      ticketMedio:
+        r.dados.summary.averageTicketCents === null
+          ? null
+          : r.dados.summary.averageTicketCents / 100,
+    },
     vendas: r.dados.sales.map((v) => ({
       id: v.id,
       numero: String(v.number),
@@ -414,9 +537,11 @@ export async function listarHistoricoDeVendas(): Promise<
          o rotulo diz isso, em vez de deixar a linha sem contraparte. */
       clienteNome: v.customerName ?? 'Venda sem cliente',
       itens: v.items.map((i) => ({
+        produtoId: i.productId,
         descricao: i.description,
         quantidade: i.quantity,
         precoUnitario: i.unitPriceCents / 100,
+        devolvido: i.returnedQuantity,
       })),
       subtotal: v.grossAmountCents / 100,
       desconto: v.discountCents / 100,
@@ -429,7 +554,9 @@ export async function listarHistoricoDeVendas(): Promise<
       imposto: v.taxAmountCents / 100,
       /* `nfse` nunca aparece aqui: o emissor da loja so faz NFC-e (DEC-004). */
       nota: v.invoiceNumber === null ? null : { tipo: 'nfce', numero: String(v.invoiceNumber) },
+      /* Devolvida por inteiro conta como estornada: nada dela ficou vendido. */
       status: v.status === 'returned' || v.status === 'cancelled' ? 'estornada' : 'concluida',
+      devolvidoValor: v.returnedAmountCents / 100,
     })),
   }
 }
@@ -450,6 +577,68 @@ export async function estornarVenda(
     body: { reason: motivo.trim() },
   })
   return r.ok ? { ok: true } : { ok: false, erro: r.message }
+}
+
+/** A justificativa da SEFAZ para cancelar nota tem no minimo 15 caracteres. */
+export const JUSTIFICATIVA_MINIMA = 15
+
+/**
+ * Cancela a NFC-e da venda — RF-050, RF-051, `POST /vendas/:id/nota/cancelamento`.
+ *
+ * E o passo que libera estorno e devolucao de venda com nota. So dentro de 30
+ * minutos da autorizacao; fora disso o servidor recusa e diz o que fazer.
+ */
+export async function cancelarNota(
+  vendaId: string,
+  justificativa: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await chamarApi<undefined>(`/vendas/${encodeURIComponent(vendaId)}/nota/cancelamento`, {
+    method: 'POST',
+    body: { reason: justificativa.trim() },
+  })
+  return r.ok ? { ok: true } : { ok: false, erro: r.message }
+}
+
+/** O que a devolucao fez com o dinheiro, em reais. */
+export type ResultadoDaDevolucao = {
+  devolvido: number
+  /** Sai do caixa: entregar ao cliente. */
+  entregarAoCliente: number
+  /** Estava em aberto (fiado, parcelas): so deixa de ser recebido. */
+  deixaDeReceber: number
+}
+
+/**
+ * Devolve parte da venda — RF-044, `POST /sales/:id/devolucao`.
+ *
+ * A tela diz produtos e quantidades; o valor quem calcula e o servidor,
+ * proporcional ao que foi cobrado por item.
+ */
+export async function devolverItens(
+  vendaId: string,
+  motivo: string,
+  itens: { produtoId: string; quantidade: number }[],
+): Promise<{ ok: true; dados: ResultadoDaDevolucao } | { ok: false; erro: string }> {
+  const r = await chamarApi<{
+    refundCents: number
+    paidBackCents: number
+    uncollectedCents: number
+  }>(`/sales/${encodeURIComponent(vendaId)}/devolucao`, {
+    method: 'POST',
+    body: {
+      reason: motivo.trim(),
+      items: itens.map((i) => ({ productId: i.produtoId, quantity: i.quantidade })),
+    },
+  })
+  if (!r.ok) return { ok: false, erro: r.message }
+  return {
+    ok: true,
+    dados: {
+      devolvido: r.dados.refundCents / 100,
+      entregarAoCliente: r.dados.paidBackCents / 100,
+      deixaDeReceber: r.dados.uncollectedCents / 100,
+    },
+  }
 }
 
 /* -------------------------------------------------------------------------- */
