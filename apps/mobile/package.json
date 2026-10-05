@@ -8,7 +8,7 @@
     "@na-regua/money": "workspace:*",
     "@na-regua/ui": "workspace:*",
     "@react-native-async-storage/async-storage": "3.1.1",
-    "@react-navigation/drawer": "^7.14.2",
+    "@react-navigation/drawer": "^7.14.3",
     "@react-navigation/native": "^7.4.1",
     "expo": "~57.0.16",
     "expo-camera": "~57.0.4",
@@ -25,7 +25,7 @@
     "react-native-safe-area-context": "~5.9.1",
     "react-native-screens": "~4.27.0",
     "react-native-svg": "15.15.5",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.3"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
