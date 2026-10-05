@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   baixarTitulo,
+  exportarTitulos,
   type DadosDaBaixa,
   listarContasPagar,
   listarContasReceber,
@@ -90,6 +100,15 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const [erroDoDialogo, setErroDoDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [lancando, setLancando] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [exportando, setExportando] = useState(false)
+
+  async function exportar(formato: 'csv' | 'pdf') {
+    setExportando(true)
+    const r = await exportarTitulos(tipo, formato)
+    setExportando(false)
+    if (!r.ok) Alert.alert('Não deu para exportar', r.erro)
+  }
 
   useEffect(() => {
     if (aviso === null) return
@@ -99,13 +118,23 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   }, [aviso])
 
   const grupos = useMemo(() => {
-    const abertos = linhas.filter((l) => l.status !== 'pago')
+    /* Busca por contraparte ou descricao — o filtro que o web tem no topo. */
+    const termo = busca.trim().toLowerCase()
+    const visiveis =
+      termo === ''
+        ? linhas
+        : linhas.filter(
+            (l) =>
+              l.contraparte.toLowerCase().includes(termo) ||
+              l.descricao.toLowerCase().includes(termo),
+          )
+    const abertos = visiveis.filter((l) => l.status !== 'pago')
     return {
       vencidos: abertos.filter((l) => daysUntil(l.vencimento) < 0),
       aVencer: abertos.filter((l) => daysUntil(l.vencimento) >= 0),
-      quitados: linhas.filter((l) => l.status === 'pago'),
+      quitados: visiveis.filter((l) => l.status === 'pago'),
     }
-  }, [linhas])
+  }, [linhas, busca])
 
   const soma = (lista: Linha[]) => lista.reduce((a, l) => a + (l.valorCents - l.baixadoCents), 0)
 
@@ -169,6 +198,35 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
           />
         }
       >
+        <View style={estilos.ferramentas}>
+          <TextInput
+            style={estilos.busca}
+            value={busca}
+            onChangeText={setBusca}
+            placeholder={pagar ? 'Fornecedor ou descrição' : 'Cliente ou descrição'}
+            placeholderTextColor={cores.textoFraco}
+            accessibilityLabel="Buscar título"
+          />
+          <Pressable
+            style={estilos.exportar}
+            onPress={() => void exportar('csv')}
+            disabled={exportando}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar CSV"
+          >
+            <Text style={estilos.exportarTexto}>CSV</Text>
+          </Pressable>
+          <Pressable
+            style={estilos.exportar}
+            onPress={() => void exportar('pdf')}
+            disabled={exportando}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar PDF"
+          >
+            <Text style={estilos.exportarTexto}>PDF</Text>
+          </Pressable>
+        </View>
+
         {carregando ? (
           <Vazio titulo="Carregando" descricao="Buscando os títulos da loja." />
         ) : erro !== null ? (
@@ -380,6 +438,27 @@ function LinhaTitulo({
 }
 
 const estilos = StyleSheet.create({
+  ferramentas: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
+  busca: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+    backgroundColor: cores.campo,
+    color: cores.texto,
+    fontSize: fonte.pequeno,
+  },
+  exportar: {
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  exportarTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   vazioTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },

@@ -6,7 +6,10 @@
  * app chamava) sairam, para nada parecer gravar sem gravar.
  */
 
-import { chamarApi, type Resposta } from './api'
+import { File, Paths } from 'expo-file-system'
+import { isAvailableAsync, shareAsync } from 'expo-sharing'
+import { API_URL, chamarApi, type Resposta } from './api'
+import { lerToken } from './session'
 import type { StatusTitulo } from './types'
 
 /* -------------------------------------------------------------------------- */
@@ -342,4 +345,41 @@ export async function lancarContaAReceber(entrada: {
   customerId?: string
 }): Promise<Resposta<unknown>> {
   return chamarApi<unknown>('/contas-a-receber', { method: 'POST', body: entrada })
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exportacao — RF-087                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Baixa a lista de titulos em CSV ou PDF e abre o compartilhar do celular —
+ * mandar ao contador pelo WhatsApp ou e-mail e o uso de verdade. O arquivo e o
+ * mesmo que o web baixa: quem monta e o servidor.
+ */
+export async function exportarTitulos(
+  tipo: TipoDeTitulo,
+  formato: 'csv' | 'pdf',
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const token = await lerToken()
+  const destino = new File(Paths.cache, `contas-a-${tipo}.${formato}`)
+  try {
+    const arquivo = await File.downloadFileAsync(
+      `${API_URL}/contas-a-${tipo}/exportar?formato=${formato}`,
+      destino,
+      {
+        idempotent: true,
+        ...(token === null ? {} : { headers: { authorization: `Bearer ${token}` } }),
+      },
+    )
+    if (!(await isAvailableAsync())) {
+      return { ok: false, erro: 'Este aparelho não permite compartilhar arquivos.' }
+    }
+    await shareAsync(arquivo.uri, {
+      mimeType: formato === 'csv' ? 'text/csv' : 'application/pdf',
+      dialogTitle: 'Exportar títulos',
+    })
+    return { ok: true }
+  } catch {
+    return { ok: false, erro: 'Não foi possível exportar. Confira a conexão e tente de novo.' }
+  }
 }
