@@ -16,7 +16,8 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import LeitorCodigo from '@/components/LeitorCodigo'
 import { buscarProduto, calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
-import { formatPercent } from '@/lib/format'
+import { carregarCustosVariaveis } from '@/lib/custos-api'
+import { formatMoney, formatPercent } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
@@ -51,6 +52,8 @@ export default function ProdutoNovoScreen() {
     categorias: [],
     fornecedores: [],
   })
+  /* Soma dos custos variaveis da loja, em pontos percentuais. */
+  const [percentualVariavel, setPercentualVariavel] = useState(0)
   const [lendo, setLendo] = useState(false)
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
@@ -59,8 +62,10 @@ export default function ProdutoNovoScreen() {
   useEffect(() => {
     let cancelado = false
     void (async () => {
-      const s = await carregarSugestoes()
-      if (!cancelado) setSugestoes(s)
+      const [s, v] = await Promise.all([carregarSugestoes(), carregarCustosVariaveis()])
+      if (cancelado) return
+      setSugestoes(s)
+      if (v.ok) setPercentualVariavel(v.dados.reduce((acc, c) => acc + c.percentual, 0))
       if (!editando) return
       const r = await buscarProduto(id)
       if (cancelado) return
@@ -89,6 +94,10 @@ export default function ProdutoNovoScreen() {
   const venda = centavosDoTexto(precoVenda)
   const custo = centavosDoTexto(precoCusto)
   const margem = venda !== null && custo !== null ? calcularMargem(custo / 100, venda / 100) : null
+  /* O que sobra depois de tarifa, imposto e comissao — os custos que crescem com
+     a venda. E a margem que o lojista de fato leva para casa. */
+  const variavel = venda === null ? 0 : (venda / 100) * (percentualVariavel / 100)
+  const sobra = venda === null ? null : venda / 100 - (custo ?? 0) / 100 - variavel
 
   async function salvar() {
     if (descricao.trim().length < 2) {
@@ -201,6 +210,13 @@ export default function ProdutoNovoScreen() {
               />
             </View>
           </View>
+
+          {percentualVariavel > 0 && sobra !== null ? (
+            <Text style={[estilos.nota, sobra < 0 && estilos.erro]}>
+              Depois dos custos variáveis ({formatPercent(percentualVariavel)}): sobram{' '}
+              {formatMoney(sobra)} por unidade.
+            </Text>
+          ) : null}
 
           <View style={estilos.linha}>
             {!editando ? (
