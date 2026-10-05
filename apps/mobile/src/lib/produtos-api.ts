@@ -1,4 +1,5 @@
 import { chamarApi } from './api'
+import { centavosDoTexto } from './valor'
 /**
  * ============================================================================
  * PONTOS DE INTEGRACAO — MODULO DE PRODUTOS
@@ -414,5 +415,83 @@ export async function listarCatalogo(opcoes: {
         estoqueMinimo: p.minStock,
       })),
     },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Importacao — NR-072                                                        */
+/* -------------------------------------------------------------------------- */
+
+export type ResultadoDaImportacaoDeProdutos = {
+  importados: number
+  recusadas: { index: number; description: string; reason: string }[]
+}
+
+/** Inteiro da planilha: "12" ou "1.200"; nulo quando nao da para ler. */
+function inteiroDaPlanilha(texto: string | undefined): number | null {
+  const bruto = (texto ?? '').replace(/[^\d-]/g, '').trim()
+  if (bruto === '') return null
+  const n = Number(bruto)
+  return Number.isInteger(n) ? n : null
+}
+
+/** Manda o lote para `POST /produtos/importacao`, como o web. */
+export async function confirmarImportacaoProdutos(
+  registros: Record<string, string>[],
+): Promise<ResultadoDaImportacaoDeProdutos> {
+  const recusadas: ResultadoDaImportacaoDeProdutos['recusadas'] = []
+  const enviar: Record<string, unknown>[] = []
+  const origem: number[] = []
+
+  registros.forEach((r, index) => {
+    const venda = centavosDoTexto(r.precoVenda)
+    const custo = centavosDoTexto(r.precoCusto) ?? 0
+    const descricao = (r.descricao ?? '').trim()
+    if (descricao === '') {
+      recusadas.push({ index, description: descricao, reason: 'Descrição vazia.' })
+      return
+    }
+    if (venda === null) {
+      recusadas.push({ index, description: descricao, reason: 'Preço de venda ilegível.' })
+      return
+    }
+    const estoque = inteiroDaPlanilha(r.estoque)
+    origem.push(index)
+    enviar.push({
+      description: descricao,
+      unitOfMeasure: 'un',
+      salePriceCents: venda,
+      costPriceCents: custo,
+      ...(r.ean?.trim() ? { barcode: r.ean.trim() } : {}),
+      ...(r.ncm?.trim() ? { ncm: r.ncm.trim() } : {}),
+      ...(estoque !== null ? { stock: estoque } : {}),
+    })
+  })
+
+  if (enviar.length === 0) return { importados: 0, recusadas }
+
+  const r = await chamarApi<{
+    imported: number
+    rejected: ResultadoDaImportacaoDeProdutos['recusadas']
+  }>('/produtos/importacao', { method: 'POST', body: { products: enviar } })
+  if (!r.ok) {
+    return {
+      importados: 0,
+      recusadas: [
+        ...recusadas,
+        ...enviar.map((e, i) => ({
+          index: origem[i] ?? i,
+          description: String(e.description),
+          reason: r.message,
+        })),
+      ],
+    }
+  }
+  return {
+    importados: r.dados.imported,
+    recusadas: [
+      ...recusadas,
+      ...r.dados.rejected.map((rec) => ({ ...rec, index: origem[rec.index] ?? rec.index })),
+    ],
   }
 }

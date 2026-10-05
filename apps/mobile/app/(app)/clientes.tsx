@@ -16,6 +16,7 @@ import Cabecalho from '@/components/Cabecalho'
 import {
   linkDoWhatsApp,
   listarClientes,
+  confirmarImportacaoClientes,
   listarInadimplentes,
   type ClienteDaLista,
   type ClienteInadimplente,
@@ -24,6 +25,8 @@ import {
 import { daysUntil, formatDate, formatMoney } from '@/lib/format'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Botao from '@/components/ui/Botao'
+import ImportarCsvModal from '@/components/ImportarCsvModal'
+import { CAMPOS_CLIENTES, validarCliente } from '@/lib/campos-de-importacao'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /** Sem comprar ha mais que isto = cliente inativo. */
@@ -58,6 +61,7 @@ export default function Clientes() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
+  const [importando, setImportando] = useState(false)
 
   /* Voltar da ficha ou do cadastro recarrega: o saldo ou o nome podem ter mudado. */
   useFocusEffect(
@@ -119,7 +123,14 @@ export default function Clientes() {
               ? `${inadimplentes.length} com ${formatMoney(devendo)} vencido`
               : `${total} ${filtro === 'fiado' ? 'com fiado em aberto' : filtro === 'inativos' ? 'sem comprar há 60 dias' : 'cadastrados'}`
         }
-        acao={<Botao onPress={() => router.push('/cliente-form')}>Novo</Botao>}
+        acao={
+          <View style={estilos.acoesTopo}>
+            <Botao variante="secundario" onPress={() => setImportando(true)}>
+              Importar
+            </Botao>
+            <Botao onPress={() => router.push('/cliente-form')}>Novo</Botao>
+          </View>
+        }
       />
 
       <View style={estilos.barra}>
@@ -211,6 +222,19 @@ export default function Clientes() {
           }
         />
       )}
+
+      {importando ? (
+        <ImportarCsvModal
+          titulo="Importar clientes"
+          campos={CAMPOS_CLIENTES}
+          validar={validarCliente}
+          onConfirmar={confirmarImportacaoClientes}
+          onFechar={() => {
+            setImportando(false)
+            setTentativa((n) => n + 1)
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -306,6 +330,7 @@ function LinhaCliente({ cliente, onAbrir }: { cliente: ClienteDaLista; onAbrir: 
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
+  acoesTopo: { flexDirection: 'row', gap: espaco.sm },
 
   cabecalho: { paddingHorizontal: espaco.lg, paddingTop: espaco.md, gap: 2 },
   titulo: { fontSize: fonte.display, fontWeight: peso.pesado, color: cores.texto },

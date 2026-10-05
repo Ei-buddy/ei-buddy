@@ -14,6 +14,7 @@ import Cabecalho from '@/components/Cabecalho'
 import {
   buscarEan,
   carregarResumoDoCatalogo,
+  confirmarImportacaoProdutos,
   listarCatalogo,
   nivelEstoque,
   type FiltroDeEstoque,
@@ -23,6 +24,8 @@ import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
+import ImportarCsvModal from '@/components/ImportarCsvModal'
+import { CAMPOS_PRODUTOS, validarProduto } from '@/lib/campos-de-importacao'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
@@ -50,6 +53,7 @@ export default function Catalogo() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
+  const [importando, setImportando] = useState(false)
   const [resumo, setResumo] = useState<Awaited<ReturnType<typeof carregarResumoDoCatalogo>>>(null)
 
   /* Voltar da ficha ou do cadastro recarrega: preco e saldo podem ter mudado. */
@@ -129,7 +133,14 @@ export default function Catalogo() {
       <Cabecalho
         titulo="Catálogo"
         subtitulo={carregando ? 'Carregando...' : `${total} produtos`}
-        acao={<Botao onPress={() => router.push('/produto-novo')}>Novo</Botao>}
+        acao={
+          <View style={estilos.acoesTopo}>
+            <Botao variante="secundario" onPress={() => setImportando(true)}>
+              Importar
+            </Botao>
+            <Botao onPress={() => router.push('/produto-novo')}>Novo</Botao>
+          </View>
+        }
       />
 
       {resumo !== null ? (
@@ -230,6 +241,19 @@ export default function Catalogo() {
         onLer={(codigo) => void aoLerCodigo(codigo)}
         onFechar={() => setLendo(false)}
       />
+
+      {importando ? (
+        <ImportarCsvModal
+          titulo="Importar produtos"
+          campos={CAMPOS_PRODUTOS}
+          validar={validarProduto}
+          onConfirmar={confirmarImportacaoProdutos}
+          onFechar={() => {
+            setImportando(false)
+            setTentativa((n) => n + 1)
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -286,6 +310,7 @@ const estilos = StyleSheet.create({
   resumo: { paddingHorizontal: espaco.lg },
   resumoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   tela: { flex: 1, backgroundColor: cores.fundo },
+  acoesTopo: { flexDirection: 'row', gap: espaco.sm },
 
   cabecalho: { paddingHorizontal: espaco.lg, paddingTop: espaco.md, gap: 2 },
   titulo: { fontSize: fonte.display, fontWeight: peso.pesado, color: cores.texto },

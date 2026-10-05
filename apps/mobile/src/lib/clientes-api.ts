@@ -520,3 +520,69 @@ export async function registrarConsentimento(
     ? { ok: true, dados: { autorizouEm: r.dados.optedInAt, recusouEm: r.dados.optedOutAt } }
     : { ok: false, erro: r.message }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Importacao — NR-072, US-008                                                */
+/* -------------------------------------------------------------------------- */
+
+export type LinhaRecusada = { index: number; description: string; reason: string }
+export type ResultadoDaImportacao = { importados: number; recusadas: LinhaRecusada[] }
+
+/**
+ * Manda o lote para `POST /clientes/importacao`, como o web. O servidor
+ * devolve o indice do que recusou sobre o lote ENVIADO; `origem` traduz de
+ * volta para a linha da planilha.
+ */
+export async function confirmarImportacaoClientes(
+  registros: Record<string, string>[],
+): Promise<ResultadoDaImportacao> {
+  const recusadas: LinhaRecusada[] = []
+  const enviar: Record<string, unknown>[] = []
+  const origem: number[] = []
+  const digitos = (v: string | undefined) => (v ?? '').replace(/\D/g, '')
+
+  registros.forEach((r, index) => {
+    const nome = (r.nome ?? '').trim()
+    if (nome.length < 2) {
+      recusadas.push({ index, description: nome, reason: 'Nome vazio ou curto demais.' })
+      return
+    }
+    const documento = digitos(r.documento)
+    const celular = digitos(r.celular)
+    const email = (r.email ?? '').trim()
+    origem.push(index)
+    enviar.push({
+      name: nome,
+      ...(documento !== '' ? { document: documento } : {}),
+      ...(celular !== '' ? { phone: celular } : {}),
+      ...(email !== '' ? { email } : {}),
+    })
+  })
+
+  if (enviar.length === 0) return { importados: 0, recusadas }
+
+  const r = await chamarApi<{ imported: number; rejected: LinhaRecusada[] }>(
+    '/clientes/importacao',
+    { method: 'POST', body: { customers: enviar } },
+  )
+  if (!r.ok) {
+    return {
+      importados: 0,
+      recusadas: [
+        ...recusadas,
+        ...enviar.map((e, i) => ({
+          index: origem[i] ?? i,
+          description: String(e.name),
+          reason: r.message,
+        })),
+      ],
+    }
+  }
+  return {
+    importados: r.dados.imported,
+    recusadas: [
+      ...recusadas,
+      ...r.dados.rejected.map((rec) => ({ ...rec, index: origem[rec.index] ?? rec.index })),
+    ],
+  }
+}
