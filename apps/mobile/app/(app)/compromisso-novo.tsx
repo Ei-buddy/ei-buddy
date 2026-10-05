@@ -1,40 +1,60 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native'
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
+import { SeletorCliente } from '@/components/SeletoresDoPdv'
 import { hojeLocal, marcarCompromisso } from '@/lib/agenda-api'
-import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import { dataDoTexto, formatDate, mascaraData } from '@/lib/format'
+import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /**
  * Marcar compromisso — NR-078, US-043, RF-089 e RF-091.
  *
- * Titulo, dia, hora e lembrete. Sem vinculo a cliente: escolher cliente exige
- * uma busca que a api ainda nao expoe (a mesma falta que impede o fiado no
- * PDV), e um seletor alimentado pelo mock mandaria um id que o servidor nao
- * conhece.
+ * Os mesmos campos do web: titulo, dia, inicio e fim, local, cliente,
+ * observacao e lembrete.
  */
 export default function CompromissoNovoScreen() {
   const router = useRouter()
 
   const [titulo, setTitulo] = useState('')
-  const [dia, setDia] = useState(hojeLocal())
+  const [dia, setDia] = useState(formatDate(hojeLocal()))
   const [hora, setHora] = useState('')
+  const [horaFim, setHoraFim] = useState('')
+  const [local, setLocal] = useState('')
+  const [observacao, setObservacao] = useState('')
+  const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(null)
+  const [escolhendoCliente, setEscolhendoCliente] = useState(false)
   const [lembrete, setLembrete] = useState('30')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   async function salvar() {
-    const quando = montarInstante(dia, hora)
+    const diaIso = dataDoTexto(dia)
+    const quando = diaIso === null ? null : montarInstante(diaIso, hora)
+    const ate = diaIso === null || horaFim === '' ? undefined : montarInstante(diaIso, horaFim)
 
     if (titulo.trim().length < 2) {
       setErro('Diga do que se trata.')
       return
     }
     if (quando === null) {
-      setErro('Confira o dia (AAAA-MM-DD) e a hora (HH:MM).')
+      setErro('Confira o dia (DD/MM/AAAA) e a hora (HH:MM).')
+      return
+    }
+    if (ate === null || (ate !== undefined && ate <= quando)) {
+      setErro('O fim precisa ser uma hora depois do início.')
       return
     }
 
@@ -50,6 +70,10 @@ export default function CompromissoNovoScreen() {
     const r = await marcarCompromisso({
       titulo: titulo.trim(),
       quando,
+      ...(ate === undefined ? {} : { ate }),
+      ...(local.trim() === '' ? {} : { local: local.trim() }),
+      ...(observacao.trim() === '' ? {} : { observacao: observacao.trim() }),
+      ...(cliente === null ? {} : { clienteId: cliente.id }),
       ...(minutos === undefined ? {} : { lembreteMinutosAntes: minutos }),
     })
 
@@ -86,15 +110,47 @@ export default function CompromissoNovoScreen() {
             placeholder="Entrega da Padaria Sol"
           />
 
-          <Campo rotulo="Dia" valor={dia} onChange={setDia} placeholder="2026-09-10" />
-
           <Campo
-            rotulo="Hora"
-            valor={hora}
-            onChange={setHora}
-            placeholder="14:00"
+            rotulo="Dia"
+            valor={dia}
+            onChange={(v) => setDia(mascaraData(v))}
+            placeholder="DD/MM/AAAA"
             tipoTeclado="numeric"
           />
+
+          <View style={estilos.linha}>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Início"
+                valor={hora}
+                onChange={(v) => setHora(mascaraHora(v))}
+                placeholder="14:00"
+                tipoTeclado="numeric"
+              />
+            </View>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Fim (opcional)"
+                valor={horaFim}
+                onChange={(v) => setHoraFim(mascaraHora(v))}
+                placeholder="15:00"
+                tipoTeclado="numeric"
+              />
+            </View>
+          </View>
+
+          <Campo rotulo="Local (opcional)" valor={local} onChange={setLocal} />
+
+          <Pressable
+            style={estilos.cliente}
+            onPress={() => setEscolhendoCliente(true)}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.rotulo}>Cliente (opcional)</Text>
+            <Text style={estilos.clienteNome}>{cliente?.nome ?? 'Escolher cliente'}</Text>
+          </Pressable>
+
+          <Campo rotulo="Observação (opcional)" valor={observacao} onChange={setObservacao} />
 
           <Campo
             rotulo="Lembrar quantos minutos antes"
@@ -109,6 +165,16 @@ export default function CompromissoNovoScreen() {
           </Botao>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {escolhendoCliente ? (
+        <SeletorCliente
+          onEscolher={(c) => {
+            setCliente({ id: c.id, nome: c.nome })
+            setEscolhendoCliente(false)
+          }}
+          onFechar={() => setEscolhendoCliente(false)}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -132,8 +198,25 @@ function montarInstante(dia: string, hora: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+/** "1430" vira "14:30" enquanto digita. */
+function mascaraHora(texto: string): string {
+  const d = texto.replace(/\D/g, '').slice(0, 4)
+  return d.length <= 2 ? d : `${d.slice(0, 2)}:${d.slice(2)}`
+}
+
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
+  linha: { flexDirection: 'row', gap: espaco.md },
+  rotulo: { fontSize: fonte.pequeno, fontWeight: peso.medio, color: cores.textoFraco },
+  cliente: {
+    gap: espaco.xs,
+    padding: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+  },
+  clienteNome: { fontSize: fonte.corpo, color: cores.texto },
   flex: { flex: 1 },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   erro: { color: cores.erro, fontSize: fonte.pequeno, fontWeight: peso.forte },

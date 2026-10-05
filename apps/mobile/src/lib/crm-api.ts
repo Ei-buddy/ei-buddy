@@ -38,7 +38,10 @@ export type CardCrm = {
   clienteNome: string | null
   data: string
   responsavelNome: string | null
+  comentarios: Comentario[]
 }
+
+export type Comentario = { id: string; autor: string; data: string; texto: string }
 
 type ResultadoCrm<T> = { ok: true; dados: T } | { ok: false; erro: string }
 
@@ -60,6 +63,21 @@ const DA_COLUNA: Record<ColunaId, ColunaDaApi> = {
   concluido: 'done',
 }
 const PARA_TIPO: Record<TipoDaApi, TipoCard> = { task: 'pendencia', contact: 'contato' }
+const DO_TIPO: Record<TipoCard, TipoDaApi> = { pendencia: 'task', contato: 'contact' }
+
+type ComentarioDaApi = {
+  id: string
+  authorName: string | null
+  text: string
+  createdAt: string
+}
+
+const paraComentario = (c: ComentarioDaApi): Comentario => ({
+  id: c.id,
+  autor: c.authorName ?? 'Alguém da equipe',
+  data: c.createdAt,
+  texto: c.text,
+})
 
 type CardDaApi = {
   id: string
@@ -71,6 +89,7 @@ type CardDaApi = {
   customerName: string | null
   dueOn: string
   assigneeName: string | null
+  comments: ComentarioDaApi[]
 }
 
 const paraCard = (c: CardDaApi): CardCrm => ({
@@ -83,6 +102,7 @@ const paraCard = (c: CardDaApi): CardCrm => ({
   clienteNome: c.customerName,
   data: c.dueOn,
   responsavelNome: c.assigneeName,
+  comentarios: c.comments.map(paraComentario),
 })
 
 /* -------------------------------------------------------------------------- */
@@ -100,4 +120,45 @@ export async function moverCard(id: string, coluna: ColunaId): Promise<Resultado
     body: { column: DA_COLUNA[coluna] },
   })
   return r.ok ? { ok: true, dados: paraCard(r.dados) } : { ok: false, erro: r.message }
+}
+
+export type DadosCard = {
+  titulo: string
+  descricao: string
+  tipo: TipoCard
+  clienteId: string | null
+  /** AAAA-MM-DD. */
+  data: string
+  responsavelId: string | null
+}
+
+export async function criarCard(dados: DadosCard): Promise<ResultadoCrm<CardCrm>> {
+  const r = await chamarApi<CardDaApi>('/crm/cards', {
+    method: 'POST',
+    body: {
+      title: dados.titulo.trim(),
+      ...(dados.descricao.trim() === '' ? {} : { description: dados.descricao.trim() }),
+      kind: DO_TIPO[dados.tipo],
+      ...(dados.clienteId === null ? {} : { customerId: dados.clienteId }),
+      dueOn: dados.data,
+      ...(dados.responsavelId === null ? {} : { assigneeUserId: dados.responsavelId }),
+    },
+  })
+  return r.ok ? { ok: true, dados: paraCard(r.dados) } : { ok: false, erro: r.message }
+}
+
+export async function comentarCard(id: string, texto: string): Promise<ResultadoCrm<Comentario>> {
+  const r = await chamarApi<ComentarioDaApi>(`/crm/cards/${id}/comentarios`, {
+    method: 'POST',
+    body: { text: texto.trim() },
+  })
+  return r.ok ? { ok: true, dados: paraComentario(r.dados) } : { ok: false, erro: r.message }
+}
+
+export type MembroDaEquipe = { id: string; nome: string }
+
+/** Quem pode ser responsavel por um card — a equipe da loja. */
+export async function listarEquipe(): Promise<MembroDaEquipe[]> {
+  const r = await chamarApi<{ members: { id: string; name: string }[] }>('/equipe')
+  return r.ok ? r.dados.members.map((m) => ({ id: m.id, nome: m.name })) : []
 }
