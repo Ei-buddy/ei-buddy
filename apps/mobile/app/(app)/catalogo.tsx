@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import {
   buscarEan,
+  carregarResumoDoCatalogo,
   listarCatalogo,
   nivelEstoque,
   type FiltroDeEstoque,
@@ -49,6 +50,17 @@ export default function Catalogo() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
+  const [resumo, setResumo] = useState<Awaited<ReturnType<typeof carregarResumoDoCatalogo>>>(null)
+
+  /* Voltar da ficha ou do cadastro recarrega: preco e saldo podem ter mudado. */
+  useFocusEffect(
+    useCallback(() => {
+      setTentativa((n) => n + 1)
+      void (async () => {
+        setResumo(await carregarResumoDoCatalogo())
+      })()
+    }, []),
+  )
 
   /* Busca e filtro no SERVIDOR: o catalogo da loja pode ter centenas de itens. */
   useEffect(() => {
@@ -93,8 +105,8 @@ export default function Catalogo() {
     setConsultando(false)
 
     if (r.situacao === 'cadastrado') {
-      /* Joga na busca: a lista, que vem do servidor, mostra o item. */
-      setBusca(r.descricao)
+      /* Abre a ficha do produto bipado: e la que se confere preco e saldo. */
+      router.push({ pathname: '/produto', params: { id: r.produto.id } })
       return
     }
 
@@ -114,7 +126,20 @@ export default function Catalogo() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Catálogo" subtitulo={carregando ? 'Carregando...' : `${total} produtos`} />
+      <Cabecalho
+        titulo="Catálogo"
+        subtitulo={carregando ? 'Carregando...' : `${total} produtos`}
+        acao={<Botao onPress={() => router.push('/produto-novo')}>Novo</Botao>}
+      />
+
+      {resumo !== null ? (
+        <View style={estilos.resumo}>
+          <Text style={estilos.resumoTexto}>
+            {resumo.abaixoDoMinimo} abaixo do mínimo · {resumo.esgotados} esgotado(s) ·{' '}
+            {formatMoney(resumo.valorEmEstoque)} em estoque
+          </Text>
+        </View>
+      ) : null}
 
       <View style={estilos.barra}>
         <TextInput
@@ -174,7 +199,12 @@ export default function Catalogo() {
           data={lista}
           keyExtractor={(p) => p.id}
           contentContainerStyle={estilos.lista}
-          renderItem={({ item }) => <LinhaProduto produto={item} />}
+          renderItem={({ item }) => (
+            <LinhaProduto
+              produto={item}
+              onAbrir={() => router.push({ pathname: '/produto', params: { id: item.id } })}
+            />
+          )}
           ListEmptyComponent={
             <Vazio
               titulo="Produto não encontrado"
@@ -204,11 +234,11 @@ export default function Catalogo() {
   )
 }
 
-function LinhaProduto({ produto }: { produto: ProdutoDoCatalogo }) {
+function LinhaProduto({ produto, onAbrir }: { produto: ProdutoDoCatalogo; onAbrir: () => void }) {
   const nivel = nivelEstoque(produto)
 
   return (
-    <View style={estilos.produto}>
+    <Pressable style={estilos.produto} onPress={onAbrir} accessibilityRole="button">
       <View style={estilos.produtoInfo}>
         <Text style={estilos.produtoCodigo}>{produto.codigo}</Text>
         <Text style={estilos.produtoNome} numberOfLines={2}>
@@ -229,7 +259,7 @@ function LinhaProduto({ produto }: { produto: ProdutoDoCatalogo }) {
           <Etiqueta tom="sucesso">{produto.estoque} un</Etiqueta>
         )}
       </View>
-    </View>
+    </Pressable>
   )
 }
 
@@ -253,6 +283,8 @@ const estilos = StyleSheet.create({
     gap: espaco.sm,
   },
   avisoTexto: { color: cores.texto, fontSize: fonte.pequeno },
+  resumo: { paddingHorizontal: espaco.lg },
+  resumoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   tela: { flex: 1, backgroundColor: cores.fundo },
 
   cabecalho: { paddingHorizontal: espaco.lg, paddingTop: espaco.md, gap: 2 },
