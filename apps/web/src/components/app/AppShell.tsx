@@ -152,8 +152,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const quantosAvisosAntes = useRef(0)
   const { bloqueado, pedirRegularizacao } = useSubscription()
 
-  /* SUBSTITUIR POR: GET /suporte/chamados (ou contador dedicado) — hoje
-     le do mock uma vez, no primeiro render. */
   /*
    * O badge do Suporte sai da MESMA lista do sino.
    *
