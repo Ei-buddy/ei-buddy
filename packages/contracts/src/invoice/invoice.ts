@@ -283,6 +283,22 @@ export const cancelInvoiceRequestSchema = z
 
 export type CancelInvoiceRequest = z.infer<typeof cancelInvoiceRequestSchema>
 
+/**
+ * O que a TELA manda para cancelar a nota da venda — RF-050. Chave e empresa
+ * saem do servidor; daqui vem so a justificativa, com o minimo da SEFAZ.
+ */
+export const cancelSaleInvoiceInputSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(15, 'A justificativa precisa de ao menos 15 caracteres.')
+      .max(255, 'A justificativa passa de 255 caracteres.'),
+  })
+  .strict()
+
+export type CancelSaleInvoiceInput = z.infer<typeof cancelSaleInvoiceInputSchema>
+
 export const invoiceCancellationSchema = z.discriminatedUnion('status', [
   z
     .object({

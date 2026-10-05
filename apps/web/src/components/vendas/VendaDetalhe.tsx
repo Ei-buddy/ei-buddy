@@ -1,7 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { devolverItens, estornarVenda, FORMAS, type VendaDoHistorico } from '@/lib/vendas-api'
+import {
+  cancelarNota,
+  devolverItens,
+  estornarVenda,
+  FORMAS,
+  type VendaDoHistorico,
+} from '@/lib/vendas-api'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { Badge, Card, PageHeader, Stat } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -21,6 +27,11 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
   /* Quantidade a devolver por linha, pelo indice da linha. */
   const [aDevolver, setADevolver] = useState<Record<number, number>>({})
   const [motivoDevolucao, setMotivoDevolucao] = useState('')
+  /* A nota valida trava estorno e devolucao (RF-050): cancelar a nota e o
+     passo antes, e quando ele acontece a tela libera os dois. */
+  const [notaNumero, setNotaNumero] = useState(venda.notaNumero)
+  const [cancelandoNota, setCancelandoNota] = useState(false)
+  const [justificativa, setJustificativa] = useState('')
 
   /* Cancelada, devolvida ou devolvida em parte: nos tres o dinheiro nao ficou
      inteiro, e o destaque verde do liquido deixa de fazer sentido. */
@@ -103,6 +114,29 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
         r.dados.entregarAoCliente > 0
           ? `Devolução registrada. Entregue ${formatMoney(r.dados.entregarAoCliente)} ao cliente.`
           : `Devolução registrada. ${formatMoney(r.dados.deixaDeReceber)} deixam de ser cobrados.`,
+      tone: 'success',
+    })
+  }
+
+  async function confirmarCancelamentoDaNota() {
+    if (justificativa.trim().length < 15) {
+      setToast({ msg: 'A justificativa precisa de ao menos 15 caracteres.', tone: 'error' })
+      return
+    }
+    setProcessando(true)
+    const r = await cancelarNota(venda.id, justificativa)
+    setProcessando(false)
+
+    if (!r.ok) {
+      setCancelandoNota(false)
+      setToast({ msg: r.error, tone: 'error' })
+      return
+    }
+    setCancelandoNota(false)
+    setJustificativa('')
+    setNotaNumero(null)
+    setToast({
+      msg: 'Nota cancelada na SEFAZ. Agora a venda pode ser estornada ou devolvida.',
       tone: 'success',
     })
   }
@@ -221,16 +255,23 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
 
         {/* --- Documentos fiscais --- */}
         <Card title="Documentos fiscais">
-          {venda.notaNumero !== null ? (
+          {notaNumero !== null ? (
             <div className={styles.notaDetalhe}>
               {/* NFC-e e o unico modelo que o sistema emite hoje (NR-042). O
                   seletor NFS-e existia so nos dados de exemplo. */}
               <Badge tone="info">NFC-e</Badge>
-              <strong>Numero {venda.notaNumero}</strong>
+              <strong>Numero {notaNumero}</strong>
               {venda.notaChave !== null ? (
                 <span className={styles.notaChave}>{venda.notaChave}</span>
               ) : null}
+              {!estornada ? (
+                <Button variant="secondary" size="sm" onClick={() => setCancelandoNota(true)}>
+                  Cancelar nota
+                </Button>
+              ) : null}
             </div>
+          ) : venda.notaNumero !== null ? (
+            <p className={styles.semNota}>Nota cancelada.</p>
           ) : (
             <p className={styles.semNota}>Nenhuma nota emitida para esta venda.</p>
           )}
@@ -308,6 +349,33 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
           }
           onConfirmar={confirmarDevolucao}
           onCancelar={() => setDevolvendo(false)}
+        />
+      ) : null}
+
+      {cancelandoNota ? (
+        <ConfirmarDialog
+          titulo="Cancelar a nota fiscal"
+          descricao="A NFC-e é cancelada na SEFAZ. Só vale até 30 minutos depois da autorização; fora disso, o caminho é uma nota de devolução feita pelo contador. Depois de cancelar, a venda pode ser estornada ou devolvida."
+          tom="perigo"
+          rotuloConfirmar="Cancelar nota"
+          processando={processando}
+          detalhe={
+            <div className={styles.estornoDetalhe}>
+              <strong>NFC-e número {notaNumero}</strong>
+              <label className={styles.estornoMotivo}>
+                Justificativa (mínimo 15 caracteres)
+                <input
+                  value={justificativa}
+                  onChange={(e) => setJustificativa(e.target.value)}
+                  placeholder="Venda registrada com o valor errado"
+                  maxLength={255}
+                  autoFocus
+                />
+              </label>
+            </div>
+          }
+          onConfirmar={confirmarCancelamentoDaNota}
+          onCancelar={() => setCancelandoNota(false)}
         />
       ) : null}
 
