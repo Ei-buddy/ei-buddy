@@ -131,8 +131,8 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 | RF-068 | Enviar cobrança ao cliente com valor, vencimento e origem da dívida                                        | US-033 | `core`      |  M  | ✅  |
 | RF-069 | Registrar data e canal do último envio de cobrança por recebível                                           | US-033 | `core`      |  M  | ⬜  |
 | RF-070 | Impedir cobrança a cliente sem consentimento e interromper cobranças de recebível liquidado                | US-033 | `core`      |  M  | ✅  |
-| RF-071 | Listar clientes inadimplentes ordenados por valor devido, com dias de atraso                               | US-034 | `core`      |  M  | ⬜  |
-| RF-072 | Alertar inadimplência do cliente ao abrir seu cadastro ou iniciar venda                                    | US-034 | `core`      |  M  | 🟨  |
+| RF-071 | Listar clientes inadimplentes ordenados por valor devido, com dias de atraso                               | US-034 | `core`      |  M  | ✅  |
+| RF-072 | Alertar inadimplência do cliente ao abrir seu cadastro ou iniciar venda                                    | US-034 | `core`      |  M  | ✅  |
 
 ## E8 — Bancos & Conciliação
 
