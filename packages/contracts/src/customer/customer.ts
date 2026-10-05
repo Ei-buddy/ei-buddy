@@ -345,3 +345,21 @@ export const customerListOutputSchema = z.object({
 })
 
 export type CustomerListOutput = z.infer<typeof customerListOutputSchema>
+
+/**
+ * Cliente inadimplente — RF-071, US-034.
+ *
+ * So divida do CLIENTE: parcela de cartao fica de fora, porque quem deve ali e
+ * a adquirente. `daysOverdue` conta a partir do titulo mais antigo vencido.
+ */
+export const delinquentCustomerSchema = z.object({
+  customerId: idSchema,
+  name: z.string(),
+  phone: z.string().nullable(),
+  overdueCents: z.number().int(),
+  oldestDueOn: z.string(),
+  daysOverdue: z.number().int(),
+  receivablesCount: z.number().int(),
+})
+
+export type DelinquentCustomer = z.infer<typeof delinquentCustomerSchema>

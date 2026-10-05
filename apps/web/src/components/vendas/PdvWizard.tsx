@@ -11,11 +11,12 @@ import {
 } from '@/lib/vendas-api'
 import {
   listarClientes,
+  pendenciasDoCliente,
   salvarCliente,
   type CandidatoCliente,
   type ClienteDaLista,
 } from '@/lib/clientes-api'
-import { formatMoney } from '@/lib/format'
+import { formatDate, formatMoney } from '@/lib/format'
 import { maskCPF, maskPhone, validateCPF } from '@/lib/validation'
 import { Card, EmptyState, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
@@ -54,6 +55,9 @@ export default function PdvWizard() {
 
   const [etapa, setEtapa] = useState<Etapa>(1)
   const [cliente, setCliente] = useState<ClienteVenda | null>(null)
+  /* Aviso de inadimplencia ao iniciar a venda — RF-072. Avisa, nao trava: a
+     decisao de vender e do operador, mas ele precisa saber antes do fiado. */
+  const [dividaVencida, setDividaVencida] = useState<{ valor: number; desde: string } | null>(null)
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [desconto, setDesconto] = useState<Desconto | null>(null)
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([])
@@ -173,8 +177,29 @@ export default function PdvWizard() {
           onSelecionar={(c) => {
             setCliente(c)
             setEtapa(2)
+            setDividaVencida(null)
+            /* Venda de balcao sem cliente (`id` nulo) nao tem divida a conferir. */
+            const id = c?.id ?? null
+            if (id !== null) {
+              void pendenciasDoCliente(id).then((r) => {
+                if (!r.ok) return
+                const vencidas = r.dados.filter((p) => p.status === 'vencido')
+                if (vencidas.length === 0) return
+                setDividaVencida({
+                  valor: vencidas.reduce((acc, p) => acc + p.valor, 0),
+                  desde: vencidas.map((p) => p.vencimento).sort()[0]!,
+                })
+              })
+            }
           }}
         />
+      ) : null}
+
+      {etapa === 2 && dividaVencida !== null && cliente !== null ? (
+        <p className={styles.aviso} role="alert">
+          {cliente.nome} tem {formatMoney(dividaVencida.valor)} em contas vencidas desde{' '}
+          {formatDate(dividaVencida.desde)}. Confira antes de vender no fiado.
+        </p>
       ) : null}
 
       {/* ============ Etapa 2: catalogo e carrinho ============ */}
