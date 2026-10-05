@@ -184,6 +184,8 @@ export type ProdutoDoCatalogo = {
   descricao: string
   categoria: string | null
   precoVenda: number
+  /** O PDV leva o custo junto: o resumo da venda mostra a margem. */
+  precoCusto: number
   estoque: number
   estoqueMinimo: number
 }
@@ -226,6 +228,7 @@ export async function listarCatalogo(opcoes: {
         descricao: p.description,
         categoria: p.category,
         precoVenda: p.salePriceCents / 100,
+        precoCusto: p.costPriceCents / 100,
         estoque: p.stock,
         estoqueMinimo: p.minStock,
       })),
