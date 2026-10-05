@@ -475,6 +475,8 @@ export type {
   VendaParaNota,
 } from './ports/sale-fiscal.js'
 export { reconcileContingency } from './fiscal/reconcile-contingency.js'
+export { cancelSaleInvoice, PRAZO_DE_CANCELAMENTO_MINUTOS } from './fiscal/cancel-invoice.js'
+export type { CancelInvoiceDeps } from './fiscal/cancel-invoice.js'
 export type {
   ReconcileContingencyDeps,
   ResultadoDaReconciliacao,

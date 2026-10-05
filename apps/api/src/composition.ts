@@ -948,6 +948,8 @@ export function buildEmissaoDeps(): EmissaoDeps {
      * nao inventa nota: ele devolve o que a guarda tem.
      */
     invoices: montarEmissorDaApi(sql, store),
+    /* O cancelamento da nota (RF-050) entra na trilha. */
+    audit: createAuditTrail(sql),
   }
 }
 

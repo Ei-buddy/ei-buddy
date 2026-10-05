@@ -680,6 +680,24 @@ export async function estornarVenda(
   return r.ok ? { ok: true } : { ok: false, error: r.erro }
 }
 
+/**
+ * Cancela a NFC-e da venda — RF-050, RF-051.
+ *
+ * O passo que libera o estorno e a devolucao de uma venda com nota. Dentro de
+ * 30 minutos da autorizacao; fora disso o servidor recusa e orienta a nota de
+ * devolucao.
+ */
+export async function cancelarNota(
+  vendaId: string,
+  justificativa: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await pedir(`/api/vendas/${encodeURIComponent(vendaId)}/nota/cancelamento`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: justificativa.trim() }),
+  })
+  return r.ok ? { ok: true } : { ok: false, error: r.erro }
+}
+
 /** O que a devolucao fez com o dinheiro, em reais. */
 export type ResultadoDaDevolucao = {
   devolvido: number

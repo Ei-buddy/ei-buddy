@@ -1,6 +1,11 @@
 import type { InvoiceIssueResult } from '@na-regua/contracts'
-import { updateFiscalCredentialsInputSchema } from '@na-regua/contracts'
 import {
+  cancelSaleInvoiceInputSchema,
+  updateFiscalCredentialsInputSchema,
+} from '@na-regua/contracts'
+import {
+  cancelSaleInvoice,
+  type CancelInvoiceDeps,
   reconcileContingency,
   type ReconcileContingencyDeps,
   requestInvoice,
@@ -20,7 +25,8 @@ import { validate } from '../plugins/validate.js'
  */
 
 export type EmissaoDeps = RequestInvoiceDeps &
-  ReconcileContingencyDeps & {
+  ReconcileContingencyDeps &
+  Pick<CancelInvoiceDeps, 'audit'> & {
     /** A nota ja emitida desta venda, para a tela mostrar o estado — RF-054. */
     readonly store: {
       findBySale(
@@ -112,6 +118,26 @@ export function registerEmissaoRoutes(app: FastifyInstance, deps: EmissaoDeps): 
       const ctx = requireContext(request)
 
       const r = await reconcileContingency(deps, ctx)
+
+      return reply.code(200).send(r)
+    },
+  )
+
+  /**
+   * Cancela a nota da venda — RF-050, RF-051.
+   *
+   * O passo antes do estorno e da devolucao, que recusam venda com nota
+   * valida. Fora do prazo legal, recusa sem transmitir e orienta a devolucao.
+   */
+  app.post(
+    '/vendas/:id/nota/cancelamento',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(cancelSaleInvoiceInputSchema, request.body)
+
+      const r = await cancelSaleInvoice(deps, ctx, { saleId: id, reason: input.reason })
 
       return reply.code(200).send(r)
     },
