@@ -96,18 +96,20 @@ export async function buscarEan(ean: string): Promise<LeituraDeCodigo> {
 /* -------------------------------------------------------------------------- */
 
 export type DadosProduto = {
-  id?: string
-  codigo: string
   descricao: string
   ean: string
   ncm: string
+  /** Natureza da operacao — 5102 revenda comum, 5405 com ST ja recolhida. */
+  cfop: string
+  /** CSOSN, 3 digitos. */
+  situacaoTributaria: string
   categoria: string
   fornecedor: string
   precoCusto: number
   precoVenda: number
+  /** Saldo inicial — so no cadastro; depois, estoque muda por ajuste ou venda. */
   estoque: number
   estoqueMinimo: number
-  imagem: string | null
 }
 
 type ProdutoDaApi = {
@@ -130,30 +132,209 @@ export type ProdutoLido = {
 }
 
 /**
- * Cadastra o produto — RF-017, RF-019.
+ * Cadastra ou edita o produto — RF-017, RF-019, os mesmos campos do web.
  *
- * **Fornecedor e imagem nao sao enviados.** Categoria vai como texto
- * (`category`) — o 0909 nao tem tabela `categories`. O contrato e `.strict()`.
+ * Com `id`, edita (PATCH): o saldo nao vai, porque estoque muda por ajuste
+ * com motivo (RF-124), e nao por edicao de cadastro. Campo fiscal em branco
+ * nao vai: o produto vende, e a nota diz o que falta quando for emitida.
  */
 export async function salvarProduto(
   dados: DadosProduto,
+  id?: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const r = await chamarApi<ProdutoDaApi>('/produtos', {
-    method: 'POST',
-    body: {
-      description: dados.descricao,
-      ...(dados.ean ? { barcode: dados.ean.replace(/\D/g, '') } : {}),
-      unitOfMeasure: 'un',
-      /* A tela trabalha em reais; o contrato exige centavos inteiros
-         (RNF-044). A conversao acontece AQUI, na borda. */
-      salePriceCents: Math.round(dados.precoVenda * 100),
-      costPriceCents: Math.round(dados.precoCusto * 100),
-      minStock: Math.round(dados.estoqueMinimo),
-      ...(dados.categoria.trim() === '' ? {} : { category: dados.categoria.trim() }),
-    },
-  })
+  const editando = id !== undefined
+  const texto = (v: string) => v.trim()
 
-  return r.ok ? { ok: true, id: r.dados.id } : { ok: false, error: r.message }
+  const r = await chamarApi<{ id: string }>(
+    editando ? `/produtos/${encodeURIComponent(id)}` : '/produtos',
+    {
+      method: editando ? 'PATCH' : 'POST',
+      body: {
+        description: texto(dados.descricao),
+        ...(dados.ean ? { barcode: dados.ean.replace(/\D/g, '') } : {}),
+        ...(editando ? {} : { unitOfMeasure: 'un' }),
+        /* A tela trabalha em reais; o contrato exige centavos inteiros
+           (RNF-044). A conversao acontece AQUI, na borda. */
+        salePriceCents: Math.round(dados.precoVenda * 100),
+        costPriceCents: Math.round(dados.precoCusto * 100),
+        ...(editando ? {} : { stock: Math.round(dados.estoque) }),
+        minStock: Math.round(dados.estoqueMinimo),
+        ...(texto(dados.categoria) === '' ? {} : { category: texto(dados.categoria) }),
+        ...(texto(dados.fornecedor) === '' ? {} : { supplier: texto(dados.fornecedor) }),
+        ...(texto(dados.ncm) === '' ? {} : { ncm: texto(dados.ncm) }),
+        ...(texto(dados.cfop) === '' ? {} : { cfop: texto(dados.cfop) }),
+        ...(texto(dados.situacaoTributaria) === ''
+          ? {}
+          : { taxSituationCode: texto(dados.situacaoTributaria) }),
+      },
+    },
+  )
+
+  if (!r.ok) return { ok: false, error: r.message }
+  return { ok: true, id: editando ? id : r.dados.id }
+}
+
+/** Categorias e fornecedores que a loja ja usou — as sugestoes do formulario. */
+export async function carregarSugestoes(): Promise<{
+  categorias: string[]
+  fornecedores: string[]
+}> {
+  const r = await chamarApi<{ categories: string[]; suppliers: string[] }>('/produtos/sugestoes')
+  return r.ok
+    ? { categorias: r.dados.categories, fornecedores: r.dados.suppliers }
+    : { categorias: [], fornecedores: [] }
+}
+
+/* -------------------------------------------------------------------------- */
+/* A ficha do produto — RF-017, RF-022, RF-023, RF-124                        */
+/* -------------------------------------------------------------------------- */
+
+export type ProdutoDaFicha = {
+  id: string
+  codigo: string
+  descricao: string
+  ean: string | null
+  ncm: string | null
+  cfop: string | null
+  cst: string | null
+  categoria: string | null
+  fornecedor: string | null
+  unidade: string
+  precoVenda: number
+  precoCusto: number
+  estoque: number
+  estoqueMinimo: number
+}
+
+export async function buscarProduto(
+  produtoId: string,
+): Promise<{ ok: true; dados: ProdutoDaFicha } | { ok: false; erro: string }> {
+  const r = await chamarApi<{
+    id: string
+    internalCode: string
+    description: string
+    barcode: string | null
+    ncm: string | null
+    cfop: string | null
+    taxSituationCode: string | null
+    category: string | null
+    supplier: string | null
+    unitOfMeasure: string
+    salePriceCents: number
+    costPriceCents: number
+    stock: number
+    minStock: number
+  }>(`/produtos/${encodeURIComponent(produtoId)}`)
+  if (!r.ok) return { ok: false, erro: r.message }
+
+  const p = r.dados
+  return {
+    ok: true,
+    dados: {
+      id: p.id,
+      codigo: p.internalCode,
+      descricao: p.description,
+      ean: p.barcode,
+      ncm: p.ncm,
+      cfop: p.cfop,
+      cst: p.taxSituationCode,
+      categoria: p.category,
+      fornecedor: p.supplier,
+      unidade: p.unitOfMeasure,
+      precoVenda: p.salePriceCents / 100,
+      precoCusto: p.costPriceCents / 100,
+      estoque: p.stock,
+      estoqueMinimo: p.minStock,
+    },
+  }
+}
+
+export type CausaDoMovimento = 'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned'
+
+export const ROTULO_DA_CAUSA: Record<CausaDoMovimento, string> = {
+  adjustment: 'Ajuste',
+  sale: 'Venda',
+  sale_cancelled: 'Venda estornada',
+  sale_returned: 'Devolução',
+}
+
+export type MovimentoDeEstoque = {
+  id: string
+  causa: CausaDoMovimento
+  delta: number
+  saldoDepois: number
+  motivo: string | null
+  quando: string
+}
+
+type MovimentoDaApi = {
+  id: string
+  kind: CausaDoMovimento
+  quantityDelta: number
+  balanceAfter: number
+  reason: string | null
+  createdAt: string
+}
+
+const paraMovimento = (m: MovimentoDaApi): MovimentoDeEstoque => ({
+  id: m.id,
+  causa: m.kind,
+  delta: m.quantityDelta,
+  saldoDepois: m.balanceAfter,
+  motivo: m.reason,
+  quando: m.createdAt,
+})
+
+/** O historico de movimentos do produto — RF-124, o mais recente primeiro. */
+export async function carregarMovimentos(
+  produtoId: string,
+): Promise<{ ok: true; dados: MovimentoDeEstoque[] } | { ok: false; erro: string }> {
+  const r = await chamarApi<{ movements: MovimentoDaApi[] }>(
+    `/produtos/${encodeURIComponent(produtoId)}/movimentos`,
+  )
+  return r.ok
+    ? { ok: true, dados: r.dados.movements.map(paraMovimento) }
+    : { ok: false, erro: r.message }
+}
+
+/**
+ * Ajusta o estoque pela CONTAGEM — RF-022, RF-124.
+ *
+ * Manda quanto ha na prateleira, e nao a diferenca: quem conta sabe o numero,
+ * e a conta de quanto mudou quem faz e o servidor, contra o saldo atual.
+ */
+export async function ajustarEstoque(
+  produtoId: string,
+  contagem: number,
+  motivo: string,
+): Promise<{ ok: true; dados: MovimentoDeEstoque } | { ok: false; erro: string }> {
+  const r = await chamarApi<MovimentoDaApi>(`/produtos/${encodeURIComponent(produtoId)}/estoque`, {
+    method: 'POST',
+    body: { countedQuantity: contagem, reason: motivo.trim() },
+  })
+  return r.ok ? { ok: true, dados: paraMovimento(r.dados) } : { ok: false, erro: r.message }
+}
+
+/** Os numeros do topo do catalogo, sobre a loja inteira e nao a pagina. */
+export async function carregarResumoDoCatalogo(): Promise<{
+  total: number
+  abaixoDoMinimo: number
+  esgotados: number
+  valorEmEstoque: number
+} | null> {
+  const r = await chamarApi<{
+    total: number
+    belowMinimum: number
+    outOfStock: number
+    stockValueCents: number
+  }>('/produtos/resumo')
+  if (!r.ok) return null
+  return {
+    total: r.dados.total,
+    abaixoDoMinimo: r.dados.belowMinimum,
+    esgotados: r.dados.outOfStock,
+    valorEmEstoque: r.dados.stockValueCents / 100,
+  }
 }
 
 /* -------------------------------------------------------------------------- */

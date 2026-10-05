@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,49 +14,83 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { salvarProduto } from '@/lib/produtos-api'
-import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import LeitorCodigo from '@/components/LeitorCodigo'
+import { buscarProduto, calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
+import { formatPercent } from '@/lib/format'
+import { centavosDoTexto } from '@/lib/valor'
+import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+
+const emTexto = (reais: number) => reais.toFixed(2).replace('.', ',')
 
 /**
- * Cadastro de produto no balcao — NR-070, RF-017, RF-019.
+ * Cadastro e edicao de produto — RF-017, RF-019, os mesmos campos do web.
  *
- * Chega aqui de dois jeitos: pelo leitor, quando o codigo bipado nao existe na
- * loja (o `ean` vem na rota), ou a mao.
- *
- * **Curto de proposito.** O cadastro completo — fornecedor, categoria, NCM,
- * imagem — fica no web, onde ha teclado e tempo. Aqui e o minimo para o produto
- * entrar e poder ser vendido, porque quem esta cadastrando pelo celular tem
- * cliente esperando: descricao, preco de venda e custo.
- *
- * O estoque minimo entra com zero. Quem quiser alerta de reposicao configura no
- * web depois — pedir isso agora seria mais um campo entre a pessoa e a venda.
- *
- * ## A consequencia fiscal, dita em voz alta
- *
- * Produto cadastrado por aqui nasce SEM NCM, CFOP e CST/CSOSN (NR-042). Ele
- * vende normalmente, e a nota fiscal dele nao sai ate alguem completar a
- * classificacao no web — a emissao recusa antes de transmitir e diz qual
- * produto falta (RF-046).
- *
- * E a troca certa para o balcao com cliente esperando: a venda acontece, e o
- * que falta e um dado que so o contador costuma saber. Pedir tres codigos
- * fiscais aqui seria trocar uma venda perdida por uma nota adiada.
+ * Chega aqui pelo leitor (codigo nao cadastrado, `ean` na rota), pelo
+ * catalogo ou pela ficha (`id` na rota = edicao). O basico — descricao e
+ * preco — fica no topo; categoria, fornecedor e classificacao fiscal vem
+ * abaixo, para quem tem tempo. Produto sem NCM vende normalmente; a nota diz
+ * o que falta quando for emitida (RF-046).
  */
 export default function ProdutoNovoScreen() {
   const router = useRouter()
-  /* Vem do leitor quando o codigo bipado nao esta cadastrado. */
-  const { ean } = useLocalSearchParams<{ ean?: string }>()
+  const { ean: eanDaRota, id } = useLocalSearchParams<{ ean?: string; id?: string }>()
+  const editando = typeof id === 'string' && id !== ''
 
   const [descricao, setDescricao] = useState('')
+  const [ean, setEan] = useState(eanDaRota ?? '')
   const [precoVenda, setPrecoVenda] = useState('')
   const [precoCusto, setPrecoCusto] = useState('')
+  const [estoque, setEstoque] = useState('')
+  const [estoqueMinimo, setEstoqueMinimo] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [fornecedor, setFornecedor] = useState('')
+  const [ncm, setNcm] = useState('')
+  const [cfop, setCfop] = useState('')
+  const [cst, setCst] = useState('')
+  const [sugestoes, setSugestoes] = useState<{ categorias: string[]; fornecedores: string[] }>({
+    categorias: [],
+    fornecedores: [],
+  })
+  const [lendo, setLendo] = useState(false)
+  const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  async function salvar() {
-    const venda = paraNumero(precoVenda)
-    const custo = paraNumero(precoCusto)
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const s = await carregarSugestoes()
+      if (!cancelado) setSugestoes(s)
+      if (!editando) return
+      const r = await buscarProduto(id)
+      if (cancelado) return
+      setCarregando(false)
+      if (!r.ok) {
+        setErro(r.erro)
+        return
+      }
+      const p = r.dados
+      setDescricao(p.descricao)
+      setEan(p.ean ?? '')
+      setPrecoVenda(emTexto(p.precoVenda))
+      setPrecoCusto(emTexto(p.precoCusto))
+      setEstoqueMinimo(String(p.estoqueMinimo))
+      setCategoria(p.categoria ?? '')
+      setFornecedor(p.fornecedor ?? '')
+      setNcm(p.ncm ?? '')
+      setCfop(p.cfop ?? '')
+      setCst(p.cst ?? '')
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [editando, id])
 
+  const venda = centavosDoTexto(precoVenda)
+  const custo = centavosDoTexto(precoCusto)
+  const margem = venda !== null && custo !== null ? calcularMargem(custo / 100, venda / 100) : null
+
+  async function salvar() {
     if (descricao.trim().length < 2) {
       setErro('Descreva o produto para poder cadastrar.')
       return
@@ -64,27 +99,34 @@ export default function ProdutoNovoScreen() {
       setErro('Informe o preço de venda.')
       return
     }
+    const inteiro = (t: string) => (t.trim() === '' ? 0 : Number.parseInt(t, 10))
+    const saldo = inteiro(estoque)
+    const minimo = inteiro(estoqueMinimo)
+    if (!Number.isFinite(saldo) || saldo < 0 || !Number.isFinite(minimo) || minimo < 0) {
+      setErro('Estoque e estoque mínimo são números inteiros, zero ou mais.')
+      return
+    }
 
     setErro(null)
     setSalvando(true)
-
-    const r = await salvarProduto({
-      codigo: '',
-      descricao: descricao.trim(),
-      ean: ean ?? '',
-      ncm: '',
-      categoria: '',
-      fornecedor: '',
-      precoVenda: venda,
-      /* Custo em branco vira zero: o lojista nem sempre sabe na hora, e travar
-         o cadastro por isso e travar a venda. A margem sai errada ate alguem
-         preencher, e isso e melhor que produto nao cadastrado. */
-      precoCusto: custo ?? 0,
-      estoque: 0,
-      estoqueMinimo: 0,
-      imagem: null,
-    })
-
+    const r = await salvarProduto(
+      {
+        descricao,
+        ean,
+        ncm,
+        cfop,
+        situacaoTributaria: cst,
+        categoria,
+        fornecedor,
+        precoVenda: venda / 100,
+        /* Custo em branco vira zero: o lojista nem sempre sabe na hora, e travar
+           o cadastro por isso e travar a venda. */
+        precoCusto: (custo ?? 0) / 100,
+        estoque: saldo,
+        estoqueMinimo: minimo,
+      },
+      editando ? id : undefined,
+    )
     setSalvando(false)
 
     if (!r.ok) {
@@ -92,6 +134,10 @@ export default function ProdutoNovoScreen() {
       return
     }
 
+    if (editando) {
+      router.back()
+      return
+    }
     Alert.alert('Produto cadastrado', descricao.trim(), [
       { text: 'OK', onPress: () => router.back() },
     ])
@@ -99,14 +145,17 @@ export default function ProdutoNovoScreen() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Novo produto" subtitulo={ean ? `Código ${ean}` : 'Cadastro rápido'} />
+      <Cabecalho
+        titulo={editando ? 'Editar produto' : 'Novo produto'}
+        subtitulo={ean ? `Código ${ean}` : undefined}
+      />
 
       <KeyboardAvoidingView
         style={estilos.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
-          {erro !== null ? <Text style={estilos.erro}>{erro}</Text> : null}
+          {carregando ? <Text style={estilos.nota}>Carregando o cadastro...</Text> : null}
 
           <Campo
             rotulo="Descrição"
@@ -115,64 +164,190 @@ export default function ProdutoNovoScreen() {
             placeholder="Café torrado 500g"
           />
 
-          <Campo
-            rotulo="Preço de venda"
-            valor={precoVenda}
-            onChange={setPrecoVenda}
-            placeholder="19,90"
-            tipoTeclado="decimal-pad"
-          />
-
-          <Campo
-            rotulo="Preço de custo"
-            valor={precoCusto}
-            onChange={setPrecoCusto}
-            placeholder="12,00"
-            tipoTeclado="decimal-pad"
-          />
-
-          <View style={estilos.acoes}>
-            <Botao onPress={() => void salvar()} carregando={salvando} largura>
-              {salvando ? 'Salvando...' : 'Cadastrar'}
-            </Botao>
+          <View style={estilos.linha}>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Código de barras (EAN)"
+                valor={ean}
+                onChange={(v) => setEan(v.replace(/\D/g, ''))}
+                tipoTeclado="numeric"
+              />
+            </View>
+            <View style={estilos.bipar}>
+              <Botao variante="secundario" onPress={() => setLendo(true)}>
+                Bipar
+              </Botao>
+            </View>
           </View>
 
+          <View style={estilos.linha}>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Preço de venda"
+                valor={precoVenda}
+                onChange={setPrecoVenda}
+                placeholder="19,90"
+                tipoTeclado="decimal-pad"
+              />
+            </View>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Preço de custo"
+                valor={precoCusto}
+                onChange={setPrecoCusto}
+                placeholder="12,00"
+                tipoTeclado="decimal-pad"
+                dica={margem === null ? undefined : `Margem ${formatPercent(margem)}`}
+              />
+            </View>
+          </View>
+
+          <View style={estilos.linha}>
+            {!editando ? (
+              <View style={estilos.flex}>
+                <Campo
+                  rotulo="Estoque inicial"
+                  valor={estoque}
+                  onChange={(v) => setEstoque(v.replace(/\D/g, ''))}
+                  placeholder="0"
+                  tipoTeclado="numeric"
+                />
+              </View>
+            ) : null}
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="Estoque mínimo"
+                valor={estoqueMinimo}
+                onChange={(v) => setEstoqueMinimo(v.replace(/\D/g, ''))}
+                placeholder="0"
+                tipoTeclado="numeric"
+                dica="Abaixo disso, avisa para repor."
+              />
+            </View>
+          </View>
+
+          <Campo rotulo="Categoria" valor={categoria} onChange={setCategoria} />
+          <Sugestoes opcoes={sugestoes.categorias} atual={categoria} onEscolher={setCategoria} />
+
+          <Campo rotulo="Fornecedor" valor={fornecedor} onChange={setFornecedor} />
+          <Sugestoes
+            opcoes={sugestoes.fornecedores}
+            atual={fornecedor}
+            onEscolher={setFornecedor}
+          />
+
+          <Text style={estilos.secao}>Fiscal (para a NFC-e)</Text>
+          <Campo
+            rotulo="NCM"
+            valor={ncm}
+            onChange={(v) => setNcm(v.replace(/\D/g, '').slice(0, 8))}
+            tipoTeclado="numeric"
+            placeholder="8 dígitos"
+          />
+          <View style={estilos.linha}>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="CFOP"
+                valor={cfop}
+                onChange={(v) => setCfop(v.replace(/\D/g, '').slice(0, 4))}
+                tipoTeclado="numeric"
+                placeholder="5102"
+              />
+            </View>
+            <View style={estilos.flex}>
+              <Campo
+                rotulo="CSOSN"
+                valor={cst}
+                onChange={(v) => setCst(v.replace(/\D/g, '').slice(0, 3))}
+                tipoTeclado="numeric"
+                placeholder="102"
+              />
+            </View>
+          </View>
           <Text style={estilos.nota}>
-            Fornecedor, categoria e foto ficam no computador. Aqui é o básico para o produto já
-            poder ser vendido.
+            Sem NCM, o produto vende normalmente; só a nota fiscal dele espera a classificação.
           </Text>
+
+          {erro !== null ? (
+            <Text style={estilos.erro} accessibilityRole="alert">
+              {erro}
+            </Text>
+          ) : null}
+
+          <Botao
+            onPress={() => void salvar()}
+            carregando={salvando}
+            desabilitado={carregando}
+            largura
+          >
+            {salvando ? 'Salvando...' : editando ? 'Salvar' : 'Cadastrar'}
+          </Botao>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <LeitorCodigo
+        aberto={lendo}
+        onLer={(codigo) => {
+          setLendo(false)
+          setEan(codigo.replace(/\D/g, ''))
+        }}
+        onFechar={() => setLendo(false)}
+      />
     </SafeAreaView>
   )
 }
 
-/**
- * Aceita virgula e ponto.
- *
- * No teclado decimal do celular brasileiro sai virgula; quem digita rapido as
- * vezes usa ponto. Recusar um dos dois seria transformar habito em erro.
- */
-function paraNumero(texto: string): number | null {
-  const limpo = texto.replace(/\s/g, '').replace(',', '.')
-  if (limpo === '') return null
-  const n = Number(limpo)
-  return Number.isFinite(n) ? n : null
+/** O que a loja ja usou, para nao virar "Bebidas" e "bebida" no mesmo catalogo. */
+function Sugestoes({
+  opcoes,
+  atual,
+  onEscolher,
+}: {
+  opcoes: string[]
+  atual: string
+  onEscolher: (v: string) => void
+}) {
+  const termo = atual.trim().toLowerCase()
+  const visiveis = opcoes
+    .filter((o) => o.toLowerCase() !== termo && o.toLowerCase().includes(termo))
+    .slice(0, 6)
+  if (visiveis.length === 0) return null
+  return (
+    <View style={estilos.sugestoes}>
+      {visiveis.map((o) => (
+        <Pressable key={o} onPress={() => onEscolher(o)} style={estilos.sugestao}>
+          <Text style={estilos.sugestaoTexto}>{o}</Text>
+        </Pressable>
+      ))}
+    </View>
+  )
 }
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
-  acoes: { marginTop: espaco.sm },
+  linha: { flexDirection: 'row', gap: espaco.md, alignItems: 'flex-start' },
+  bipar: { paddingTop: 26 },
+  secao: {
+    marginTop: espaco.sm,
+    fontSize: fonte.corpo,
+    fontWeight: peso.forte,
+    color: cores.texto,
+  },
+  sugestoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm, marginTop: -espaco.xs },
+  sugestao: {
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.xs,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  sugestaoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   erro: {
     color: cores.erro,
     fontSize: fonte.pequeno,
     fontWeight: peso.forte,
   },
-  nota: {
-    marginTop: espaco.md,
-    color: cores.textoFraco,
-    fontSize: fonte.micro,
-  },
+  nota: { color: cores.textoFraco, fontSize: fonte.micro },
 })
