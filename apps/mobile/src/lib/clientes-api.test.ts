@@ -36,6 +36,7 @@ const dados = {
   nomeFantasia: '',
   telefone: '(41) 99876-5432',
   email: '',
+  limiteFiado: '',
   endereco: VAZIO,
 }
 
@@ -54,6 +55,12 @@ describe('salvarCliente', () => {
       document: '52998224725',
       phone: '41998765432',
     })
+  })
+
+  it('manda o limite do fiado em centavos — sem ele, a carteira e recusada', async () => {
+    resposta = { ok: true, dados: { id: 'c-2' } }
+    await salvarCliente({ ...dados, limiteFiado: '150,00' })
+    expect(chamadas[0]?.opcoes?.body).toMatchObject({ walletLimitCents: 15000 })
   })
 
   it('409 com candidatos devolve os duplicados, e "mesmo assim" vai com a permissao', async () => {

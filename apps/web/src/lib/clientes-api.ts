@@ -17,6 +17,7 @@
  */
 
 import { pedir, type Resultado } from './http'
+import { centavosDoTexto } from './valor'
 import type { LinhaRecusada, ResultadoDaImportacao } from './produtos-api'
 import type { Cliente } from './types'
 
@@ -60,6 +61,8 @@ export type DadosCliente = {
   ddd: string
   celular: string
   email: string
+  /** Teto do fiado em reais, como digitado; vazio = sem fiado. */
+  limiteFiado: string
   cep: string
   logradouro: string
   numero: string
@@ -122,6 +125,16 @@ function enderecoParaApi(dados: DadosCliente): Record<string, string> | undefine
  * e UF, e os sete campos eram descartados no caminho — o lojista digitava o
  * endereco e ele sumia sem nenhum aviso.
  */
+/**
+ * O limite do fiado como a api o quer. No cadastro, vazio nao vai (sem fiado);
+ * na edicao, vazio vai como zero — e assim que se TIRA o fiado de alguem.
+ */
+function limiteParaApi(texto: string, editando: boolean): { walletLimitCents?: number } {
+  const centavos = centavosDoTexto(texto)
+  if (centavos !== null) return { walletLimitCents: centavos }
+  return editando && texto.trim() === '' ? { walletLimitCents: 0 } : {}
+}
+
 export async function salvarCliente(
   dados: DadosCliente,
   /**
@@ -151,6 +164,7 @@ export async function salvarCliente(
         ...(dados.documento ? { document: dados.documento } : {}),
         ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
         ...(dados.email ? { email: dados.email } : {}),
+        ...limiteParaApi(dados.limiteFiado, false),
         ...(address === undefined ? {} : { address }),
       }),
     })
@@ -203,6 +217,7 @@ export async function atualizarCliente(
       ...(dados.documento ? { document: dados.documento } : {}),
       ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
       ...(dados.email ? { email: dados.email } : {}),
+      ...limiteParaApi(dados.limiteFiado, true),
       ...(address === undefined ? {} : { address }),
     }),
   })

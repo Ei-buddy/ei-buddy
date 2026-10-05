@@ -36,6 +36,8 @@ type Campos = {
   nome: string
   nomeFantasia: string
   email: string
+  /** Teto do fiado em reais, como digitado. Vazio = sem fiado liberado. */
+  limiteFiado: string
   ddd: string
   celular: string
   cep: string
@@ -52,6 +54,7 @@ const VAZIO: Campos = {
   nome: '',
   nomeFantasia: '',
   email: '',
+  limiteFiado: '',
   ddd: '',
   celular: '',
   cep: '',
@@ -82,6 +85,7 @@ function paraCampos(cliente?: ClienteDaFicha): Campos {
     nome: cliente.nome,
     nomeFantasia: cliente.nomeFantasia ?? '',
     email: cliente.email ?? '',
+    limiteFiado: cliente.limiteFiado > 0 ? cliente.limiteFiado.toFixed(2).replace('.', ',') : '',
     ddd: cliente.ddd ?? '',
     celular: cliente.celular ?? '',
     cep: cliente.endereco.cep ?? '',
@@ -453,6 +457,21 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
                 value={campos.email}
                 onChange={(e) => set('email', e.target.value)}
                 placeholder="cliente@email.com"
+              />
+            </Field>
+
+            {/* Sem limite, o servidor recusa venda no fiado para este cliente:
+                o limite e o que libera a carteira (RF-034). */}
+            <Field
+              label="Limite do fiado (R$)"
+              span={4}
+              hint="Vazio = sem fiado. Acima disso, o PDV recusa vender na carteira."
+            >
+              <Input
+                value={campos.limiteFiado}
+                onChange={(e) => set('limiteFiado', e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
               />
             </Field>
           </FormGrid>

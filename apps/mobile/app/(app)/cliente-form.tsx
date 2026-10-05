@@ -65,6 +65,7 @@ export default function ClienteFormScreen() {
   const [nomeFantasia, setNomeFantasia] = useState('')
   const [telefone, setTelefone] = useState('')
   const [email, setEmail] = useState('')
+  const [limiteFiado, setLimiteFiado] = useState('')
   const [endereco, setEndereco] = useState<EnderecoDoCliente>(ENDERECO_VAZIO)
   const [carregando, setCarregando] = useState(editando)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
@@ -92,6 +93,7 @@ export default function ClienteFormScreen() {
       setNomeFantasia(c.nomeFantasia ?? '')
       setTelefone(c.telefone ? maskPhone(c.telefone) : '')
       setEmail(c.email ?? '')
+      setLimiteFiado(c.limiteFiado > 0 ? c.limiteFiado.toFixed(2).replace('.', ',') : '')
       setEndereco({ ...c.endereco, cep: maskCEP(c.endereco.cep) })
     })()
     return () => {
@@ -164,7 +166,15 @@ export default function ClienteFormScreen() {
 
     setErro(null)
     setSalvando(true)
-    const dados: DadosCliente = { documento, nome, nomeFantasia, telefone, email, endereco }
+    const dados: DadosCliente = {
+      documento,
+      nome,
+      nomeFantasia,
+      telefone,
+      email,
+      limiteFiado,
+      endereco,
+    }
     const r = editando
       ? await atualizarCliente(id, dados)
       : await salvarCliente(dados, { permitirDuplicado })
@@ -236,6 +246,14 @@ export default function ClienteFormScreen() {
             onChange={setEmail}
             tipoTeclado="email-address"
             autoCap="none"
+          />
+          <Campo
+            rotulo="Limite do fiado (R$)"
+            valor={limiteFiado}
+            onChange={setLimiteFiado}
+            tipoTeclado="decimal-pad"
+            placeholder="0,00"
+            dica="Vazio = sem fiado. Acima disso, o PDV recusa vender na carteira."
           />
 
           <Text style={estilos.secao}>Endereço</Text>
