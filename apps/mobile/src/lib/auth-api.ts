@@ -141,6 +141,94 @@ export async function sair(): Promise<void> {
   await encerrarSessao()
 }
 
+/* -------------------------------------------------------------------------- */
+/* Criar conta e recuperar senha — as mesmas rotas publicas do web            */
+/* -------------------------------------------------------------------------- */
+
+export type ResultadoDoCupom =
+  | { valido: true; codigo: string; parceiro: string; beneficio: string }
+  | { valido: false; mensagem: string }
+
+/** Confere o cupom de indicacao antes de criar a conta — RF-114. */
+export async function conferirCupom(codigo: string): Promise<ResultadoDoCupom> {
+  const r = await chamarApi<
+    | { status: 'valid'; code: string; referrerLabel: string; discountPercent: number }
+    | { status: 'rejected'; rejection: { message: string } }
+  >(`/cupons/${encodeURIComponent(codigo.trim())}`)
+  if (!r.ok) {
+    return {
+      valido: false,
+      mensagem:
+        r.status === 429
+          ? 'Muitas tentativas. Espere um minuto e tente de novo.'
+          : 'Não foi possível conferir o cupom agora.',
+    }
+  }
+  if (r.dados.status === 'rejected') return { valido: false, mensagem: r.dados.rejection.message }
+  return {
+    valido: true,
+    codigo: r.dados.code,
+    parceiro: r.dados.referrerLabel,
+    beneficio: `${String(r.dados.discountPercent).replace('.', ',')}% de desconto na primeira mensalidade`,
+  }
+}
+
+export type DadosDaConta = {
+  nome: string
+  email: string
+  celular: string
+  senha: string
+  razaoSocial: string
+  cnpj: string
+  /** So o cupom que a tela ja conferiu como valido. */
+  cupom: string | null
+}
+
+/**
+ * Cria a conta e a loja — RF-001, a mesma rota do web. Quem chega aqui ja
+ * aceitou os termos na tela; a conta nasce logada.
+ */
+export async function criarConta(dados: DadosDaConta): Promise<ResultadoLogin> {
+  const celular = dados.celular.replace(/\D/g, '')
+  const r = await chamarApi<SessaoDaApi>('/auth/signup', {
+    method: 'POST',
+    body: {
+      name: dados.nome.trim(),
+      email: dados.email.trim(),
+      ...(celular === '' ? {} : { phone: celular }),
+      secret: dados.senha,
+      legalName: dados.razaoSocial.trim(),
+      cnpj: dados.cnpj.replace(/\D/g, ''),
+      acceptedLegalTerms: true,
+      ...(dados.cupom === null ? {} : { referralCode: dados.cupom }),
+    },
+  })
+
+  if (!r.ok) {
+    /* A mensagem do CAMPO quando existe: "confira os campos" nao diz qual. */
+    const doCampo = (r.corpo as { error?: { fields?: { message: string }[] } } | null)?.error
+      ?.fields?.[0]?.message
+    return { estado: 'falhou', erro: doCampo ?? r.message }
+  }
+
+  await gravar(r.dados, r.dados.activeCompanyId)
+  return { estado: 'pronto' }
+}
+
+/**
+ * Pede o link de nova senha por e-mail. A resposta e a mesma exista ou nao a
+ * conta: dizer "esse e-mail nao existe" entregaria quem e cliente.
+ */
+export async function recuperarSenha(
+  email: string,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await chamarApi<undefined>('/auth/recuperar-senha', {
+    method: 'POST',
+    body: { email: email.trim() },
+  })
+  return r.ok ? { ok: true } : { ok: false, erro: r.message }
+}
+
 /** Grava perfil e token. `empresaId` nulo e o estado de "falta escolher". */
 async function gravar(sessao: SessaoDaApi, empresaId: string | null): Promise<void> {
   const ativa = sessao.memberships.find((m) => m.companyId === empresaId)
