@@ -74,3 +74,27 @@ export function linkDoWhatsApp(celular: string | null): string | null {
   if (digitos.length < 10) return null
   return `https://wa.me/${digitos.startsWith('55') && digitos.length > 11 ? digitos : `55${digitos}`}`
 }
+
+/**
+ * Quanto o cliente tem VENCIDO, em reais — o aviso do PDV antes de vender fiado.
+ *
+ * Mesma fonte do web (`GET /contas-a-receber?cliente=`): a faixa `overdue`,
+ * descontado o que ja foi baixado em parte. Nulo quando nao deu para saber —
+ * o aviso some, e a venda segue; quem decide vender e o lojista.
+ */
+export async function vencidoDoCliente(clienteId: string): Promise<number | null> {
+  const r = await chamarApi<{
+    grupos: {
+      faixa: string
+      receivables: { amountCents: number; settledAmountCents: number }[]
+    }[]
+  }>(`/contas-a-receber?cliente=${encodeURIComponent(clienteId)}`)
+  if (!r.ok) return null
+
+  const centavos = r.dados.grupos
+    .filter((g) => g.faixa === 'overdue')
+    .flatMap((g) => g.receivables)
+    .reduce((soma, t) => soma + t.amountCents - t.settledAmountCents, 0)
+
+  return centavos / 100
+}

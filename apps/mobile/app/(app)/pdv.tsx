@@ -1,18 +1,30 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import {
   estadoDaNota,
+  faltaPagarCentavos,
   fecharVenda,
   margemEmPontos,
   novaChaveDeVenda,
   pedirNota,
   reconciliarContingencia,
   situacaoCertificado,
+  type Desconto,
   type EstadoEmissao,
   type NotaEmitida,
+  type Pagamento,
   type SituacaoCertificado,
   type VendaRegistrada,
   FORMAS,
@@ -20,45 +32,124 @@ import {
   paraItemCarrinho,
   subtotalCarrinho,
   subtotalItem,
+  valorDesconto,
   type ItemCarrinho,
 } from '@/lib/vendas-api'
-import { buscarEan } from '@/lib/produtos-api'
+import { buscarEan, type ProdutoLido } from '@/lib/produtos-api'
+import { vencidoDoCliente } from '@/lib/clientes-api'
 import type { FormaPagamento } from '@/lib/types'
 import { formatMoney } from '@/lib/format'
+import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
 import { Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
+import { DescontoModal, SeletorCliente, SeletorProduto } from '@/components/SeletoresDoPdv'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
+/** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
+type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
+
+type ClienteDaVenda = { id: string; nome: string; saldoFiado: number }
+
+const rotuloDaForma = (forma: FormaPagamento) =>
+  FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
+
+const emTexto = (centavos: number) => (Math.max(centavos, 0) / 100).toFixed(2).replace('.', ',')
+
 /**
- * PDV simplificado.
+ * PDV do celular — o mesmo balcao do web, na mao.
  *
- * Versao de balcao: bipar, conferir e fechar. Desconto, orcamento em PDF,
- * multiplas formas de pagamento e emissao fiscal ficam no web — no
- * celular, cada passo a mais e um cliente esperando na fila.
+ * Bipar ou buscar pelo nome, cliente (obrigatorio no fiado), desconto e
+ * pagamento numa forma so ou dividido. O caminho curto continua o mesmo:
+ * bipou, escolheu a forma, fechou — o resto so aparece para quem toca.
  */
 export default function Pdv() {
   const router = useRouter()
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [lendo, setLendo] = useState(false)
+  const [buscando, setBuscando] = useState(false)
+  const [escolhendoCliente, setEscolhendoCliente] = useState(false)
+  const [editandoDesconto, setEditandoDesconto] = useState(false)
+  const [cliente, setCliente] = useState<ClienteDaVenda | null>(null)
+  /** Quanto o cliente tem vencido — o aviso de RF-072 antes do fiado. */
+  const [vencido, setVencido] = useState<number | null>(null)
+  const [desconto, setDesconto] = useState<Desconto | null>(null)
   const [forma, setForma] = useState<FormaPagamento>('dinheiro')
   /* So vale no credito; 1 = a vista. */
   const [parcelas, setParcelas] = useState(1)
+  /** Nulo = uma forma so, pelo total. Com partes, a venda e dividida. */
+  const [partes, setPartes] = useState<Parte[] | null>(null)
   const [fechando, setFechando] = useState(false)
   /** A ultima venda fechada, com a decomposicao — US-020. */
   const [resumo, setResumo] = useState<VendaRegistrada | null>(null)
   /**
    * A chave do fechamento em andamento — RNF-043.
    *
-   * Guardada em `ref` e nao em estado: ela nao muda o que a tela desenha, e um
-   * `setState` aqui provocaria render a toa no meio do fechamento. O que
+   * Guardada em `ref` e nao em estado: ela nao muda o que a tela desenha. O que
    * importa e que ela SOBREVIVA entre tentativas — gerar uma nova a cada toque
    * faria o reenvio virar uma segunda venda.
    */
   const chaveDoFechamento = useRef<string | null>(null)
+  const proximaParte = useRef(1)
 
-  const total = subtotalCarrinho(itens)
+  const subtotal = subtotalCarrinho(itens)
+  /* Centavos inteiros: o servidor confere a soma dos pagamentos contra
+     itens menos desconto, e um arredondamento diferente aqui recusaria a venda. */
+  const descontoCentavos = Math.round(valorDesconto(subtotal, desconto) * 100)
+  const totalCentavos = Math.round(subtotal * 100) - descontoCentavos
+  const total = totalCentavos / 100
   const quantidade = itens.reduce((acc, i) => acc + i.quantidade, 0)
+
+  const pagamentos: Pagamento[] =
+    partes === null
+      ? [
+          {
+            id: 'p1',
+            forma,
+            valor: total,
+            status: 'confirmado',
+            ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+          },
+        ]
+      : partes.map((p) => ({
+          id: p.id,
+          forma: p.forma,
+          valor: (centavosDoTexto(p.texto) ?? 0) / 100,
+          status: 'confirmado',
+          ...(p.forma === 'credito' && p.parcelas > 1 ? { parcelas: p.parcelas } : {}),
+        }))
+  const falta = faltaPagarCentavos(totalCentavos, pagamentos)
+  const temFiado = pagamentos.some((p) => p.forma === 'carteira')
+
+  /* O aviso de divida vem do servidor quando o cliente muda. */
+  useEffect(() => {
+    if (cliente === null) return
+    let cancelado = false
+    void (async () => {
+      const v = await vencidoDoCliente(cliente.id)
+      if (!cancelado) setVencido(v)
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [cliente])
+
+  function adicionarAoCarrinho(
+    produto: Pick<
+      ProdutoLido,
+      'id' | 'codigo' | 'descricao' | 'precoVenda' | 'precoCusto' | 'estoque'
+    >,
+  ) {
+    setItens((atual) => {
+      const existe = atual.find((i) => i.produtoId === produto.id)
+      if (existe) {
+        return atual.map((i) =>
+          i.produtoId === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i,
+        )
+      }
+      return [...atual, paraItemCarrinho(produto)]
+    })
+  }
 
   /**
    * Bipou: procura na api, nao no catalogo em memoria.
@@ -88,20 +179,7 @@ export default function Pdv() {
       return
     }
 
-    /* Preco, custo e saldo vem da API, e nao do catalogo de exemplo que o app
-       usava antes: com ele, a venda levava ids que a loja nao tem e a api
-       recusava no fechamento. */
-    const produto = r.produto
-
-    setItens((atual) => {
-      const existe = atual.find((i) => i.produtoId === produto.id)
-      if (existe) {
-        return atual.map((i) =>
-          i.produtoId === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i,
-        )
-      }
-      return [...atual, paraItemCarrinho(produto)]
-    })
+    adicionarAoCarrinho(r.produto)
   }
 
   function mudarQuantidade(produtoId: string, delta: number) {
@@ -112,108 +190,124 @@ export default function Pdv() {
     )
   }
 
+  function limparVenda() {
+    setItens([])
+    setCliente(null)
+    setVencido(null)
+    setDesconto(null)
+    setPartes(null)
+    setParcelas(1)
+  }
+
   function cancelar() {
     Alert.alert('Cancelar a venda', 'O carrinho será esvaziado.', [
       { text: 'Voltar', style: 'cancel' },
-      {
-        text: 'Cancelar venda',
-        style: 'destructive',
-        onPress: () => setItens([]),
-      },
+      { text: 'Cancelar venda', style: 'destructive', onPress: limparVenda },
     ])
+  }
+
+  /** Divide: a forma escolhida vira a primeira parte, com o total. */
+  function dividir() {
+    proximaParte.current = 2
+    setPartes([{ id: 'p1', forma, texto: emTexto(totalCentavos), parcelas }])
+  }
+
+  function adicionarParte() {
+    const id = `p${proximaParte.current}`
+    proximaParte.current += 1
+    setPartes((atual) => [
+      ...(atual ?? []),
+      { id, forma: 'pix', texto: emTexto(falta), parcelas: 1 },
+    ])
+  }
+
+  function mudarParte(id: string, mudanca: Partial<Parte>) {
+    setPartes((atual) => (atual ?? []).map((p) => (p.id === id ? { ...p, ...mudanca } : p)))
+  }
+
+  function tirarParte(id: string) {
+    setPartes((atual) => {
+      const resto = (atual ?? []).filter((p) => p.id !== id)
+      return resto.length === 0 ? null : resto
+    })
+  }
+
+  /** O que impede fechar, dito do jeito que o operador resolve. Nulo = pode. */
+  function impedimento(): string | null {
+    if (partes !== null && pagamentos.some((p) => p.valor <= 0)) {
+      return 'Preencha o valor de cada forma de pagamento.'
+    }
+    if (falta > 0) return `Falta ${formatMoney(falta / 100)} para fechar.`
+    /* So dinheiro vira troco (RF-035); a mais no cartao e erro de digitacao. */
+    if (falta < 0 && !pagamentos.some((p) => p.forma === 'dinheiro')) {
+      return `Os pagamentos passam do total em ${formatMoney(-falta / 100)}.`
+    }
+    if (temFiado && cliente === null) return 'Venda no fiado precisa de cliente. Escolha o cliente.'
+    return null
   }
 
   /**
    * Fecha a venda — RF-036, RNF-043.
    *
    * A chave de idempotencia e gerada UMA VEZ, quando o operador confirma, e
-   * reusada em toda tentativa deste fechamento. E o que faz o reenvio depois de
-   * uma falha de rede devolver a MESMA venda em vez de criar uma segunda.
-   *
-   * So e descartada quando a venda entra — a partir dai, o proximo fechamento e
-   * outra venda e merece chave nova.
+   * reusada em toda tentativa deste fechamento. So e descartada quando a venda
+   * entra — a partir dai, o proximo fechamento e outra venda.
    */
   async function confirmar() {
-    /*
-     * Fiado exige cliente identificado — o contrato recusa sem ele.
-     *
-     * E o app AINDA NAO consegue identificar: nao ha rota de listar clientes na
-     * api, nem caso de uso em `core` para isso. Um seletor alimentado pelo mock
-     * local mandaria um id que o servidor nao conhece, e a venda falharia com
-     * uma mensagem que nao explica nada.
-     *
-     * Entao a recusa e explicita e diz onde fazer. Melhor que um seletor que
-     * parece funcionar e quebra no fechamento, com o cliente na frente.
-     */
-    if (forma === 'carteira') {
-      Alert.alert(
-        'Fiado ainda não pelo app',
-        'Venda no fiado precisa de cliente identificado, e a busca de clientes ' +
-          'ainda não existe aqui. Feche esta venda pelo computador.',
-      )
-      return
-    }
-
     chaveDoFechamento.current ??= novaChaveDeVenda()
     setFechando(true)
 
-    const r = await fecharVenda(
-      itens,
-      [
-        {
-          id: 'p1',
-          forma,
-          valor: total,
-          status: 'confirmado',
-          ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
-        },
-      ],
-      chaveDoFechamento.current,
-      {},
-    )
+    const r = await fecharVenda(itens, pagamentos, chaveDoFechamento.current, {
+      ...(cliente === null ? {} : { clienteId: cliente.id }),
+      ...(descontoCentavos > 0 ? { descontoCentavos } : {}),
+    })
 
     setFechando(false)
 
     if (!r.ok) {
       /* NAO limpa a chave: a proxima tentativa e do MESMO fechamento. */
-      Alert.alert(
-        'Não deu para fechar',
-        `${r.erro}
-
-O carrinho continua aqui. Tente de novo.`,
-      )
+      Alert.alert('Não deu para fechar', `${r.erro}\n\nO carrinho continua aqui. Tente de novo.`)
       return
     }
 
     chaveDoFechamento.current = null
-    setItens([])
-    setParcelas(1)
-    /*
-     * Mostra o resumo, e nao mais um Alert de sucesso.
-     *
-     * O card ja tinha sido construido (`ResumoDaVenda`, com bruto, custo,
-     * imposto, tarifa, liquido e margem) mas nada chamava `setResumo`: a tela
-     * so mostrava um alerta de texto com o numero e o troco, e o resumo
-     * inteiro — inclusive a etapa de emitir a nota — nunca aparecia.
-     */
+    limparVenda()
     setResumo(r.venda)
   }
 
   function fechar() {
-    const rotulo =
-      (FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma) +
-      (forma === 'credito' && parcelas > 1 ? ` em ${parcelas}x` : '')
+    const motivo = impedimento()
+    if (motivo !== null) {
+      if (temFiado && cliente === null) setEscolhendoCliente(true)
+      else Alert.alert('Ainda não dá para fechar', motivo)
+      return
+    }
 
-    Alert.alert(
-      'Fechar a venda',
-      `${quantidade} item(ns) · ${formatMoney(total)}
-Pagamento em ${rotulo}.`,
+    const formas = pagamentos
+      .map(
+        (p) =>
+          `${rotuloDaForma(p.forma)}${p.parcelas ? ` em ${p.parcelas}x` : ''}` +
+          (pagamentos.length > 1 ? ` ${formatMoney(p.valor)}` : ''),
+      )
+      .join(' + ')
 
-      [
-        { text: 'Voltar', style: 'cancel' },
-        { text: 'Fechar', onPress: () => void confirmar() },
-      ],
-    )
+    const linhas = [
+      `${quantidade} item(ns) · ${formatMoney(total)}`,
+      descontoCentavos > 0 ? `Desconto de ${formatMoney(descontoCentavos / 100)}.` : null,
+      cliente ? `Cliente: ${cliente.nome}.` : null,
+      `Pagamento em ${formas}.`,
+      falta < 0 ? `Troco: ${formatMoney(-falta / 100)}.` : null,
+      /* RF-072: vender fiado para quem esta vencido e decisao do lojista —
+         o app avisa, nao proibe. */
+      temFiado && vencido !== null && vencido > 0
+        ? `\nAtenção: ${cliente?.nome} tem ${formatMoney(vencido)} vencido.`
+        : null,
+    ].filter((l) => l !== null)
+
+    Alert.alert('Fechar a venda', linhas.join('\n'), [
+      { text: 'Voltar', style: 'cancel' },
+      { text: 'Fechar', onPress: () => void confirmar() },
+    ])
   }
 
   return (
@@ -221,7 +315,14 @@ Pagamento em ${rotulo}.`,
       <Cabecalho
         titulo="Venda"
         subtitulo={quantidade === 0 ? 'Carrinho vazio' : `${quantidade} item(ns)`}
-        acao={<Botao onPress={() => setLendo(true)}>Bipar</Botao>}
+        acao={
+          <View style={estilos.cabecalhoAcoes}>
+            <Botao variante="secundario" onPress={() => setBuscando(true)}>
+              Buscar
+            </Botao>
+            <Botao onPress={() => setLendo(true)}>Bipar</Botao>
+          </View>
+        }
       />
 
       {resumo !== null ? <ResumoDaVenda venda={resumo} onFechar={() => setResumo(null)} /> : null}
@@ -229,7 +330,7 @@ Pagamento em ${rotulo}.`,
       {itens.length === 0 ? (
         <Vazio
           titulo="Nada no carrinho"
-          descricao="Bipe o código de barras do produto para começar."
+          descricao="Bipe o código de barras ou busque o produto pelo nome."
           acao={<Botao onPress={() => setLendo(true)}>Bipar produto</Botao>}
         />
       ) : (
@@ -273,48 +374,116 @@ Pagamento em ${rotulo}.`,
       )}
 
       {itens.length > 0 ? (
-        <View style={estilos.rodape}>
-          {/* No balcao todas as formas sao registradas e fecham na hora
-              (ADR-0004). As que um dia abrirem cobranca com QR ficam de fora
-              ate a cobranca existir no app. */}
-          <View style={estilos.formas}>
-            {FORMAS.filter((f) => !f.online).map((f) => (
+        <ScrollView
+          style={estilos.rodape}
+          contentContainerStyle={estilos.rodapeConteudo}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Pressable
+            style={estilos.ajuste}
+            onPress={() => setEscolhendoCliente(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Escolher cliente"
+          >
+            <Text style={estilos.ajusteRotulo}>Cliente</Text>
+            <Text style={estilos.ajusteValor} numberOfLines={1}>
+              {cliente?.nome ?? 'Sem cliente'}
+            </Text>
+            {cliente !== null ? (
               <Pressable
-                key={f.valor}
-                onPress={() => setForma(f.valor)}
-                style={[estilos.forma, forma === f.valor && estilos.formaAtiva]}
+                onPress={() => {
+                  setCliente(null)
+                  setVencido(null)
+                }}
+                hitSlop={8}
+                accessibilityLabel="Tirar cliente"
               >
-                <Text style={[estilos.formaTexto, forma === f.valor && estilos.formaTextoAtivo]}>
-                  {f.rotulo}
-                </Text>
+                <Text style={estilos.ajusteTirar}>×</Text>
               </Pressable>
-            ))}
-          </View>
+            ) : null}
+          </Pressable>
 
-          {forma === 'credito' ? (
-            <View style={estilos.parcelas}>
-              <Text style={estilos.totalRotulo}>Parcelas</Text>
-              <View style={estilos.parcelasControle}>
-                <Pressable
-                  onPress={() => setParcelas((n) => Math.max(1, n - 1))}
-                  style={estilos.parcelasBotao}
-                  accessibilityLabel="Menos parcelas"
-                >
-                  <Text style={estilos.formaTexto}>−</Text>
-                </Pressable>
-                <Text style={estilos.parcelasValor}>
-                  {parcelas === 1 ? 'À vista' : `${parcelas}x`}
-                </Text>
-                <Pressable
-                  onPress={() => setParcelas((n) => Math.min(PARCELAS_MAXIMAS, n + 1))}
-                  style={estilos.parcelasBotao}
-                  accessibilityLabel="Mais parcelas"
-                >
-                  <Text style={estilos.formaTexto}>+</Text>
-                </Pressable>
-              </View>
-            </View>
+          {vencido !== null && vencido > 0 ? (
+            <Text style={estilos.aviso}>
+              {cliente?.nome} tem {formatMoney(vencido)} vencido.
+            </Text>
           ) : null}
+
+          <Pressable
+            style={estilos.ajuste}
+            onPress={() => setEditandoDesconto(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Dar desconto"
+          >
+            <Text style={estilos.ajusteRotulo}>Desconto</Text>
+            <Text style={estilos.ajusteValor}>
+              {descontoCentavos > 0
+                ? `− ${formatMoney(descontoCentavos / 100)}${desconto?.tipo === 'percentual' ? ` (${String(desconto.quantia).replace('.', ',')}%)` : ''}`
+                : 'Nenhum'}
+            </Text>
+          </Pressable>
+
+          {partes === null ? (
+            <>
+              {/* No balcao todas as formas sao registradas e fecham na hora
+                  (ADR-0004). As que um dia abrirem cobranca com QR ficam de fora
+                  ate a cobranca existir no app. */}
+              <SeletorDeForma valor={forma} onChange={setForma} />
+
+              {forma === 'credito' ? <Parcelas valor={parcelas} onChange={setParcelas} /> : null}
+
+              <Pressable onPress={dividir} accessibilityRole="button">
+                <Text style={estilos.link}>Dividir em mais de uma forma</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {partes.map((p) => (
+                <View key={p.id} style={estilos.parte}>
+                  <SeletorDeForma
+                    valor={p.forma}
+                    onChange={(f) => mudarParte(p.id, { forma: f })}
+                  />
+                  <View style={estilos.parteLinha}>
+                    <TextInput
+                      style={estilos.parteValor}
+                      value={p.texto}
+                      onChangeText={(t) => mudarParte(p.id, { texto: t })}
+                      keyboardType="decimal-pad"
+                      accessibilityLabel={`Valor em ${rotuloDaForma(p.forma)}`}
+                    />
+                    {p.forma === 'credito' ? (
+                      <Parcelas
+                        valor={p.parcelas}
+                        onChange={(n) => mudarParte(p.id, { parcelas: n })}
+                      />
+                    ) : null}
+                    <Pressable
+                      onPress={() => tirarParte(p.id)}
+                      hitSlop={8}
+                      accessibilityLabel="Tirar esta forma"
+                    >
+                      <Text style={estilos.ajusteTirar}>×</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+
+              {falta > 0 ? (
+                <Pressable onPress={adicionarParte} accessibilityRole="button">
+                  <Text style={estilos.link}>
+                    + Outra forma ({formatMoney(falta / 100)} restante)
+                  </Text>
+                </Pressable>
+              ) : falta < 0 ? (
+                <Text style={estilos.ajusteRotulo}>
+                  {pagamentos.some((p) => p.forma === 'dinheiro')
+                    ? `Troco: ${formatMoney(-falta / 100)}`
+                    : `Passou do total em ${formatMoney(-falta / 100)}`}
+                </Text>
+              ) : null}
+            </>
+          )}
 
           <View style={estilos.totalLinha}>
             <Text style={estilos.totalRotulo}>Total</Text>
@@ -327,15 +496,13 @@ Pagamento em ${rotulo}.`,
             </Botao>
             <View style={estilos.acaoPrincipal}>
               {/* O toque duplo aqui e SEGURO por causa da chave de
-                  idempotencia — a segunda requisicao devolve a mesma venda.
-                  O estado de carregando existe para a pessoa saber que algo
-                  esta acontecendo, nao para proteger o servidor. */}
+                  idempotencia — a segunda requisicao devolve a mesma venda. */}
               <Botao onPress={fechar} carregando={fechando} largura>
                 {fechando ? 'Fechando...' : 'Fechar venda'}
               </Botao>
             </View>
           </View>
-        </View>
+        </ScrollView>
       ) : null}
 
       <LeitorCodigo
@@ -343,7 +510,96 @@ Pagamento em ${rotulo}.`,
         onLer={(codigo) => void adicionarPorCodigo(codigo)}
         onFechar={() => setLendo(false)}
       />
+
+      {buscando ? (
+        <SeletorProduto
+          onEscolher={(p) => {
+            adicionarAoCarrinho(p)
+            setBuscando(false)
+          }}
+          onFechar={() => setBuscando(false)}
+        />
+      ) : null}
+
+      {escolhendoCliente ? (
+        <SeletorCliente
+          onEscolher={(c) => {
+            setVencido(null)
+            setCliente({ id: c.id, nome: c.nome, saldoFiado: c.saldoFiado })
+            setEscolhendoCliente(false)
+          }}
+          onFechar={() => setEscolhendoCliente(false)}
+        />
+      ) : null}
+
+      {editandoDesconto ? (
+        <DescontoModal
+          atual={desconto}
+          subtotal={subtotal}
+          onAplicar={(d) => {
+            setDesconto(d)
+            /* O total mudou: a divisao feita antes nao fecha mais. */
+            setPartes(null)
+            setEditandoDesconto(false)
+          }}
+          onFechar={() => setEditandoDesconto(false)}
+        />
+      ) : null}
     </SafeAreaView>
+  )
+}
+
+function SeletorDeForma({
+  valor,
+  onChange,
+}: {
+  valor: FormaPagamento
+  onChange: (forma: FormaPagamento) => void
+}) {
+  return (
+    <View style={estilos.formas}>
+      {FORMAS.filter((f) => !f.online).map((f) => (
+        <Pressable
+          key={f.valor}
+          onPress={() => onChange(f.valor)}
+          style={[estilos.forma, valor === f.valor && estilos.formaAtiva]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: valor === f.valor }}
+        >
+          <Text
+            style={[estilos.formaTexto, valor === f.valor && estilos.formaTextoAtivo]}
+            numberOfLines={1}
+          >
+            {f.valor === 'carteira' ? 'Fiado' : f.rotulo}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  )
+}
+
+function Parcelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
+  return (
+    <View style={estilos.parcelas}>
+      <Text style={estilos.totalRotulo}>Parcelas</Text>
+      <View style={estilos.parcelasControle}>
+        <Pressable
+          onPress={() => onChange(Math.max(1, valor - 1))}
+          style={estilos.parcelasBotao}
+          accessibilityLabel="Menos parcelas"
+        >
+          <Text style={estilos.formaTexto}>−</Text>
+        </Pressable>
+        <Text style={estilos.parcelasValor}>{valor === 1 ? 'À vista' : `${valor}x`}</Text>
+        <Pressable
+          onPress={() => onChange(Math.min(PARCELAS_MAXIMAS, valor + 1))}
+          style={estilos.parcelasBotao}
+          accessibilityLabel="Mais parcelas"
+        >
+          <Text style={estilos.formaTexto}>+</Text>
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
@@ -433,17 +689,59 @@ const estilos = StyleSheet.create({
     color: cores.texto,
   },
 
+  cabecalhoAcoes: { flexDirection: 'row', gap: espaco.sm },
+
   rodape: {
-    padding: espaco.lg,
-    gap: espaco.md,
+    flexGrow: 0,
+    maxHeight: '62%',
     borderTopWidth: 1,
     borderTopColor: cores.borda,
     backgroundColor: cores.superficie,
+  },
+  rodapeConteudo: { padding: espaco.lg, gap: espaco.md },
+  ajuste: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },
+  ajusteRotulo: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  ajusteValor: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: fonte.pequeno,
+    fontWeight: peso.forte,
+    color: cores.texto,
+  },
+  ajusteTirar: { fontSize: 22, color: cores.textoFraco, paddingHorizontal: espaco.xs },
+  aviso: {
+    padding: espaco.sm,
+    borderRadius: raio.sm,
+    backgroundColor: cores.atencaoFundo,
+    fontSize: fonte.micro,
+    fontWeight: peso.forte,
+    color: cores.atencao,
+  },
+  link: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
+  parte: {
+    gap: espaco.sm,
+    padding: espaco.sm,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+  },
+  parteLinha: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },
+  parteValor: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+    fontSize: fonte.corpo,
+    color: cores.texto,
   },
   formas: { flexDirection: 'row', gap: espaco.sm },
   forma: {
     flex: 1,
     paddingVertical: espaco.md,
+    paddingHorizontal: 2,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: cores.borda,
