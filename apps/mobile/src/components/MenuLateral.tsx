@@ -40,6 +40,7 @@ const GRUPOS: Grupo[] = [
     itens: [
       { rota: '/contas-a-pagar', rotulo: 'Contas a pagar' },
       { rota: '/contas-a-receber', rotulo: 'Contas a receber' },
+      { rota: '/contas-bancarias', rotulo: 'Contas bancárias' },
       { rota: '/plano-de-contas', rotulo: 'Plano de contas' },
       { rota: '/dre', rotulo: 'Resultado' },
       { rota: '/relatorios', rotulo: 'Relatórios' },

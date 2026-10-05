@@ -46,7 +46,7 @@ export type ContaContabil = {
   readonly id: string
   readonly name: string
   readonly type: TipoDeConta
-  /** Conta do plano padrao nao pode ser apagada. So o web oferece apagar. */
+  /** Conta do plano padrao nao pode ser apagada. */
   readonly isDefault: boolean
 }
 
@@ -90,4 +90,36 @@ export async function carregarPlano(): Promise<Resultado<{ accounts: ContaContab
   const r = await chamarApi<{ accounts: ContaContabil[] }>('/contas-contabeis')
 
   return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}
+
+/** O rotulo de cada tipo, num lugar so. */
+export const ROTULO_DO_TIPO: Record<TipoDeConta, string> = {
+  revenue: 'Receita',
+  deduction: 'Dedução',
+  cost: 'Custo',
+  expense: 'Despesa',
+}
+
+export async function criarConta(entrada: {
+  name: string
+  type: TipoDeConta
+}): Promise<Resultado<ContaContabil>> {
+  const r = await chamarApi<ContaContabil>('/contas-contabeis', { method: 'POST', body: entrada })
+  return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}
+
+export async function renomearConta(id: string, name: string): Promise<Resultado<ContaContabil>> {
+  const r = await chamarApi<ContaContabil>(`/contas-contabeis/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: { name },
+  })
+  return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}
+
+/** Conta do plano padrao, ou com lancamento, o servidor recusa — e diz por que. */
+export async function apagarConta(id: string): Promise<Resultado<null>> {
+  const r = await chamarApi<unknown>(`/contas-contabeis/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+  return r.ok ? { ok: true, dados: null } : { ok: false, erro: r.message }
 }

@@ -320,3 +320,26 @@ export const ROTULO_SITUACAO: Record<SituacaoVisual, string> = {
   quitado: 'Quitado',
   parcial: 'Baixa parcial',
 }
+
+/* -------------------------------------------------------------------------- */
+/* Lancamento — RF-061, RF-064                                                */
+/* -------------------------------------------------------------------------- */
+
+export async function lancarContaAPagar(entrada: {
+  supplier: string
+  description: string
+  amountCents: number
+  dueDate: string
+  accountId?: string
+}): Promise<Resposta<unknown>> {
+  return chamarApi<unknown>('/contas-a-pagar', { method: 'POST', body: entrada })
+}
+
+export async function lancarContaAReceber(entrada: {
+  description: string
+  amountCents: number
+  dueDate: string
+  customerId?: string
+}): Promise<Resposta<unknown>> {
+  return chamarApi<unknown>('/contas-a-receber', { method: 'POST', body: entrada })
+}

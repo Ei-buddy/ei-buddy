@@ -14,6 +14,8 @@ import { daysUntil, describeDueDate, formatDate, formatMoney } from '@/lib/forma
 import Cabecalho from '@/components/Cabecalho'
 import BaixaModal from '@/components/BaixaModal'
 import EstornoModal from '@/components/EstornoModal'
+import NovoTituloModal from '@/components/NovoTituloModal'
+import Botao from '@/components/ui/Botao'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
@@ -87,6 +89,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const [processando, setProcessando] = useState(false)
   const [erroDoDialogo, setErroDoDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [lancando, setLancando] = useState(false)
 
   useEffect(() => {
     if (aviso === null) return
@@ -151,6 +154,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       <Cabecalho
         titulo={pagar ? 'Contas a pagar' : 'Contas a receber'}
         subtitulo={`${formatMoney(totalAberto / 100)} em aberto`}
+        acao={<Botao onPress={() => setLancando(true)}>Lançar</Botao>}
       />
 
       <ScrollView
@@ -177,7 +181,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         ) : linhas.length === 0 ? (
           <Vazio
             titulo={pagar ? 'Nenhuma conta a pagar' : 'Nenhuma conta a receber'}
-            descricao="Lançamentos aparecem aqui conforme forem criados."
+            descricao="Toque em Lançar para registrar o primeiro."
           />
         ) : (
           <>
@@ -265,6 +269,20 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         <View style={estilos.aviso} accessibilityLiveRegion="polite">
           <Text style={estilos.avisoTexto}>{aviso}</Text>
         </View>
+      ) : null}
+
+      {lancando ? (
+        <NovoTituloModal
+          tipo={tipo}
+          /* Os fornecedores que a loja ja usou, para "Copel" nao virar "copel". */
+          contrapartesConhecidas={[...new Set(linhas.map((l) => l.contraparte))]}
+          onSalvo={(msg) => {
+            setLancando(false)
+            setAviso(msg)
+            void buscar()
+          }}
+          onFechar={() => setLancando(false)}
+        />
       ) : null}
 
       {baixando !== null ? (

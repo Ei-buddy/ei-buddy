@@ -122,3 +122,26 @@ export const notaLabel: Record<string, string> = {
   nfse: 'NFS-e',
   sem_nota: 'Sem nota',
 }
+
+/** Mascara de data digitada: 05/10/2026. */
+export function mascaraData(texto: string): string {
+  const d = texto.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`
+}
+
+/**
+ * "05/10/2026" para "2026-10-05", ou nulo quando a data nao existe.
+ *
+ * Confere o dia de volta: `new Date(2026, 1, 31)` vira 3 de marco em silencio,
+ * e um vencimento em 31/02 entraria como outra data sem ninguem notar.
+ */
+export function dataDoTexto(texto: string): string | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto.trim())
+  if (!m) return null
+  const [, dia, mes, ano] = m
+  const d = new Date(Number(ano), Number(mes) - 1, Number(dia))
+  if (d.getDate() !== Number(dia) || d.getMonth() !== Number(mes) - 1) return null
+  return diaLocal(d)
+}
