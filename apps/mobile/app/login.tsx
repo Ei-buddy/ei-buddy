@@ -164,9 +164,13 @@ export default function Login() {
                 {carregando ? 'Entrando...' : 'Entrar'}
               </Botao>
 
-              <Text style={estilos.rodape}>
-                Criar conta e gerenciar assinatura ficam no site — este app é o balcão.
-              </Text>
+              <Botao variante="fantasma" onPress={() => router.push('/recuperar-senha')} largura>
+                Esqueci a senha
+              </Botao>
+
+              <Botao variante="secundario" onPress={() => router.push('/criar-conta')} largura>
+                Criar conta
+              </Botao>
             </>
           ) : (
             <View style={estilos.lojas}>
@@ -246,11 +250,4 @@ const estilos = StyleSheet.create({
   lojaPressionada: { borderColor: cores.acento },
   lojaNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },
   lojaPapel: { fontSize: fonte.micro, color: cores.textoFraco },
-
-  rodape: {
-    fontSize: fonte.micro,
-    color: cores.textoFraco,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
 })
