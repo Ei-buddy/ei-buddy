@@ -9,6 +9,10 @@
  * O primeiro escopo usou metricas e depoimentos ficticios para dar forma ao
  * layout. Eles sairam. Os pontos onde dado real entra estao marcados com TODO.
  *
+ * "Usuarios ilimitados" e "papel para dono, equipe e contador" sairam porque a
+ * gestao de equipe foi cancelada (RF-005, RF-006, RF-008, RF-012, RF-042):
+ * cada loja e operada por quem a cadastrou.
+ *
  * NFS-e e importacao de XML de compra sairam pelo mesmo motivo: NFS-e e
  * pos-MVP (escopo-mvp.md) e o emissor da loja so faz NFC-e (DEC-004); o XML
  * de compra saiu do produto antes de ficar pronto.
@@ -196,7 +200,7 @@ export const benefits = [
   {
     icon: 'shield',
     title: 'Cada empresa vê só o que é dela',
-    text: 'Dados isolados por empresa, com papel de acesso separado para dono, equipe e contador.',
+    text: 'Os dados de cada empresa ficam isolados, e cada acesso e alteração fica registrado.',
   },
 ]
 
@@ -218,7 +222,7 @@ export const plan = {
     'CRM em quadro Kanban e agenda com lembrete de compromisso',
     'Assistente de IA pelo WhatsApp',
     'Importação de clientes e produtos por planilha',
-    'Usuários ilimitados por empresa',
+    'Exportação completa dos seus dados quando quiser',
   ],
 }
 
