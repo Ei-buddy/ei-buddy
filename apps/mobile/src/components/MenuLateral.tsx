@@ -200,7 +200,13 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
       ) : null}
 
       <ScrollView contentContainerStyle={estilos.lista}>
-        {GRUPOS.map((g) => {
+        {(sessao?.admin === true
+          ? [
+              ...GRUPOS,
+              { grupo: 'Plataforma', itens: [{ rota: '/plataforma', rotulo: 'Plataforma' }] },
+            ]
+          : GRUPOS
+        ).map((g) => {
           const aberto = abertos.has(g.grupo)
 
           return (
