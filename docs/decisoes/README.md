@@ -47,7 +47,7 @@ PR**, e a linha sai da tabela de abertas.
 | 🔴 Aberta          |   4 | DEC-005, 013, 016, 018             |
 | 🟡 Em análise      |   0 | —                                  |
 | ⚪ Adiada          |   1 | DEC-014                            |
-| 🟢 Decidida        |  17 | DEC-001–004, 006–012, 015, 019–023 |
+| 🟢 Decidida        |  19 | DEC-001–004, 006–012, 015, 019–025 |
 | ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012         |
 
 **Bloqueando o MVP agora:** nenhuma DEC de assistente — [DEC-011](#dec-011)
@@ -607,6 +607,39 @@ O webhook não consulta Better Auth. Não há Workflow Mastra, Channel
 substitui. Redis continua fila. WhatsApp é [ADR-0014](adr/0014-meta-cloud-api.md);
 memória da conversa é [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
 Isolamento cruzado é contexto + RLS, não processor.
+
+---
+
+### <a id="dec-024"></a>DEC-024 — Faturamento: bruto e líquido lado a lado
+
+|             |                                                                |
+| ----------- | -------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — NR-141                                           |
+| **Escolha** | Mostrar os dois, cada um com o nome que tem, e não escolher um |
+| **Data**    | 2026-10-06                                                     |
+
+O QA em cenário real achou "Faturamento" com dois sentidos: Relatórios
+mostrava o líquido, e o painel, a IA e o DRE, o bruto. A escolha foi mostrar
+os dois em toda tela que fala de faturamento. **Bruto** é o valor das vendas
+antes do desconto; **líquido** é o que sobra depois do desconto, do imposto e
+da taxa de cartão.
+
+---
+
+### <a id="dec-025"></a>DEC-025 — Cliente sempre com celular e endereço
+
+|             |                                                                      |
+| ----------- | -------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — NR-142                                                 |
+| **Escolha** | Celular e endereço completo obrigatórios em todo cadastro de cliente |
+| **Data**    | 2026-10-06                                                           |
+
+O web exigia celular e endereço, mas o app e a api aceitavam só o nome. A
+regra única passou a ser a do web, e mora no contrato, então vale para web,
+app, cadastro rápido do PDV, importação por planilha e IA do WhatsApp. Só o
+complemento continua opcional, e o documento também: quem não quer se
+identificar compra como "venda sem cliente". Cliente cadastrado antes da regra
+continua existindo, e completa os dados na próxima edição.
 
 ## Documentos relacionados
 

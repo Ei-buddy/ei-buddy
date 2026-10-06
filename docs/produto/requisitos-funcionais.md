@@ -43,7 +43,7 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 
 | ID     | Requisito                                                                                   | US     | Módulo dono | Pri | St  |
 | ------ | ------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
-| RF-009 | Cadastrar cliente exigindo apenas nome e telefone                                           | US-005 | `core`      |  M  | ✅  |
+| RF-009 | Cadastrar cliente exigindo nome, celular e endereço (DEC-025)                               | US-005 | `core`      |  M  | ✅  |
 | RF-010 | Detectar cliente duplicado por telefone ou CPF e oferecer reuso do existente                | US-005 | `core`      |  M  | ✅  |
 | RF-011 | Listar histórico de compras do cliente em ordem decrescente de data                         | US-006 | `core`      |  M  | ✅  |
 | RF-012 | Ocultar custo e margem no histórico para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
