@@ -515,16 +515,49 @@ describe('cadastrar empresa — RF-001, RF-002', () => {
  * frente — recusar automaticamente travaria o cadastro de dois irmaos com o
  * telefone de casa, que acontece.
  */
-describe('cadastrar cliente — RF-009, RF-010', () => {
-  const CLIENTE = { name: 'Dona Marta', phone: '41988887777' }
+/* Celular e endereco completo sao obrigatorios no cadastro de cliente (NR-142). */
+const ENDERECO = {
+  zipCode: '80010000',
+  street: 'Rua XV',
+  number: '100',
+  district: 'Centro',
+  city: 'Curitiba',
+  state: 'PR',
+}
 
-  it('cria com apenas nome — RF-009', async () => {
+describe('cadastrar cliente — RF-009, RF-010', () => {
+  const CLIENTE = { name: 'Dona Marta', phone: '41988887777', address: ENDERECO }
+
+  it('cria com nome, celular e endereco — RF-009', async () => {
     const c = await buildApp()
     app = c.app
 
-    const r = await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Marta' } })
+    const r = await app.inject({ method: 'POST', url: '/clientes', payload: CLIENTE })
 
     expect(r.statusCode).toBe(201)
+  })
+
+  it('sem celular ou sem endereco responde 400 no campo — NR-142', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const semNada = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { name: 'Marta' },
+    })
+    const semRua = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { ...CLIENTE, address: { ...ENDERECO, street: '' } },
+    })
+
+    expect(semNada.statusCode).toBe(400)
+    expect(semNada.json().error.fields.map((f: { path: string }) => f.path)).toEqual(
+      expect.arrayContaining(['phone', 'address']),
+    )
+    expect(semRua.statusCode).toBe(400)
+    expect(semRua.json().error.fields[0].path).toBe('address.street')
   })
 
   it('telefone repetido responde 409 COM os candidatos', async () => {
@@ -535,7 +568,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Marta Souza', phone: '41988887777' },
+      payload: { name: 'Marta Souza', phone: '41988887777', address: ENDERECO },
     })
 
     expect(r.statusCode).toBe(409)
@@ -564,21 +597,11 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes?duplicado=permitir',
-      payload: { name: 'Marta Souza', phone: '41988887777' },
+      payload: { name: 'Marta Souza', phone: '41988887777', address: ENDERECO },
     })
 
     expect(r.statusCode).toBe(201)
     expect(c.memoria.clientes).toHaveLength(2)
-  })
-
-  it('cliente sem telefone nem documento nao dispara busca de duplicado', async () => {
-    const c = await buildApp()
-    app = c.app
-    await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Joao' } })
-
-    const r = await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Joao' } })
-
-    expect(r.statusCode).toBe(201)
   })
 
   it('accountant recebe 403', async () => {
@@ -597,10 +620,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const criado = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: {
-        ...CLIENTE,
-        address: { zipCode: '80010000', street: 'Rua XV', number: '100', state: 'PR' },
-      },
+      payload: CLIENTE,
     })
 
     const r = await app.inject({ method: 'GET', url: `/clientes/${criado.json().id}` })
@@ -608,9 +628,8 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     expect(r.statusCode).toBe(200)
     expect(r.json().address.street).toBe('Rua XV')
     expect(r.json().address.state).toBe('PR')
-    /* O que nao veio volta `null`. Antes da migration 0019 nao havia coluna, e
-       a tela pedia os sete campos so para descarta-los. */
-    expect(r.json().address.district).toBeNull()
+    /* O que nao veio volta `null` — aqui, o complemento, o unico opcional. */
+    expect(r.json().address.complement).toBeNull()
   })
 
   it('cliente de outra empresa responde 404, e nao 403', async () => {
@@ -647,7 +666,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes/importacao',
-      payload: { customers: [{ name: 'Do lote' }] },
+      payload: { customers: [{ name: 'Do lote', phone: '41966665555', address: ENDERECO }] },
     })
 
     expect(r.statusCode).toBe(200)
@@ -663,7 +682,7 @@ describe('contatos da ficha — RF-011', () => {
     const criado = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Seu Antonio', phone: '41977776666' },
+      payload: { name: 'Seu Antonio', phone: '41977776666', address: ENDERECO },
     })
 
     return { id: criado.json().id as string }
@@ -699,7 +718,7 @@ describe('contatos da ficha — RF-011', () => {
 
 describe('excluir e reativar cliente — RF-009', () => {
   /* Fixture propria: a `CLIENTE` la de cima vive no describe do cadastro. */
-  const CLIENTE_A_EXCLUIR = { name: 'Dona Marta', phone: '41988887777' }
+  const CLIENTE_A_EXCLUIR = { name: 'Dona Marta', phone: '41988887777', address: ENDERECO }
 
   async function comCliente() {
     const c = await buildApp()

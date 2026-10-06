@@ -144,6 +144,16 @@ export default function ClienteFormScreen() {
 
   function validar(): string | null {
     if (nome.trim().length < 2) return 'Informe o nome do cliente.'
+    /* Celular e endereco sao obrigatorios (NR-142) — a mesma regra do web e
+       da api, conferida aqui para nao ir a rede so para ouvir "invalido". */
+    const celular = telefone.replace(/\D/g, '')
+    if (celular.length !== 10 && celular.length !== 11) return 'Informe o celular com DDD.'
+    if (endereco.cep.replace(/\D/g, '').length !== 8) return 'Informe o CEP.'
+    if (!endereco.logradouro.trim()) return 'Informe a rua.'
+    if (!endereco.numero.trim()) return 'Informe o número (ou s/n).'
+    if (!endereco.bairro.trim()) return 'Informe o bairro.'
+    if (!endereco.cidade.trim()) return 'Informe a cidade.'
+    if (endereco.uf.trim().length !== 2) return 'Informe a UF.'
     if (digitosDoc !== '') {
       const valido =
         digitosDoc.length === 11
@@ -207,7 +217,7 @@ export default function ClienteFormScreen() {
             onChange={(v) => setDocumento(mascaraDoDocumento(v))}
             tipoTeclado="numeric"
             placeholder="Opcional"
-            dica="Sem documento, o cliente pode comprar; só a nota sai sem CPF."
+            dica="Opcional: sem documento, só a nota sai sem CPF. Celular e endereço são obrigatórios."
           />
           {digitosDoc.length === 14 ? (
             <Botao

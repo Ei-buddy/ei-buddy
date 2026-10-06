@@ -712,7 +712,18 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao', phone: '11988887777' },
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -749,7 +760,18 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao', phone: '11988887777' },
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -780,7 +802,18 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao' },
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -813,7 +846,18 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       llm.script('cadastra o joao', {
         type: 'tool',
         name: 'create_customer',
-        args: { name: 'Joao' },
+        args: {
+          name: 'Joao',
+          phone: '11988887777',
+          address: {
+            zipCode: '80010000',
+            street: 'Rua XV de Novembro',
+            number: '100',
+            district: 'Centro',
+            city: 'Curitiba',
+            state: 'PR',
+          },
+        },
       })
       const runtime = createAgentRuntime({
         useCases: casos({
@@ -842,7 +886,18 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
 
 describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
   const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
-  const argsCadastro = { name: 'Joao', phone: '11 98888-7777' }
+  const argsCadastro = {
+    name: 'Joao',
+    phone: '11 98888-7777',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV de Novembro',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  }
 
   it('script create_customer pede confirmacao e so grava no sim', async () => {
     let chamadas = 0
@@ -862,14 +917,16 @@ describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
 
     const proposta = await processMessage(runtime, msg({ text: pedidoCadastro }))
     expect(proposta.kind).toBe('confirmation')
-    expect(proposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
+    expect(proposta.text).toBe(
+      'Cadastrar cliente Joao, telefone 11988887777, Rua XV de Novembro, 100 — Curitiba/PR. Confirma?',
+    )
     expect(chamadas).toBe(0)
 
     const feito = await processMessage(runtime, msg({ text: 'sim' }))
     expect(feito.kind).toBe('answer')
     expect(feito.text).toBe('Cliente Joao cadastrado.')
     expect(chamadas).toBe(1)
-    expect(recebido).toEqual({ name: 'Joao', phone: '11988887777' })
+    expect(recebido).toEqual({ ...argsCadastro, phone: '11988887777' })
   })
 
   it('talvez / resposta ambigua nao grava — FR-010', async () => {
@@ -1903,7 +1960,22 @@ describe('processMessage — desfechos restantes', () => {
   it('cancela com nao e nao grava', async () => {
     let chamadas = 0
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     const runtime = createAgentRuntime({
       useCases: casos({
         registerCustomer: async (c, i) => {
@@ -1928,7 +2000,22 @@ describe('processMessage — desfechos restantes', () => {
       casos().listSales(c, i),
     )
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     const runtime = createAgentRuntime({
       useCases: casos({
         listSales,
@@ -1961,7 +2048,22 @@ describe('processMessage — desfechos restantes', () => {
     let cadastros = 0
     let vendas = 0
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     llm.script('vende duas camisetas azuis agora', {
       type: 'tool',
       name: 'create_sale',

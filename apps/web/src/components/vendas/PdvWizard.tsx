@@ -16,8 +16,9 @@ import {
   type CandidatoCliente,
   type ClienteDaLista,
 } from '@/lib/clientes-api'
+import { buscarCep, UFS } from '@/lib/empresa-api'
 import { formatDate, formatMoney } from '@/lib/format'
-import { maskCPF, maskPhone, validateCPF } from '@/lib/validation'
+import { maskCEP, maskCPF, maskPhone, validateCPF } from '@/lib/validation'
 import { Card, EmptyState, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -410,6 +411,12 @@ function CadastroRapido({
   const [nome, setNome] = useState('')
   const [documento, setDocumento] = useState('')
   const [celular, setCelular] = useState('')
+  const [cep, setCep] = useState('')
+  const [rua, setRua] = useState('')
+  const [numero, setNumero] = useState('')
+  const [bairro, setBairro] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [uf, setUf] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
@@ -443,14 +450,28 @@ function CadastroRapido({
       celular: digitos(celular),
       email: '',
       limiteFiado: '',
-      cep: '',
-      logradouro: '',
-      numero: '',
+      cep: digitos(cep),
+      logradouro: rua.trim(),
+      numero: numero.trim(),
       complemento: '',
-      bairro: '',
-      cidade: '',
-      uf: '',
+      bairro: bairro.trim(),
+      cidade: cidade.trim(),
+      uf,
     }
+  }
+
+  /* CEP completo preenche o resto. So o que veio: CEP de cidade inteira nao
+     tem rua, e apagar a rua que a pessoa ja digitou seria pior que nao ajudar. */
+  async function mudarCep(valor: string) {
+    const mascarado = maskCEP(valor)
+    setCep(mascarado)
+    if (digitos(mascarado).length !== 8) return
+    const r = await buscarCep(mascarado)
+    if (!r.ok) return
+    if (r.endereco.logradouro) setRua(r.endereco.logradouro)
+    if (r.endereco.bairro) setBairro(r.endereco.bairro)
+    if (r.endereco.cidade) setCidade(r.endereco.cidade)
+    if (r.endereco.uf) setUf(r.endereco.uf)
   }
 
   async function enviar(confirmandoDuplicado: boolean) {
@@ -492,11 +513,26 @@ function CadastroRapido({
       }
     }
 
-    /* Mesma regra do `phoneSchema`: dez ou onze digitos. Conferir aqui evita
-       uma ida a rede para receber "telefone invalido" de volta. */
+    /* Celular e endereco sao obrigatorios (NR-142). Mesma regra do
+       contrato, conferida aqui para nao ir a rede so para ouvir "invalido". */
     const so = digitos(celular)
-    if (so !== '' && so.length !== 10 && so.length !== 11) {
-      setErro('Telefone incompleto. Informe DDD e número.')
+    if (so.length !== 10 && so.length !== 11) {
+      setErro('Informe o celular com DDD.')
+      return
+    }
+    if (digitos(cep).length !== 8) {
+      setErro('Informe o CEP.')
+      return
+    }
+    const faltando = [
+      [rua, 'a rua'],
+      [numero, 'o número (ou s/n)'],
+      [bairro, 'o bairro'],
+      [cidade, 'a cidade'],
+      [uf, 'a UF'],
+    ].find(([valor]) => !valor?.trim())
+    if (faltando) {
+      setErro(`Informe ${faltando[1]}.`)
       return
     }
 
@@ -522,8 +558,8 @@ function CadastroRapido({
           Cadastro rapido
         </h2>
         <p className={styles.dialogTexto}>
-          Só o essencial para não segurar a fila. O cadastro completo pode ser feito depois em
-          Clientes.
+          Nome, celular e endereço. O CEP preenche o resto do endereço, e e-mail e limite do fiado
+          podem ser completados depois em Clientes.
         </p>
 
         {duplicados !== null ? (
@@ -597,7 +633,7 @@ function CadastroRapido({
               exige dez ou onze: com o mock isso nunca aparecia, e com a
               chamada de verdade todo cadastro com celular seria recusado.
             */}
-            <span>Celular com DDD (opcional)</span>
+            <span>Celular com DDD</span>
             <input
               className={styles.input}
               value={celular}
@@ -606,6 +642,63 @@ function CadastroRapido({
               inputMode="tel"
             />
           </label>
+
+          <div className={styles.formLinha}>
+            <label className={styles.campo}>
+              <span>CEP</span>
+              <input
+                className={styles.input}
+                value={cep}
+                onChange={(e) => void mudarCep(e.target.value)}
+                placeholder="00000-000"
+                inputMode="numeric"
+              />
+            </label>
+            <label className={styles.campo}>
+              <span>Número</span>
+              <input
+                className={styles.input}
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <label className={styles.campo}>
+            <span>Rua</span>
+            <input className={styles.input} value={rua} onChange={(e) => setRua(e.target.value)} />
+          </label>
+
+          <label className={styles.campo}>
+            <span>Bairro</span>
+            <input
+              className={styles.input}
+              value={bairro}
+              onChange={(e) => setBairro(e.target.value)}
+            />
+          </label>
+
+          <div className={styles.formLinha}>
+            <label className={styles.campo}>
+              <span>Cidade</span>
+              <input
+                className={styles.input}
+                value={cidade}
+                onChange={(e) => setCidade(e.target.value)}
+              />
+            </label>
+            <label className={styles.campo}>
+              <span>UF</span>
+              <select className={styles.input} value={uf} onChange={(e) => setUf(e.target.value)}>
+                <option value="">—</option>
+                {UFS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           {erro ? (
             <p className={styles.erro} role="alert">

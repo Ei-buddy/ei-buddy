@@ -294,7 +294,18 @@ describe('POST /agent/messages', () => {
 describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
   const agora = new Date('2026-09-11T15:00:00.000Z')
   const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
-  const argsCadastro = { name: 'Joao', phone: '11 98888-7777' }
+  const argsCadastro = {
+    name: 'Joao',
+    phone: '11 98888-7777',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV de Novembro',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  }
   const fraseVenda = 'venda pro Joao: 2 camisetas M a 49,90, pagou no Pix'
   const argsVenda = {
     items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
@@ -375,7 +386,9 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
     expect(proposta.statusCode).toBe(200)
     const corpoProposta = agentReplySchema.parse(JSON.parse(proposta.body))
     expect(corpoProposta.kind).toBe('confirmation')
-    expect(corpoProposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
+    expect(corpoProposta.text).toBe(
+      'Cadastrar cliente Joao, telefone 11988887777, Rua XV de Novembro, 100 — Curitiba/PR. Confirma?',
+    )
     expect(chamadas).toBe(0)
 
     const sim = await app.inject({

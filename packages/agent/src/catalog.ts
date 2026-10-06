@@ -295,13 +295,13 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
     defineTool({
       id: 'create_customer',
       description:
-        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem.',
+        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem. Nome, celular com DDD e endereco completo (CEP, rua, numero, bairro, cidade e UF) sao obrigatorios: se faltar algum, pergunte antes de chamar.',
       inputSchema: createCustomerInputSchema,
       mutatesValue: true,
       execute: (input, ctx) => casos.registerCustomer(ctx, input),
       formatProposal: (input) => {
-        const tel = input.phone === undefined ? '' : `, telefone ${input.phone}`
-        return `Cadastrar cliente ${input.name}${tel}`
+        const e = input.address
+        return `Cadastrar cliente ${input.name}, telefone ${input.phone}, ${e.street}, ${e.number} — ${e.city}/${e.state}`
       },
       formatReply: (out) => {
         if (out.status === 'duplicate_found') {
