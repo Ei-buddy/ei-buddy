@@ -126,6 +126,16 @@ export const ARMAZENAMENTO_LOCAL: readonly ArmazenamentoLocal[] = [
     duracao: 'Ate voce limpar os dados do navegador',
   },
   {
+    chave: 'nr:avisos-vistos',
+    /* Nasce quando voce abre o sino. Guarda so QUAIS avisos ja estavam la
+       (o endereco da tela e a contagem), para o numero do sino nao continuar
+       aceso pelo que voce ja viu — nenhum dado de cliente ou de venda. */
+    categoria: 'preferencia',
+    finalidade:
+      'Lembrar quais avisos do sino voce ja viu, para o número só acender quando surgir algo novo.',
+    duracao: 'Ate voce limpar os dados do navegador',
+  },
+  {
     chave: 'nr:checklist-dispensado',
     /* Nasce de um clique seu (o X no cartao de primeiros passos) — dispensa
        consentimento pela mesma razao do aviso de cookies. */

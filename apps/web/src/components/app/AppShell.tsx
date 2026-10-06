@@ -13,6 +13,7 @@ import {
 import { BRAND } from '@/content/site'
 import { MODULOS_BLOQUEADOS } from '@/lib/access'
 import { carregarAvisos, type Aviso } from '@/lib/avisos-api'
+import { avisosNovos, lerAvisosVistos, marcarAvisosVistos } from '@/lib/avisos-vistos'
 import MenuDoUsuario from './MenuDoUsuario'
 import { carregarPerfil, iniciaisDe, type Perfil } from '@/lib/perfil-api'
 import { sairDoModoAdmin } from '@/lib/admin-api'
@@ -147,6 +148,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [avisos, setAvisos] = useState<Aviso[]>([])
   const [avisosAbertos, setAvisosAbertos] = useState(false)
+  /* O que ja foi visto no sino (NR-147). Comeca vazio e e lido do aparelho
+     junto com os avisos, num efeito: ler no render daria um sino no servidor
+     e outro no navegador. */
+  const [avisosVistos, setAvisosVistos] = useState<ReadonlySet<string>>(() => new Set())
+  const novos = avisosNovos(avisos, avisosVistos)
   /* O sino balanca quando CHEGA aviso — nao quando some. Ver o efeito abaixo. */
   const sino = useRef<HTMLSpanElement>(null)
   const quantosAvisosAntes = useRef(0)
@@ -210,11 +216,37 @@ export default function AppShell({ children }: { children: ReactNode }) {
    */
   useEffect(() => {
     void (async () => {
-      const [p, a] = await Promise.all([carregarPerfil(), carregarAvisos()])
+      const p = await carregarPerfil()
       if (p.ok) setPerfil(p.dados)
-      setAvisos(a)
     })()
   }, [])
+
+  /*
+   * Os avisos, de novo a cada troca de tela — NR-147.
+   *
+   * Antes vinham uma vez so, na montagem, e o painel nao remonta ao navegar:
+   * quem resolvia a pendencia (lia a resposta do suporte, pagava a conta) via
+   * o sino igual ate recarregar a pagina. Trocar de tela e o momento natural
+   * de conferir de novo.
+   */
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const a = await carregarAvisos()
+      if (cancelado) return
+      setAvisos(a)
+      setAvisosVistos(lerAvisosVistos())
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [pathname])
+
+  /* Abrir o painel e ver: o numero do sino zera ate algo mudar. */
+  function alternarAvisos() {
+    if (!avisosAbertos) setAvisosVistos(marcarAvisosVistos(avisos))
+    setAvisosAbertos((v) => !v)
+  }
 
   /*
    * O balanco do sino — NR-136.
@@ -223,12 +255,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
    * novidade nenhuma para anunciar. Animado pela api do navegador, e nao por
    * estado, porque isto nao muda nada do que a tela mostra — e um gesto.
    *
-   * Hoje os avisos chegam uma vez, na montagem: o balanco acontece quando eles
-   * chegam. No dia em que houver busca periodica ou tempo real, ele passa a
-   * acontecer a cada aviso novo, sem precisar mudar nada aqui.
+   * Conta so os NOVOS (NR-147): o que ja foi visto no painel nao faz o sino
+   * balancar de novo a cada troca de tela, quando os avisos sao recarregados.
    */
   useEffect(() => {
-    const agora = avisos.length
+    const agora = novos.length
     const subiu = agora > quantosAvisosAntes.current
     quantosAvisosAntes.current = agora
 
@@ -246,7 +277,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       ],
       { duration: 520, easing: 'ease-in-out' },
     )
-  }, [avisos.length])
+  }, [novos.length])
 
   useEffect(() => {
     document.body.style.overflow = navOpen ? 'hidden' : ''
@@ -595,10 +626,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 aria-label={
                   avisos.length === 0
                     ? 'Notificações — nada pendente'
-                    : `Notificações — ${avisos.length} pendente(s)`
+                    : novos.length === 0
+                      ? `Notificações — nada novo, ${avisos.length} pendente(s)`
+                      : `Notificações — ${novos.length} nova(s)`
                 }
                 aria-expanded={avisosAbertos}
-                onClick={() => setAvisosAbertos((v) => !v)}
+                onClick={alternarAvisos}
               >
                 <span className={styles.sinoIcone} ref={sino}>
                   <IconBell size={19} />
@@ -606,9 +639,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 {/* O numero, e nao so um ponto: "tem coisa" e menos util que
                     "tem tres coisas". A `key` faz o contador nascer de novo a
                     cada mudanca, e com ele a animacao de entrada. */}
-                {avisos.length > 0 ? (
-                  <span key={avisos.length} className={styles.contadorDeAvisos}>
-                    {avisos.length}
+                {novos.length > 0 ? (
+                  <span key={novos.length} className={styles.contadorDeAvisos}>
+                    {novos.length}
                   </span>
                 ) : null}
               </button>
