@@ -1,4 +1,16 @@
+/*
+ * Botoes do painel no vidro da barra lateral — NR-146.
+ *
+ * A mesma anatomia dos itens da barra: superficie com curvatura (sombra clara
+ * no topo, escura na base), fio de luz no `::before` e reflexo no `::after`.
+ * Tudo gradiente e sombra, sem `backdrop-filter`: botao aparece repetido na
+ * tela e desfoque por botao nao se paga.
+ */
 .base {
+  position: relative;
+  /* O reflexo do `::after` nao pode escapar pelo canto arredondado. */
+  overflow: hidden;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -9,14 +21,58 @@
   white-space: nowrap;
   border: 1px solid transparent;
   transition:
-    background-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition),
     border-color var(--transition),
     color var(--transition),
-    transform var(--transition);
+    transform 120ms var(--ease);
 }
 
-.base:hover {
-  transform: translateY(-1px);
+/* O fio de luz: borda pintada com gradiente, recortada por mascara. */
+.base::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-border);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* O reflexo especular, atras do rotulo para nao lavar a leitura. */
+.base::after {
+  content: '';
+  position: absolute;
+  top: -35%;
+  left: -8%;
+  z-index: -1;
+  width: 62%;
+  height: 90%;
+  border-radius: 50%;
+  background: var(--glass-highlight);
+  filter: blur(6px);
+  transform: rotate(-12deg);
+  opacity: 0.55;
+  transition: opacity var(--transition);
+  pointer-events: none;
+}
+
+.base:hover::after {
+  opacity: 0.8;
+}
+
+/* O clique afunda a peca de leve, como na barra. */
+.base:active {
+  transform: scale(0.975);
 }
 
 .base:disabled {
@@ -43,42 +99,63 @@
 
 /* --- Variantes --- */
 
+/* A acao primaria e o azul do item ativo da barra, brilhando para fora. */
 .primary {
-  background: var(--brand-accent);
-  color: #06312e;
+  /* As reservas so valem fora do painel (sem `.appTheme`), onde os tokens de
+     vidro nao existem: o botao continua visivel, so que chapado. */
+  background: var(--glass-active, #1f5bc4);
+  box-shadow: var(--glass-shadow-active, none);
+  color: var(--glass-active-text, #ffffff);
 }
 
-.primary:hover {
-  background: #4ad9cd;
+.primary::before {
+  background: var(--glass-border-active);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--glass-active-hover);
 }
 
 .secondary {
-  background: var(--app-field);
-  border-color: var(--app-border);
+  background: var(--glass-surface, var(--app-field));
+  box-shadow: var(--glass-shadow, none);
   color: var(--app-text);
 }
 
-.secondary:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
+.secondary:hover:not(:disabled) {
+  background: var(--glass-surface-hover);
 }
 
+/* Ghost nao e peca: so ganha superficie quando a mao passa. */
 .ghost {
   background: transparent;
   color: var(--app-muted);
 }
 
-.ghost:hover {
-  background: var(--app-field);
+.ghost::before,
+.ghost::after {
+  background: none;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--glass-surface-hover);
   color: var(--app-text);
 }
 
+/* Destrutivo: vidro tingido de vermelho, contido — nao um bloco vermelho. */
 .danger {
   background: var(--app-danger-soft);
-  border-color: var(--app-danger);
+  border-color: color-mix(in srgb, var(--app-danger) 45%, transparent);
+  box-shadow: var(--glass-shadow);
   color: var(--app-danger);
 }
 
-.danger:hover {
-  background: rgba(255, 118, 118, 0.26);
+.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-danger) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .base:active {
+    transform: none;
+  }
 }

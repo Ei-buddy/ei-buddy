@@ -468,6 +468,7 @@ svg {
     0 1px 1px rgba(255, 255, 255, 0.08) inset, 0 30px 60px rgba(0, 0, 0, 0.55),
     0 8px 20px rgba(0, 0, 0, 0.3);
   --glass-blur: blur(18px) saturate(160%);
+  --glass-panel-border: rgba(255, 255, 255, 0.1);
 
   --glass-text: var(--app-text);
   --glass-text-muted: var(--app-muted);
@@ -521,6 +522,7 @@ svg {
   --glass-inset-border: var(--app-border);
 
   --glass-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 246, 251, 0.97));
+  --glass-panel-border: var(--app-border);
   --glass-shadow-panel:
     0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 30px 60px rgba(15, 42, 58, 0.16),
     0 8px 20px rgba(15, 42, 58, 0.1);

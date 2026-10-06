@@ -30,11 +30,45 @@
 
 /* --- Cartao --- */
 
+/*
+ * Cartao e indicador no vidro da barra — NR-146.
+ *
+ * Peca grande: o reflexo vem como camada de fundo (`--glass-sheen`), e nao
+ * num pseudo-elemento com `overflow: hidden` — cortar o que transborda
+ * esconderia a lista suspensa de um campo dentro do cartao. O fio de luz e o
+ * `::before`, que nao precisa cortar nada. A borda continua existindo,
+ * transparente, para o cartao ocupar exatamente o mesmo espaco de antes.
+ */
+.card,
+.stat {
+  position: relative;
+  border: 1px solid transparent;
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow-raised);
+}
+
+.card::before,
+.stat::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-border-soft);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 .card {
   padding: 20px;
-  border: 1px solid var(--app-border);
   border-radius: var(--radius-lg);
-  background: var(--app-surface);
 }
 
 .cardHeader {
@@ -57,9 +91,7 @@
   display: grid;
   gap: 4px;
   padding: 16px 18px;
-  border: 1px solid var(--app-border);
   border-radius: var(--radius);
-  background: var(--app-surface);
 }
 
 .statLabel {
@@ -89,12 +121,16 @@
 
 /* --- Badge --- */
 
+/* Pilula de vidro tingida: a cor do estado bem suave, com o fio de luz no
+   topo e uma borda da propria cor — nunca um bloco chapado. */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 11px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
   border-radius: var(--radius-full);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -166,18 +202,21 @@
   color: var(--app-muted);
 }
 
+/* Campo: vidro REBAIXADO — afunda na superficie em vez de saltar dela. */
 .control {
   width: 100%;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 14.5px;
   transition:
     border-color var(--transition),
-    background-color var(--transition);
+    background-color var(--transition),
+    box-shadow var(--transition);
 }
 
 .control::placeholder {
@@ -186,13 +225,17 @@
 }
 
 .control:hover {
-  background: var(--app-field-hover);
+  background-color: var(--glass-inset-hover);
 }
 
+/* O foco troca o contorno do navegador por um anel teal: sempre visivel. */
 .control:focus {
   outline: none;
   border-color: var(--app-accent);
-  background: var(--app-field-hover);
+  background-color: var(--glass-inset-hover);
+  box-shadow:
+    var(--glass-shadow-inset),
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 30%, transparent);
 }
 
 .select {
@@ -263,6 +306,8 @@
   text-align: center;
   border: 1px dashed var(--app-border);
   border-radius: var(--radius);
+  /* Vazio e rebaixado: um lugar onde algo vai entrar, e nao uma peca. */
+  background: var(--glass-surface-deep);
 }
 
 .emptyMascote {
