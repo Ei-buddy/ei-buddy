@@ -11,7 +11,8 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { conferirCupom, criarConta, type ResultadoDoCupom } from '@/lib/auth-api'
+import { partnerAccountFieldsSchema } from '@na-regua/contracts'
+import { conferirCupom, criarConta, type DadosDaConta, type ResultadoDoCupom } from '@/lib/auth-api'
 import {
   maskCNPJ,
   maskPhone,
@@ -24,12 +25,23 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
+type TipoDeChave = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'
+
+const TIPOS_DE_CHAVE: [TipoDeChave, string][] = [
+  ['CPF', 'CPF'],
+  ['CNPJ', 'CNPJ'],
+  ['EMAIL', 'E-mail'],
+  ['PHONE', 'Telefone'],
+  ['EVP', 'Aleatória'],
+]
+
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3100'
 
 /**
  * Criar conta — RF-001, a mesma rota do web.
  *
- * Voce, a loja (CNPJ e razao social) e o cupom de indicacao,
+ * Lojista ou Parceiro (indicador, NR-115), voce, a loja (CNPJ e razao
+ * social) e o cupom de indicacao,
  * opcional e conferido antes de enviar. A conta nasce logada e cai na tela
  * principal.
  */
@@ -44,6 +56,11 @@ export default function CriarConta() {
   const [cupom, setCupom] = useState('')
   const [cupomConferido, setCupomConferido] = useState<ResultadoDoCupom | null>(null)
   const [aceitou, setAceitou] = useState(false)
+  const [tipoDeConta, setTipoDeConta] = useState<'lojista' | 'parceiro'>('lojista')
+  const [pixKeyType, setPixKeyType] = useState<TipoDeChave>('CPF')
+  const [pixKey, setPixKey] = useState('')
+  const [mensagem, setMensagem] = useState('')
+  const [nomeDoCupom, setNomeDoCupom] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [conferindo, setConferindo] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -54,7 +71,23 @@ export default function CriarConta() {
     setConferindo(false)
   }
 
+  /** Os campos de Parceiro conferidos pela MESMA regra do servidor. */
+  function dadosDoParceiro():
+    { ok: true; dados: DadosDaConta['parceiro'] } | { ok: false; erro: string } {
+    if (tipoDeConta === 'lojista') return { ok: true, dados: undefined }
+    const r = partnerAccountFieldsSchema.safeParse({
+      pixKey,
+      pixKeyType,
+      message: mensagem,
+      ...(nomeDoCupom.trim() === '' ? {} : { couponCode: nomeDoCupom.trim() }),
+    })
+    if (!r.success)
+      return { ok: false, erro: r.error.issues[0]?.message ?? 'Confira os dados de Parceiro.' }
+    return { ok: true, dados: r.data }
+  }
+
   async function enviar() {
+    const parceiro = dadosDoParceiro()
     const problema =
       validateName(nome) ??
       validateEmail(email) ??
@@ -64,8 +97,9 @@ export default function CriarConta() {
       (cupom.trim() !== '' && cupomConferido?.valido !== true
         ? 'Confira o cupom ou deixe o campo vazio.'
         : null) ??
+      (parceiro.ok ? null : parceiro.erro) ??
       (aceitou ? null : 'É preciso aceitar os Termos de Uso e a Política de Privacidade.')
-    if (problema !== null) {
+    if (problema !== null || !parceiro.ok) {
       setErro(problema)
       return
     }
@@ -79,6 +113,7 @@ export default function CriarConta() {
       razaoSocial,
       cnpj,
       cupom: cupomConferido?.valido === true ? cupomConferido.codigo : null,
+      ...(parceiro.dados === undefined ? {} : { parceiro: parceiro.dados }),
     })
     setEnviando(false)
     if (r.estado === 'falhou') {
@@ -96,6 +131,32 @@ export default function CriarConta() {
       >
         <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
           <Text style={estilos.titulo}>Criar conta</Text>
+
+          <View style={estilos.chips}>
+            {(
+              [
+                ['lojista', 'Tenho uma loja'],
+                ['parceiro', 'Quero ser Parceiro'],
+              ] as const
+            ).map(([valor, rotulo]) => (
+              <Pressable
+                key={valor}
+                onPress={() => setTipoDeConta(valor)}
+                style={[estilos.chip, tipoDeConta === valor && estilos.chipAtivo]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: tipoDeConta === valor }}
+              >
+                <Text style={[estilos.chipTexto, tipoDeConta === valor && estilos.chipTextoAtivo]}>
+                  {rotulo}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {tipoDeConta === 'parceiro' ? (
+            <Text style={estilos.apoio}>
+              Parceiro indica o EiBuddy e recebe por isso no PIX. O pedido passa por aprovação.
+            </Text>
+          ) : null}
 
           <Text style={estilos.secao}>Você</Text>
           <Campo rotulo="Seu nome" valor={nome} onChange={setNome} autoCap="words" />
@@ -129,6 +190,42 @@ export default function CriarConta() {
             tipoTeclado="numeric"
           />
           <Campo rotulo="Razão social" valor={razaoSocial} onChange={setRazaoSocial} />
+
+          {tipoDeConta === 'parceiro' ? (
+            <>
+              <Text style={estilos.secao}>Parceiro</Text>
+              <Text style={estilos.apoio}>Tipo da chave PIX</Text>
+              <View style={estilos.chips}>
+                {TIPOS_DE_CHAVE.map(([valor, rotulo]) => (
+                  <Pressable
+                    key={valor}
+                    onPress={() => setPixKeyType(valor)}
+                    style={[estilos.chip, pixKeyType === valor && estilos.chipAtivo]}
+                  >
+                    <Text
+                      style={[estilos.chipTexto, pixKeyType === valor && estilos.chipTextoAtivo]}
+                    >
+                      {rotulo}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Campo rotulo="Chave PIX" valor={pixKey} onChange={setPixKey} autoCap="none" />
+              <Campo
+                rotulo="Por que quer ser Parceiro"
+                valor={mensagem}
+                onChange={setMensagem}
+                dica="Ao menos 10 caracteres."
+              />
+              <Campo
+                rotulo="Nome do seu cupom (opcional)"
+                valor={nomeDoCupom}
+                onChange={(v) => setNomeDoCupom(v.toUpperCase())}
+                autoCap="characters"
+                dica="Só letras e números. Vazio = o sistema sugere."
+              />
+            </>
+          ) : null}
 
           <Text style={estilos.secao}>Cupom de indicação (opcional)</Text>
           <View style={estilos.linha}>
@@ -237,4 +334,16 @@ const estilos = StyleSheet.create({
   marca: { color: cores.textoSobreAcento, fontWeight: peso.pesado },
   termosTexto: { flex: 1, fontSize: fonte.pequeno, color: cores.textoFraco },
   link: { color: cores.acento, fontWeight: peso.forte },
+  apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
+  chip: {
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.sm,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
+  chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
+  chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
 })

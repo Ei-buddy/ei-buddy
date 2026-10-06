@@ -12,7 +12,9 @@ import { cores } from '@/theme/tokens'
  * quem ja esta logado.
  */
 export default function Entrada() {
-  const [estado, setEstado] = useState<'verificando' | 'logado' | 'deslogado'>('verificando')
+  const [estado, setEstado] = useState<'verificando' | 'logado' | 'plataforma' | 'deslogado'>(
+    'verificando',
+  )
 
   useEffect(() => {
     let cancelado = false
@@ -31,7 +33,9 @@ export default function Entrada() {
        * existir: entrar de novo custa um login e evita um app que nao funciona.
        */
       const pronta = sessao !== null && typeof sessao.empresaId === 'string'
-      if (!cancelado) setEstado(pronta ? 'logado' : 'deslogado')
+      /* Super Admin sem loja ativa e estado valido: a area dele e a plataforma. */
+      const plataforma = sessao !== null && sessao.empresaId === null && sessao.admin === true
+      if (!cancelado) setEstado(pronta ? 'logado' : plataforma ? 'plataforma' : 'deslogado')
     }
 
     void verificar()
@@ -48,7 +52,11 @@ export default function Entrada() {
     )
   }
 
-  return <Redirect href={estado === 'logado' ? '/inicio' : '/login'} />
+  return (
+    <Redirect
+      href={estado === 'logado' ? '/inicio' : estado === 'plataforma' ? '/plataforma' : '/login'}
+    />
+  )
 }
 
 const estilos = StyleSheet.create({

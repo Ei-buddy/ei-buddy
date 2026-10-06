@@ -30,6 +30,8 @@ export type ResultadoLogin =
   | { estado: 'pronto' }
   | { estado: 'escolher-loja'; nome: string; lojas: readonly LojaDaSessao[] }
   | { estado: 'falhou'; erro: string }
+  /** Super Admin sem loja propria: vai para a area da plataforma. */
+  | { estado: 'plataforma' }
 
 type SessaoDaApi = {
   token: string
@@ -37,6 +39,7 @@ type SessaoDaApi = {
   userName: string
   memberships: { companyId: string; companyName: string; role: string }[]
   activeCompanyId: string | null
+  isPlatformAdmin: boolean
 }
 
 /**
@@ -66,6 +69,11 @@ export async function entrar(credencial: string, senha: string): Promise<Resulta
   if (!r.ok) return { estado: 'falhou', erro: r.message }
 
   const sessao = r.dados
+
+  if (sessao.memberships.length === 0 && sessao.isPlatformAdmin) {
+    await gravar(sessao, null)
+    return { estado: 'plataforma' }
+  }
 
   if (sessao.memberships.length === 0) {
     return {
@@ -182,6 +190,13 @@ export type DadosDaConta = {
   cnpj: string
   /** So o cupom que a tela ja conferiu como valido. */
   cupom: string | null
+  /** Conta de Parceiro (indicador) — NR-115. Ausente = lojista. */
+  parceiro?: {
+    pixKey: string
+    pixKeyType: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'
+    message: string
+    couponCode?: string
+  }
 }
 
 /**
@@ -201,6 +216,7 @@ export async function criarConta(dados: DadosDaConta): Promise<ResultadoLogin> {
       cnpj: dados.cnpj.replace(/\D/g, ''),
       acceptedLegalTerms: true,
       ...(dados.cupom === null ? {} : { referralCode: dados.cupom }),
+      ...(dados.parceiro === undefined ? {} : { account: { type: 'parceiro', ...dados.parceiro } }),
     },
   })
 
@@ -240,6 +256,7 @@ async function gravar(sessao: SessaoDaApi, empresaId: string | null): Promise<vo
       empresa: ativa?.companyName ?? '',
       empresaId,
       lojas: sessao.memberships,
+      admin: sessao.isPlatformAdmin === true,
     },
     sessao.token,
   )

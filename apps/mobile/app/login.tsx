@@ -70,6 +70,11 @@ export default function Login() {
       return
     }
 
+    if (r.estado === 'plataforma') {
+      router.replace('/plataforma')
+      return
+    }
+
     if (r.estado === 'escolher-loja') {
       setNome(r.nome)
       setEscolhendo(r.lojas)
