@@ -28,3 +28,4 @@ export {
   unitOfMeasureSchema,
 } from './primitives.js'
 export type { Role, UnitOfMeasure } from './primitives.js'
+export * from './integration-error.js'
