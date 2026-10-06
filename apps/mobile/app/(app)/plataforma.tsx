@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
+import ConfirmarModal from '@/components/ConfirmarModal'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { Cartao, Etiqueta, Vazio } from '@/components/ui/Cartao'
@@ -292,28 +293,21 @@ function Usuarios() {
     }
   }, [busca, tentativa])
 
-  function alternarAdmin(u: UsuarioDaPlataforma) {
-    Alert.alert(
-      u.isPlatformAdmin ? `Tirar o Super Admin de ${u.name}?` : `Tornar ${u.name} Super Admin?`,
-      u.isPlatformAdmin
-        ? 'A pessoa perde o acesso a esta área.'
-        : 'A pessoa passa a ver e entrar em todas as empresas.',
-      [
-        { text: 'Voltar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          style: u.isPlatformAdmin ? 'destructive' : 'default',
-          onPress: () =>
-            void (async () => {
-              const r = u.isPlatformAdmin
-                ? await revogarSuperAdmin(u.userId)
-                : await convidarSuperAdmin(u.email)
-              if (!r.ok) Alert.alert('Não deu certo', r.erro)
-              setTentativa((n) => n + 1)
-            })(),
-        },
-      ],
-    )
+  /* Janela do proprio app: o Alert nativo nao aparece no app aberto pelo
+     navegador, e ali o botao nao fazia nada. */
+  const [alterando, setAlterando] = useState<UsuarioDaPlataforma | null>(null)
+  const [processando, setProcessando] = useState(false)
+
+  async function alternarAdmin() {
+    if (alterando === null) return
+    setProcessando(true)
+    const r = alterando.isPlatformAdmin
+      ? await revogarSuperAdmin(alterando.userId)
+      : await convidarSuperAdmin(alterando.email)
+    setProcessando(false)
+    setAlterando(null)
+    if (!r.ok) Alert.alert('Não deu certo', r.erro)
+    setTentativa((n) => n + 1)
   }
 
   async function convidar() {
@@ -393,7 +387,7 @@ function Usuarios() {
                   ? `Último acesso ${formatDateTime(u.lastAccessAt)}`
                   : 'Nunca entrou'}
               </Text>
-              <Pressable onPress={() => alternarAdmin(u)} accessibilityRole="button">
+              <Pressable onPress={() => setAlterando(u)} accessibilityRole="button">
                 <Text style={u.isPlatformAdmin ? estilos.linkPerigo : estilos.link}>
                   {u.isPlatformAdmin ? 'Tirar Super Admin' : 'Tornar Super Admin'}
                 </Text>
@@ -402,6 +396,25 @@ function Usuarios() {
           ))}
         </>
       )}
+      {alterando !== null ? (
+        <ConfirmarModal
+          titulo={
+            alterando.isPlatformAdmin
+              ? `Tirar o Super Admin de ${alterando.name}?`
+              : `Tornar ${alterando.name} Super Admin?`
+          }
+          mensagem={
+            alterando.isPlatformAdmin
+              ? 'A pessoa perde o acesso a esta área.'
+              : 'A pessoa passa a ver e entrar em todas as empresas.'
+          }
+          rotuloConfirmar="Confirmar"
+          perigo={alterando.isPlatformAdmin}
+          processando={processando}
+          onConfirmar={() => void alternarAdmin()}
+          onFechar={() => setAlterando(null)}
+        />
+      ) : null}
     </>
   )
 }
