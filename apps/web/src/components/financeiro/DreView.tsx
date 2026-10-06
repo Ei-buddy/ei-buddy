@@ -163,8 +163,11 @@ export default function DreView() {
                           : undefined
                       }
                     >
-                      {l.subtrai && l.valorCents !== 0 ? '− ' : ''}
-                      {formatMoney(emReais(Math.abs(l.valorCents)))}
+                      {/* So a linha que subtrai ganha o "−" fixo; nos totais o
+                          sinal vem do valor, e prejuizo aparece negativo. */}
+                      {l.subtrai
+                        ? `${l.valorCents !== 0 ? '− ' : ''}${formatMoney(emReais(Math.abs(l.valorCents)))}`
+                        : formatMoney(emReais(l.valorCents))}
                     </td>
                   </tr>
                 ))}

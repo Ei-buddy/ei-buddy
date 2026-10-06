@@ -43,6 +43,7 @@ import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
 import { Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
+import ConfirmarModal from '@/components/ConfirmarModal'
 import { DescontoModal, SeletorCliente, SeletorProduto } from '@/components/SeletoresDoPdv'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
@@ -80,6 +81,8 @@ export default function Pdv() {
   /** Nulo = uma forma so, pelo total. Com partes, a venda e dividida. */
   const [partes, setPartes] = useState<Parte[] | null>(null)
   const [fechando, setFechando] = useState(false)
+  /** O texto da confirmacao do fechamento; nulo = janela fechada. */
+  const [confirmacao, setConfirmacao] = useState<string | null>(null)
   /** A ultima venda fechada, com a decomposicao — US-020. */
   const [resumo, setResumo] = useState<VendaRegistrada | null>(null)
   /**
@@ -254,6 +257,7 @@ export default function Pdv() {
    * entra — a partir dai, o proximo fechamento e outra venda.
    */
   async function confirmar() {
+    setConfirmacao(null)
     chaveDoFechamento.current ??= novaChaveDeVenda()
     setFechando(true)
 
@@ -304,10 +308,7 @@ export default function Pdv() {
         : null,
     ].filter((l) => l !== null)
 
-    Alert.alert('Fechar a venda', linhas.join('\n'), [
-      { text: 'Voltar', style: 'cancel' },
-      { text: 'Fechar', onPress: () => void confirmar() },
-    ])
+    setConfirmacao(linhas.join('\n'))
   }
 
   return (
@@ -503,6 +504,16 @@ export default function Pdv() {
             </View>
           </View>
         </ScrollView>
+      ) : null}
+
+      {confirmacao !== null ? (
+        <ConfirmarModal
+          titulo="Fechar a venda"
+          mensagem={confirmacao}
+          rotuloConfirmar="Fechar"
+          onConfirmar={() => void confirmar()}
+          onFechar={() => setConfirmacao(null)}
+        />
       ) : null}
 
       <LeitorCodigo

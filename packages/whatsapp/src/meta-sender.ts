@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { ErroDeIntegracao } from '@na-regua/contracts'
 import type {
   InboundReadResult,
   SendMediaRequest,
@@ -147,7 +148,7 @@ export function criarRemetenteMeta(opcoes: MetaOptions) {
 
     const dados = (await resposta.json().catch(() => ({}))) as Record<string, unknown>
 
-    if (!resposta.ok) return traduzirErro(dados)
+    if (!resposta.ok) return traduzirErro(dados, resposta.status)
 
     const mensagens = Array.isArray(dados.messages)
       ? (dados.messages as Record<string, unknown>[])
@@ -160,7 +161,12 @@ export function criarRemetenteMeta(opcoes: MetaOptions) {
        * de entrega depois. Tratar como enviado deixaria a mensagem num limbo
        * — o sistema diria que saiu e nada confirmaria.
        */
-      throw new Error('A Meta respondeu sem id da mensagem.')
+      throw new ErroDeIntegracao('A Meta respondeu sem id da mensagem.', {
+        provedor: 'meta',
+        operacao: 'enviar mensagem',
+        status: resposta.status,
+        resposta: dados,
+      })
     }
 
     const resultado: SendResult = {
@@ -239,14 +245,15 @@ export function criarRemetenteMeta(opcoes: MetaOptions) {
  * mensagem que sairia na proxima tentativa; traduzir a janela de 24h em
  * excecao faria ela tentar cinco vezes uma coisa que nunca vai sair.
  */
-function traduzirErro(dados: Record<string, unknown>): SendResult {
+function traduzirErro(dados: Record<string, unknown>, status: number): SendResult {
   const erro = (dados.error ?? {}) as Record<string, unknown>
   const codigo = Number(erro.code ?? 0)
   const recusa = RECUSAS[codigo]
 
   if (recusa === undefined) {
-    throw new Error(
+    throw new ErroDeIntegracao(
       `A Meta recusou o envio (codigo ${codigo || '?'}): ${String(erro.message ?? 'sem detalhe')}`,
+      { provedor: 'meta', operacao: 'enviar mensagem', status, resposta: dados },
     )
   }
 

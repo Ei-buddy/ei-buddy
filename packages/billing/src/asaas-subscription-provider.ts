@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { createSubscriptionRequestSchema } from '@na-regua/contracts'
+import { createSubscriptionRequestSchema, ErroDeIntegracao } from '@na-regua/contracts'
 import type {
   CreateSubscriptionRequest,
   ProviderSubscription,
@@ -135,7 +135,13 @@ export function criarProvedorDeAssinaturaAsaas(opcoes: AsaasSubscriptionOptions)
         ).corpo
 
       const id = String(assinatura.id ?? '')
-      if (id === '') throw new Error('O Asaas nao devolveu id da assinatura.')
+      if (id === '') {
+        throw new ErroDeIntegracao('O Asaas nao devolveu id da assinatura.', {
+          provedor: 'asaas',
+          operacao: 'criar assinatura',
+          resposta: assinatura,
+        })
+      }
 
       return {
         providerSubscriptionId: id,
@@ -154,9 +160,12 @@ export function criarProvedorDeAssinaturaAsaas(opcoes: AsaasSubscriptionOptions)
       reason: string
       requestedAt: string
     }): Promise<void> => {
-      const { ok, status } = await chamar(`/subscriptions/${request.providerSubscriptionId}`, {
-        method: 'DELETE',
-      })
+      const { ok, status, corpo } = await chamar(
+        `/subscriptions/${request.providerSubscriptionId}`,
+        {
+          method: 'DELETE',
+        },
+      )
 
       /*
        * 404 e sucesso: cancelar o que nao existe mais e exatamente o estado
@@ -164,7 +173,15 @@ export function criarProvedorDeAssinaturaAsaas(opcoes: AsaasSubscriptionOptions)
        * tentativa anterior ja tinha funcionado pela metade.
        */
       if (!ok && status !== 404) {
-        throw new Error(`O Asaas recusou o cancelamento da assinatura (HTTP ${status}).`)
+        throw new ErroDeIntegracao(
+          `O Asaas recusou o cancelamento da assinatura (HTTP ${status}).`,
+          {
+            provedor: 'asaas',
+            operacao: 'cancelar assinatura',
+            status,
+            resposta: corpo,
+          },
+        )
       }
     },
 
