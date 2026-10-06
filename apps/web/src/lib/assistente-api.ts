@@ -443,10 +443,11 @@ export async function responder(
       {
         tipo: 'tabela',
         titulo: 'Faturamento mes a mes',
-        colunas: ['Mes', 'Faturamento', 'Vendas'],
+        colunas: ['Mes', 'Bruto', 'Liquido', 'Vendas'],
         linhas: f.dados.months.map((m) => [
           rotuloDoMes(m.month),
           centavos(m.grossCents),
+          centavos(m.netCents),
           String(m.salesCount),
         ]),
       },
@@ -459,26 +460,37 @@ export async function responder(
       fontes.faturamento(mesesAntes(hoje, 2), fimDoMes(hoje)),
     ])
     if (!h.ok) return r('faturamento', NAO_CONSEGUI)
-    const { faturamento, quantidade } = h.dados.resumo
+    const { faturamento, liquido, quantidade } = h.dados.resumo
     return r(
       'faturamento',
-      `Hoje voce vendeu ${formatMoney(faturamento)} em ${quantidade} vendas.`,
+      `Hoje voce vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Liquido: ${formatMoney(liquido)}, ja sem desconto, imposto e taxa de cartao.`,
       [
         {
           tipo: 'indicador',
-          rotulo: 'Faturamento hoje',
+          rotulo: 'Faturamento bruto hoje',
           valor: formatMoney(faturamento),
           apoio: `${quantidade} vendas`,
+        },
+        {
+          tipo: 'indicador',
+          rotulo: 'Faturamento liquido hoje',
+          valor: formatMoney(liquido),
+          apoio: 'sem desconto, imposto e taxa de cartao',
         },
         ...(f.ok
           ? [
               {
                 tipo: 'tabela' as const,
                 titulo: 'Ultimos meses',
-                colunas: ['Mes', 'Faturamento', 'Vendas'],
+                colunas: ['Mes', 'Bruto', 'Liquido', 'Vendas'],
                 linhas: [...f.dados.months]
                   .reverse()
-                  .map((m) => [rotuloDoMes(m.month), centavos(m.grossCents), String(m.salesCount)]),
+                  .map((m) => [
+                    rotuloDoMes(m.month),
+                    centavos(m.grossCents),
+                    centavos(m.netCents),
+                    String(m.salesCount),
+                  ]),
               },
             ]
           : []),

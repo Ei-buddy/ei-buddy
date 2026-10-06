@@ -282,13 +282,15 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
     defineTool({
       id: 'revenue_by_month',
       description:
-        'Faturamento liquido por mes no periodo. Nao e o DRE — para custo, despesas e resultado use period_summary.',
+        'Faturamento bruto e liquido por mes no periodo. Nao e o DRE — para custo, despesas e resultado use period_summary.',
       inputSchema: revenueByMonthInputSchema,
       mutatesValue: false,
       execute: (input, ctx) => casos.revenueByMonth(ctx, input),
       formatProposal: (input) => `Faturamento de ${input.from} a ${input.to}`,
       formatReply: (out) =>
-        `Faturamento liquido ${formatarCentavos(out.totalNetCents)} de ${out.from} a ${out.to}.`,
+        `Faturamento de ${out.from} a ${out.to}: bruto ${formatarCentavos(
+          out.months.reduce((acc, m) => acc + m.grossCents, 0),
+        )}, liquido ${formatarCentavos(out.totalNetCents)}.`,
     }),
     defineTool({
       id: 'create_customer',

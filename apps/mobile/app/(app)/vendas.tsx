@@ -172,7 +172,7 @@ export default function Vendas() {
             {resumo !== null ? (
               <View style={estilos.resumo}>
                 <View style={estilos.resumoItem}>
-                  <Text style={estilos.resumoRotulo}>Faturamento</Text>
+                  <Text style={estilos.resumoRotulo}>Bruto</Text>
                   <Text style={estilos.resumoValor}>{formatMoney(resumo.faturamento)}</Text>
                 </View>
                 <View style={estilos.resumoItem}>

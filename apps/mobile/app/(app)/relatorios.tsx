@@ -186,9 +186,19 @@ export default function Relatorios() {
           }
         >
           <Cartao>
-            <Text style={estilos.totalRotulo}>Faturamento do período</Text>
+            <Text style={estilos.totalRotulo}>Faturamento líquido do período</Text>
             <Text style={estilos.totalValor}>
               {formatMoney(emReais(dados.faturamento.totalNetCents))}
+            </Text>
+            <Text style={estilos.totalBruto}>
+              Bruto{' '}
+              {formatMoney(
+                emReais(dados.faturamento.months.reduce((acc, m) => acc + m.grossCents, 0)),
+              )}
+            </Text>
+            <Text style={estilos.legenda}>
+              Bruto é o valor das vendas antes do desconto. Líquido é o que sobra depois do
+              desconto, do imposto e da taxa de cartão.
             </Text>
           </Cartao>
 
@@ -245,9 +255,9 @@ function MesAMes({ meses }: { meses: readonly Faturamento['months'][number][] })
           <Text style={estilos.mesDetalhe}>
             {m.salesCount === 0
               ? 'Sem venda neste mês'
-              : `${m.salesCount} ${m.salesCount === 1 ? 'venda' : 'vendas'} · ticket médio ${formatMoney(
-                  emReais(m.averageTicketCents ?? 0),
-                )}`}
+              : `${m.salesCount} ${m.salesCount === 1 ? 'venda' : 'vendas'} · bruto ${formatMoney(
+                  emReais(m.grossCents),
+                )} · ticket médio ${formatMoney(emReais(m.averageTicketCents ?? 0))}`}
           </Text>
         </View>
       ))}
@@ -358,6 +368,8 @@ const estilos = StyleSheet.create({
     color: cores.texto,
     marginTop: espaco.xs,
   },
+  totalBruto: { fontSize: fonte.corpo, color: cores.texto, marginTop: espaco.xs },
+  legenda: { fontSize: fonte.micro, color: cores.textoFraco, marginTop: espaco.sm },
 
   mes: { paddingVertical: espaco.sm },
   mesTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },

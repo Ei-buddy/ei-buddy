@@ -195,6 +195,22 @@ describe('check_stock — US1 / NR-115', () => {
     expect(texto).toContain('Corredor 3')
   })
 
+  it('faturamento responde bruto e liquido do periodo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'revenue_by_month')!
+    const mes = { discountsCents: 300, salesCount: 4, averageTicketCents: 2100 }
+    const texto = tool.formatReply({
+      from: '2026-09-01',
+      to: '2026-10-31',
+      months: [
+        { month: '2026-09', grossCents: 5_000, netCents: 4_500, ...mes },
+        { month: '2026-10', grossCents: 8_400, netCents: 7_614, ...mes },
+      ],
+      totalNetCents: 12_114,
+    })
+    expect(texto).toContain(`bruto ${formatarCentavos(13_400)}`)
+    expect(texto).toContain(`liquido ${formatarCentavos(12_114)}`)
+  })
+
   it('sem controle de estoque nao usa zero', () => {
     const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')!
     const texto = tool.formatReply({

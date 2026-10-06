@@ -23,6 +23,8 @@ import { dataPorExtenso, hojeLocal, primeiroNome, saudacaoDaHora } from './perio
 export type ResumoDoDia = {
   /** Nulo enquanto carrega; nunca zero como disfarce. */
   readonly faturamentoCents: number | null
+  /** O mesmo dia depois de desconto, imposto e taxa de cartao. */
+  readonly liquidoCents: number | null
   readonly vendasHoje: number | null
   readonly aPagarCents: number | null
   readonly contasVencidas: number | null
@@ -38,7 +40,7 @@ export type Saudacao = {
 }
 
 type Perfil = { userName: string; companyName: string | null }
-type Faturamento = { months: { grossCents: number; salesCount: number }[] }
+type Faturamento = { months: { grossCents: number; netCents: number; salesCount: number }[] }
 type ResumoCatalogo = { belowMinimum: number; outOfStock: number }
 export type ContaAPagar = {
   id: string
@@ -104,6 +106,7 @@ export async function carregarResumoDoDia(agora: Date = new Date()): Promise<Res
   return {
     /* O bruto: o que os clientes pagaram. O liquido ja vem sem imposto e tarifa. */
     faturamentoCents: doDia?.grossCents ?? (faturamento.ok ? 0 : null),
+    liquidoCents: doDia?.netCents ?? (faturamento.ok ? 0 : null),
     vendasHoje: doDia?.salesCount ?? (faturamento.ok ? 0 : null),
     aPagarCents: contas.ok ? contas.dados.totalCents : null,
     contasVencidas: vencidas,

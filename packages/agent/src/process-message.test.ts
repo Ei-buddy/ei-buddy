@@ -1861,7 +1861,7 @@ describe('processMessage — resumo do periodo (US6 / RF-108)', () => {
     expect(r.text).toContain(formatarCentavos(12_345))
     expect(r.text).toContain('2026-09-01')
     expect(r.text).toContain('2026-09-30')
-    expect(r.text).not.toContain('Faturamento liquido')
+    expect(r.text).not.toContain(': bruto ')
     expect(r.text).not.toContain(formatarCentavos(35_000))
     expect(buildDre).toHaveBeenCalledOnce()
     expect(buildDre).toHaveBeenCalledWith(ctx, { from: '2026-09-01', to: '2026-09-30' })

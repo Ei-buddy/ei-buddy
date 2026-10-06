@@ -104,3 +104,4 @@ NR-137 — Falha de integracao com a resposta do provedor no log (api e worker),
 NR-138 — Landing sem promessa de equipe e usuarios ilimitados (equipe cancelada),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-005, RF-006",docs/processo/task-ledger.md
 NR-139 — App: confirmacao propria em fechar venda e Super Admin (sem Alert nativo),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,NR-071,,mobile,"RF-036, ADR-0007",docs/processo/task-ledger.md
 NR-140 — Web: rotulos ligados aos campos e prejuizo do DRE com sinal (QA),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-085, RNF-052",docs/processo/task-ledger.md
+"NR-141 — Faturamento bruto e liquido lado a lado (web, app, IA)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"US-041, RF-108",docs/processo/task-ledger.md
