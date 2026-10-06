@@ -402,6 +402,11 @@ export default function ClientesLista() {
                     </span>
 
                     <span className={styles.itemStatus}>
+                      {/* Cliente de antes da DEC-025 pode estar sem celular ou
+                          endereco: o aviso aparece aqui para ser completado. */}
+                      {cliente.faltando.length > 0 ? (
+                        <Badge tone="warning">Cadastro incompleto</Badge>
+                      ) : null}
                       {pendente > 0 ? (
                         <Badge tone="info">Em aberto · {formatMoney(pendente)}</Badge>
                       ) : (

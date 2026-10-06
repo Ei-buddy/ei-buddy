@@ -189,6 +189,7 @@ describe('cliente citado na pergunta', () => {
               ultimaCompra: HOJE,
               totalCompras: 1,
               valorTotal: 16.98,
+              faltando: [],
             },
           ],
         }),
