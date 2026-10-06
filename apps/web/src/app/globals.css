@@ -376,6 +376,239 @@ svg {
   --app-field-hover: rgba(19, 23, 52, 0.06);
 }
 
+/* ==========================================================================
+   Vidro do painel ("liquid glass") — NR-146
+
+   A sidebar (NR-131) e a fonte: estes sao os valores DELA, extraidos de
+   `AppShell.module.css`, e ela passou a consumi-los daqui. Uma definicao so
+   para o painel inteiro.
+
+   ## De onde vem o vidro
+
+   Nao do `backdrop-filter`: desfocar um fundo liso nao muda nada. O volume vem
+   de tres camadas baratas, empilhadas:
+     1. a superficie, quase da cor do fundo, com sombra interna clara no topo
+        e escura na base — a curvatura;
+     2. a borda de luz, um fio de 1px forte no topo e morrendo na base
+        (`--glass-border`, pintado num `::before` com mascara);
+     3. o reflexo especular, uma mancha de luz no terco de cima
+        (`--glass-highlight`).
+   O desfoque (`--glass-blur`) so entra em poucas superficies grandes e
+   paradas — painel lateral, dialogos, topo —, nunca em linha de tabela.
+
+   ## Os dois temas
+
+   O escuro e o padrao (e o da referencia). O claro (NR-099) mantem a mesma
+   anatomia com luz invertida: peca branca, sombras azul-escuras bem fracas.
+   ========================================================================== */
+
+.appTheme {
+  /* Peca de vidro: botoes, cartoes, itens. */
+  --glass-surface: rgba(255, 255, 255, 0.06);
+  --glass-surface-hover: rgba(255, 255, 255, 0.1);
+  /* Um tom mais fundo: moldura que agrupa outras pecas (grupo aberto da
+     barra, cabecalho de tabela). */
+  --glass-surface-deep: rgba(255, 255, 255, 0.04);
+  --glass-border: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.06) 45%,
+    transparent 70%
+  );
+  /* Borda de luz das pecas grandes: o mesmo desenho, mais contido — num
+     cartao de 400px o fio forte da barra vira uma faixa. */
+  --glass-border-soft: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  --glass-highlight: radial-gradient(
+    closest-side,
+    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 100%
+  );
+  /* O reflexo como camada de fundo, para pecas grandes que nao podem
+     cortar o que transborda (um cartao com lista suspensa dentro). */
+  --glass-sheen: radial-gradient(120% 70% at 12% -20%, rgba(255, 255, 255, 0.07), transparent 60%);
+  --glass-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
+    0 6px 14px rgba(0, 0, 0, 0.22);
+  /* Peca grande: mesma luz no topo, curvatura e elevacao mais largas. */
+  --glass-shadow-raised:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -10px 18px rgba(0, 0, 0, 0.16) inset,
+    0 10px 24px rgba(0, 0, 0, 0.24);
+
+  /* Ativo e acao primaria: o azul da barra, brilhando para fora. */
+  --glass-active: linear-gradient(180deg, rgba(96, 165, 250, 0.55), rgba(37, 99, 235, 0.35));
+  --glass-active-hover: linear-gradient(180deg, rgba(96, 165, 250, 0.68), rgba(37, 99, 235, 0.48));
+  --glass-shadow-active:
+    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
+    0 8px 24px rgba(59, 130, 246, 0.45);
+  --glass-border-active: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.75),
+    rgba(255, 255, 255, 0.12) 45%,
+    transparent 70%
+  );
+  --glass-active-text: #ffffff;
+
+  /* Campo: vidro REBAIXADO — sombra por dentro no topo, luz na base. */
+  --glass-inset: rgba(0, 0, 0, 0.16);
+  --glass-inset-hover: rgba(0, 0, 0, 0.1);
+  --glass-shadow-inset:
+    0 2px 6px rgba(0, 0, 0, 0.28) inset, 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
+  --glass-inset-border: rgba(255, 255, 255, 0.08);
+
+  /* Painel: dialogo, menu suspenso, busca. Mais opaco, porque fica POR
+     CIMA de conteudo e o texto dele precisa vencer o que esta atras. */
+  --glass-panel: linear-gradient(180deg, rgba(36, 44, 96, 0.94), rgba(22, 28, 66, 0.96));
+  --glass-shadow-panel:
+    0 1px 1px rgba(255, 255, 255, 0.08) inset, 0 30px 60px rgba(0, 0, 0, 0.55),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  --glass-blur: blur(18px) saturate(160%);
+
+  --glass-text: var(--app-text);
+  --glass-text-muted: var(--app-muted);
+  --glass-radius-sm: 12px;
+  --glass-radius-md: 18px;
+  --glass-radius-lg: 22px;
+}
+
+:root[data-theme='light'] .appTheme {
+  --glass-surface: linear-gradient(180deg, #ffffff, #eef1f8);
+  --glass-surface-hover: linear-gradient(180deg, #ffffff, #e6ebf5);
+  --glass-surface-deep: linear-gradient(180deg, #f4f6fb, #eaeef7);
+  --glass-border: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(15, 42, 58, 0.1) 45%,
+    rgba(15, 42, 58, 0.04) 70%
+  );
+  --glass-border-soft: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(15, 42, 58, 0.08) 30%,
+    rgba(15, 42, 58, 0.06) 100%
+  );
+  --glass-highlight: radial-gradient(
+    closest-side,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 100%
+  );
+  --glass-sheen: radial-gradient(120% 70% at 12% -20%, rgba(255, 255, 255, 0.7), transparent 60%);
+  --glass-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset,
+    0 6px 14px rgba(15, 42, 58, 0.1);
+  --glass-shadow-raised:
+    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -10px 18px rgba(15, 42, 58, 0.035) inset,
+    0 10px 24px rgba(15, 42, 58, 0.08);
+
+  /* Azul chapado no claro: o translucido desbota sobre superficie clara e o
+     texto branco por cima reprova no AA (a mesma decisao da barra). */
+  --glass-active: linear-gradient(180deg, #2f74e0, #1f5bc4);
+  --glass-active-hover: linear-gradient(180deg, #3a7fe8, #2563cc);
+  --glass-shadow-active:
+    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.12) inset,
+    0 8px 24px rgba(59, 130, 246, 0.35);
+
+  --glass-inset: rgba(19, 23, 52, 0.035);
+  --glass-inset-hover: rgba(19, 23, 52, 0.055);
+  --glass-shadow-inset:
+    0 2px 5px rgba(15, 42, 58, 0.08) inset, 0 -1px 0 rgba(255, 255, 255, 0.9) inset;
+  --glass-inset-border: var(--app-border);
+
+  --glass-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 246, 251, 0.97));
+  --glass-shadow-panel:
+    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 30px 60px rgba(15, 42, 58, 0.16),
+    0 8px 20px rgba(15, 42, 58, 0.1);
+}
+
+/*
+ * Transparencia reduzida: a mesma paleta, chapada. O texto passa a ficar
+ * sobre cor solida, e nenhum desfoque roda.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .appTheme {
+    --glass-surface: var(--app-surface);
+    --glass-surface-hover: var(--app-raised);
+    --glass-surface-deep: var(--app-surface);
+    --glass-panel: var(--app-raised);
+    --glass-sheen: none;
+    --glass-highlight: none;
+    --glass-blur: none;
+  }
+}
+
+/* Sem `backdrop-filter`, o painel fica opaco para continuar legivel. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .appTheme {
+    --glass-panel: var(--app-raised);
+  }
+}
+
+/*
+ * Utilitarios — para quem nao tem componente proprio.
+ *
+ * Os componentes base (`components/ui`) usam os tokens direto no proprio CSS;
+ * estas classes servem a peca solta de uma tela. `.glass-raised` pede um
+ * pai que aceite `position: relative` (o fio de luz e um `::before`).
+ */
+.glass,
+.glass-raised {
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-raised {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--glass-radius-md);
+}
+
+.glass-raised::before,
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-border-soft);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glass-inset {
+  border: 1px solid var(--glass-inset-border);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
+}
+
+.glass-active {
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
+}
+
+.glass-panel {
+  position: relative;
+  border-radius: var(--glass-radius-lg);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-panel);
+}
+
 /* Linha de indicadores no topo das telas do painel */
 .statRow {
   display: grid;
