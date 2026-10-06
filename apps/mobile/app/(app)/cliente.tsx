@@ -128,6 +128,20 @@ export default function ClienteScreen() {
           </Text>
         ) : null}
 
+        {/* Cliente de antes da DEC-025: continua valendo, e o aviso diz o que
+            falta e leva direto para completar. */}
+        {cliente.faltando.length > 0 && !anonimizado ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/cliente-form', params: { id: cliente.id } })}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.aviso}>
+              Cadastro incompleto: falta {cliente.faltando.join(', ')}.{' '}
+              <Text style={estilos.link}>Completar cadastro</Text>
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={estilos.numeros}>
           <Numero rotulo="Fiado em aberto" valor={formatMoney(cliente.saldoFiado)} />
           <Numero

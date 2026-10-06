@@ -294,6 +294,10 @@ function LinhaCliente({ cliente, onAbrir }: { cliente: ClienteDaLista; onAbrir: 
             {cliente.nome}
           </Text>
           {cliente.documento ? <Text style={estilos.clienteDoc}>{cliente.documento}</Text> : null}
+          {/* Cliente de antes da DEC-025 pode estar sem celular ou endereco. */}
+          {cliente.faltando.length > 0 ? (
+            <Text style={estilos.incompleto}>Cadastro incompleto</Text>
+          ) : null}
         </View>
 
         {cliente.saldoFiado > 0 ? (
@@ -384,6 +388,7 @@ const estilos = StyleSheet.create({
   clienteInfo: { flex: 1, gap: 2 },
   clienteNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },
   clienteDoc: { fontSize: fonte.micro, color: cores.textoFraco },
+  incompleto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.atencao },
 
   clienteRodape: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+import { camposFaltandoNoCliente } from '@na-regua/contracts'
 import { chamarApi } from './api'
 import { centavosDoTexto } from './valor'
 
@@ -21,6 +22,8 @@ export type ClienteDaLista = {
   saldoFiado: number
   /** Nulo = NUNCA comprou. */
   ultimaCompra: string | null
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
 }
 
 type ClienteDaApi = {
@@ -31,6 +34,14 @@ type ClienteDaApi = {
   phone: string | null
   walletBalanceCents: number
   lastSaleOn: string | null
+  address: {
+    zipCode: string | null
+    street: string | null
+    number: string | null
+    district: string | null
+    city: string | null
+    state: string | null
+  }
 }
 
 export type ListaDeClientes = { clientes: ClienteDaLista[]; total: number }
@@ -63,6 +74,7 @@ export async function listarClientes(opcoes: {
         celular: c.phone,
         saldoFiado: c.walletBalanceCents / 100,
         ultimaCompra: c.lastSaleOn,
+        faltando: camposFaltandoNoCliente(c),
       })),
     },
   }
@@ -171,6 +183,8 @@ export type ClienteDaFicha = {
   limiteFiado: number
   saldoFiado: number
   endereco: EnderecoDoCliente
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
   anonimizadoEm: string | null
   excluidoEm: string | null
 }
@@ -220,6 +234,7 @@ export async function buscarCliente(clienteId: string): Promise<Resultado<Client
         cidade: c.address.city ?? '',
         uf: c.address.state ?? '',
       },
+      faltando: camposFaltandoNoCliente(c),
       anonimizadoEm: c.anonymizedAt,
       excluidoEm: c.deletedAt,
     },
