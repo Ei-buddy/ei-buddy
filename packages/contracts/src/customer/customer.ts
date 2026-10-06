@@ -62,6 +62,37 @@ export const customerAddressSchema = z
 export type CustomerAddress = z.infer<typeof customerAddressSchema>
 
 /**
+ * O que falta para o cadastro ficar completo — DEC-025.
+ *
+ * Cliente cadastrado antes da regra pode nao ter celular nem endereco. Ele
+ * continua valendo, e as telas usam esta lista para avisar o que completar.
+ * Vazia = cadastro completo. Os nomes ja vem prontos para a tela.
+ */
+export function camposFaltandoNoCliente(c: {
+  readonly phone: string | null
+  readonly address: {
+    readonly zipCode: string | null
+    readonly street: string | null
+    readonly number: string | null
+    readonly district: string | null
+    readonly city: string | null
+    readonly state: string | null
+  }
+}): string[] {
+  const vazio = (v: string | null) => v === null || v.trim() === ''
+  const faltando: string[] = []
+  if (vazio(c.phone)) faltando.push('celular')
+  const e = c.address
+  if (vazio(e.zipCode)) faltando.push('CEP')
+  if (vazio(e.street)) faltando.push('rua')
+  if (vazio(e.number)) faltando.push('número')
+  if (vazio(e.district)) faltando.push('bairro')
+  if (vazio(e.city)) faltando.push('cidade')
+  if (vazio(e.state)) faltando.push('UF')
+  return faltando
+}
+
+/**
  * Os campos, sem regra composta.
  *
  * Existe separado porque `.partial()` do zod recusa qualquer schema que

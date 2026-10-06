@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createCustomerInputSchema, updateCustomerInputSchema } from '../customer/customer.js'
+import {
+  camposFaltandoNoCliente,
+  createCustomerInputSchema,
+  updateCustomerInputSchema,
+} from '../customer/customer.js'
 import {
   createCompanyInputSchema,
   createUserInputSchema,
@@ -245,5 +249,49 @@ describe('atualizacao do cadastro da empresa — RF-003', () => {
 
   it('recusa campo desconhecido — o schema e strict', () => {
     expect(updateCompanyInputSchema.safeParse({ cor: 'azul' }).success).toBe(false)
+  })
+})
+
+describe('camposFaltandoNoCliente — DEC-025', () => {
+  const COMPLETO = {
+    phone: '41988887777',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  }
+
+  it('cadastro completo nao falta nada', () => {
+    expect(camposFaltandoNoCliente(COMPLETO)).toEqual([])
+  })
+
+  it('cliente antigo, so com nome, lista tudo o que falta', () => {
+    const vazio = {
+      zipCode: null,
+      street: null,
+      number: null,
+      district: null,
+      city: null,
+      state: null,
+    }
+    expect(camposFaltandoNoCliente({ phone: null, address: vazio })).toEqual([
+      'celular',
+      'CEP',
+      'rua',
+      'número',
+      'bairro',
+      'cidade',
+      'UF',
+    ])
+  })
+
+  it('aponta so o campo que falta', () => {
+    expect(
+      camposFaltandoNoCliente({ ...COMPLETO, address: { ...COMPLETO.address, district: ' ' } }),
+    ).toEqual(['bairro'])
   })
 })
