@@ -39,7 +39,18 @@ describe.skipIf(!DATABASE_URL)('inadimplentes — RF-071', () => {
     await admin?.end({ timeout: 5 })
   })
 
-  const dias = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  /*
+   * Datas no MESMO fuso da consulta. Em UTC, entre 21h e meia-noite de
+   * Brasilia o "ontem" de UTC ja e o "hoje" de Sao Paulo, e um titulo que
+   * venceu "ontem" ainda nao estava vencido — o teste falhava so nesse horario.
+   */
+  const FUSO = 'America/Sao_Paulo'
+  const dias = (n: number) => {
+    const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO }).format(new Date())
+    const d = new Date(`${hoje}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + n)
+    return d.toISOString().slice(0, 10)
+  }
 
   async function cliente(nome: string): Promise<string> {
     const [c] = await withTenant(
@@ -84,7 +95,7 @@ describe.skipIf(!DATABASE_URL)('inadimplentes — RF-071', () => {
     await titulo(beto, 500_00, dias(-1))
     await titulo(carla, 80_00, dias(2))
 
-    const lista = await createDelinquencyQueries(sql, 'America/Sao_Paulo').list(empresa)
+    const lista = await createDelinquencyQueries(sql, FUSO).list(empresa)
 
     expect(lista.map((l) => [l.name, l.overdueCents, l.receivablesCount])).toEqual([
       ['Beto Devedor', 500_00, 1],
