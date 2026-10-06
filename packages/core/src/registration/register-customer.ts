@@ -126,8 +126,9 @@ export async function registerCustomer(
 /**
  * Recusa cadastro sem nenhum jeito de identificar a pessoa.
  *
- * Nao e chamada por `registerCustomer` — o cadastro so com nome e legitimo.
- * Existe para quem PRECISA identificar depois: cobranca por WhatsApp, fiado.
+ * Cadastro novo ja nasce com celular (NR-142), mas cliente de antes da regra
+ * pode nao ter. Existe para quem PRECISA identificar: cobranca por WhatsApp,
+ * fiado.
  * Fica aqui, e nao na rota, porque a regra vale para os dois canais.
  */
 export function assertIdentifiable(customer: CustomerOutput): void {

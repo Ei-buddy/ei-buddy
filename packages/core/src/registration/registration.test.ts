@@ -39,6 +39,26 @@ import {
   updateProduct,
 } from './register-product.js'
 
+/* Celular e endereco sao obrigatorios no cadastro (NR-142). O celular muda a
+   cada chamada: repetido, o cadastro acusaria cliente duplicado. */
+let celularDoTeste = 0
+const ENDERECO_DO_TESTE = {
+  zipCode: '80010000',
+  street: 'Rua XV de Novembro',
+  number: '100',
+  district: 'Centro',
+  city: 'Curitiba',
+  state: 'PR',
+} as const
+function cliente<T extends object>(campos: T) {
+  celularDoTeste += 1
+  return {
+    phone: `4198${String(celularDoTeste).padStart(7, '0')}`,
+    address: ENDERECO_DO_TESTE,
+    ...campos,
+  }
+}
+
 const AGORA = new Date('2026-09-02T13:00:00.000Z')
 
 function contexto(sobrescreve: Partial<ExecutionContext> = {}): ExecutionContext {
@@ -177,14 +197,15 @@ describe('registerCompany — RF-001, RF-002', () => {
 })
 
 describe('registerCustomer — RF-009, RF-010', () => {
-  it('cadastra exigindo apenas o nome', async () => {
+  it('cadastra com nome, celular e endereco, sem documento', async () => {
     const customers = new InMemoryCustomerRepository()
 
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Joao do Bar' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao do Bar' }))
 
     expect(r.status).toBe('created')
     if (r.status !== 'created') return
-    expect(r.customer.phone).toBeNull()
+    expect(r.customer.document).toBeNull()
+    expect(r.customer.address.street).toBe('Rua XV de Novembro')
     /* Nao deve nada e zero, nao nulo. */
     expect(r.customer.walletBalanceCents).toBe(0)
   })
@@ -193,11 +214,15 @@ describe('registerCustomer — RF-009, RF-010', () => {
   it('guarda o nome fantasia do cliente PJ', async () => {
     const customers = new InMemoryCustomerRepository()
 
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Padaria Sol LTDA',
-      tradeName: 'Padaria do Sol',
-      document: '11222333000181',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Padaria Sol LTDA',
+        tradeName: 'Padaria do Sol',
+        document: '11222333000181',
+      }),
+    )
 
     expect(r.status === 'created' && r.customer.tradeName).toBe('Padaria do Sol')
   })
@@ -206,7 +231,9 @@ describe('registerCustomer — RF-009, RF-010', () => {
     const customers = new InMemoryCustomerRepository()
 
     await importCustomers({ customers }, contexto(), {
-      customers: [{ name: 'Bar do Ze ME', tradeName: 'Bar do Ze', document: '11222333000181' }],
+      customers: [
+        cliente({ name: 'Bar do Ze ME', tradeName: 'Bar do Ze', document: '11222333000181' }),
+      ],
     })
 
     const [gravado] = (
@@ -218,7 +245,7 @@ describe('registerCustomer — RF-009, RF-010', () => {
   it('pessoa fisica fica sem fantasia', async () => {
     const customers = new InMemoryCustomerRepository()
 
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Ana Souza' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Ana Souza' }))
 
     expect(r.status === 'created' && r.customer.tradeName).toBeNull()
   })
@@ -228,10 +255,14 @@ describe('registerCustomer — RF-009, RF-010', () => {
     const customers = new InMemoryCustomerRepository()
     const audit = new InMemoryAuditTrail()
 
-    const r = await registerCustomer({ customers, audit }, contexto(), {
-      name: 'Ana Souza',
-      document: '12345678909',
-    })
+    const r = await registerCustomer(
+      { customers, audit },
+      contexto(),
+      cliente({
+        name: 'Ana Souza',
+        document: '12345678909',
+      }),
+    )
 
     const [entrada] = audit.daEmpresa('emp-1')
     expect(entrada).toMatchObject({ entity: 'Customer', action: 'created' })
@@ -243,12 +274,20 @@ describe('registerCustomer — RF-009, RF-010', () => {
 
   it('avisa do parecido por telefone em vez de recusar — RF-010', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), { name: 'Joao', phone: '41999990000' })
+    await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({ name: 'Joao', phone: '41999990000' }),
+    )
 
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao da Silva',
-      phone: '41999990000',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao da Silva',
+        phone: '41999990000',
+      }),
+    )
 
     /*
      * "Achei alguem parecido" nao e erro, e pergunta — e a resposta e do
@@ -261,24 +300,36 @@ describe('registerCustomer — RF-009, RF-010', () => {
 
   it('avisa do parecido por documento', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), { name: 'Maria', document: '12345678909' })
+    await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({ name: 'Maria', document: '12345678909' }),
+    )
 
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Maria Souza',
-      document: '12345678909',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Maria Souza',
+        document: '12345678909',
+      }),
+    )
 
     expect(r.status).toBe('duplicate_found')
   })
 
   it('cadastra mesmo assim quando o balcao confirma', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), { name: 'Joao', phone: '41999990000' })
+    await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({ name: 'Joao', phone: '41999990000' }),
+    )
 
     const r = await registerCustomer(
       { customers },
       contexto(),
-      { name: 'Pedro', phone: '41999990000' },
+      cliente({ name: 'Pedro', phone: '41999990000' }),
       { allowDuplicate: true },
     )
 
@@ -289,9 +340,9 @@ describe('registerCustomer — RF-009, RF-010', () => {
 
   it('nao procura parecido quando nao ha telefone nem documento', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), { name: 'Cliente Balcao' })
+    await registerCustomer({ customers }, contexto(), cliente({ name: 'Cliente Balcao' }))
 
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Cliente Balcao' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Cliente Balcao' }))
 
     /* Dois "Cliente Balcao" sem contato nenhum nao sao duplicata detectavel —
        e travar por homonimo travaria o balcao. */
@@ -300,15 +351,23 @@ describe('registerCustomer — RF-009, RF-010', () => {
 
   it('nao ve o cliente de outra empresa como parecido', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto({ companyId: 'emp-1' }), {
-      name: 'Joao',
-      phone: '41999990000',
-    })
+    await registerCustomer(
+      { customers },
+      contexto({ companyId: 'emp-1' }),
+      cliente({
+        name: 'Joao',
+        phone: '41999990000',
+      }),
+    )
 
-    const r = await registerCustomer({ customers }, contexto({ companyId: 'emp-2' }), {
-      name: 'Joao',
-      phone: '41999990000',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto({ companyId: 'emp-2' }),
+      cliente({
+        name: 'Joao',
+        phone: '41999990000',
+      }),
+    )
 
     /* Se o filtro por empresa falhasse, uma loja veria o cadastro da outra —
        e o teste passaria se o falso nao filtrasse de verdade. */
@@ -319,24 +378,36 @@ describe('registerCustomer — RF-009, RF-010', () => {
     const customers = new InMemoryCustomerRepository()
 
     await expect(
-      registerCustomer({ customers }, contexto({ role: 'accountant' as Role }), { name: 'X' }),
+      registerCustomer(
+        { customers },
+        contexto({ role: 'accountant' as Role }),
+        cliente({ name: 'X' }),
+      ),
     ).rejects.toThrow(/somente de leitura/i)
   })
 
   it('assertIdentifiable recusa cliente sem telefone e sem documento', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Anonimo' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Anonimo' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
-    expect(() => assertIdentifiable(r.customer)).toThrow(/telefone nem documento/i)
+    /* Cadastro novo sempre tem celular (NR-142); sem telefone e sem documento
+       so sobra o cliente antigo, de antes da regra. */
+    expect(() => assertIdentifiable({ ...r.customer, phone: null })).toThrow(
+      /telefone nem documento/i,
+    )
   })
 
   it('assertIdentifiable aceita quem tem so telefone', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao',
-      phone: '41999990000',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao',
+        phone: '41999990000',
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
 
     expect(() => assertIdentifiable(r.customer)).not.toThrow()
@@ -346,28 +417,36 @@ describe('registerCustomer — RF-009, RF-010', () => {
 describe('getCustomer — RF-011', () => {
   it('devolve a ficha com o endereco que foi cadastrado', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao do Bar',
-      phone: '41999990000',
-      address: { zipCode: '80010000', city: 'Curitiba', state: 'PR' },
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao do Bar',
+        phone: '41999990000',
+        address: { ...ENDERECO_DO_TESTE, city: 'Ponta Grossa' },
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
 
     const ficha = await getCustomer({ customers }, contexto(), r.customer.id)
 
-    expect(ficha.address.city).toBe('Curitiba')
+    expect(ficha.address.city).toBe('Ponta Grossa')
     expect(ficha.address.state).toBe('PR')
     /* O que nao foi informado volta `null`, e nao ausente: a tela distingue
-       "nao tem numero" de "esqueci de mandar o campo". */
-    expect(ficha.address.number).toBeNull()
+       "nao tem complemento" de "esqueci de mandar o campo". */
+    expect(ficha.address.complement).toBeNull()
   })
 
   it('cliente de outra empresa responde NOT_FOUND, e nao FORBIDDEN', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto({ companyId: 'emp-1' }), {
-      name: 'Joao do Bar',
-      phone: '41999990000',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto({ companyId: 'emp-1' }),
+      cliente({
+        name: 'Joao do Bar',
+        phone: '41999990000',
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
 
     /* FORBIDDEN confirmaria que o id existe em alguma loja — quem varre ids
@@ -395,11 +474,15 @@ describe('getCustomer — RF-011', () => {
 describe('excluir e reativar cliente — RF-009', () => {
   async function comCliente(sobrescreve: Record<string, unknown> = {}) {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao do Bar',
-      phone: '41999990000',
-      ...sobrescreve,
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao do Bar',
+        phone: '41999990000',
+        ...sobrescreve,
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
 
     return { customers, id: r.customer.id }
@@ -459,7 +542,7 @@ describe('excluir e reativar cliente — RF-009', () => {
    */
   it('recusa excluir quem tem fiado em aberto', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Devedor' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Devedor' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
     /* O falso nao movimenta fiado; o saldo entra direto, que e o estado que o
@@ -499,10 +582,14 @@ describe('excluir e reativar cliente — RF-009', () => {
     const { customers, id } = await comCliente()
     await deleteCustomer({ customers }, contexto(), id)
 
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao do Bar',
-      phone: '41999990000',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao do Bar',
+        phone: '41999990000',
+      }),
+    )
 
     expect(r.status).toBe('created')
   })
@@ -511,11 +598,15 @@ describe('excluir e reativar cliente — RF-009', () => {
 describe('editar cliente — RF-009', () => {
   async function comCliente() {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Joao do Bar',
-      phone: '41999990000',
-      email: 'joao@antigo.local',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao do Bar',
+        phone: '41999990000',
+        email: 'joao@antigo.local',
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
 
     return { customers, id: r.customer.id }
@@ -550,10 +641,14 @@ describe('editar cliente — RF-009', () => {
 describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
   it('devolve saldo devedor para candidato unico', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), {
-      name: 'Maria Devedora',
-      phone: '41999991111',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Maria Devedora',
+        phone: '41999991111',
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
     customers.definirSaldoCarteira(r.customer.id, 3_500)
 
@@ -568,10 +663,14 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
   it('declara saldo zerado explicitamente', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), {
-      name: 'Joao Quitado',
-      phone: '41999992222',
-    })
+    await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Joao Quitado',
+        phone: '41999992222',
+      }),
+    )
 
     const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), {
       query: 'Joao Quitado',
@@ -596,14 +695,22 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
   it('nao escolhe entre homonimos', async () => {
     const customers = new InMemoryCustomerRepository()
-    const a = await registerCustomer({ customers }, contexto(), {
-      name: 'Maria Silva',
-      phone: '41999993333',
-    })
-    const b = await registerCustomer({ customers }, contexto(), {
-      name: 'Maria Souza',
-      phone: '41999994444',
-    })
+    const a = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Maria Silva',
+        phone: '41999993333',
+      }),
+    )
+    const b = await registerCustomer(
+      { customers },
+      contexto(),
+      cliente({
+        name: 'Maria Souza',
+        phone: '41999994444',
+      }),
+    )
     if (a.status !== 'created' || b.status !== 'created') throw new Error('esperava created')
     customers.definirSaldoCarteira(a.customer.id, 1_000)
     customers.definirSaldoCarteira(b.customer.id, 2_000)
@@ -617,10 +724,14 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
   it('nao enxerga cliente de outra empresa', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto({ companyId: 'emp-2' }), {
-      name: 'Maria da outra loja',
-      phone: '41999995555',
-    })
+    const r = await registerCustomer(
+      { customers },
+      contexto({ companyId: 'emp-2' }),
+      cliente({
+        name: 'Maria da outra loja',
+        phone: '41999995555',
+      }),
+    )
     if (r.status !== 'created') throw new Error('esperava created')
     customers.definirSaldoCarteira(r.customer.id, 9_000)
 
