@@ -148,6 +148,10 @@
 .itemStatus {
   grid-area: status;
   justify-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .emptyAcoes {

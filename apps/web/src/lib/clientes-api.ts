@@ -392,6 +392,42 @@ export type EnderecoDoCliente = {
  * obrigaria a tela a inventar `''` para quem nao tem — e `''` desenha como se
  * o campo estivesse la e vazio, quando na verdade nunca foi preenchido.
  */
+/**
+ * O que falta para o cadastro do cliente ficar completo — DEC-025.
+ *
+ * Copia de `camposFaltandoNoCliente` do contrato: o web so importa TIPOS de
+ * `@na-regua/contracts`, porque o bundler nao resolve os imports `.js` do
+ * pacote em tempo de execucao. `clientes-api.test.ts` compara as duas contra
+ * o contrato de verdade, e acusa no dia em que divergirem.
+ */
+export function camposFaltandoNoCliente(c: {
+  readonly phone: string | null
+  readonly address: {
+    readonly zipCode: string | null
+    readonly street: string | null
+    readonly number: string | null
+    readonly district: string | null
+    readonly city: string | null
+    readonly state: string | null
+  }
+}): string[] {
+  const vazio = (v: string | null) => v === null || v.trim() === ''
+  const e = c.address
+  return (
+    [
+      [c.phone, 'celular'],
+      [e.zipCode, 'CEP'],
+      [e.street, 'rua'],
+      [e.number, 'número'],
+      [e.district, 'bairro'],
+      [e.city, 'cidade'],
+      [e.state, 'UF'],
+    ] as const
+  )
+    .filter(([valor]) => vazio(valor))
+    .map(([, nome]) => nome)
+}
+
 export type ClienteDaFicha = {
   id: string
   nome: string
@@ -410,6 +446,8 @@ export type ClienteDaFicha = {
   limiteFiado: number
   saldoFiado: number
   endereco: EnderecoDoCliente
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
   /**
    * Quando o pedido de exclusao do titular foi atendido — RF-127.
    *
@@ -503,6 +541,7 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
         cidade: c.address.city,
         uf: c.address.state,
       },
+      faltando: camposFaltandoNoCliente(c),
       anonimizadoEm: c.anonymizedAt,
       excluidoEm: c.deletedAt,
     },
@@ -734,6 +773,8 @@ export type ClienteDaLista = {
   ultimaCompra: string | null
   totalCompras: number
   valorTotal: number
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
 }
 
 export type FiltroDeCliente = 'todos' | 'inativos' | 'fiado'
@@ -756,6 +797,14 @@ type ClienteDaApi = {
   lastSaleOn: string | null
   salesCount: number
   totalSpentCents: number
+  address: {
+    zipCode: string | null
+    street: string | null
+    number: string | null
+    district: string | null
+    city: string | null
+    state: string | null
+  }
 }
 
 export async function listarClientes(opcoes: {
@@ -791,6 +840,7 @@ export async function listarClientes(opcoes: {
         ultimaCompra: c.lastSaleOn,
         totalCompras: c.salesCount,
         valorTotal: c.totalSpentCents / 100,
+        faltando: camposFaltandoNoCliente(c),
       })),
       total: r.dados.total,
       pagina: r.dados.page,
