@@ -184,7 +184,7 @@ export default function HistoricoVendas() {
           tone="positive"
         />
         <Stat
-          label="Ticket médio"
+          label="Ticket médio (bruto)"
           /* Nulo, e nao zero: "ticket medio R$ 0,00" diria que houve venda de
              valor nenhum. O travessao diz que nao houve venda. */
           value={resumo?.ticketMedio == null ? '—' : formatMoney(resumo.ticketMedio)}

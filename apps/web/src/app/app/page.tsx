@@ -99,7 +99,7 @@ export default async function VisaoGeralPage() {
           Apareceu ao abrir a tela com a api fora do ar.
         */}
         <Stat
-          label="Ticket médio"
+          label="Ticket médio (bruto)"
           value={
             painel.hoje?.averageTicketCents == null
               ? '—'
