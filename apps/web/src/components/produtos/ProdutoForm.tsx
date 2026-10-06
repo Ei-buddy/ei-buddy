@@ -8,7 +8,7 @@ import { carregarCustosVariaveis } from '@/lib/financeiro-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { validateRequired, type FieldError } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card, Field, FormGrid, Input, PageHeader } from '@/components/ui/UI'
+import { Card, Field, FormGrid, Input, LegendaObrigatorio, PageHeader } from '@/components/ui/UI'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
 import { IconBarcode } from '@/components/Icons'
@@ -201,8 +201,12 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
         aria-busy={carregando}
         style={carregando ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
       >
+        {/* Os obrigatorios sao os mesmos que `salvar` recusa sem: descricao,
+            categoria e preco de venda. */}
+        <LegendaObrigatorio />
+
         {/* ---------------- Identificacao ---------------- */}
-        <Card title="Identificacao">
+        <Card title="Identificação">
           <FormGrid>
             <Field label="Código de barras (EAN)" span={12}>
               <div className={styles.inline}>
@@ -228,7 +232,7 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
                 era obrigatorio e nunca enviado — quem digitava "CAF500"
                 recebia PROD-0001. O codigo gerado aparece na lista e na ficha. */}
 
-            <Field label="Descrição" span={12}>
+            <Field label="Descrição" span={12} obrigatorio>
               <Input
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
@@ -238,14 +242,14 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
               {erroDe('descricao')}
             </Field>
 
-            <Field label="Categoria" span={6}>
+            <Field label="Categoria" span={6} obrigatorio>
               <CampoTag
                 valor={categoria}
                 opcoes={categorias}
                 onChange={setCategoria}
                 onCriar={(nova) => setCategorias((c) => [...c, nova])}
                 placeholder="Buscar ou criar categoria"
-                ariaLabel="Categoria"
+                ariaLabel="Categoria (obrigatório)"
                 invalido={Boolean(erros.categoria)}
               />
               {erroDe('categoria')}
@@ -326,7 +330,7 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
               {erroDe('precoCusto')}
             </Field>
 
-            <Field label="Preço de venda" span={4}>
+            <Field label="Preço de venda" span={4} obrigatorio>
               <Input
                 value={precoVenda}
                 onChange={(e) => setPrecoVenda(e.target.value)}

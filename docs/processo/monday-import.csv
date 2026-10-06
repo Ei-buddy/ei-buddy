@@ -110,3 +110,4 @@ NR-143 — Aviso de cadastro de cliente incompleto (clientes antigos),Sprint 6 �
 NR-144 — Ticket medio com a base explicita (bruto ou liquido),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,"US-041, DEC-024",docs/processo/task-ledger.md
 "NR-145 — Login caia no aviso ""painel nao abriu"" (prefetch sem sessao)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-120, NR-132",docs/processo/task-ledger.md
 NR-147 — Sino de avisos zera ao ser visto e atualiza ao navegar,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"NR-013, NR-136",docs/processo/task-ledger.md
+NR-148 — Campos obrigatorios marcados nos cadastros de produto e cliente,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-009, RF-014, RNF-052",docs/processo/task-ledger.md
