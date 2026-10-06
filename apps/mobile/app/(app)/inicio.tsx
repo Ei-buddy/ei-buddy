@@ -136,7 +136,15 @@ export default function Inicio() {
           <Indicador
             rotulo="Vendido hoje"
             valor={r?.faturamentoCents ?? null}
-            apoio={r?.vendasHoje === null ? undefined : `${r?.vendasHoje ?? 0} vendas`}
+            apoio={
+              r?.vendasHoje === null
+                ? undefined
+                : `${r?.vendasHoje ?? 0} vendas${
+                    r?.liquidoCents == null
+                      ? ''
+                      : ` · líquido ${formatMoney(emReais(r.liquidoCents))}`
+                  }`
+            }
             carregando={carregando}
             destaque
           />

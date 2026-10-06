@@ -204,15 +204,23 @@ export default function RelatoriosView() {
  */
 function Faturamento({ dados }: { dados: Faturamento }) {
   const maior = Math.max(...dados.months.map((m) => m.netCents), 0)
+  const totalBruto = dados.months.reduce((acc, m) => acc + m.grossCents, 0)
 
   return (
     <section className={styles.bloco}>
       <header className={styles.blocoCabecalho}>
         <h2 className={styles.blocoTitulo}>Faturamento mês a mês</h2>
         <span className={styles.blocoTotal}>
-          Total: <strong>{formatMoney(emReais(dados.totalNetCents))}</strong>
+          Bruto: <strong>{formatMoney(emReais(totalBruto))}</strong> · Líquido:{' '}
+          <strong>{formatMoney(emReais(dados.totalNetCents))}</strong>
         </span>
       </header>
+      {/* Os dois, e cada um dizendo o que e: bruto sozinho parece dinheiro no
+          caixa, liquido sozinho parece venda que sumiu. */}
+      <p className={styles.legenda}>
+        Bruto é o valor das vendas antes do desconto. Líquido é o que sobra depois do desconto, do
+        imposto e da taxa de cartão.
+      </p>
 
       <table className={styles.meses}>
         <thead>
@@ -220,7 +228,8 @@ function Faturamento({ dados }: { dados: Faturamento }) {
             <th scope="col">Mês</th>
             <th scope="col">Vendas</th>
             <th scope="col">Ticket médio</th>
-            <th scope="col">Faturamento</th>
+            <th scope="col">Bruto</th>
+            <th scope="col">Líquido</th>
           </tr>
         </thead>
         <tbody>
@@ -235,6 +244,7 @@ function Faturamento({ dados }: { dados: Faturamento }) {
                  */}
                 {m.averageTicketCents === null ? '—' : formatMoney(emReais(m.averageTicketCents))}
               </td>
+              <td className={styles.valor}>{formatMoney(emReais(m.grossCents))}</td>
               <td className={styles.valor}>
                 <span className={styles.barraCaixa} aria-hidden="true">
                   <span

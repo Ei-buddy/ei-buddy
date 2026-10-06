@@ -173,14 +173,14 @@ export default function HistoricoVendas() {
 
       <div className="statRow">
         <Stat
-          label="Faturamento"
+          label="Faturamento bruto"
           value={resumo ? formatMoney(resumo.faturamento) : '—'}
           hint={resumo ? `${resumo.quantidade} vendas` : 'carregando'}
         />
         <Stat
-          label="Valor liquido"
+          label="Faturamento líquido"
           value={resumo ? formatMoney(resumo.liquido) : '—'}
-          hint="ja sem taxa de cartao"
+          hint="sem desconto, imposto e taxa de cartão"
           tone="positive"
         />
         <Stat
