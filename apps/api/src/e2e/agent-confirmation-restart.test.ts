@@ -63,7 +63,19 @@ const CADASTRO = {
 const NOME_CLIENTE = `Joao NR061 ${String(agoraMs).slice(-8)}`
 const TELEFONE_CLIENTE = `1198${String(agoraMs).slice(-7)}`
 const PEDIDO = `cadastra o ${NOME_CLIENTE}, ${TELEFONE_CLIENTE}`
-const ARGS_CADASTRO = { name: NOME_CLIENTE, phone: TELEFONE_CLIENTE }
+const ARGS_CADASTRO = {
+  name: NOME_CLIENTE,
+  phone: TELEFONE_CLIENTE,
+  /* Celular e endereco sao obrigatorios no cadastro (NR-142). */
+  address: {
+    zipCode: '80010000',
+    street: 'Rua XV de Novembro',
+    number: '100',
+    district: 'Centro',
+    city: 'Curitiba',
+    state: 'PR',
+  },
+}
 
 const leituraVazia: AgentUseCases = {
   listSales: async () => ({
