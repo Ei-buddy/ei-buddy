@@ -77,7 +77,11 @@ export default async function VisaoGeralPage() {
         <Stat
           label="Faturamento hoje"
           value={painel.hoje === null ? '—' : formatMoney(emReais(painel.hoje.grossCents))}
-          hint={painel.hoje === null ? 'não carregou' : `${painel.hoje.salesCount} vendas`}
+          hint={
+            painel.hoje === null
+              ? 'não carregou'
+              : `${painel.hoje.salesCount} vendas · líquido ${formatMoney(emReais(painel.hoje.netCents))}`
+          }
           tone={painel.hoje !== null && painel.hoje.grossCents > 0 ? 'positive' : undefined}
         />
         {/*
