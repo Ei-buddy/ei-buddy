@@ -351,7 +351,18 @@ describe('studio-harness — US2 identidade forjada', () => {
 
   it('create_customer no whatsapp pede confirmacao wa:…; sim grava e talvez nao', async () => {
     const pedido = 'cadastra o Joao, 11 98888-7777'
-    const args = { name: 'Joao', phone: '11 98888-7777' }
+    const args = {
+      name: 'Joao',
+      phone: '11 98888-7777',
+      address: {
+        zipCode: '80010000',
+        street: 'Rua XV de Novembro',
+        number: '100',
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+      },
+    }
 
     let gravados = 0
     const useCases = casos({
@@ -496,7 +507,18 @@ describe('studio-harness — US3 durationMs', () => {
 
   it('apos sim o envelope tem durationMs number >= 0', async () => {
     const pedido = 'cadastra o Joao, 11 98888-7777'
-    const args = { name: 'Joao', phone: '11 98888-7777' }
+    const args = {
+      name: 'Joao',
+      phone: '11 98888-7777',
+      address: {
+        zipCode: '80010000',
+        street: 'Rua XV de Novembro',
+        number: '100',
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+      },
+    }
     const useCases = casos({
       registerCustomer: async (_c, input) => ({
         status: 'created' as const,

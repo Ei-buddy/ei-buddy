@@ -561,7 +561,7 @@ describe('create_customer — US3 / US-048', () => {
     expect(tool!.inputSchema).toBe(createCustomerInputSchema)
   })
 
-  it('resume nome e telefone na proposta e cadastra pelo registerCustomer', async () => {
+  it('resume nome, telefone e endereco na proposta e cadastra pelo registerCustomer', async () => {
     const created = cliente()
     const registerCustomer = vi.fn(async () => ({
       status: 'created' as const,
@@ -569,13 +569,26 @@ describe('create_customer — US3 / US-048', () => {
     }))
     const tools = createToolCatalog({ ...casos, registerCustomer })
     const tool = tools.find((t) => t.id === 'create_customer')!
-    const input = { name: 'Joao', phone: '11988887777' }
+    const input = {
+      name: 'Joao',
+      phone: '11988887777',
+      address: {
+        zipCode: '80010000',
+        street: 'Rua XV de Novembro',
+        number: '100',
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+      },
+    } as const
 
     const out = await tool.execute(input, ctx)
 
     expect(registerCustomer).toHaveBeenCalledOnce()
     expect(registerCustomer).toHaveBeenCalledWith(ctx, input)
-    expect(tool.formatProposal(input)).toBe('Cadastrar cliente Joao, telefone 11988887777')
+    expect(tool.formatProposal(input)).toBe(
+      'Cadastrar cliente Joao, telefone 11988887777, Rua XV de Novembro, 100 — Curitiba/PR',
+    )
     expect(tool.formatReply(out)).toBe('Cliente Joao cadastrado.')
   })
 
