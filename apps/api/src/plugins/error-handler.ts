@@ -50,11 +50,33 @@ function erroDoPedidoNoBanco(error: unknown): AppError | undefined {
   return undefined
 }
 
+/**
+ * Erro do PROPRIO Fastify sobre o pedido — corpo JSON vazio, JSON quebrado,
+ * tipo de conteudo nao aceito. Vem com `statusCode` 4xx e codigo `FST_*`, e
+ * caia no 500 abaixo: "algo deu errado do nosso lado" para um pedido que veio
+ * errado. A mensagem original nao vai (pode citar detalhe do parser).
+ */
+function erroDoPedidoNoFastify(error: unknown): AppError | undefined {
+  const e = error as { code?: unknown; statusCode?: unknown } | null
+  if (
+    typeof e?.code === 'string' &&
+    e.code.startsWith('FST_') &&
+    typeof e.statusCode === 'number' &&
+    e.statusCode >= 400 &&
+    e.statusCode < 500
+  ) {
+    return AppError.validation(
+      'O pedido nao veio no formato esperado. Atualize o app e tente de novo.',
+    )
+  }
+  return undefined
+}
+
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: unknown, request: FastifyRequest, reply: FastifyReply) => {
     const requestId = request.id
 
-    const traduzido = erroDoPedidoNoBanco(error)
+    const traduzido = erroDoPedidoNoBanco(error) ?? erroDoPedidoNoFastify(error)
     if (traduzido !== undefined) error = traduzido
 
     if (isAppError(error)) {
