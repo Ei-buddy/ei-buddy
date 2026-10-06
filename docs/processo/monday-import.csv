@@ -107,3 +107,4 @@ NR-140 — Web: rotulos ligados aos campos e prejuizo do DRE com sinal (QA),Spri
 "NR-141 — Faturamento bruto e liquido lado a lado (web, app, IA)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"US-041, RF-108",docs/processo/task-ledger.md
 "NR-142 — Cliente com celular e endereco obrigatorios (api, web, app, IA)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,2,Sprint 6,,,contracts web mobile,"RF-009, DEC-025",docs/processo/task-ledger.md
 NR-143 — Aviso de cadastro de cliente incompleto (clientes antigos),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts web mobile,"RF-009, RF-011, DEC-025",docs/processo/task-ledger.md
+NR-144 — Ticket medio com a base explicita (bruto ou liquido),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,"US-041, DEC-024",docs/processo/task-ledger.md
