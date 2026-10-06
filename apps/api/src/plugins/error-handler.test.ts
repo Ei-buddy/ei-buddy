@@ -36,6 +36,8 @@ function buildApp(): FastifyInstance {
     })
   })
 
+  app.post('/corpo', async () => ({ ok: true }))
+
   return app
 }
 
@@ -76,6 +78,18 @@ describe('erro esperado', () => {
 })
 
 describe('registro citado que nao existe', () => {
+  it('corpo JSON vazio e erro do pedido (400), nao do servidor (500)', async () => {
+    app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/corpo',
+      headers: { 'content-type': 'application/json' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_FAILED')
+  })
+
   it('id malformado vira 404, nao 500', async () => {
     app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/id-malformado' })
