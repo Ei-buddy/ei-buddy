@@ -1480,6 +1480,13 @@
   gap: 14px;
 }
 
+/* Dois campos curtos lado a lado (CEP e numero, cidade e UF). */
+.formLinha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .campo {
   display: grid;
   gap: 7px;

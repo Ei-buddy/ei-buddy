@@ -665,8 +665,19 @@ export async function confirmarImportacaoClientes(
     enviar.push({
       name: nome,
       ...(documento !== '' ? { document: documento } : {}),
-      ...(celular !== '' ? { phone: celular } : {}),
+      phone: celular,
       ...(email !== '' ? { email } : {}),
+      address: {
+        zipCode: digitos(r.cep),
+        street: (r.rua ?? '').trim(),
+        number: (r.numero ?? '').trim(),
+        ...((r.complemento ?? '').trim() !== ''
+          ? { complement: (r.complemento ?? '').trim() }
+          : {}),
+        district: (r.bairro ?? '').trim(),
+        city: (r.cidade ?? '').trim(),
+        state: (r.uf ?? '').trim().toUpperCase(),
+      },
     })
   })
 
