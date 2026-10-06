@@ -370,9 +370,10 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
           </div>
 
           <FormGrid>
-            <Field label={rotuloDocumento} span={5}>
+            <Field label={rotuloDocumento} span={5} htmlFor="cliente-documento">
               <div className={styles.inline}>
                 <Input
+                  id="cliente-documento"
                   value={campos.documento}
                   onChange={(e) => set('documento', maskDocumento(e.target.value, tipo))}
                   onBlur={() =>
@@ -403,8 +404,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               ) : null}
             </Field>
 
-            <Field label={rotuloNome} span={7}>
+            <Field label={rotuloNome} span={7} htmlFor="cliente-nome">
               <Input
+                id="cliente-nome"
                 value={campos.nome}
                 onChange={(e) => set('nome', e.target.value)}
                 aria-invalid={Boolean(erros.nome)}
@@ -418,8 +420,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               pergunta "por que nao posso preencher?".
             */}
             {tipo === 'juridica' ? (
-              <Field label="Nome fantasia" span={12}>
+              <Field label="Nome fantasia" span={12} htmlFor="cliente-nome-fantasia">
                 <Input
+                  id="cliente-nome-fantasia"
                   value={campos.nomeFantasia}
                   onChange={(e) => set('nomeFantasia', e.target.value)}
                   placeholder="Como a loja conhece este cliente"
@@ -429,8 +432,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               </Field>
             ) : null}
 
-            <Field label="DDD" span={2}>
+            <Field label="DDD" span={2} htmlFor="cliente-ddd">
               <Input
+                id="cliente-ddd"
                 value={campos.ddd}
                 onChange={(e) => set('ddd', e.target.value.replace(/\D/g, '').slice(0, 2))}
                 inputMode="numeric"
@@ -440,8 +444,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('ddd')}
             </Field>
 
-            <Field label="Celular / WhatsApp" span={5}>
+            <Field label="Celular / WhatsApp" span={5} htmlFor="cliente-celular-whatsapp">
               <Input
+                id="cliente-celular-whatsapp"
                 value={campos.celular}
                 onChange={(e) => set('celular', maskCelular(e.target.value))}
                 inputMode="tel"
@@ -451,8 +456,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('celular')}
             </Field>
 
-            <Field label="E-mail" span={5} hint="Opcional">
+            <Field label="E-mail" span={5} hint="Opcional" htmlFor="cliente-e-mail">
               <Input
+                id="cliente-e-mail"
                 type="email"
                 value={campos.email}
                 onChange={(e) => set('email', e.target.value)}
@@ -466,8 +472,10 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               label="Limite do fiado (R$)"
               span={4}
               hint="Vazio = sem fiado. Acima disso, o PDV recusa vender na carteira."
+              htmlFor="cliente-limite-fiado"
             >
               <Input
+                id="cliente-limite-fiado"
                 value={campos.limiteFiado}
                 onChange={(e) => set('limiteFiado', e.target.value)}
                 inputMode="decimal"
@@ -479,9 +487,10 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
 
         <Card title="Endereço">
           <FormGrid>
-            <Field label="CEP" span={4}>
+            <Field label="CEP" span={4} htmlFor="cliente-cep">
               <div className={styles.inline}>
                 <Input
+                  id="cliente-cep"
                   value={campos.cep}
                   onChange={(e) => {
                     const m = maskCEP(e.target.value)
@@ -507,8 +516,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               ) : null}
             </Field>
 
-            <Field label="Logradouro" span={8}>
+            <Field label="Logradouro" span={8} htmlFor="cliente-logradouro">
               <Input
+                id="cliente-logradouro"
                 value={campos.logradouro}
                 onChange={(e) => set('logradouro', e.target.value)}
                 aria-invalid={Boolean(erros.logradouro)}
@@ -516,8 +526,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('logradouro')}
             </Field>
 
-            <Field label="Número" span={3}>
+            <Field label="Número" span={3} htmlFor="cliente-numero">
               <Input
+                id="cliente-numero"
                 value={campos.numero}
                 onChange={(e) => set('numero', e.target.value)}
                 aria-invalid={Boolean(erros.numero)}
@@ -525,16 +536,18 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('numero')}
             </Field>
 
-            <Field label="Complemento" span={4}>
+            <Field label="Complemento" span={4} htmlFor="cliente-complemento">
               <Input
+                id="cliente-complemento"
                 value={campos.complemento}
                 onChange={(e) => set('complemento', e.target.value)}
                 placeholder="Apto, bloco, sala"
               />
             </Field>
 
-            <Field label="Bairro" span={5}>
+            <Field label="Bairro" span={5} htmlFor="cliente-bairro">
               <Input
+                id="cliente-bairro"
                 value={campos.bairro}
                 onChange={(e) => set('bairro', e.target.value)}
                 aria-invalid={Boolean(erros.bairro)}
@@ -542,8 +555,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('bairro')}
             </Field>
 
-            <Field label="Cidade" span={8}>
+            <Field label="Cidade" span={8} htmlFor="cliente-cidade">
               <Input
+                id="cliente-cidade"
                 value={campos.cidade}
                 onChange={(e) => set('cidade', e.target.value)}
                 aria-invalid={Boolean(erros.cidade)}
@@ -551,8 +565,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('cidade')}
             </Field>
 
-            <Field label="UF" span={4}>
+            <Field label="UF" span={4} htmlFor="cliente-uf">
               <Select
+                id="cliente-uf"
                 value={campos.uf}
                 onChange={(e) => set('uf', e.target.value)}
                 aria-invalid={Boolean(erros.uf)}

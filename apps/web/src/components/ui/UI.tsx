@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useId, type ReactNode } from 'react'
 import Image from 'next/image'
 import styles from './UI.module.css'
 
@@ -106,6 +106,19 @@ export function Field({
   span?: number
   children: ReactNode
 }) {
+  /* Sem `htmlFor`, o rotulo se liga sozinho ao primeiro campo que e filho
+     direto: assim leitor de tela e clique no rotulo chegam ao campo sem cada
+     formulario lembrar de inventar um id. Campo dentro de outro elemento (com
+     botao ao lado, por exemplo) ainda precisa de `htmlFor` explicito. */
+  const gerado = useId()
+  const lista = Children.toArray(children)
+  const campo = htmlFor === undefined ? lista.find(ehCampo) : undefined
+  const alvo = htmlFor ?? (campo ? (campo.props.id ?? gerado) : undefined)
+  const filhos =
+    campo && campo.props.id === undefined
+      ? lista.map((f) => (f === campo ? cloneElement(campo, { id: gerado }) : f))
+      : children
+
   return (
     <div className={styles.field} data-span={span}>
       {/*
@@ -119,13 +132,20 @@ export function Field({
         em "a altura do DDD e do Celular esta fora do padrao".
       */}
       <span className={styles.labelRow}>
-        <label className={styles.label} htmlFor={htmlFor}>
+        <label className={styles.label} htmlFor={alvo}>
           {label}
         </label>
         {hint ? <span className={styles.hint}>{hint}</span> : null}
       </span>
-      {children}
+      {filhos}
     </div>
+  )
+}
+
+function ehCampo(filho: ReactNode): filho is React.ReactElement<{ id?: string }> {
+  return (
+    isValidElement(filho) &&
+    (filho.type === Input || filho.type === Select || filho.type === Textarea)
   )
 }
 
