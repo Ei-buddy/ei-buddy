@@ -227,7 +227,9 @@ function Faturamento({ dados }: { dados: Faturamento }) {
           <tr>
             <th scope="col">Mês</th>
             <th scope="col">Vendas</th>
-            <th scope="col">Ticket médio</th>
+            {/* Sobre o liquido, como a coluna ao lado; o do historico de vendas
+                e sobre o bruto. O rotulo diz qual e qual (DEC-024). */}
+            <th scope="col">Ticket médio (líquido)</th>
             <th scope="col">Bruto</th>
             <th scope="col">Líquido</th>
           </tr>

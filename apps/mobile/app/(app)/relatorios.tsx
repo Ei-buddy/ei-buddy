@@ -257,7 +257,7 @@ function MesAMes({ meses }: { meses: readonly Faturamento['months'][number][] })
               ? 'Sem venda neste mês'
               : `${m.salesCount} ${m.salesCount === 1 ? 'venda' : 'vendas'} · bruto ${formatMoney(
                   emReais(m.grossCents),
-                )} · ticket médio ${formatMoney(emReais(m.averageTicketCents ?? 0))}`}
+                )} · ticket líquido ${formatMoney(emReais(m.averageTicketCents ?? 0))}`}
           </Text>
         </View>
       ))}

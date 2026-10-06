@@ -422,13 +422,13 @@ export async function responder(
       'ticket_medio',
       ticketMedio === null
         ? 'Nenhuma venda nos ultimos 7 dias, entao nao ha ticket medio.'
-        : `Ticket medio dos ultimos 7 dias: ${formatMoney(ticketMedio)}.`,
+        : `Ticket medio dos ultimos 7 dias: ${formatMoney(ticketMedio)} (bruto, antes do desconto).`,
       ticketMedio === null
         ? []
         : [
             {
               tipo: 'indicador',
-              rotulo: 'Ticket medio (7 dias)',
+              rotulo: 'Ticket medio bruto (7 dias)',
               valor: formatMoney(ticketMedio),
               apoio: `${quantidade} vendas · ${formatMoney(faturamento)}`,
             },

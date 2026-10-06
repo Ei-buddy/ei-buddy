@@ -182,7 +182,7 @@ export default function Vendas() {
                   </Text>
                 </View>
                 <View style={estilos.resumoItem}>
-                  <Text style={estilos.resumoRotulo}>Ticket médio</Text>
+                  <Text style={estilos.resumoRotulo}>Ticket bruto</Text>
                   <Text style={estilos.resumoValor}>
                     {resumo.ticketMedio === null ? '—' : formatMoney(resumo.ticketMedio)}
                   </Text>
