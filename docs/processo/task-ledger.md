@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     104 |  256 |
-| ✅ Concluídas                 |      98 |  235 |
+| Total                         |     105 |  257 |
+| ✅ Concluídas                 |      99 |  236 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -350,6 +350,7 @@ voltam a ⬜.
 | NR-137 | Falha de integracao com a resposta do provedor no log (api e worker)                       |   🟠   | `contracts` `fiscal` `payments` `billing` `whatsapp` `worker` |   1 | —                                      | —    | RF-129, US-064                                     |   ✅   |
 | NR-138 | Landing sem promessa de equipe e usuarios ilimitados (equipe cancelada)                    |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-005, RF-006                                     |   ✅   |
 | NR-139 | App: confirmacao propria em fechar venda e Super Admin (sem Alert nativo)                  |   🟢   | `mobile`                                                      |   1 | NR-071                                 | —    | RF-036, ADR-0007                                   |   ✅   |
+| NR-140 | Web: rotulos ligados aos campos e prejuizo do DRE com sinal (QA)                           |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-085, RNF-052                                    |   ✅   |
 
 ---
 
@@ -462,10 +463,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      29 |   70 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      30 |   71 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **256 dias-desenvolvedor** em 104 tarefas. Com 3 pessoas, isso é cerca
+Somando: **257 dias-desenvolvedor** em 105 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
