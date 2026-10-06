@@ -23,7 +23,15 @@ import {
   type FieldError,
 } from '@/lib/validation'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card, Field, FormGrid, Input, PageHeader, Select } from '@/components/ui/UI'
+import {
+  Card,
+  Field,
+  FormGrid,
+  Input,
+  LegendaObrigatorio,
+  PageHeader,
+  Select,
+} from '@/components/ui/UI'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
 import { IconSearch } from '@/components/Icons'
@@ -348,6 +356,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
       />
 
       <form onSubmit={salvar} noValidate className={styles.form}>
+        {/* Os mesmos que `validarTudo` recusa sem (DEC-025). */}
+        <LegendaObrigatorio />
+
         <Card title="Identificação">
           {/* Toggle de tipo de documento */}
           <div className={styles.tipoToggle} role="group" aria-label="Tipo de pessoa">
@@ -370,10 +381,11 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
           </div>
 
           <FormGrid>
-            <Field label={rotuloDocumento} span={5} htmlFor="cliente-documento">
+            <Field label={rotuloDocumento} span={5} obrigatorio htmlFor="cliente-documento">
               <div className={styles.inline}>
                 <Input
                   id="cliente-documento"
+                  aria-required
                   value={campos.documento}
                   onChange={(e) => set('documento', maskDocumento(e.target.value, tipo))}
                   onBlur={() =>
@@ -404,7 +416,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               ) : null}
             </Field>
 
-            <Field label={rotuloNome} span={7} htmlFor="cliente-nome">
+            <Field label={rotuloNome} span={7} obrigatorio htmlFor="cliente-nome">
               <Input
                 id="cliente-nome"
                 value={campos.nome}
@@ -420,7 +432,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               pergunta "por que nao posso preencher?".
             */}
             {tipo === 'juridica' ? (
-              <Field label="Nome fantasia" span={12} htmlFor="cliente-nome-fantasia">
+              <Field label="Nome fantasia" span={12} obrigatorio htmlFor="cliente-nome-fantasia">
                 <Input
                   id="cliente-nome-fantasia"
                   value={campos.nomeFantasia}
@@ -432,7 +444,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               </Field>
             ) : null}
 
-            <Field label="DDD" span={2} htmlFor="cliente-ddd">
+            <Field label="DDD" span={2} obrigatorio htmlFor="cliente-ddd">
               <Input
                 id="cliente-ddd"
                 value={campos.ddd}
@@ -444,7 +456,12 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('ddd')}
             </Field>
 
-            <Field label="Celular / WhatsApp" span={5} htmlFor="cliente-celular-whatsapp">
+            <Field
+              label="Celular / WhatsApp"
+              span={5}
+              obrigatorio
+              htmlFor="cliente-celular-whatsapp"
+            >
               <Input
                 id="cliente-celular-whatsapp"
                 value={campos.celular}
@@ -487,10 +504,11 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
 
         <Card title="Endereço">
           <FormGrid>
-            <Field label="CEP" span={4} htmlFor="cliente-cep">
+            <Field label="CEP" span={4} obrigatorio htmlFor="cliente-cep">
               <div className={styles.inline}>
                 <Input
                   id="cliente-cep"
+                  aria-required
                   value={campos.cep}
                   onChange={(e) => {
                     const m = maskCEP(e.target.value)
@@ -516,7 +534,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               ) : null}
             </Field>
 
-            <Field label="Logradouro" span={8} htmlFor="cliente-logradouro">
+            <Field label="Logradouro" span={8} obrigatorio htmlFor="cliente-logradouro">
               <Input
                 id="cliente-logradouro"
                 value={campos.logradouro}
@@ -526,7 +544,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('logradouro')}
             </Field>
 
-            <Field label="Número" span={3} htmlFor="cliente-numero">
+            <Field label="Número" span={3} obrigatorio htmlFor="cliente-numero">
               <Input
                 id="cliente-numero"
                 value={campos.numero}
@@ -545,7 +563,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               />
             </Field>
 
-            <Field label="Bairro" span={5} htmlFor="cliente-bairro">
+            <Field label="Bairro" span={5} obrigatorio htmlFor="cliente-bairro">
               <Input
                 id="cliente-bairro"
                 value={campos.bairro}
@@ -555,7 +573,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('bairro')}
             </Field>
 
-            <Field label="Cidade" span={8} htmlFor="cliente-cidade">
+            <Field label="Cidade" span={8} obrigatorio htmlFor="cliente-cidade">
               <Input
                 id="cliente-cidade"
                 value={campos.cidade}
@@ -565,7 +583,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('cidade')}
             </Field>
 
-            <Field label="UF" span={4} htmlFor="cliente-uf">
+            <Field label="UF" span={4} obrigatorio htmlFor="cliente-uf">
               <Select
                 id="cliente-uf"
                 value={campos.uf}
