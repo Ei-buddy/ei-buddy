@@ -51,9 +51,10 @@
 .ajusteInput {
   width: 100%;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 14.5px;
@@ -83,15 +84,16 @@
     background-color var(--transition);
 }
 
-.periodo:hover {
+.periodo:hover:not(.periodoAtivo) {
   border-color: var(--app-accent);
   color: var(--app-text);
 }
 
 .periodoAtivo {
-  background: var(--app-accent-soft);
+  background: var(--glass-active);
   border-color: transparent;
-  color: var(--app-accent);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 

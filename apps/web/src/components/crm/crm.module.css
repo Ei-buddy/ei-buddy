@@ -14,9 +14,10 @@
 .select {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -37,9 +38,10 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-full);
-  background: var(--app-field);
+  background: var(--glass-surface-deep);
+  box-shadow: var(--glass-shadow-inset);
   justify-self: start;
 }
 
@@ -57,8 +59,9 @@
 }
 
 .visaoAtiva {
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 
@@ -78,9 +81,10 @@
   align-content: start;
   gap: 10px;
   padding: 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius);
-  background: var(--app-field);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   min-height: 220px;
   transition:
     border-color var(--transition),
@@ -134,9 +138,10 @@
 
 .card {
   display: grid;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-sm);
-  background: var(--app-surface);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   overflow: hidden;
   cursor: grab;
   transition:
@@ -546,9 +551,10 @@
 .input {
   width: 100%;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 14.5px;
@@ -568,9 +574,10 @@
   display: flex;
   gap: 6px;
   padding: 4px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-full);
-  background: var(--app-field);
+  background: var(--glass-surface-deep);
+  box-shadow: var(--glass-shadow-inset);
 }
 
 .tipoBotao {
@@ -585,8 +592,9 @@
 }
 
 .tipoAtivo {
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 

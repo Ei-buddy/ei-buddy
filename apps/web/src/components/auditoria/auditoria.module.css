@@ -12,9 +12,10 @@
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: 999px;
-  background: var(--app-field);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-text);
   font-size: 13px;
 }
@@ -109,9 +110,10 @@
   gap: 6px;
   margin-top: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius);
-  background: var(--app-field);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
 }
 
 .campo {
@@ -189,9 +191,10 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-md);
-  background: var(--app-field);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-text);
   transition: border-color var(--transition);
 }

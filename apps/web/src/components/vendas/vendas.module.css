@@ -80,7 +80,9 @@
   align-items: center;
   gap: 10px;
   padding: 11px 15px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   border-radius: var(--radius-full);
   color: var(--app-muted);
   transition: border-color var(--transition);
@@ -88,6 +90,9 @@
 
 .busca:focus-within {
   border-color: var(--app-accent);
+  box-shadow:
+    var(--glass-shadow-inset),
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 30%, transparent);
 }
 
 .busca input {
@@ -106,9 +111,10 @@
 
 .select {
   padding: 10px 13px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -145,15 +151,16 @@
     background-color var(--transition);
 }
 
-.categoria:hover {
+.categoria:hover:not(.categoriaAtiva) {
   border-color: var(--app-accent);
   color: var(--app-text);
 }
 
 .categoriaAtiva {
-  background: var(--app-accent-soft);
+  background: var(--glass-active);
   border-color: transparent;
-  color: var(--app-accent);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 
@@ -511,9 +518,10 @@
 .qtdInput {
   width: 52px;
   padding: 7px 4px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-display);
   font-size: 15px;
@@ -614,12 +622,12 @@
   gap: 12px;
   padding: 13px 18px;
   border-radius: var(--radius-full);
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 600;
-  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.7);
 }
 
 .carrinhoBarra strong {
@@ -701,12 +709,15 @@
 }
 
 .formaAtiva {
-  background: var(--app-accent-soft);
-  border-color: var(--app-accent);
+  background: var(--glass-active);
+  border-color: transparent;
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
 }
 
-.formaAtiva strong {
-  color: var(--app-accent);
+.formaAtiva strong,
+.formaAtiva span {
+  color: var(--glass-active-text);
 }
 
 .quitado {
@@ -793,7 +804,9 @@
 
 .pagamentoBotao {
   padding: 5px 11px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--radius-full);
   font-size: 12px;
   color: var(--app-muted);
@@ -1378,9 +1391,10 @@
 
 .estornoMotivo input {
   padding: 10px 12px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font: inherit;
 }
@@ -1503,9 +1517,10 @@
 .input {
   width: 100%;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 14.5px;
@@ -1526,9 +1541,10 @@
   display: flex;
   gap: 6px;
   padding: 4px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-full);
-  background: var(--app-field);
+  background: var(--glass-surface-deep);
+  box-shadow: var(--glass-shadow-inset);
 }
 
 .tipoBotao {
@@ -1543,8 +1559,9 @@
 }
 
 .tipoAtivo {
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 

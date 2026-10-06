@@ -11,7 +11,9 @@
   align-items: center;
   gap: 10px;
   padding: 10px 15px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   border-radius: var(--radius-full);
   color: var(--app-muted);
   transition: border-color var(--transition);
@@ -19,6 +21,9 @@
 
 .busca:focus-within {
   border-color: var(--app-accent);
+  box-shadow:
+    var(--glass-shadow-inset),
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 30%, transparent);
 }
 
 .busca input {
@@ -44,9 +49,10 @@
 .select {
   width: 100%;
   padding: 10px 13px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -82,15 +88,16 @@
     background-color var(--transition);
 }
 
-.filtro:hover {
+.filtro:hover:not(.filtroAtivo) {
   border-color: var(--app-accent);
   color: var(--app-text);
 }
 
 .filtroAtivo {
-  background: var(--app-accent-soft);
+  background: var(--glass-active);
   border-color: transparent;
-  color: var(--app-accent);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 
@@ -110,7 +117,9 @@
   align-items: center;
   gap: 6px 14px;
   padding: 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--radius);
   transition:
     border-color var(--transition),
@@ -118,6 +127,7 @@
 }
 
 .card:hover {
+  background: var(--glass-sheen), var(--glass-surface-hover);
   border-color: var(--app-accent);
   transform: translateY(-2px);
 }
