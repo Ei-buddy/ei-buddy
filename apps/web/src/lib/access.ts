@@ -32,6 +32,7 @@ export const MODULOS_BLOQUEADOS = [
   '/app/crm',
   '/app/agenda',
   '/app/vendas',
+  '/app/caixa',
   '/app/assistente-ia',
 ] as const
 

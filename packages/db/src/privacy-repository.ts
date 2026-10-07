@@ -87,6 +87,8 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
     tabela: 'customer_charge_receivables',
     escopo: 'company_id',
   },
+  cash_sessions: { tabela: 'cash_sessions', escopo: 'company_id' },
+  cash_movements: { tabela: 'cash_movements', escopo: 'company_id' },
 }
 
 /**

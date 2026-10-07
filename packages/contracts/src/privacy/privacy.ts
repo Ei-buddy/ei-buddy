@@ -64,6 +64,10 @@ export const exportCollectionSchema = z.enum([
   'customer_contacts',
   'customer_charges',
   'customer_charge_receivables',
+  /* O caixa da loja (NR-157): abertura, sangria, suprimento e fechamento sao
+     movimento de dinheiro, que a loja guarda junto com as vendas. */
+  'cash_sessions',
+  'cash_movements',
 ])
 
 export type ExportCollection = z.infer<typeof exportCollectionSchema>

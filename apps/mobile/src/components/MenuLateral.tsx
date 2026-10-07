@@ -24,6 +24,7 @@ const GRUPOS: Grupo[] = [
       { rota: '/inicio', rotulo: 'Tela principal' },
       { rota: '/pdv', rotulo: 'Nova venda' },
       { rota: '/vendas', rotulo: 'Vendas' },
+      { rota: '/caixa', rotulo: 'Caixa' },
       { rota: '/agenda', rotulo: 'Agenda' },
     ],
   },
