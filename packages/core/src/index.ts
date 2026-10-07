@@ -611,3 +611,13 @@ export { pendingLegalAcceptance, recordLegalAcceptance } from './legal/legal-con
 export type { LegalConsentDeps, OrigemDoAceite } from './legal/legal-consent.js'
 export type { LegalConsentRepository } from './ports/legal-consent-repository.js'
 export { InMemoryLegalConsentRepository } from './legal/fakes.js'
+export {
+  addCashMovement,
+  cashHistory,
+  closeCash,
+  currentCash,
+  openCash,
+} from './cash/cash-register.js'
+export type { CashDeps } from './cash/cash-register.js'
+export type { CashRegister } from './ports/cash-register.js'
+export { InMemoryCashRegister } from './cash/fakes.js'

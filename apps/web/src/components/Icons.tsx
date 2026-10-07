@@ -43,6 +43,17 @@ export function IconWallet({ size = 24, className }: IconProps) {
   )
 }
 
+/** A gaveta do caixa: uma cedula — NR-157. */
+export function IconCash({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <rect x="3.5" y="6.5" width="17" height="11" rx="2" />
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M6.5 9.5v5M17.5 9.5v5" />
+    </svg>
+  )
+}
+
 export function IconBox({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

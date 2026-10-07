@@ -50,6 +50,7 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
+import type { CaixaDeps } from './routes/caixa.js'
 import type {
   IdentityAccountEditor,
   IdentityPhoneChanger,
@@ -77,6 +78,7 @@ import {
   createFixedCostRepository,
   createVariableCostRepository,
   createBankAccountRepository,
+  createCashRegister,
   createDelinquencyQueries,
   createConnectionRequests,
   createCrmRepository,
@@ -885,6 +887,15 @@ export function buildContasBancariasDeps(): ContasBancariasDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     bankAccounts: createBankAccountRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Abertura e fechamento de caixa — NR-157. */
+export function buildCaixaDeps(): CaixaDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    cash: createCashRegister(sql),
     audit: createAuditTrail(sql),
   }
 }
