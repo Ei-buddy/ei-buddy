@@ -194,6 +194,10 @@ export default function EtapaFiscal({
               <ButtonLink href="/app/empresa">
                 {certificado === 'expirado' ? 'Trocar certificado' : 'Cadastrar certificado'}
               </ButtonLink>
+              {/* Sem nota, o cliente ainda leva um recibo — NR-154. */}
+              <ButtonLink href={`/app/vendas/${vendaId}/comprovante`} variant="secondary">
+                Comprovante
+              </ButtonLink>
               <Button variant="secondary" onClick={onConcluir}>
                 Concluir sem nota
               </Button>
@@ -264,6 +268,9 @@ export default function EtapaFiscal({
               </button>
             </div>
 
+            <ButtonLink href={`/app/vendas/${vendaId}/comprovante`} variant="secondary" block>
+              Comprovante não fiscal
+            </ButtonLink>
             <Button variant="ghost" block onClick={onConcluir}>
               Concluir sem emitir nota
             </Button>
