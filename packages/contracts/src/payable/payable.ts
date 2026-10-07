@@ -80,6 +80,67 @@ export const createReceivableInputSchema = z
 export type CreateReceivableInput = z.infer<typeof createReceivableInputSchema>
 
 /** Encerrar a recorrencia — RF-058. */
+/**
+ * Corrigir um titulo lancado errado — NR-150.
+ *
+ * So o que o lojista digitou ao lancar, e cada campo e opcional: manda so o
+ * que mudou. Pelo menos um tem de vir — um PATCH vazio e um clique que nao
+ * diz o que corrigir. Quem decide SE pode corrigir (sem baixa, nao cancelado)
+ * e o `core`, porque depende do estado guardado.
+ */
+const algoMudou = (o: Record<string, unknown>) => Object.values(o).some((v) => v !== undefined)
+const NADA_MUDOU = { message: 'Informe o que corrigir.' }
+
+export const updatePayableInputSchema = z
+  .object({
+    supplier: z
+      .string()
+      .trim()
+      .min(2, 'Informe o fornecedor.')
+      .max(140, 'Nome muito longo.')
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .min(2, 'Descreva a conta.')
+      .max(280, 'Descricao muito longa.')
+      .optional(),
+    amountCents: moneyCentsSchema.min(1, 'Conta de zero nao e conta.').optional(),
+    dueDate: dateSchema.optional(),
+  })
+  .strict()
+  .refine(algoMudou, NADA_MUDOU)
+
+export type UpdatePayableInput = z.infer<typeof updatePayableInputSchema>
+
+export const updateReceivableInputSchema = z
+  .object({
+    description: z.string().trim().min(2, 'Descreva o recebivel.').max(280).optional(),
+    amountCents: moneyCentsSchema.min(1, 'Conta de zero nao e conta.').optional(),
+    dueDate: dateSchema.optional(),
+  })
+  .strict()
+  .refine(algoMudou, NADA_MUDOU)
+
+export type UpdateReceivableInput = z.infer<typeof updateReceivableInputSchema>
+
+/**
+ * Cancelar um titulo — NR-150. O motivo vai para a trilha de auditoria:
+ * cancelar e fazer uma divida (ou um direito) sumir do caixa, e o contador
+ * precisa saber por que.
+ */
+export const cancelTitleInputSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(3, 'Diga por que esta cancelando.')
+      .max(280, 'Motivo muito longo.'),
+  })
+  .strict()
+
+export type CancelTitleInput = z.infer<typeof cancelTitleInputSchema>
+
 export const endRecurrenceInputSchema = z.object({ recurrenceId: idSchema }).strict()
 
 export type EndRecurrenceInput = z.infer<typeof endRecurrenceInputSchema>

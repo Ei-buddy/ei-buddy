@@ -72,6 +72,25 @@ export type ManualReceivableTransaction = TransactionalAuditTrail & {
    * zero, e baixar esses R$ 125 depois o levava a menos 125.
    */
   adjustCustomerBalance(customerId: string, deltaCents: number): Promise<void>
+  /** Correcao e cancelamento de um recebivel avulso — NR-150. */
+  findForChange(companyId: CompanyId, id: string): Promise<ReceivableForChange | null>
+  update(companyId: CompanyId, id: string, changes: ReceivableChanges): Promise<ReceivableOutput>
+  cancel(companyId: CompanyId, id: string): Promise<ReceivableOutput>
+}
+
+/**
+ * O recebivel com o que a correcao precisa saber e a saida nao mostra: se ele
+ * e divida do cliente (mexe no fiado) — RF-013.
+ */
+export type ReceivableForChange = {
+  readonly receivable: ReceivableOutput
+  readonly isCustomerDebt: boolean
+}
+
+export type ReceivableChanges = {
+  readonly description?: string | undefined
+  readonly amountCents?: number | undefined
+  readonly dueDate?: string | undefined
 }
 
 export type ManualReceivableUnitOfWork = {

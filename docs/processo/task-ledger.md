@@ -359,6 +359,7 @@ voltam a ⬜.
 | NR-147 | Sino de avisos zera ao ser visto e atualiza ao navegar                                     |   🟢   | `web`                                                         |   1 | —                                      | —    | NR-013, NR-136                                     |   ✅   |
 | NR-148 | Campos obrigatorios marcados nos cadastros de produto e cliente                            |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-009, RF-014, RNF-052                            |   ✅   |
 | NR-149 | CPF/CNPJ obrigatorio no cadastro de cliente (web e app iguais)                             |   🟢   | `contracts` `web` `mobile`                                    |   1 | —                                      | —    | RF-009, DEC-025                                    |   ✅   |
+| NR-150 | Corrigir e cancelar conta a pagar/receber sem baixa (web e app iguais)                     |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-055, RF-065                                     |   ✅   |
 
 ---
 

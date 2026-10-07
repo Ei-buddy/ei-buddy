@@ -79,6 +79,8 @@ export type Titulo = {
   valorCents: number
   baixadoCents: number
   status: StatusTitulo
+  /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
+  mutavel: boolean
 }
 
 export type ListaDeTitulos = {
@@ -102,6 +104,7 @@ type PagarDaApi = {
 
 type ReceberDaApi = {
   id: string
+  saleId: string | null
   customerName: string | null
   description: string
   amountCents: number
@@ -149,6 +152,7 @@ export async function listarContasPagar(): Promise<Resposta<ListaDeTitulos>> {
           valorCents: p.amountCents,
           baixadoCents: p.settledAmountCents,
           status: paraStatus(p.status),
+          mutavel: p.settledAmountCents === 0,
         })),
       ),
       totalCents: r.dados.totalCents,
@@ -181,6 +185,8 @@ export async function listarContasReceber(): Promise<Resposta<ListaDeTitulos>> {
           valorCents: rec.amountCents,
           baixadoCents: rec.settledAmountCents,
           status: paraStatus(rec.status),
+          /* O que veio de venda se resolve na venda (cancelar ou devolver). */
+          mutavel: rec.saleId === null && rec.settledAmountCents === 0,
         })),
       ),
       totalCents: r.dados.totalCents,
@@ -287,6 +293,36 @@ export const baixarTitulo = (
  */
 export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resposta<Baixa>> =>
   chamarApi<Baixa>(`/baixas/${encodeURIComponent(baixaId)}/estorno`, {
+    method: 'POST',
+    body: { reason: motivo },
+  })
+
+/* -------------------------------------------------------------------------- */
+/* Corrigir e cancelar titulo — NR-150                                        */
+/* -------------------------------------------------------------------------- */
+
+/** So o que mudou. Fornecedor so existe na conta a pagar. */
+export type CorrecaoDeTitulo = {
+  supplier?: string
+  description?: string
+  amountCents?: number
+  dueDate?: string
+}
+
+export const corrigirTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  mudancas: CorrecaoDeTitulo,
+): Promise<Resposta<unknown>> =>
+  chamarApi(`/contas-a-${tipo}/${encodeURIComponent(id)}`, { method: 'PATCH', body: mudancas })
+
+/** Cancelar — o titulo fica, com o motivo na trilha. */
+export const cancelarTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  motivo: string,
+): Promise<Resposta<unknown>> =>
+  chamarApi(`/contas-a-${tipo}/${encodeURIComponent(id)}/cancelar`, {
     method: 'POST',
     body: { reason: motivo },
   })

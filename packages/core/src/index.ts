@@ -208,6 +208,10 @@ export type {
 export { createPayable } from './payables/create-payable.js'
 export type { CreatePayableDeps } from './payables/create-payable.js'
 export { endRecurrence } from './payables/end-recurrence.js'
+export { cancelPayable, updatePayable } from './payables/change-payable.js'
+export type { ChangePayableDeps } from './payables/change-payable.js'
+export { cancelReceivable, updateReceivable } from './receivables/change-receivable.js'
+export type { ChangeReceivableDeps } from './receivables/change-receivable.js'
 export type { EndRecurrenceDeps, EndRecurrenceResult } from './payables/end-recurrence.js'
 export { listPayables } from './payables/list-payables.js'
 export type {
@@ -218,6 +222,7 @@ export type {
 export type {
   IdGenerator,
   NewPayable,
+  PayableChanges,
   PayableFilter,
   PayableQueries,
   PayableTransaction,
@@ -244,6 +249,8 @@ export type {
   ManualReceivableTransaction,
   ManualReceivableUnitOfWork,
   NewManualReceivable,
+  ReceivableChanges,
+  ReceivableForChange,
   ReceivableQueries,
 } from './ports/receivable-repository.js'
 export { listSettlements } from './settlements/list-settlements.js'

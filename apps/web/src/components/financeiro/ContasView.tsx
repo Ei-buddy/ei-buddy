@@ -24,6 +24,7 @@ import { IconFilter, IconPlus, IconUpload } from '@/components/Icons'
 import { COMANDOS_PAGAR, COMANDOS_RECEBER } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import BaixaDialog from './BaixaDialog'
+import CorrecaoTitulo from './CorrecaoTitulo'
 import EstornoDialog from './EstornoDialog'
 import FormularioTitulo from './FormularioTitulo'
 import styles from './financeiro.module.css'
@@ -59,6 +60,7 @@ function paraLinhaAPagar(c: ContaAPagar, nomeDaConta: (accountId: string | null)
     /* A classificacao e id de conta (NR-077) — o plano vem carregado junto
        com a lista, exatamente para resolver o nome aqui. */
     classificacao: nomeDaConta(c.accountId),
+    mutavel: c.settledAmountCents === 0,
   }
 }
 
@@ -89,6 +91,8 @@ function paraLinhaAReceber(c: ContaAReceber): Linha {
     valorBaixadoCents: c.settledAmountCents,
     status: statusDaApi(c.status, c.dueDate),
     classificacao: c.installmentCount > 1 ? `${c.installmentNumber}/${c.installmentCount}` : '',
+    /* O que veio de venda se resolve na venda (cancelar ou devolver). */
+    mutavel: c.saleId === null && c.settledAmountCents === 0,
   }
 }
 
@@ -111,6 +115,8 @@ type Linha = {
   status: StatusTitulo
   /** Plano de conta (pagar) ou parcela (receber). */
   classificacao: string
+  /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
+  mutavel: boolean
 }
 
 const TOM_SITUACAO: Record<SituacaoVisual, 'neutral' | 'warning' | 'danger' | 'success' | 'info'> =
@@ -217,6 +223,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const [lancando, setLancando] = useState(false)
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
+  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
+    null,
+  )
   const [processando, setProcessando] = useState(false)
   /* Nao ha `processandoEstorno`: o `EstornoDialog` cuida do proprio ciclo —
      ele carrega o historico, escolhe a baixa e confirma. O que volta para ca e
@@ -528,6 +537,24 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                   </div>
 
                   <div className={styles.tituloAcoes}>
+                    {l.mutavel ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMudando({ linha: l, modo: 'corrigir' })}
+                        >
+                          Corrigir
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMudando({ linha: l, modo: 'cancelar' })}
+                        >
+                          Cancelar
+                        </Button>
+                      </>
+                    ) : null}
                     {quitado || l.valorBaixadoCents > 0 ? (
                       <Button variant="secondary" size="sm" onClick={() => setEstornando(l)}>
                         Estornar
@@ -604,6 +631,26 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             void carregar()
           }}
           onCancelar={() => setEstornando(null)}
+        />
+      ) : null}
+
+      {mudando ? (
+        <CorrecaoTitulo
+          tipo={tipo}
+          modo={mudando.modo}
+          titulo={{
+            id: mudando.linha.id,
+            contraparte: mudando.linha.contraparte,
+            descricao: mudando.linha.descricao,
+            vencimento: mudando.linha.vencimento,
+            valorCents: mudando.linha.valorCents,
+          }}
+          onFeito={(msg) => {
+            setMudando(null)
+            setToast({ msg, tone: 'success' })
+            void carregar()
+          }}
+          onFechar={() => setMudando(null)}
         />
       ) : null}
 

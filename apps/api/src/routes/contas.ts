@@ -1,11 +1,16 @@
 import {
+  cancelTitleInputSchema,
   createPayableInputSchema,
   createReceivableInputSchema,
   endRecurrenceInputSchema,
   exportarTitulosQuerySchema,
   receivablesFilterSchema,
+  updatePayableInputSchema,
+  updateReceivableInputSchema,
 } from '@na-regua/contracts'
 import {
+  cancelPayable,
+  cancelReceivable,
   type ChartOfAccountsRepository,
   createPayable,
   type CreatePayableDeps,
@@ -19,6 +24,8 @@ import {
   type ManualReceivableUnitOfWork,
   settledInMonth,
   type SettlementTotals,
+  updatePayable,
+  updateReceivable,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -239,6 +246,65 @@ export function registerContasRoutes(app: FastifyInstance, deps: ContasDeps): vo
       const receivable = await createReceivable({ uow: deps.receivablesUow }, ctx, input)
 
       return reply.code(201).send(receivable)
+    },
+  )
+
+  /**
+   * Corrigir e cancelar um titulo lancado errado — NR-150.
+   *
+   * Cancelar e `POST .../cancelar`, e nao `DELETE`: o titulo fica, com o motivo
+   * na trilha. Quem decide se ainda pode mudar (sem baixa, nao cancelado, nao
+   * veio de venda) e o `core`.
+   */
+  app.patch(
+    '/contas-a-pagar/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updatePayableInputSchema, request.body)
+
+      return reply.code(200).send(await updatePayable(deps, ctx, id, input))
+    },
+  )
+
+  app.post(
+    '/contas-a-pagar/:id/cancelar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(cancelTitleInputSchema, request.body)
+
+      return reply.code(200).send(await cancelPayable(deps, ctx, id, input))
+    },
+  )
+
+  app.patch(
+    '/contas-a-receber/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateReceivableInputSchema, request.body)
+
+      return reply
+        .code(200)
+        .send(await updateReceivable({ uow: deps.receivablesUow }, ctx, id, input))
+    },
+  )
+
+  app.post(
+    '/contas-a-receber/:id/cancelar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(cancelTitleInputSchema, request.body)
+
+      return reply
+        .code(200)
+        .send(await cancelReceivable({ uow: deps.receivablesUow }, ctx, id, input))
     },
   )
 
