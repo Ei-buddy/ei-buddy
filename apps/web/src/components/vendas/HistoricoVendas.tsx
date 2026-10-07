@@ -15,6 +15,7 @@ import { ButtonLink, Button } from '@/components/ui/Button'
 import { IconPlus, IconSearch } from '@/components/Icons'
 import { COMANDOS_VENDAS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './vendas.module.css'
 
 /**
@@ -164,10 +165,21 @@ export default function HistoricoVendas() {
         title="Vendas"
         subtitle="Histórico de vendas fechadas"
         actions={
-          <ButtonLink href="/app/vendas/nova">
-            <IconPlus size={17} />
-            Nova venda
-          </ButtonLink>
+          <>
+            {/* O mesmo periodo e busca da lista — NR-155. */}
+            <BotoesExportar
+              lista="vendas"
+              filtros={{
+                q: busca.trim(),
+                from: periodoDe(periodo).de,
+                to: periodoDe(periodo).ate,
+              }}
+            />
+            <ButtonLink href="/app/vendas/nova">
+              <IconPlus size={17} />
+              Nova venda
+            </ButtonLink>
+          </>
         }
       />
 

@@ -796,10 +796,30 @@
 .contaAcoes {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 16px;
+}
+/* Mais especifico que `.contaBancaria span`, que vira grade. NR-152. */
+.contaBancaria .contaBancariaAcoes {
+  display: flex;
+  gap: 8px;
 }
 @media (max-width: 640px) {
   .contaBancaria {
     grid-template-columns: 1fr auto;
   }
+}
+
+/* Exportar o ranking ao lado do titulo — NR-155. */
+.blocoCabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blocoAcoes {
+  display: flex;
+  gap: 8px;
 }

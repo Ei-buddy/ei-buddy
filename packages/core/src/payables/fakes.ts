@@ -47,6 +47,12 @@ export class InMemoryPayables implements PayableUnitOfWork, PayableQueries, IdGe
     return `rec-${this.sequenciaId}`
   }
 
+  /** Simula uma baixa ja registrada — so para os testes de correcao (NR-150). */
+  simularBaixa(id: string, cents: number): void {
+    const i = this.contas.findIndex((c) => c.id === id)
+    this.contas[i] = { ...this.contas[i]!, settledAmountCents: cents, status: 'partially_settled' }
+  }
+
   todas(companyId: CompanyId): readonly PayableOutput[] {
     return this.contas.filter((c) => c.companyId === companyId)
   }
@@ -140,6 +146,25 @@ export class InMemoryPayables implements PayableUnitOfWork, PayableQueries, IdGe
 
       findByRecurrence: async (empresa, recurrenceId) =>
         this.contas.filter((c) => c.companyId === empresa && c.recurrenceId === recurrenceId),
+
+      findById: async (empresa, id) =>
+        this.contas.find((c) => c.companyId === empresa && c.id === id) ?? null,
+
+      update: async (empresa, id, mudancas) => {
+        const i = this.contas.findIndex((c) => c.companyId === empresa && c.id === id)
+        const atual = this.contas[i]!
+        const definidas = Object.fromEntries(
+          Object.entries(mudancas).filter(([, v]) => v !== undefined),
+        )
+        this.contas[i] = { ...atual, ...definidas }
+        return this.contas[i]!
+      },
+
+      cancel: async (empresa, id) => {
+        const i = this.contas.findIndex((c) => c.companyId === empresa && c.id === id)
+        this.contas[i] = { ...this.contas[i]!, status: 'cancelled' }
+        return this.contas[i]!
+      },
     }
   }
 }

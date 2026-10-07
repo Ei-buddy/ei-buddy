@@ -60,6 +60,7 @@ describe('cadastro de cliente', () => {
   /* O minimo que o cadastro aceita: nome, celular e endereco completo. */
   const BASE = {
     name: 'Joana Ribeiro',
+    document: '529.982.247-25',
     phone: '(41) 99876-5432',
     address: {
       zipCode: '80010000',
@@ -71,11 +72,12 @@ describe('cadastro de cliente', () => {
     },
   } as const
 
-  it('aceita nome, celular e endereco, sem documento', () => {
+  it('aceita documento, nome, celular e endereco', () => {
     expect(createCustomerInputSchema.safeParse(BASE).success).toBe(true)
   })
 
   it.each([
+    ['document', 'CPF ou CNPJ'],
     ['phone', 'celular'],
     ['address', 'endereco'],
   ] as const)('recusa sem %s (%s), apontando o campo', (campo, _rotulo) => {
@@ -143,11 +145,9 @@ describe('cadastro de cliente', () => {
       ).toBe(true)
     })
 
-    it('sem documento a regra nao se aplica', () => {
-      /* Sem documento nao ha PJ conhecida. */
-      expect(createCustomerInputSchema.safeParse({ ...BASE, name: 'Padaria Sol' }).success).toBe(
-        true,
-      )
+    it('na edicao sem documento a regra nao se aplica', () => {
+      /* Sem documento no corpo nao ha PJ conhecida. */
+      expect(updateCustomerInputSchema.safeParse({ name: 'Padaria Sol' }).success).toBe(true)
     })
 
     it('a edicao que introduz um CNPJ tambem exige o fantasia', () => {
@@ -254,6 +254,7 @@ describe('atualizacao do cadastro da empresa — RF-003', () => {
 
 describe('camposFaltandoNoCliente — DEC-025', () => {
   const COMPLETO = {
+    document: '52998224725',
     phone: '41988887777',
     address: {
       zipCode: '80010000',
@@ -278,7 +279,8 @@ describe('camposFaltandoNoCliente — DEC-025', () => {
       city: null,
       state: null,
     }
-    expect(camposFaltandoNoCliente({ phone: null, address: vazio })).toEqual([
+    expect(camposFaltandoNoCliente({ document: null, phone: null, address: vazio })).toEqual([
+      'CPF/CNPJ',
       'celular',
       'CEP',
       'rua',

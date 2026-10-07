@@ -348,3 +348,8 @@
   gap: 12px;
   margin-top: 16px;
 }
+
+/* Meu perfil — NR-153: a mensagem nao cola no campo de cima. */
+.mensagemPerfil {
+  margin: 12px 0 0;
+}

@@ -111,4 +111,59 @@ describe.skipIf(!DATABASE_URL)('contas bancarias — RF-073', () => {
     expect(await contas.insert(nova)).toBeDefined()
     expect(await contas.insert({ ...nova, name: 'caixa da loja' })).toBeUndefined()
   })
+
+  /* NR-152: a baixa guarda o NOME. Renomear sem levar junto zeraria o saldo. */
+  it('renomear leva o nome junto nas baixas, e o saldo nao muda', async () => {
+    const contas = createBankAccountRepository(sql)
+    const conta = await contas.insert({
+      companyId: empresa,
+      name: 'Inter',
+      bank: null,
+      agency: null,
+      accountNumber: null,
+      openingBalanceCents: 10_00,
+      openingDate: '2026-09-01',
+      createdBy: null as never,
+      createdAt: new Date(),
+    })
+    await baixa('receber', 40_00, 'inter', '2026-09-10')
+
+    const r = await contas.update(empresa, conta!.id, {
+      name: 'Inter PJ',
+      bank: 'Inter',
+      agency: '0001',
+      accountNumber: '123',
+      openingBalanceCents: 10_00,
+      openingDate: '2026-09-01',
+    })
+
+    expect(r).not.toBe('nome_em_uso')
+    expect(r).toMatchObject({ name: 'Inter PJ', agency: '0001', balanceCents: 50_00 })
+  })
+
+  it('renomear para o nome de outra conta e recusado com resposta', async () => {
+    const contas = createBankAccountRepository(sql)
+    const conta = await contas.insert({
+      companyId: empresa,
+      name: 'Sicredi',
+      bank: null,
+      agency: null,
+      accountNumber: null,
+      openingBalanceCents: 0,
+      openingDate: '2026-09-01',
+      createdBy: null as never,
+      createdAt: new Date(),
+    })
+
+    const r = await contas.update(empresa, conta!.id, {
+      name: 'nubank pj',
+      bank: null,
+      agency: null,
+      accountNumber: null,
+      openingBalanceCents: 0,
+      openingDate: '2026-09-01',
+    })
+
+    expect(r).toBe('nome_em_uso')
+  })
 })

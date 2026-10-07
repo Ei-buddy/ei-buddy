@@ -7,6 +7,7 @@ import Campo from '@/components/ui/Campo'
 import { Cartao, Vazio } from '@/components/ui/Cartao'
 import {
   cadastrarContaBancaria,
+  editarContaBancaria,
   excluirContaBancaria,
   listarContasBancarias,
   type ContaBancaria,
@@ -35,6 +36,8 @@ export default function ContasBancarias() {
   const [data, setData] = useState(formatDate(hoje()))
   const [salvando, setSalvando] = useState(false)
   const [erroForm, setErroForm] = useState<string | null>(null)
+  /* Editar usa o mesmo formulario do cadastro — NR-152. */
+  const [editando, setEditando] = useState<ContaBancaria | null>(null)
 
   const carregar = useCallback(async () => {
     const r = await listarContasBancarias()
@@ -71,26 +74,49 @@ export default function ContasBancarias() {
 
     setSalvando(true)
     setErroForm(null)
-    const r = await cadastrarContaBancaria({
+    const dados = {
       name: nome.trim(),
       ...(banco.trim() ? { bank: banco.trim() } : {}),
       ...(agencia.trim() ? { agency: agencia.trim() } : {}),
       ...(numero.trim() ? { accountNumber: numero.trim() } : {}),
       openingBalanceCents: negativo ? -cents : cents,
       openingDate: abertura,
-    })
+    }
+    const r =
+      editando === null
+        ? await cadastrarContaBancaria(dados)
+        : await editarContaBancaria(editando.id, dados)
     setSalvando(false)
     if (!r.ok) {
       setErroForm(r.erro)
       return
     }
+    fecharFormulario()
+    void carregar()
+  }
+
+  function fecharFormulario() {
     setCadastrando(false)
+    setEditando(null)
+    setErroForm(null)
     setNome('')
     setBanco('')
     setAgencia('')
     setNumero('')
     setSaldo('')
-    void carregar()
+    setData(formatDate(hoje()))
+  }
+
+  function editar(conta: ContaBancaria) {
+    setEditando(conta)
+    setNome(conta.name)
+    setBanco(conta.bank ?? '')
+    setAgencia(conta.agency ?? '')
+    setNumero(conta.accountNumber ?? '')
+    setSaldo((conta.openingBalanceCents / 100).toFixed(2).replace('.', ','))
+    setData(formatDate(conta.openingDate))
+    setErroForm(null)
+    setCadastrando(true)
   }
 
   function excluir(conta: ContaBancaria) {
@@ -127,7 +153,7 @@ export default function ContasBancarias() {
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
         {cadastrando ? (
-          <Cartao titulo="Nova conta">
+          <Cartao titulo={editando === null ? 'Nova conta' : `Editar ${editando.name}`}>
             <View style={estilos.formulario}>
               <Campo rotulo="Nome" valor={nome} onChange={setNome} placeholder="Nubank PJ" />
               <Campo rotulo="Banco" valor={banco} onChange={setBanco} />
@@ -178,13 +204,13 @@ export default function ContasBancarias() {
               {erroForm !== null ? <Text style={estilos.erro}>{erroForm}</Text> : null}
               <View style={estilos.linha}>
                 <View style={estilos.flex}>
-                  <Botao variante="secundario" onPress={() => setCadastrando(false)} largura>
+                  <Botao variante="secundario" onPress={fecharFormulario} largura>
                     Cancelar
                   </Botao>
                 </View>
                 <View style={estilos.flex}>
                   <Botao onPress={() => void cadastrar()} carregando={salvando} largura>
-                    Cadastrar
+                    {editando === null ? 'Cadastrar' : 'Salvar'}
                   </Botao>
                 </View>
               </View>
@@ -227,9 +253,14 @@ export default function ContasBancarias() {
                 <Text style={[estilos.saldo, c.balanceCents < 0 && estilos.negativo]}>
                   {formatMoney(c.balanceCents / 100)}
                 </Text>
-                <Pressable onPress={() => excluir(c)} accessibilityRole="button" hitSlop={8}>
-                  <Text style={estilos.excluir}>Excluir</Text>
-                </Pressable>
+                <View style={estilos.acoesConta}>
+                  <Pressable onPress={() => editar(c)} accessibilityRole="button" hitSlop={8}>
+                    <Text style={estilos.editar}>Editar</Text>
+                  </Pressable>
+                  <Pressable onPress={() => excluir(c)} accessibilityRole="button" hitSlop={8}>
+                    <Text style={estilos.excluir}>Excluir</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           ))
@@ -270,4 +301,6 @@ const estilos = StyleSheet.create({
   saldo: { fontSize: fonte.corpo, fontWeight: peso.pesado, color: cores.texto },
   negativo: { color: cores.erro },
   excluir: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
+  editar: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
+  acoesConta: { flexDirection: 'row', gap: espaco.md },
 })

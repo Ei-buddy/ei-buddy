@@ -3,6 +3,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import type { Credential } from '@na-regua/contracts'
 import type {
+  IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
@@ -114,7 +115,12 @@ function confere(secret: string, verificador: string): boolean {
 }
 
 export class IdentidadeEmArquivo
-  implements IdentityProvider, IdentityRegistrar, PasswordSetter, IdentityPhoneChanger
+  implements
+    IdentityProvider,
+    IdentityRegistrar,
+    PasswordSetter,
+    IdentityPhoneChanger,
+    IdentityAccountEditor
 {
   private readonly registros = new Map<string, Registro>()
 
@@ -140,6 +146,14 @@ export class IdentidadeEmArquivo
     }
   }
 
+  /** Identificadores que este processo tirou — ver `gravar`. */
+  private readonly removidos = new Set<string>()
+
+  private remover(identifier: string): void {
+    this.registros.delete(identifier)
+    this.removidos.add(identifier)
+  }
+
   private gravar(): void {
     mkdirSync(dirname(this.caminho), { recursive: true })
 
@@ -159,7 +173,11 @@ export class IdentidadeEmArquivo
       try {
         const doDisco = JSON.parse(readFileSync(this.caminho, 'utf8')) as Registro[]
         for (const r of doDisco) {
-          if (!this.registros.has(r.identifier)) this.registros.set(r.identifier, r)
+          /* O que ESTE processo tirou (troca de e-mail ou celular) nao volta
+             do disco: sem isso, o identificador antigo ressuscitava. */
+          if (!this.registros.has(r.identifier) && !this.removidos.has(r.identifier)) {
+            this.registros.set(r.identifier, r)
+          }
         }
       } catch {
         /* Disco ilegivel: segue só com o que ja estava em memoria — mesma
@@ -242,9 +260,36 @@ export class IdentidadeEmArquivo
 
     for (const r of da) {
       const eraOTelefone = r.phone !== null && r.identifier === r.phone
-      if (eraOTelefone) this.registros.delete(r.identifier)
+      if (eraOTelefone) this.remover(r.identifier)
       const atualizado = { ...r, phone: novo, ...(eraOTelefone ? { identifier: novo } : {}) }
       this.registros.set(atualizado.identifier, atualizado)
+    }
+    this.gravar()
+    return true
+  }
+
+  /** Meu perfil — NR-153. Mesmo desenho de `setPhone`: o registro de entrar
+      pelo e-mail troca de chave junto. */
+  async setEmail(subject: string, novo: string): Promise<boolean> {
+    const da = [...this.registros.values()].filter((r) => r.subject === subject)
+    if (da.length === 0) return false
+
+    for (const r of da) {
+      const eraOEmail = r.email !== null && r.identifier === r.email
+      if (eraOEmail) this.remover(r.identifier)
+      const atualizado = { ...r, email: novo, ...(eraOEmail ? { identifier: novo } : {}) }
+      this.registros.set(atualizado.identifier, atualizado)
+    }
+    this.gravar()
+    return true
+  }
+
+  async setSecretFor(subject: string, secret: string): Promise<boolean> {
+    const da = [...this.registros.values()].filter((r) => r.subject === subject)
+    if (da.length === 0) return false
+
+    for (const r of da) {
+      this.registros.set(r.identifier, { ...r, verificador: criarVerificador(secret) })
     }
     this.gravar()
     return true

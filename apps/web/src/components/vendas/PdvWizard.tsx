@@ -503,14 +503,12 @@ function CadastroRapido({
       return
     }
 
-    /* Documento e opcional no cadastro rapido: exigir CPF no balcao com
-       fila atras trava a venda. Quando vier preenchido, e validado. */
-    if (documento.trim()) {
-      const erroDoc = validateCPF(documento)
-      if (erroDoc) {
-        setErro(erroDoc)
-        return
-      }
+    /* CPF obrigatorio, como em todo cadastro de cliente (NR-149). Quem nao
+       quer se identificar segue com "Seguir sem identificar", sem cadastro. */
+    const erroDoc = validateCPF(documento)
+    if (erroDoc) {
+      setErro(erroDoc)
+      return
     }
 
     /* Celular e endereco sao obrigatorios (NR-142). Mesma regra do
@@ -558,8 +556,8 @@ function CadastroRapido({
           Cadastro rapido
         </h2>
         <p className={styles.dialogTexto}>
-          Nome, celular e endereço. O CEP preenche o resto do endereço, e e-mail e limite do fiado
-          podem ser completados depois em Clientes.
+          CPF, nome, celular e endereço. O CEP preenche o resto do endereço, e e-mail e limite do
+          fiado podem ser completados depois em Clientes.
         </p>
 
         {duplicados !== null ? (
@@ -617,7 +615,7 @@ function CadastroRapido({
           </label>
 
           <label className={styles.campo}>
-            <span>CPF (opcional)</span>
+            <span>CPF</span>
             <input
               className={styles.input}
               value={documento}

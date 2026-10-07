@@ -27,6 +27,7 @@ import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Botao from '@/components/ui/Botao'
 import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_CLIENTES, validarCliente } from '@/lib/campos-de-importacao'
+import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /** Sem comprar ha mais que isto = cliente inativo. */
@@ -142,6 +143,10 @@ export default function Clientes() {
           placeholderTextColor={cores.textoFraco}
           accessibilityLabel="Buscar cliente"
         />
+        {/* Exportar — NR-155: a busca e o filtro aplicados viajam junto. */}
+        {filtro === 'inadimplentes' ? null : (
+          <BotoesExportar lista="clientes" filtros={{ q: busca.trim(), filter: filtro }} />
+        )}
       </View>
 
       <ScrollView

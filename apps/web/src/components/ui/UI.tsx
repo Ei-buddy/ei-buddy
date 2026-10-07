@@ -96,12 +96,21 @@ export function Field({
   label,
   hint,
   htmlFor,
+  obrigatorio = false,
   span = 6,
   children,
 }: {
   label: string
   hint?: string
   htmlFor?: string
+  /**
+   * Marca o campo como obrigatorio NA TELA — NR-148: asterisco no rotulo,
+   * "(obrigatório)" para leitor de tela e `aria-required` no campo ligado.
+   * Nao valida nada: quem recusa o envio continua sendo o formulario. Por
+   * isso `aria-required`, e nao `required` — o atributo do HTML acionaria a
+   * validacao nativa do navegador e mudaria o comportamento do envio.
+   */
+  obrigatorio?: boolean
   /** Colunas ocupadas dentro de FormGrid (de 1 a 12). */
   span?: number
   children: ReactNode
@@ -112,11 +121,15 @@ export function Field({
      botao ao lado, por exemplo) ainda precisa de `htmlFor` explicito. */
   const gerado = useId()
   const lista = Children.toArray(children)
-  const campo = htmlFor === undefined ? lista.find(ehCampo) : undefined
+  const campo = lista.find(ehCampo)
   const alvo = htmlFor ?? (campo ? (campo.props.id ?? gerado) : undefined)
+  const extras = {
+    ...(htmlFor === undefined && campo && campo.props.id === undefined ? { id: gerado } : {}),
+    ...(obrigatorio ? { 'aria-required': true } : {}),
+  }
   const filhos =
-    campo && campo.props.id === undefined
-      ? lista.map((f) => (f === campo ? cloneElement(campo, { id: gerado }) : f))
+    campo && Object.keys(extras).length > 0
+      ? lista.map((f) => (f === campo ? cloneElement(campo, extras) : f))
       : children
 
   return (
@@ -134,11 +147,37 @@ export function Field({
       <span className={styles.labelRow}>
         <label className={styles.label} htmlFor={alvo}>
           {label}
+          {obrigatorio ? <MarcaObrigatorio /> : null}
         </label>
         {hint ? <span className={styles.hint}>{hint}</span> : null}
       </span>
       {filhos}
     </div>
+  )
+}
+
+/** O asterisco de campo obrigatorio — para rotulo montado fora do `Field`. */
+export function MarcaObrigatorio() {
+  return (
+    <>
+      <span className={styles.obrigatorio} aria-hidden="true">
+        {' '}
+        *
+      </span>
+      <span className={styles.somenteLeitor}> (obrigatório)</span>
+    </>
+  )
+}
+
+/** A legenda do asterisco, no topo do formulario que usa `obrigatorio`. */
+export function LegendaObrigatorio() {
+  return (
+    <p className={styles.legendaObrigatorio}>
+      <span className={styles.obrigatorio} aria-hidden="true">
+        *
+      </span>{' '}
+      Campo obrigatório
+    </p>
   )
 }
 

@@ -399,6 +399,7 @@ export class InMemoryProductRepository implements ProductRepository {
       minStock: product.minStock,
       category: product.category ?? null,
       supplier: product.supplier ?? null,
+      isActive: true,
     }
     this.registros.set(gravado.id, gravado)
     return this.semTenant(gravado)
@@ -434,7 +435,7 @@ export class InMemoryProductRepository implements ProductRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((p) => p.companyId === companyId)
+      .filter((p) => p.companyId === companyId && p.isActive)
       .filter(
         (p) =>
           termo === '' ||
@@ -460,6 +461,7 @@ export class InMemoryProductRepository implements ProductRepository {
     criterio: {
       readonly termo?: string
       readonly stock: 'todos' | 'baixo' | 'esgotado'
+      readonly situacao: 'ativos' | 'inativos'
       readonly offset: number
       readonly limite: number
     },
@@ -468,6 +470,7 @@ export class InMemoryProductRepository implements ProductRepository {
 
     const casam = [...this.registros.values()]
       .filter((p) => p.companyId === companyId)
+      .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
       .filter(
         (p) =>
           termo === '' ||
@@ -496,7 +499,7 @@ export class InMemoryProductRepository implements ProductRepository {
     readonly outOfStock: number
     readonly stockValueCents: number
   }> {
-    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId)
+    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId && p.isActive)
 
     return {
       total: meus.length,
@@ -507,6 +510,19 @@ export class InMemoryProductRepository implements ProductRepository {
       outOfStock: meus.filter((p) => p.stock <= 0).length,
       stockValueCents: meus.reduce((acc, p) => acc + p.stock * p.costPriceCents, 0),
     }
+  }
+
+  async setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+    const novo = { ...atual, isActive: ativo }
+    this.registros.set(productId, novo)
+    return this.semTenant(novo)
   }
 
   /**

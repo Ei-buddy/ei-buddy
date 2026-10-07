@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     111 |  266 |
-| ✅ Concluídas                 |     105 |  245 |
+| Total                         |     120 |  275 |
+| ✅ Concluídas                 |     114 |  254 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -357,6 +357,15 @@ voltam a ⬜.
 | NR-144 | Ticket medio com a base explicita (bruto ou liquido)                                       |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | US-041, DEC-024                                    |   ✅   |
 | NR-145 | Login caia no aviso "painel nao abriu" (prefetch sem sessao)                               |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-120, NR-132                                     |   ✅   |
 | NR-146 | Vidro da barra lateral no painel inteiro (tokens --glass-*)                                |   🟢   | `web` `ui`                                                    |   3 | —                                      | —    | NR-131, RNF-052                                    |   ✅   |
+| NR-147 | Sino de avisos zera ao ser visto e atualiza ao navegar                                     |   🟢   | `web`                                                         |   1 | —                                      | —    | NR-013, NR-136                                     |   ✅   |
+| NR-148 | Campos obrigatorios marcados nos cadastros de produto e cliente                            |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-009, RF-014, RNF-052                            |   ✅   |
+| NR-149 | CPF/CNPJ obrigatorio no cadastro de cliente (web e app iguais)                             |   🟢   | `contracts` `web` `mobile`                                    |   1 | —                                      | —    | RF-009, DEC-025                                    |   ✅   |
+| NR-150 | Corrigir e cancelar conta a pagar/receber sem baixa (web e app iguais)                     |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-055, RF-065                                     |   ✅   |
+| NR-151 | Inativar e reativar produto: sai do PDV e da venda, fica no historico (web e app iguais)   |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-017, RF-019                                     |   ✅   |
+| NR-152 | Editar compromisso, conta bancaria e custo variavel (renomear conta mantem o saldo)        |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-073, RF-089                                     |   ✅   |
+| NR-153 | Meu perfil: trocar nome, e-mail e senha logado (web e app iguais)                          |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-119, RF-132                                     |   ✅   |
+| NR-154 | Comprovante de venda nao fiscal: imprimir e compartilhar (web e app iguais)                |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-033                                             |   ✅   |
+| NR-155 | Exportar listas em CSV/PDF: clientes, produtos, vendas, relatorios e DRE (web e app)       |   🟢   | `contracts` `api` `web` `mobile`                              |   1 | —                                      | —    | RF-087                                             |   ✅   |
 
 ---
 
@@ -469,10 +478,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      36 |   80 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      45 |   89 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **266 dias-desenvolvedor** em 111 tarefas. Com 3 pessoas, isso é cerca
+Somando: **275 dias-desenvolvedor** em 120 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

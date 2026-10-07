@@ -14,6 +14,7 @@ export const ROTAS_LIBERADAS = [
   '/app', // tela principal, somente leitura
   '/app/assinatura', // area de pagamento e faturas
   '/app/suporte', // canal de atendimento
+  '/app/perfil', // nome, e-mail e senha da pessoa (NR-153)
 ] as const
 
 /** Modulos bloqueados: visiveis na navegacao, porem com cadeado. */

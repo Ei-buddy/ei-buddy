@@ -120,7 +120,9 @@ export async function registerProduct(
     if (existente) {
       throw AppError.conflict(
         `Este codigo de barras ja esta em "${existente.description}". ` +
-          'Edite o produto existente em vez de criar outro.',
+          (existente.isActive
+            ? 'Edite o produto existente em vez de criar outro.'
+            : 'Ele esta inativo: reative-o em vez de criar outro.'),
       )
     }
   }
@@ -182,7 +184,10 @@ export async function findProductByBarcode(
   ctx: ExecutionContext,
   barcode: string,
 ): Promise<ProductOutput | undefined> {
-  return deps.products.findByBarcode(ctx.companyId, barcode)
+  const produto = await deps.products.findByBarcode(ctx.companyId, barcode)
+  /* Inativo nao se vende (NR-151): para o balcao e o assistente, e como se o
+     codigo nao estivesse no catalogo. */
+  return produto?.isActive === false ? undefined : produto
 }
 
 /**
@@ -269,6 +274,48 @@ export async function updateProduct(
   })
 
   return atualizado
+}
+
+/**
+ * Inativar ou reativar um produto — NR-151.
+ *
+ * E o "excluir" que o lojista pede, sem apagar: o produto sai do PDV, do leitor
+ * de codigo de barras, da venda e do catalogo do balcao, mas a linha fica — as
+ * vendas, devolucoes e relatorios passados continuam apontando para ela.
+ * Reativar devolve tudo como estava, inclusive o saldo de estoque.
+ */
+export async function setProductActive(
+  deps: { readonly products: ProductRepository; readonly audit?: AuditTrail },
+  ctx: ExecutionContext,
+  productId: string,
+  ativo: boolean,
+): Promise<ProductOutput> {
+  assertCanWrite(ctx)
+
+  const atual = await deps.products.findById(ctx.companyId, productId)
+  if (atual === undefined) throw AppError.notFound('Produto nao encontrado.')
+  if (atual.isActive === ativo) {
+    throw AppError.conflict(ativo ? 'Este produto ja esta ativo.' : 'Este produto ja esta inativo.')
+  }
+
+  const novo = await deps.products.setActive(ctx.companyId, productId, ativo, ctx.userId)
+  if (novo === undefined) throw AppError.notFound('Produto nao encontrado.')
+
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Product',
+    entityId: productId,
+    /* `updated`, e nao uma acao nova: a trilha ja diz o que mudou no
+       antes/depois, e acao nova exigiria migrar o CHECK de `audit_logs`. */
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { isActive: atual.isActive },
+    after: { isActive: ativo },
+  })
+
+  return novo
 }
 
 export async function getProduct(
@@ -377,8 +424,9 @@ async function recuperarCandidatos(
 
   /* Um trecho pode apontar para produto apagado entre a indexacao e agora.
      Some da lista em vez de virar erro: o lojista perguntou por um produto, e
-     a resposta certa e o que ainda existe. */
-  return carregados.filter((p): p is ProductOutput => p !== undefined)
+     a resposta certa e o que ainda existe. Inativo tambem some: o indice nao
+     sabe que ele saiu do balcao (NR-151). */
+  return carregados.filter((p): p is ProductOutput => p !== undefined && p.isActive)
 }
 
 /**
@@ -399,6 +447,7 @@ export async function listCatalog(
   const { produtos, total } = await deps.products.listCatalog(ctx.companyId, {
     ...(input.q === undefined || input.q === '' ? {} : { termo: input.q }),
     stock: input.stock,
+    situacao: input.situacao,
     offset: (input.page - 1) * input.pageSize,
     limite: input.pageSize,
   })

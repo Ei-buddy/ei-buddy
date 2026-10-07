@@ -51,6 +51,14 @@ export const createAppointmentInputSchema = z
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentInputSchema>
 
+/**
+ * Editar ou remarcar — NR-152. O mesmo formulario do cadastro, inteiro: campo
+ * opcional que nao veio fica vazio (tirar o local e mandar sem local).
+ */
+export const updateAppointmentInputSchema = createAppointmentInputSchema
+
+export type UpdateAppointmentInput = CreateAppointmentInput
+
 /** Nada e apagado: compromisso e cancelado — RNF-040. */
 export const cancelAppointmentInputSchema = z
   .object({

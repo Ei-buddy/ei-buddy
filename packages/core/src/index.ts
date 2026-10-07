@@ -208,6 +208,10 @@ export type {
 export { createPayable } from './payables/create-payable.js'
 export type { CreatePayableDeps } from './payables/create-payable.js'
 export { endRecurrence } from './payables/end-recurrence.js'
+export { cancelPayable, updatePayable } from './payables/change-payable.js'
+export type { ChangePayableDeps } from './payables/change-payable.js'
+export { cancelReceivable, updateReceivable } from './receivables/change-receivable.js'
+export type { ChangeReceivableDeps } from './receivables/change-receivable.js'
 export type { EndRecurrenceDeps, EndRecurrenceResult } from './payables/end-recurrence.js'
 export { listPayables } from './payables/list-payables.js'
 export type {
@@ -218,6 +222,7 @@ export type {
 export type {
   IdGenerator,
   NewPayable,
+  PayableChanges,
   PayableFilter,
   PayableQueries,
   PayableTransaction,
@@ -244,6 +249,8 @@ export type {
   ManualReceivableTransaction,
   ManualReceivableUnitOfWork,
   NewManualReceivable,
+  ReceivableChanges,
+  ReceivableForChange,
   ReceivableQueries,
 } from './ports/receivable-repository.js'
 export { listSettlements } from './settlements/list-settlements.js'
@@ -262,6 +269,7 @@ export type {
 export {
   createBankAccount,
   deleteBankAccount,
+  updateBankAccount,
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
@@ -327,6 +335,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  setProductActive,
   updateProduct,
   registerProductWithStock,
   searchProducts,
@@ -444,6 +453,8 @@ export type {
 /* --- Agenda — NR-034 --- */
 export { cancelAppointment } from './schedule/cancel-appointment.js'
 export type { CancelAppointmentDeps } from './schedule/cancel-appointment.js'
+export { updateAppointment } from './schedule/update-appointment.js'
+export type { UpdateAppointmentDeps } from './schedule/update-appointment.js'
 export { createAppointment, reminderFireAt } from './schedule/create-appointment.js'
 export type { CreateAppointmentDeps } from './schedule/create-appointment.js'
 export { listDayAppointments } from './schedule/list-day-appointments.js'
@@ -458,7 +469,13 @@ export type { IdentityRegistrar } from './ports/identity.js'
 export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
 export { changePhone, currentPhone } from './auth/change-phone.js'
 export type { ChangePhoneDeps, QuemTroca } from './auth/change-phone.js'
-export type { IdentityPhoneChanger, UserContacts } from './ports/phone-change.js'
+export type {
+  IdentityAccountEditor,
+  IdentityPhoneChanger,
+  UserContacts,
+} from './ports/phone-change.js'
+export { changeEmail, changeName, changePassword, myAccount } from './auth/my-account.js'
+export type { MyAccountDeps } from './auth/my-account.js'
 export type { RequestPasswordResetDeps, ResetPasswordDeps } from './auth/password-reset.js'
 export type { EmailSender, PasswordResetTokens, PasswordSetter } from './ports/password-reset.js'
 export {
@@ -552,6 +569,7 @@ export type {
 export {
   createVariableCost,
   deleteVariableCost,
+  updateVariableCost,
   listVariableCosts,
 } from './variable-costs/manage-variable-costs.js'
 export type { VariableCostDeps } from './variable-costs/manage-variable-costs.js'

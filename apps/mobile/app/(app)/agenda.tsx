@@ -82,6 +82,11 @@ export default function Agenda() {
     void carregar()
   }, [carregar])
 
+  /* Editar abre o mesmo formulario do cadastro, ja preenchido — NR-152. */
+  function editar(c: CompromissoDaApi) {
+    router.push({ pathname: '/compromisso-novo', params: { compromisso: JSON.stringify(c) } })
+  }
+
   function cancelar(c: CompromissoDaApi) {
     Alert.alert(
       'Cancelar compromisso',
@@ -148,7 +153,12 @@ export default function Agenda() {
                 />
               ) : (
                 hoje.map((c) => (
-                  <LinhaCompromisso key={c.id} item={c} onCancelar={() => cancelar(c)} />
+                  <LinhaCompromisso
+                    key={c.id}
+                    item={c}
+                    onEditar={() => editar(c)}
+                    onCancelar={() => cancelar(c)}
+                  />
                 ))
               )}
             </Secao>
@@ -160,6 +170,7 @@ export default function Agenda() {
                     key={c.id}
                     item={c}
                     mostrarData
+                    onEditar={() => editar(c)}
                     onCancelar={() => cancelar(c)}
                   />
                 ))}
@@ -196,19 +207,22 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 function LinhaCompromisso({
   item,
   mostrarData = false,
+  onEditar,
   onCancelar,
 }: {
   item: CompromissoDaApi
   mostrarData?: boolean
+  onEditar: () => void
   onCancelar: () => void
 }) {
   return (
     <Pressable
+      onPress={onEditar}
       onLongPress={onCancelar}
       style={estilos.compromisso}
       accessibilityRole="button"
       accessibilityLabel={item.title}
-      accessibilityHint="Toque e segure para cancelar"
+      accessibilityHint="Toque para editar; toque e segure para cancelar"
     >
       <View style={estilos.compromissoInfo}>
         <Text style={estilos.compromissoTitulo} numberOfLines={2}>

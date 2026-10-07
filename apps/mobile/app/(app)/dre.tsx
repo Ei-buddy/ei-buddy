@@ -20,6 +20,7 @@ import {
   type TipoDeConta,
 } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
+import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /**
@@ -107,7 +108,15 @@ export default function Relatorio() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Resultado" subtitulo="Quanto sobrou no período" />
+      <Cabecalho
+        titulo="Resultado"
+        subtitulo="Quanto sobrou no período"
+        acao={
+          dre === null ? undefined : (
+            <BotoesExportar lista="dre" filtros={{ from: dre.from, to: dre.to }} />
+          )
+        }
+      />
 
       <View style={estilos.abas}>
         {(['atual', 'anterior'] as const).map((qual) => (

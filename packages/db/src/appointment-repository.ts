@@ -87,6 +87,28 @@ export function createAppointmentRepository(sql: Sql): AppointmentRepository {
       return linha === undefined ? undefined : paraSaida(linha)
     },
 
+    update: async (companyId, id, m) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<Linha[]>`
+          UPDATE appointments
+          SET title = ${m.title},
+              starts_at = ${m.startsAt},
+              ends_at = ${m.endsAt ?? null},
+              location = ${m.location ?? null},
+              customer_id = ${m.customerId ?? null},
+              notes = ${m.notes ?? null},
+              reminder_minutes_before = ${m.reminderMinutesBefore ?? null},
+              updated_at = now()
+          WHERE id = ${id}
+          RETURNING *
+        `,
+      )
+      if (linha === undefined) throw new Error(`Compromisso ${id} nao encontrado para editar.`)
+      return paraSaida(linha)
+    },
+
     listBetween: async (companyId, from, to) => {
       const linhas = await withTenant(
         sql,

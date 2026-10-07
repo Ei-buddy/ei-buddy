@@ -9,6 +9,7 @@ import {
   type VendaHistorico,
 } from '@/lib/vendas-api'
 import { formatDateTime, formatMoney } from '@/lib/format'
+import { compartilharComprovante } from '@/lib/comprovante-da-venda'
 import { hojeLocal } from '@/lib/periodo'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
@@ -17,6 +18,7 @@ import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import CancelarVendaModal from '@/components/CancelarVendaModal'
 import CancelarNotaModal from '@/components/CancelarNotaModal'
 import DevolverItensModal from '@/components/DevolverItensModal'
+import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
@@ -105,7 +107,21 @@ export default function Vendas() {
       <Cabecalho
         titulo="Vendas"
         subtitulo={resumo ? `${resumo.quantidade} venda(s) no período` : undefined}
-        acao={<Botao onPress={() => router.push('/pdv')}>Nova</Botao>}
+        acao={
+          <View style={estilos.topo}>
+            {/* Exportar — NR-155, o mesmo periodo e busca da lista. */}
+            <BotoesExportar
+              lista="vendas"
+              filtros={{
+                q: termo.trim(),
+                ...(inicioDoPeriodo(periodo) === undefined
+                  ? {}
+                  : { from: inicioDoPeriodo(periodo), to: hojeLocal() }),
+              }}
+            />
+            <Botao onPress={() => router.push('/pdv')}>Nova</Botao>
+          </View>
+        }
       />
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
@@ -250,6 +266,19 @@ export default function Vendas() {
                     }
                   />
 
+                  {/* Recibo nao fiscal, para a venda estornada tambem (sai
+                      marcado) — NR-154. */}
+                  <View style={estilos.acoes}>
+                    <Acao
+                      rotulo="Comprovante"
+                      onPress={() =>
+                        void compartilharComprovante(v).then((r) => {
+                          if (!r.ok) Alert.alert('Comprovante', r.erro)
+                        })
+                      }
+                    />
+                  </View>
+
                   {!estornada ? (
                     <View style={estilos.acoes}>
                       {/* Com nota ativa, o servidor recusa estorno e devolucao:
@@ -369,6 +398,7 @@ function Detalhe({
 }
 
 const estilos = StyleSheet.create({
+  topo: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 

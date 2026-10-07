@@ -1,5 +1,6 @@
 import type { Credential } from '@na-regua/contracts'
 import type {
+  IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
@@ -157,7 +158,12 @@ function criarAuth(pool: Pool, config: IdentidadeBetterAuthConfig) {
 }
 
 export class IdentidadeBetterAuth
-  implements IdentityProvider, IdentityRegistrar, PasswordSetter, IdentityPhoneChanger
+  implements
+    IdentityProvider,
+    IdentityRegistrar,
+    PasswordSetter,
+    IdentityPhoneChanger,
+    IdentityAccountEditor
 {
   private readonly pool: Pool
   private readonly auth: ReturnType<typeof criarAuth>
@@ -435,6 +441,24 @@ export class IdentidadeBetterAuth
    * `findUserByEmail` e nao tem equivalente por numero — o plugin resolve isso
    * dentro do proprio endpoint de entrada.
    */
+  /** Meu perfil — NR-153. Pelo `subject`: quem entra pelo celular tem e-mail
+      sintetico, e procurar pelo e-mail nao o acharia. */
+  async setEmail(subject: string, novo: string): Promise<boolean> {
+    const ctx = await this.auth.$context
+    if ((await ctx.internalAdapter.findUserById(subject)) === null) return false
+
+    await ctx.internalAdapter.updateUser(subject, { email: novo, emailVerified: false })
+    return true
+  }
+
+  async setSecretFor(subject: string, secret: string): Promise<boolean> {
+    const ctx = await this.auth.$context
+    if ((await ctx.internalAdapter.findUserById(subject)) === null) return false
+
+    await ctx.internalAdapter.updatePassword(subject, await ctx.password.hash(secret))
+    return true
+  }
+
   private async jaExiste(email: string, phone: string | null): Promise<boolean> {
     const ctx = await this.auth.$context
 

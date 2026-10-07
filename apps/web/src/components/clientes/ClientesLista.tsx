@@ -19,6 +19,7 @@ import { IconPlus, IconSearch, IconUpload } from '@/components/Icons'
 import { COMANDOS_CLIENTES } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ImportarPlanilha from '@/components/app/ImportarPlanilha'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './clientes.module.css'
 
 /**
@@ -207,6 +208,15 @@ export default function ClientesLista() {
         subtitle="Base de clientes, pendências e histórico"
         actions={
           <>
+            {/* O arquivo leva a busca e o filtro aplicados — NR-155. */}
+            <BotoesExportar
+              lista="clientes"
+              filtros={{
+                q: busca.trim(),
+                filter:
+                  filtro === 'pendencia' ? 'fiado' : filtro === 'inativos' ? 'inativos' : 'todos',
+              }}
+            />
             <Button variant="secondary" onClick={() => setImportando(true)}>
               <IconUpload size={17} />
               Importar planilha

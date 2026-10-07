@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   cancelarEvento,
   criarEvento,
+  editarEvento,
   DIAS_SEMANA,
   hoje,
   LEMBRETES,
@@ -43,6 +44,8 @@ export default function AgendaView() {
 
   const [criando, setCriando] = useState(false)
   const [cancelando, setCancelando] = useState<Evento | null>(null)
+  /* Editar usa o mesmo formulario do cadastro — NR-152. */
+  const [editando, setEditando] = useState<Evento | null>(null)
   const [processando, setProcessando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
@@ -260,6 +263,14 @@ export default function AgendaView() {
                   <span className={styles.eventoTags}>
                     <button
                       type="button"
+                      className={styles.eventoEditar}
+                      onClick={() => setEditando(e)}
+                      aria-label={`Editar ${e.titulo}`}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
                       className={styles.eventoExcluir}
                       onClick={() => setCancelando(e)}
                       aria-label={`Cancelar ${e.titulo}`}
@@ -338,6 +349,21 @@ export default function AgendaView() {
         />
       ) : null}
 
+      {editando ? (
+        <FormCompromisso
+          dataInicial={editando.data}
+          editando={editando}
+          onCriado={(salvo) => {
+            /* Troca pelo que o servidor devolveu — a data pode ter mudado de dia. */
+            setEventos((atual) => atual.map((e) => (e.id === salvo.id ? salvo : e)))
+            setDiaSelecionado(salvo.data)
+            setEditando(null)
+            setToast({ msg: 'Compromisso salvo.', tone: 'success' })
+          }}
+          onCancelar={() => setEditando(null)}
+        />
+      ) : null}
+
       {cancelando ? (
         <ConfirmarDialog
           titulo="Cancelar compromisso"
@@ -371,20 +397,27 @@ export default function AgendaView() {
 
 function FormCompromisso({
   dataInicial,
+  editando,
   onCriado,
   onCancelar,
 }: {
   dataInicial: string
+  /** Presente = editar este compromisso (NR-152); ausente = marcar um novo. */
+  editando?: Evento
   onCriado: (evento: Evento) => void
   onCancelar: () => void
 }) {
-  const [titulo, setTitulo] = useState('')
-  const [descricao, setDescricao] = useState('')
+  const [titulo, setTitulo] = useState(editando?.titulo ?? '')
+  const [descricao, setDescricao] = useState(editando?.descricao ?? '')
   const [data, setData] = useState(dataInicial)
-  const [horaInicio, setHoraInicio] = useState('09:00')
-  const [horaFim, setHoraFim] = useState('10:00')
-  const [local, setLocal] = useState('')
-  const [lembrete, setLembrete] = useState<number | null>(30)
+  const [horaInicio, setHoraInicio] = useState(editando?.horaInicio ?? '09:00')
+  const [horaFim, setHoraFim] = useState(
+    editando === undefined ? '10:00' : (editando.horaFim ?? ''),
+  )
+  const [local, setLocal] = useState(editando?.local ?? '')
+  const [lembrete, setLembrete] = useState<number | null>(
+    editando === undefined ? 30 : editando.lembreteMinutos,
+  )
 
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -413,7 +446,7 @@ function FormCompromisso({
     }
 
     setSalvando(true)
-    const r = await criarEvento({
+    const dados = {
       titulo,
       descricao,
       data,
@@ -421,7 +454,9 @@ function FormCompromisso({
       horaFim,
       local,
       lembreteMinutos: lembrete,
-    })
+    }
+    const r =
+      editando === undefined ? await criarEvento(dados) : await editarEvento(editando.id, dados)
     setSalvando(false)
 
     if (!r.ok) {
@@ -448,7 +483,7 @@ function FormCompromisso({
         aria-labelledby="novo-compromisso"
       >
         <h2 id="novo-compromisso" className={styles.dialogTitulo}>
-          Novo compromisso
+          {editando === undefined ? 'Novo compromisso' : 'Editar compromisso'}
         </h2>
 
         <form onSubmit={salvar} noValidate className={styles.formCampos}>
@@ -547,8 +582,10 @@ function FormCompromisso({
                   <Spinner size={15} />
                   Salvando...
                 </>
-              ) : (
+              ) : editando === undefined ? (
                 'Criar compromisso'
+              ) : (
+                'Salvar alterações'
               )}
             </Button>
           </div>

@@ -587,6 +587,7 @@ describe('create_customer — US3 / US-048', () => {
     const tool = tools.find((t) => t.id === 'create_customer')!
     const input = {
       name: 'Joao',
+      document: '52998224725',
       phone: '11988887777',
       address: {
         zipCode: '80010000',
@@ -670,6 +671,7 @@ function produto(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }

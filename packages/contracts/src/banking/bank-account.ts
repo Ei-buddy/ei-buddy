@@ -20,6 +20,14 @@ export const createBankAccountInputSchema = z
 
 export type CreateBankAccountInput = z.infer<typeof createBankAccountInputSchema>
 
+/**
+ * Editar — NR-152. O mesmo formulario do cadastro, inteiro: campo opcional que
+ * nao veio fica vazio. Renomear leva o nome junto nas baixas ja registradas.
+ */
+export const updateBankAccountInputSchema = createBankAccountInputSchema
+
+export type UpdateBankAccountInput = CreateBankAccountInput
+
 export const bankAccountOutputSchema = z.object({
   id: idSchema,
   name: z.string(),

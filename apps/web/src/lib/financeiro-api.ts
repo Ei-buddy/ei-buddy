@@ -444,6 +444,39 @@ export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resultad
   })
 
 /* -------------------------------------------------------------------------- */
+/* Corrigir e cancelar titulo — NR-150                                        */
+/* -------------------------------------------------------------------------- */
+
+/** So o que mudou. Fornecedor so existe na conta a pagar. */
+export type CorrecaoDeTitulo = {
+  supplier?: string
+  description?: string
+  amountCents?: number
+  dueDate?: string
+}
+
+const rotaDoTitulo = (tipo: TipoDeTitulo, id: string) =>
+  `/api/contas-a-${tipo}/${encodeURIComponent(id)}`
+
+export const corrigirTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  mudancas: CorrecaoDeTitulo,
+): Promise<ResultadoContas<unknown>> =>
+  pedir(rotaDoTitulo(tipo, id), { method: 'PATCH', body: JSON.stringify(mudancas) })
+
+/** Cancelar — o titulo fica, com o motivo na trilha. */
+export const cancelarTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  motivo: string,
+): Promise<ResultadoContas<unknown>> =>
+  pedir(`${rotaDoTitulo(tipo, id)}/cancelar`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: motivo }),
+  })
+
+/* -------------------------------------------------------------------------- */
 /* Custos variaveis — percentual sobre o preco de venda                       */
 /* -------------------------------------------------------------------------- */
 
@@ -473,6 +506,17 @@ export const criarCustoVariavel = (
 ): Promise<Resultado<CustoVariavel>> =>
   pedir<CustoVariavelDaApi>('/api/custos-variaveis', {
     method: 'POST',
+    body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
+  }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
+
+/** Editar nome e percentual — NR-152. */
+export const editarCustoVariavel = (
+  id: string,
+  nome: string,
+  percentual: number,
+): Promise<Resultado<CustoVariavel>> =>
+  pedir<CustoVariavelDaApi>(`/api/custos-variaveis/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
   }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
 

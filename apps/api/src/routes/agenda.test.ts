@@ -72,6 +72,21 @@ function agendaEmMemoria() {
       guardados.set(id, cancelado)
       return cancelado
     },
+    update: async (_companyId, id, m) => {
+      const a = guardados.get(id)!
+      const editado = {
+        ...a,
+        title: m.title,
+        startsAt: m.startsAt.toISOString(),
+        endsAt: m.endsAt?.toISOString() ?? null,
+        location: m.location ?? null,
+        customerId: m.customerId ?? null,
+        notes: m.notes ?? null,
+        reminderMinutesBefore: m.reminderMinutesBefore ?? null,
+      }
+      guardados.set(id, editado)
+      return editado
+    },
   }
 
   const reminders: ReminderScheduler = {
@@ -450,5 +465,62 @@ describe('a agenda de um intervalo — o calendario do mes', () => {
     const r = await app.inject({ method: 'GET', url: '/agenda?dia=2026-12-10' })
 
     expect(r.json().isEmpty).toBe(true)
+  })
+})
+
+describe('editar e remarcar — NR-152', () => {
+  it('remarca e o lembrete vai para o horario novo', async () => {
+    const c = await buildApp()
+    app = c.app
+    const criado = await marcar(app, {
+      title: 'Entrega',
+      startsAt: AMANHA,
+      reminderMinutesBefore: 60,
+    })
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/agenda/${criado.json().id}`,
+      payload: {
+        title: 'Entrega',
+        startsAt: '2026-12-11T10:00:00.000Z',
+        reminderMinutesBefore: 30,
+      },
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().startsAt).toBe('2026-12-11T10:00:00.000Z')
+    expect(c.memoria.lembretes.get(criado.json().id)?.toISOString()).toBe(
+      '2026-12-11T09:30:00.000Z',
+    )
+  })
+
+  it('fim antes do inicio e 400, como no cadastro', async () => {
+    const c = await buildApp()
+    app = c.app
+    const criado = await marcar(app, { title: 'Entrega', startsAt: AMANHA })
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/agenda/${criado.json().id}`,
+      payload: { title: 'Entrega', startsAt: AMANHA, endsAt: '2026-12-10T13:00:00.000Z' },
+    })
+
+    expect(r.statusCode).toBe(400)
+  })
+
+  it('cancelado nao se edita: 409', async () => {
+    const c = await buildApp()
+    app = c.app
+    const criado = await marcar(app, { title: 'Entrega', startsAt: AMANHA })
+    await app.inject({ method: 'POST', url: `/agenda/${criado.json().id}/cancelar`, payload: {} })
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/agenda/${criado.json().id}`,
+      payload: { title: 'Entrega', startsAt: AMANHA },
+    })
+
+    expect(r.statusCode).toBe(409)
   })
 })

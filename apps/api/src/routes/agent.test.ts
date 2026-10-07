@@ -296,6 +296,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
   const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
   const argsCadastro = {
     name: 'Joao',
+    document: '52998224725',
     phone: '11 98888-7777',
     address: {
       zipCode: '80010000',
@@ -437,6 +438,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
             minStock: 0,
             category: null,
             supplier: null,
+            isActive: true,
           }
         },
       },
@@ -654,6 +656,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
             minStock: 0,
             category: null,
             supplier: null,
+            isActive: true,
           }
         },
         registerSale: async () => vendaSaida(),

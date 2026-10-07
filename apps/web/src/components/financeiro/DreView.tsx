@@ -12,6 +12,7 @@ import { formatMoney } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, Field, Input, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './dre.module.css'
 
 /**
@@ -112,6 +113,7 @@ export default function DreView() {
       <PageHeader
         title="DRE simplificado"
         subtitle="Receita, custo, despesa e resultado do período"
+        actions={<BotoesExportar lista="dre" filtros={{ from: de, to: ate }} />}
       />
 
       <Card>
