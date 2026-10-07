@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { describeDueDate, formatMoney } from '@/lib/format'
 import {
+  carregarAReceber,
   carregarContasAPagar,
   carregarParaRepor,
+  carregarSemana,
+  carregarTotaisDoCadastro,
   carregarResumoDoDia,
   carregarSaudacao,
   carregarVendasRecentes,
   type ContaAPagar,
+  type DiaDaSemana,
   type ProdutoParaRepor,
   type ResumoDoDia,
   type Saudacao,
@@ -17,7 +29,10 @@ import {
 } from '@/lib/inicio-api'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
-import { Etiqueta } from '@/components/ui/Cartao'
+import Botao from '@/components/ui/Botao'
+import { Cartao, Etiqueta } from '@/components/ui/Cartao'
+import { checklistDispensado, definirMeta, dispensarChecklist, lerMeta } from '@/lib/preferencias'
+import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
@@ -57,6 +72,10 @@ type Estado = {
   vencidas: number
   repor: readonly ProdutoParaRepor[] | null
   vendas: readonly VendaRecente[] | null
+  /* O que o painel do web tambem mostra — NR-161. */
+  semana: Awaited<ReturnType<typeof carregarSemana>>
+  aReceberCents: number | null
+  totais: { produtos: number | null; clientes: number | null }
 }
 
 const VAZIO: Estado = {
@@ -67,6 +86,9 @@ const VAZIO: Estado = {
   vencidas: 0,
   repor: null,
   vendas: null,
+  semana: null,
+  aReceberCents: null,
+  totais: { produtos: null, clientes: null },
 }
 
 export default function Inicio() {
@@ -79,13 +101,17 @@ export default function Inicio() {
   const buscar = useCallback(async () => {
     /* Tudo em paralelo: sao cinco perguntas independentes, e encadea-las
        multiplicaria a espera numa rede de celular por nada. */
-    const [saudacao, resumo, aPagar, repor, vendas] = await Promise.all([
-      carregarSaudacao(),
-      carregarResumoDoDia(),
-      carregarContasAPagar(),
-      carregarParaRepor(),
-      carregarVendasRecentes(),
-    ])
+    const [saudacao, resumo, aPagar, repor, vendas, semana, aReceberCents, totais] =
+      await Promise.all([
+        carregarSaudacao(),
+        carregarResumoDoDia(),
+        carregarContasAPagar(),
+        carregarParaRepor(),
+        carregarVendasRecentes(),
+        carregarSemana(),
+        carregarAReceber(),
+        carregarTotaisDoCadastro(),
+      ])
 
     setEstado({
       saudacao,
@@ -95,6 +121,9 @@ export default function Inicio() {
       vencidas: aPagar.vencidas,
       repor,
       vendas,
+      semana,
+      aReceberCents,
+      totais,
     })
     setCarregando(false)
     setAtualizando(false)
@@ -131,50 +160,69 @@ export default function Inicio() {
           />
         }
       >
-        {/* Numeros do dia: sempre visiveis, sem precisar abrir nada. */}
+        {/* Numeros do dia: sempre visiveis, os mesmos quatro do painel do web. */}
         <View style={estilos.indicadores}>
-          <Indicador
-            rotulo="Vendido hoje"
-            valor={r?.faturamentoCents ?? null}
-            apoio={
-              r?.vendasHoje === null
-                ? undefined
-                : `${r?.vendasHoje ?? 0} vendas${
-                    r?.liquidoCents == null
-                      ? ''
-                      : ` · líquido ${formatMoney(emReais(r.liquidoCents))}`
-                  }`
-            }
-            carregando={carregando}
-            destaque
-          />
-          <Indicador
-            rotulo="A pagar"
-            valor={r?.aPagarCents ?? null}
-            apoio={
-              r === null || r.contasVencidas === null
-                ? undefined
-                : r.contasVencidas > 0
-                  ? `${r.contasVencidas} vencida(s)`
-                  : 'nada vencido'
-            }
-            alerta={(r?.contasVencidas ?? 0) > 0}
-            carregando={carregando}
-          />
-          <Indicador
-            rotulo="Repor"
-            contagem={r?.produtosParaRepor ?? null}
-            apoio={
-              r === null || r.produtosEsgotados === null
-                ? undefined
-                : r.produtosEsgotados > 0
-                  ? `${r.produtosEsgotados} esgotado(s)`
-                  : 'nada esgotado'
-            }
-            alerta={(r?.produtosEsgotados ?? 0) > 0}
-            carregando={carregando}
-          />
+          <View style={estilos.indicadoresLinha}>
+            <Indicador
+              rotulo="Faturamento hoje"
+              valor={r?.faturamentoCents ?? null}
+              apoio={
+                r?.vendasHoje === null
+                  ? undefined
+                  : `${r?.vendasHoje ?? 0} vendas${
+                      r?.liquidoCents == null
+                        ? ''
+                        : ` · líquido ${formatMoney(emReais(r.liquidoCents))}`
+                    }`
+              }
+              carregando={carregando}
+              destaque
+            />
+            <Indicador
+              rotulo="Ticket médio (bruto)"
+              valor={estado.semana?.hoje.averageTicketCents ?? null}
+              apoio={
+                estado.semana === null
+                  ? 'não carregou'
+                  : estado.semana.hoje.averageTicketCents === null
+                    ? 'sem vendas hoje'
+                    : 'por venda'
+              }
+              carregando={carregando}
+            />
+          </View>
+          <View style={estilos.indicadoresLinha}>
+            <Indicador
+              rotulo="A receber"
+              valor={estado.aReceberCents}
+              apoio="em aberto"
+              carregando={carregando}
+            />
+            <Indicador
+              rotulo="A pagar"
+              valor={r?.aPagarCents ?? null}
+              apoio={
+                r === null || r.contasVencidas === null
+                  ? undefined
+                  : r.contasVencidas > 0
+                    ? `${r.contasVencidas} vencida(s)`
+                    : 'nada vencido'
+              }
+              alerta={(r?.contasVencidas ?? 0) > 0}
+              carregando={carregando}
+            />
+          </View>
         </View>
+
+        {carregando ? null : (
+          <PrimeirosPassos
+            totalProdutos={estado.totais.produtos}
+            totalClientes={estado.totais.clientes}
+            temVenda={(estado.vendas?.length ?? 0) > 0}
+          />
+        )}
+
+        <MetaDiaria faturamentoHojeCents={carregando ? null : (r?.faturamentoCents ?? null)} />
 
         {/*
           O atalho principal, com area de toque generosa.
@@ -192,10 +240,20 @@ export default function Inicio() {
         </Pressable>
 
         <Sanfona
-          titulo="Últimas vendas"
-          resumo={estado.vendas === null ? '—' : `${estado.vendas.length} recentes`}
+          titulo="Vendas na semana"
+          resumo={
+            estado.semana === null
+              ? '—'
+              : formatMoney(emReais(estado.semana.dias.reduce((t, d) => t + d.grossCents, 0)))
+          }
           inicialAberta
         >
+          {carregando ? null : estado.semana === null ? (
+            <Text style={estilos.aviso}>Não deu para carregar o gráfico da semana.</Text>
+          ) : (
+            <Grafico dias={estado.semana.dias} />
+          )}
+          <Text style={estilos.subtitulo}>Últimas vendas</Text>
           <Lista
             itens={estado.vendas}
             carregando={carregando}
@@ -215,10 +273,11 @@ export default function Inicio() {
               </View>
             )}
           </Lista>
+          <VerMais rotulo="Ver todas as vendas" onPress={() => router.push('/vendas')} />
         </Sanfona>
 
         <Sanfona
-          titulo="Contas a pagar"
+          titulo="Próximos vencimentos"
           resumo={estado.contas === null ? '—' : formatMoney(emReais(estado.totalAPagarCents))}
           etiqueta={
             estado.vencidas > 0 ? (
@@ -232,7 +291,7 @@ export default function Inicio() {
             vazio="Nenhuma conta em aberto."
             erro="Não deu para carregar as contas."
             chave={(c) => c.id}
-            limite={5}
+            limite={4}
           >
             {(c) => (
               <View style={estilos.linha}>
@@ -248,13 +307,16 @@ export default function Inicio() {
               </View>
             )}
           </Lista>
+          <VerMais rotulo="Ver todas as contas" onPress={() => router.push('/contas-a-pagar')} />
         </Sanfona>
 
         <Sanfona
-          titulo="Precisa repor"
+          titulo="Precisa de reposição"
           resumo={estado.repor === null ? '—' : `${estado.repor.length} produto(s)`}
           etiqueta={
-            (estado.repor?.length ?? 0) > 0 ? (
+            (r?.produtosEsgotados ?? 0) > 0 ? (
+              <Etiqueta tom="erro">{r?.produtosEsgotados} esgotado(s)</Etiqueta>
+            ) : (estado.repor?.length ?? 0) > 0 ? (
               <Etiqueta tom="atencao">estoque baixo</Etiqueta>
             ) : undefined
           }
@@ -278,6 +340,7 @@ export default function Inicio() {
               </View>
             )}
           </Lista>
+          <VerMais rotulo="Ver catálogo" onPress={() => router.push('/catalogo')} />
         </Sanfona>
       </ScrollView>
     </SafeAreaView>
@@ -285,6 +348,220 @@ export default function Inicio() {
 }
 
 /* ------------------------------------------------------------------ */
+
+function VerMais({ rotulo, onPress }: { rotulo: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link" style={estilos.verMais}>
+      <Text style={estilos.verMaisTexto}>{rotulo} →</Text>
+    </Pressable>
+  )
+}
+
+/**
+ * As barras da semana — o mesmo grafico do painel do web.
+ *
+ * A altura e relativa ao MAIOR dia, como no web: o que se quer ver de relance
+ * e qual dia vendeu mais. Semana sem venda deixa todas as barras no chao.
+ */
+function Grafico({ dias }: { dias: readonly DiaDaSemana[] }) {
+  const maior = Math.max(...dias.map((d) => d.grossCents), 0)
+  return (
+    <View style={estilos.grafico}>
+      {dias.map((d) => (
+        <View
+          key={d.dia}
+          style={estilos.graficoColuna}
+          accessible
+          accessibilityLabel={`${d.rotulo}: ${formatMoney(emReais(d.grossCents))} em ${d.salesCount} vendas`}
+        >
+          <View style={estilos.graficoTrilho}>
+            <View
+              style={[
+                estilos.graficoBarra,
+                { height: maior === 0 ? 0 : `${(d.grossCents / maior) * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={estilos.graficoDia}>{d.rotulo}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
+
+/**
+ * "Primeiros passos" — o mesmo checklist do web (NR-104). Some quando os tres
+ * passos estao feitos ou quando a pessoa dispensa.
+ */
+function PrimeirosPassos({
+  totalProdutos,
+  totalClientes,
+  temVenda,
+}: {
+  totalProdutos: number | null
+  totalClientes: number | null
+  temVenda: boolean
+}) {
+  const router = useRouter()
+  const [dispensado, setDispensado] = useState(true)
+
+  useEffect(() => {
+    void checklistDispensado().then(setDispensado)
+  }, [])
+
+  const itens = [
+    {
+      titulo: 'Cadastre seu primeiro produto',
+      feito: (totalProdutos ?? 0) > 0,
+      rota: '/produto-novo',
+    },
+    {
+      titulo: 'Cadastre seu primeiro cliente',
+      feito: (totalClientes ?? 0) > 0,
+      rota: '/cliente-form',
+    },
+    { titulo: 'Registre sua primeira venda', feito: temVenda, rota: '/pdv' },
+  ] as const
+  const feitos = itens.filter((i) => i.feito).length
+  if (dispensado || feitos === itens.length) return null
+
+  return (
+    <Cartao
+      titulo="Primeiros passos"
+      acao={
+        <Pressable
+          onPress={() => {
+            setDispensado(true)
+            void dispensarChecklist()
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Dispensar primeiros passos"
+          hitSlop={10}
+        >
+          <Text style={estilos.fechar}>✕</Text>
+        </Pressable>
+      }
+    >
+      <Text style={estilos.apoio}>
+        {feitos} de {itens.length} concluídos
+      </Text>
+      {itens.map((i) =>
+        i.feito ? (
+          <View key={i.titulo} style={estilos.passo}>
+            <Text style={estilos.passoFeito}>✓ {i.titulo}</Text>
+          </View>
+        ) : (
+          <Pressable
+            key={i.titulo}
+            onPress={() => router.push(i.rota)}
+            accessibilityRole="link"
+            style={estilos.passo}
+          >
+            <View style={estilos.bolinha} />
+            <Text style={estilos.passoTexto}>{i.titulo}</Text>
+          </Pressable>
+        ),
+      )}
+    </Cartao>
+  )
+}
+
+/**
+ * A meta diaria de faturamento — a mesma do web (NR-104), guardada no
+ * aparelho. Sem meta, um convite; com meta, a barra de progresso.
+ */
+function MetaDiaria({ faturamentoHojeCents }: { faturamentoHojeCents: number | null }) {
+  const [meta, setMeta] = useState<number | null>(null)
+  const [editando, setEditando] = useState(false)
+  const [valor, setValor] = useState('')
+
+  useEffect(() => {
+    void lerMeta().then(setMeta)
+  }, [])
+
+  function editar() {
+    setValor(meta === null ? '' : (meta / 100).toFixed(2).replace('.', ','))
+    setEditando(true)
+  }
+
+  async function salvar() {
+    const centavos = centavosDoTexto(valor)
+    const nova = centavos !== null && centavos > 0 ? centavos : null
+    await definirMeta(nova)
+    setMeta(nova)
+    setEditando(false)
+  }
+
+  if (editando) {
+    return (
+      <Cartao titulo="Meta diária de faturamento">
+        <View style={estilos.metaLinha}>
+          <Text style={estilos.apoio}>R$</Text>
+          <TextInput
+            style={estilos.metaInput}
+            value={valor}
+            onChangeText={setValor}
+            keyboardType="decimal-pad"
+            placeholder="0,00"
+            placeholderTextColor={cores.textoFraco}
+            accessibilityLabel="Meta diária de faturamento"
+            autoFocus
+          />
+        </View>
+        <View style={estilos.metaAcoes}>
+          <Botao variante="secundario" onPress={() => setEditando(false)}>
+            Cancelar
+          </Botao>
+          <Botao onPress={() => void salvar()}>Salvar</Botao>
+        </View>
+      </Cartao>
+    )
+  }
+
+  if (meta === null) {
+    return (
+      <Pressable onPress={editar} accessibilityRole="button" style={estilos.metaConvite}>
+        <Text style={estilos.apoio}>
+          Defina uma meta diária de faturamento para acompanhar seu progresso aqui.
+        </Text>
+        <Text style={estilos.verMaisTexto}>Definir meta</Text>
+      </Pressable>
+    )
+  }
+
+  const bateu = faturamentoHojeCents !== null && faturamentoHojeCents >= meta
+  const progresso =
+    faturamentoHojeCents === null ? 0 : Math.min(100, (faturamentoHojeCents / meta) * 100)
+  const faltam = faturamentoHojeCents === null ? null : Math.max(0, meta - faturamentoHojeCents)
+
+  return (
+    <Cartao
+      titulo={bateu ? 'Meta do dia batida! 🎉' : 'Meta do dia'}
+      acao={
+        <Pressable onPress={editar} accessibilityRole="button" hitSlop={10}>
+          <Text style={estilos.verMaisTexto}>Editar meta</Text>
+        </Pressable>
+      }
+    >
+      <View style={estilos.metaTrilho}>
+        <View
+          style={[
+            estilos.metaBarra,
+            bateu && estilos.metaBarraCompleta,
+            { width: `${progresso}%` },
+          ]}
+        />
+      </View>
+      <Text style={estilos.apoio}>
+        {faturamentoHojeCents === null
+          ? `Meta: ${formatMoney(emReais(meta))} · ainda não deu para saber quanto você já vendeu hoje`
+          : bateu
+            ? `${formatMoney(emReais(faturamentoHojeCents))} de ${formatMoney(emReais(meta))}`
+            : `${formatMoney(emReais(faturamentoHojeCents))} de ${formatMoney(emReais(meta))} · faltam ${formatMoney(emReais(faltam ?? 0))}`}
+      </Text>
+    </Cartao>
+  )
+}
 
 /**
  * Uma lista com os tres desfechos que ela pode ter.
@@ -409,7 +686,8 @@ const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.md, gap: espaco.md, paddingBottom: espaco.xxl },
 
-  indicadores: { flexDirection: 'row', gap: espaco.sm },
+  indicadores: { gap: espaco.sm },
+  indicadoresLinha: { flexDirection: 'row', gap: espaco.sm },
   indicador: {
     ...vidro.peca,
     flex: 1,
@@ -483,4 +761,73 @@ const estilos = StyleSheet.create({
   esqueletoValor: { height: 22, marginTop: espaco.xs, flex: 0, width: '70%' },
 
   aviso: { fontSize: fonte.pequeno, color: cores.textoFraco, paddingVertical: espaco.sm },
+  apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  subtitulo: {
+    marginTop: espaco.md,
+    marginBottom: espaco.xs,
+    fontSize: fonte.micro,
+    fontWeight: peso.forte,
+    color: cores.textoFraco,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+
+  verMais: {
+    alignSelf: 'flex-end',
+    paddingTop: espaco.sm,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  verMaisTexto: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
+
+  grafico: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco.sm, height: 132 },
+  graficoColuna: { flex: 1, alignItems: 'center', gap: espaco.xs, height: '100%' },
+  graficoTrilho: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'flex-end',
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+    overflow: 'hidden',
+  },
+  graficoBarra: { width: '100%', borderRadius: raio.sm, backgroundColor: cores.acento },
+  graficoDia: { fontSize: fonte.micro, color: cores.textoFraco },
+
+  fechar: { fontSize: fonte.corpo, color: cores.textoFraco },
+  passo: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm, minHeight: 40 },
+  bolinha: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: cores.acento,
+  },
+  passoTexto: { fontSize: fonte.pequeno, color: cores.texto },
+  passoFeito: { fontSize: fonte.pequeno, color: cores.sucesso },
+
+  metaConvite: {
+    ...vidro.peca,
+    gap: espaco.xs,
+    padding: espaco.lg,
+    borderRadius: raio.lg,
+  },
+  metaLinha: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },
+  metaInput: {
+    ...vidro.campo,
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: espaco.md,
+    borderRadius: raio.sm,
+    fontSize: fonte.corpo,
+    color: cores.texto,
+  },
+  metaAcoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco.sm },
+  metaTrilho: {
+    height: 10,
+    borderRadius: raio.pill,
+    backgroundColor: cores.campo,
+    overflow: 'hidden',
+  },
+  metaBarra: { height: '100%', borderRadius: raio.pill, backgroundColor: cores.ativo },
+  metaBarraCompleta: { backgroundColor: cores.acento },
 })
