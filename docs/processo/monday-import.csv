@@ -113,3 +113,4 @@ NR-147 — Sino de avisos zera ao ser visto e atualiza ao navegar,Sprint 6 — C
 NR-148 — Campos obrigatorios marcados nos cadastros de produto e cliente,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-009, RF-014, RNF-052",docs/processo/task-ledger.md
 NR-149 — CPF/CNPJ obrigatorio no cadastro de cliente (web e app iguais),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts web mobile,"RF-009, DEC-025",docs/processo/task-ledger.md
 NR-150 — Corrigir e cancelar conta a pagar/receber sem baixa (web e app iguais),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts core db api web mobile,"RF-055, RF-065",docs/processo/task-ledger.md
+"NR-151 — Inativar e reativar produto: sai do PDV e da venda, fica no historico (web e app iguais)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts core db api web mobile,"RF-017, RF-019",docs/processo/task-ledger.md

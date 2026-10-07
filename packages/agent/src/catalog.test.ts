@@ -671,6 +671,7 @@ function produto(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }

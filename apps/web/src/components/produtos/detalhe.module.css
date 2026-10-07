@@ -217,3 +217,18 @@
     grid-column: span 2;
   }
 }
+
+/* Aviso de produto inativo — NR-151. */
+.avisoInativo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--app-field);
+  color: var(--app-muted);
+  font-size: 14px;
+}

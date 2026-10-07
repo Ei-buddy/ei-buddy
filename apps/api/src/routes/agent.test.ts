@@ -438,6 +438,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
             minStock: 0,
             category: null,
             supplier: null,
+            isActive: true,
           }
         },
       },
@@ -655,6 +656,7 @@ describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
             minStock: 0,
             category: null,
             supplier: null,
+            isActive: true,
           }
         },
         registerSale: async () => vendaSaida(),
