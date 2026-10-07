@@ -26,6 +26,7 @@ import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
 import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_PRODUTOS, validarProduto } from '@/lib/campos-de-importacao'
+import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
@@ -170,6 +171,17 @@ export default function Catalogo() {
           accessibilityLabel="Buscar produto"
         />
         <Botao onPress={() => setLendo(true)}>{consultando ? '...' : 'Bipar'}</Botao>
+      </View>
+      <View style={estilos.exportarLinha}>
+        {/* Exportar — NR-155, com a busca e o filtro aplicados. */}
+        <BotoesExportar
+          lista="produtos"
+          filtros={
+            estoque === 'inativos'
+              ? { q: busca.trim(), situacao: 'inativos' }
+              : { q: busca.trim(), stock: estoque }
+          }
+        />
       </View>
 
       <View style={estilos.filtros}>
@@ -321,6 +333,7 @@ const estilos = StyleSheet.create({
   resumoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   tela: { flex: 1, backgroundColor: cores.fundo },
   acoesTopo: { flexDirection: 'row', gap: espaco.sm },
+  exportarLinha: { paddingHorizontal: espaco.lg, alignItems: 'flex-end' },
 
   cabecalho: { paddingHorizontal: espaco.lg, paddingTop: espaco.md, gap: 2 },
   titulo: { fontSize: fonte.display, fontWeight: peso.pesado, color: cores.texto },

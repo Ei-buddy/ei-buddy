@@ -18,6 +18,7 @@ import { IconBox, IconPlus, IconSearch, IconUpload } from '@/components/Icons'
 import { COMANDOS_PRODUTOS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ImportarPlanilha from '@/components/app/ImportarPlanilha'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './produtos.module.css'
 
 /**
@@ -213,6 +214,15 @@ export default function ProdutosLista() {
         subtitle="Catálogo, preços e estoque"
         actions={
           <>
+            {/* O arquivo leva os filtros aplicados — NR-155. */}
+            <BotoesExportar
+              lista="produtos"
+              filtros={{
+                q: busca.trim(),
+                stock: filtroEstoque,
+                ...(inativos ? { situacao: 'inativos' } : {}),
+              }}
+            />
             <Button variant="secondary" onClick={() => setImportandoPlanilha(true)}>
               <IconUpload size={17} />
               Importar planilha

@@ -13,6 +13,7 @@ import { formatMoney } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, Field, Input, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './relatorios.module.css'
 
 /**
@@ -150,6 +151,7 @@ export default function RelatoriosView() {
       <PageHeader
         title="Relatórios"
         subtitle="Faturamento mês a mês, e quem é o que puxou esse dinheiro"
+        actions={<BotoesExportar lista="faturamento" filtros={{ from: de, to: ate }} />}
       />
 
       <Card>
@@ -285,7 +287,12 @@ function Sobra({ rotulo, cents }: { rotulo: string; cents: number }) {
 function Clientes({ dados }: { dados: RankingDeClientes }) {
   return (
     <section className={styles.bloco}>
-      <h2 className={styles.blocoTitulo}>Clientes que mais compraram</h2>
+      <div className={styles.blocoCabecalho}>
+        <h2 className={styles.blocoTitulo}>Clientes que mais compraram</h2>
+        <span className={styles.blocoAcoes}>
+          <BotoesExportar lista="ranking-clientes" filtros={{ from: dados.from, to: dados.to }} />
+        </span>
+      </div>
 
       {dados.customers.length === 0 ? (
         <p className={styles.aviso}>Nenhuma venda com cliente identificado neste período.</p>
@@ -313,7 +320,12 @@ function Clientes({ dados }: { dados: RankingDeClientes }) {
 function Produtos({ dados }: { dados: RankingDeProdutos }) {
   return (
     <section className={styles.bloco}>
-      <h2 className={styles.blocoTitulo}>Produtos mais vendidos</h2>
+      <div className={styles.blocoCabecalho}>
+        <h2 className={styles.blocoTitulo}>Produtos mais vendidos</h2>
+        <span className={styles.blocoAcoes}>
+          <BotoesExportar lista="ranking-produtos" filtros={{ from: dados.from, to: dados.to }} />
+        </span>
+      </div>
 
       {dados.products.length === 0 ? (
         <p className={styles.aviso}>Nenhum produto do cadastro foi vendido neste período.</p>
