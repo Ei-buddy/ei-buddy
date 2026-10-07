@@ -469,7 +469,13 @@ export type { IdentityRegistrar } from './ports/identity.js'
 export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
 export { changePhone, currentPhone } from './auth/change-phone.js'
 export type { ChangePhoneDeps, QuemTroca } from './auth/change-phone.js'
-export type { IdentityPhoneChanger, UserContacts } from './ports/phone-change.js'
+export type {
+  IdentityAccountEditor,
+  IdentityPhoneChanger,
+  UserContacts,
+} from './ports/phone-change.js'
+export { changeEmail, changeName, changePassword, myAccount } from './auth/my-account.js'
+export type { MyAccountDeps } from './auth/my-account.js'
 export type { RequestPasswordResetDeps, ResetPasswordDeps } from './auth/password-reset.js'
 export type { EmailSender, PasswordResetTokens, PasswordSetter } from './ports/password-reset.js'
 export {

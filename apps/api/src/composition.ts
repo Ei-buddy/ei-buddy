@@ -51,6 +51,7 @@ import {
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
 import type {
+  IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
@@ -402,6 +403,8 @@ export function buildAuthDeps(): AuthRouteDeps {
     /* Trocar o celular — RF-132: o contato no banco e o mesmo provedor do login. */
     contacts: createUserContacts(sql),
     phoneChanger: identidade,
+    /* Meu perfil — NR-153: e-mail e senha no mesmo provedor do login. */
+    editor: identidade,
   }
 }
 
@@ -431,7 +434,8 @@ const MINIMO_DE_SENHA = 8
 export function criarIdentidade(): IdentityProvider &
   IdentityRegistrar &
   PasswordSetter &
-  IdentityPhoneChanger {
+  IdentityPhoneChanger &
+  IdentityAccountEditor {
   if (env.AUTH_PROVIDER === 'better-auth') {
     if (env.BETTER_AUTH_SECRET === undefined) {
       /*
