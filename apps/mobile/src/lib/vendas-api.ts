@@ -274,6 +274,8 @@ export type VendaHistorico = {
   status: 'concluida' | 'estornada'
   /** Quanto ja foi devolvido em devolucoes parciais, em reais. */
   devolvidoValor: number
+  /** Troco devolvido em dinheiro — NR-156. */
+  troco: number
 }
 
 /**
@@ -324,6 +326,7 @@ export function listarVendas(): VendaHistorico[] {
       nota: { tipo: 'nfce', numero: '4187' },
       status: 'concluida',
       devolvidoValor: 0,
+      troco: 0,
     },
     {
       id: 'ven-2',
@@ -348,6 +351,7 @@ export function listarVendas(): VendaHistorico[] {
       nota: { tipo: 'nfce', numero: '4186' },
       status: 'concluida',
       devolvidoValor: 0,
+      troco: 0,
     },
     {
       id: 'ven-3',
@@ -379,6 +383,7 @@ export function listarVendas(): VendaHistorico[] {
       nota: { tipo: 'nfce', numero: '4185' },
       status: 'concluida',
       devolvidoValor: 0,
+      troco: 0,
     },
     {
       id: 'ven-4',
@@ -403,6 +408,7 @@ export function listarVendas(): VendaHistorico[] {
       nota: { tipo: 'nfce', numero: '4181' },
       status: 'concluida',
       devolvidoValor: 0,
+      troco: 0,
     },
     {
       id: 'ven-5',
@@ -427,6 +433,7 @@ export function listarVendas(): VendaHistorico[] {
       nota: null,
       status: 'estornada',
       devolvidoValor: 0,
+      troco: 0,
     },
   ]
 }
@@ -451,6 +458,7 @@ type VendaDaApi = {
   netAmountCents: number
   taxAmountCents: number
   returnedAmountCents: number
+  changeCents?: number
   items: {
     productId: string | null
     description: string
@@ -557,6 +565,7 @@ export async function listarHistoricoDeVendas(
       /* Devolvida por inteiro conta como estornada: nada dela ficou vendido. */
       status: v.status === 'returned' || v.status === 'cancelled' ? 'estornada' : 'concluida',
       devolvidoValor: v.returnedAmountCents / 100,
+      troco: (v.changeCents ?? 0) / 100,
     })),
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Card, Field, FormGrid, Input, LegendaObrigatorio, PageHeader } from '@/components/ui/UI'
 import { Button } from '@/components/ui/Button'
 import {
+  avisarPerfilAlterado,
   carregarMinhaConta,
   type MinhaConta,
   trocarEmail,
@@ -108,6 +109,7 @@ function SeusDados({ conta, aoSalvar }: { conta: MinhaConta; aoSalvar: (c: Minha
     setSalvando(false)
     setSenha('')
     aoSalvar(atual)
+    if (atual.name !== conta.name) avisarPerfilAlterado()
     setMensagem({
       tom: 'ok',
       texto: mudouEmail

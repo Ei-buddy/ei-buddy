@@ -30,6 +30,7 @@ type VendaDaApi = {
   taxAmountCents: number
   cardFeeAmountCents: number
   returnedAmountCents: number
+  changeCents?: number
   items: {
     productId: string | null
     description: string
@@ -95,6 +96,7 @@ export async function buscarVenda(id: string): Promise<VendaDoHistorico | null> 
     imposto: reais(v.taxAmountCents),
     taxaCartao: reais(v.cardFeeAmountCents),
     devolvidoValor: reais(v.returnedAmountCents),
+    troco: reais(v.changeCents ?? 0),
     itens: v.items.map((i) => ({
       produtoId: i.productId,
       descricao: i.description,

@@ -77,6 +77,7 @@ export default function ComprovanteVenda({ venda }: { venda: VendaDoHistorico })
           valor: p.valor,
           parcelas: p.parcelas,
         })),
+        troco: venda.troco,
         situacao:
           venda.status === 'cancelled'
             ? 'cancelada'

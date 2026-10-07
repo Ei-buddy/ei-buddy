@@ -359,6 +359,7 @@ describe('historico de vendas — NR-027, US-021', () => {
     taxAmountCents: 0,
     cardFeeAmountCents: 0,
     returnedAmountCents: 0,
+    changeCents: 0,
     items: [
       {
         productId: null,

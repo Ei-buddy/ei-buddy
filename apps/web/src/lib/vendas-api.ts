@@ -503,6 +503,8 @@ export type VendaDoHistorico = {
   taxaCartao: number
   /** Ja devolvido ao cliente, somando as devolucoes — RF-044. */
   devolvidoValor: number
+  /** Troco devolvido em dinheiro — NR-156. */
+  troco: number
   itens: ItemDaVenda[]
   pagamentos: PagamentoDaVenda[]
   notaNumero: number | null
@@ -538,6 +540,7 @@ type VendaDaApi = {
   taxAmountCents: number
   cardFeeAmountCents: number
   returnedAmountCents: number
+  changeCents?: number
   items: {
     productId: string | null
     description: string
@@ -569,6 +572,7 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
   imposto: reais(v.taxAmountCents),
   taxaCartao: reais(v.cardFeeAmountCents),
   devolvidoValor: reais(v.returnedAmountCents),
+  troco: reais(v.changeCents ?? 0),
   itens: v.items.map((i) => ({
     produtoId: i.productId,
     descricao: i.description,

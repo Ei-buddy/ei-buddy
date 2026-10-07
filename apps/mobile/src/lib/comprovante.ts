@@ -30,7 +30,10 @@ export type DadosDoComprovante = {
     bruto: number
     desconto: number
     total: number
+    /** Ja sem o troco: e o que ficou com a loja. */
     pagamentos: { forma: string; valor: number; parcelas: number | null }[]
+    /** Troco devolvido em dinheiro — NR-156. Zero quando nao houve. */
+    troco?: number
     /** Cancelada ou devolvida sai marcada: recibo de venda desfeita engana. */
     situacao: 'normal' | 'cancelada' | 'devolvida'
   }
@@ -125,9 +128,11 @@ export function montarComprovante({ loja, venda }: DadosDoComprovante): string {
     const forma = p.parcelas !== null && p.parcelas > 1 ? `${p.forma} ${p.parcelas}x` : p.forma
     l.push(colunas(forma, dinheiro(p.valor)))
   }
-  const pago = venda.pagamentos.reduce((s, p) => s + p.valor, 0)
-  const troco = Math.round((pago - venda.total) * 100) / 100
-  if (troco > 0) l.push(colunas('Troco', dinheiro(troco)))
+  const troco = venda.troco ?? 0
+  if (troco > 0) {
+    l.push(colunas('Recebido', dinheiro(venda.total + troco)))
+    l.push(colunas('Troco', dinheiro(troco)))
+  }
 
   l.push(linha())
   l.push(centro('Obrigado pela preferencia!'))
