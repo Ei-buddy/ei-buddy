@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LARGURA, montarComprovante, type DadosDoComprovante } from './comprovante'
+import { LARGURA, montarComprovante, montarOrcamento, type DadosDoComprovante } from './comprovante'
 
 /**
  * Comprovante nao fiscal — NR-154. O web tem o MESMO teste
@@ -96,5 +96,31 @@ describe('comprovante nao fiscal — NR-154', () => {
 
     expect(t).not.toContain('Cliente:')
     expect(t).not.toContain('Subtotal')
+  })
+})
+
+describe('orcamento — NR-159', () => {
+  const texto = montarOrcamento({
+    loja: base.loja,
+    orcamento: {
+      numero: 7,
+      emitido: '07/10/2026',
+      validoAte: '17/10/2026',
+      cliente: 'Joana',
+      itens: [{ descricao: 'Tinta 18L', quantidade: 2, precoUnitario: 300, total: 600 }],
+      bruto: 600,
+      desconto: 50,
+      total: 550,
+      observacoes: 'Entrega em 3 dias',
+    },
+  })
+
+  it('tem cabecalho, validade e total, sem passar da bobina', () => {
+    expect(texto).toContain('ORCAMENTO')
+    expect(texto).toContain('Orcamento #7')
+    expect(texto).toContain('Valido ate 17/10/2026')
+    expect(texto).toMatch(/TOTAL\s+R\$ 550,00/)
+    expect(texto).toContain('Obs.: Entrega em 3 dias')
+    for (const l of texto.split('\n')) expect(l.length).toBeLessThanOrEqual(LARGURA)
   })
 })

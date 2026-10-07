@@ -17,6 +17,7 @@ import {
   type ClienteDaLista,
 } from '@/lib/clientes-api'
 import { buscarCep, UFS } from '@/lib/empresa-api'
+import { carregarOrcamento, converterOrcamento, type Orcamento } from '@/lib/orcamentos-api'
 import { formatDate, formatMoney } from '@/lib/format'
 import { maskCEP, maskCPF, maskPhone, validateCPF } from '@/lib/validation'
 import { Card, EmptyState, PageHeader } from '@/components/ui/UI'
@@ -51,7 +52,7 @@ export type ClienteVenda = {
  * para trocar o cliente ou acrescentar um item nao pode custar o que ja
  * foi montado.
  */
-export default function PdvWizard() {
+export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string | null }) {
   const router = useRouter()
 
   const [etapa, setEtapa] = useState<Etapa>(1)
@@ -82,6 +83,51 @@ export default function PdvWizard() {
   const [vendaNumero, setVendaNumero] = useState<string | null>(null)
   const [fechando, setFechando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+  /** O orcamento que esta virando venda — NR-159. */
+  const [orcamento, setOrcamento] = useState<Orcamento | null>(null)
+
+  /* Com `?orcamento=`, o carrinho chega montado com os precos prometidos. O
+     cliente e o pagamento continuam escolhidos aqui, como em qualquer venda. */
+  useEffect(() => {
+    if (orcamentoId === null) return
+    let cancelado = false
+    void carregarOrcamento(orcamentoId).then((r) => {
+      if (cancelado) return
+      if (!r.ok) return setToast({ msg: r.erro, tone: 'error' })
+      if (r.dados.status !== 'open') {
+        return setToast({
+          msg: `O orçamento nº ${r.dados.number} não está mais em aberto.`,
+          tone: 'error',
+        })
+      }
+      const ativos = r.dados.items.filter((i) => i.isActive)
+      setItens(
+        ativos.map((i) => ({
+          produtoId: i.productId,
+          codigo: i.code,
+          descricao: i.description,
+          precoUnitario: i.unitPriceCents / 100,
+          precoCusto: i.costPriceCents / 100,
+          quantidade: i.quantity,
+          estoqueDisponivel: i.stock,
+        })),
+      )
+      if (r.dados.discountCents > 0) {
+        setDesconto({ tipo: 'valor', quantia: r.dados.discountCents / 100 })
+      }
+      setOrcamento(r.dados)
+      setToast({
+        msg:
+          ativos.length < r.dados.items.length
+            ? `Orçamento nº ${r.dados.number} carregado, sem os produtos que foram inativados.`
+            : `Orçamento nº ${r.dados.number} carregado. Escolha o cliente para seguir.`,
+        tone: ativos.length < r.dados.items.length ? 'error' : 'success',
+      })
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [orcamentoId])
 
   const total = useMemo(() => totalCarrinho(itens, desconto), [itens, desconto])
 
@@ -120,10 +166,19 @@ export default function PdvWizard() {
       setToast({ msg: `Esta venda já tinha sido fechada (nº ${r.numero}).`, tone: 'success' })
     }
 
+    if (orcamento !== null) {
+      /* A venda ja entrou; marcar o orcamento e consequencia. Se falhar, a
+         venda continua valendo e o lojista fica sabendo. */
+      const c = await converterOrcamento(orcamento.id, r.id)
+      if (!c.ok && !r.reenvio) {
+        setToast({ msg: `Venda feita, mas o orçamento não foi marcado: ${c.erro}`, tone: 'error' })
+      }
+    }
+
     setVendaId(r.id)
     setVendaNumero(r.numero)
     setEtapa(4)
-  }, [cliente, itens, desconto, pagamentos])
+  }, [cliente, itens, desconto, pagamentos, orcamento])
 
   function cancelarVenda() {
     /* Carrinho novo, chave nova: a proxima venda nao pode ser confundida com
@@ -133,6 +188,7 @@ export default function PdvWizard() {
     setDesconto(null)
     setPagamentos([])
     setCliente(null)
+    setOrcamento(null)
     setEtapa(1)
     setToast({ msg: 'Venda cancelada. O carrinho foi esvaziado.', tone: 'success' })
   }
@@ -144,7 +200,9 @@ export default function PdvWizard() {
         subtitle={
           cliente
             ? `${cliente.nome}${itens.length ? ` · ${itens.length} item(ns) · ${formatMoney(total)}` : ''}`
-            : 'Balcao'
+            : orcamento
+              ? `Orçamento nº ${orcamento.number}`
+              : 'Balcao'
         }
         actions={
           <ButtonLink href="/app/vendas" variant="secondary">

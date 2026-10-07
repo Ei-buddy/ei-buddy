@@ -43,6 +43,7 @@ import {
   IconCash,
   IconChart,
   IconChevronDown,
+  IconClipboard,
   IconChevronLeft,
   IconClose,
   IconHeart,
@@ -74,6 +75,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: '/app', label: 'Tela principal', icon: IconChart },
   { href: '/app/vendas', label: 'Vendas', icon: IconBag },
+  { href: '/app/orcamentos', label: 'Orçamentos', icon: IconClipboard },
   { href: '/app/caixa', label: 'Caixa', icon: IconCash },
   { href: '/app/clientes', label: 'Clientes', icon: IconUsers },
   { href: '/app/produtos', label: 'Produtos', icon: IconBox },

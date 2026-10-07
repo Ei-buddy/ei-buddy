@@ -376,6 +376,8 @@ describe.skipIf(!DATABASE_URL)('privacidade — NR-086', () => {
         'inventory_movements',
         'purchases',
         'purchase_items',
+        'quotes',
+        'quote_items',
         'appointments',
         'ledger_accounts',
         'bank_transactions',

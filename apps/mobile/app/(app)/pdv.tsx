@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import {
   Alert,
@@ -37,6 +37,7 @@ import {
 } from '@/lib/vendas-api'
 import { buscarEan, type ProdutoLido } from '@/lib/produtos-api'
 import { vencidoDoCliente } from '@/lib/clientes-api'
+import { carregarOrcamento, converterOrcamento, type Orcamento } from '@/lib/orcamentos-api'
 import type { FormaPagamento } from '@/lib/types'
 import { formatMoney } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
@@ -66,6 +67,9 @@ const emTexto = (centavos: number) => (Math.max(centavos, 0) / 100).toFixed(2).r
  */
 export default function Pdv() {
   const router = useRouter()
+  /* `?orcamento=<id>`: o carrinho chega montado com os precos prometidos — NR-159. */
+  const { orcamento: orcamentoId } = useLocalSearchParams<{ orcamento?: string }>()
+  const [orcamento, setOrcamento] = useState<Orcamento | null>(null)
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [lendo, setLendo] = useState(false)
   const [buscando, setBuscando] = useState(false)
@@ -123,6 +127,40 @@ export default function Pdv() {
         }))
   const falta = faltaPagarCentavos(totalCentavos, pagamentos)
   const temFiado = pagamentos.some((p) => p.forma === 'carteira')
+
+  useEffect(() => {
+    if (!orcamentoId) return
+    let cancelado = false
+    void carregarOrcamento(orcamentoId).then((r) => {
+      if (cancelado) return
+      if (!r.ok) return Alert.alert('Orçamento', r.erro)
+      if (r.dados.status !== 'open') {
+        return Alert.alert('Orçamento', `O orçamento nº ${r.dados.number} não está mais em aberto.`)
+      }
+      const ativos = r.dados.items.filter((i) => i.isActive)
+      setItens(
+        ativos.map((i) => ({
+          produtoId: i.productId,
+          codigo: i.code,
+          descricao: i.description,
+          precoUnitario: i.unitPriceCents / 100,
+          precoCusto: i.costPriceCents / 100,
+          quantidade: i.quantity,
+          estoqueDisponivel: i.stock,
+        })),
+      )
+      setDesconto(
+        r.dados.discountCents > 0 ? { tipo: 'valor', quantia: r.dados.discountCents / 100 } : null,
+      )
+      setOrcamento(r.dados)
+      if (ativos.length < r.dados.items.length) {
+        Alert.alert('Orçamento', 'Produtos que foram inativados ficaram fora do carrinho.')
+      }
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [orcamentoId])
 
   /* O aviso de divida vem do servidor quando o cliente muda. */
   useEffect(() => {
@@ -200,6 +238,7 @@ export default function Pdv() {
     setDesconto(null)
     setPartes(null)
     setParcelas(1)
+    setOrcamento(null)
   }
 
   function cancelar() {
@@ -274,6 +313,12 @@ export default function Pdv() {
       return
     }
 
+    if (orcamento !== null) {
+      /* A venda ja entrou; marcar o orcamento e consequencia. */
+      const c = await converterOrcamento(orcamento.id, r.venda.id)
+      if (!c.ok) Alert.alert('Venda feita', `Mas o orçamento não foi marcado: ${c.erro}`)
+    }
+
     chaveDoFechamento.current = null
     limparVenda()
     setResumo(r.venda)
@@ -315,7 +360,11 @@ export default function Pdv() {
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <Cabecalho
         titulo="Venda"
-        subtitulo={quantidade === 0 ? 'Carrinho vazio' : `${quantidade} item(ns)`}
+        subtitulo={
+          quantidade === 0
+            ? 'Carrinho vazio'
+            : `${quantidade} item(ns)${orcamento ? ` · orçamento nº ${orcamento.number}` : ''}`
+        }
         acao={
           <View style={estilos.cabecalhoAcoes}>
             <Botao variante="secundario" onPress={() => setBuscando(true)}>
