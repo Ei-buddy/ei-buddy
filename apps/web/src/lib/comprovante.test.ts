@@ -24,7 +24,8 @@ const base: DadosDoComprovante = {
     bruto: 76.7,
     desconto: 6.7,
     total: 70,
-    pagamentos: [{ forma: 'Dinheiro', valor: 100, parcelas: null }],
+    pagamentos: [{ forma: 'Dinheiro', valor: 70, parcelas: null }],
+    troco: 30,
     situacao: 'normal',
   },
 }
@@ -63,13 +64,18 @@ describe('comprovante nao fiscal — NR-154', () => {
     expect(t).toContain('2 x R$ 28,90')
     expect(t).toMatch(/Desconto\s+-R\$ 6,70/)
     expect(t).toMatch(/TOTAL\s+R\$ 70,00/)
+    expect(t).toMatch(/Recebido\s+R\$ 100,00/)
     expect(t).toMatch(/Troco\s+R\$ 30,00/)
   })
 
   it('credito parcelado mostra as parcelas', () => {
     const t = montarComprovante({
       ...base,
-      venda: { ...base.venda, pagamentos: [{ forma: 'Crédito', valor: 70, parcelas: 3 }] },
+      venda: {
+        ...base.venda,
+        pagamentos: [{ forma: 'Crédito', valor: 70, parcelas: 3 }],
+        troco: 0,
+      },
     })
 
     expect(t).toMatch(/Crédito 3x\s+R\$ 70,00/)

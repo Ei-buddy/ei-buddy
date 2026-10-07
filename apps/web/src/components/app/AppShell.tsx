@@ -16,6 +16,7 @@ import { carregarAvisos, type Aviso } from '@/lib/avisos-api'
 import { avisosNovos, lerAvisosVistos, marcarAvisosVistos } from '@/lib/avisos-vistos'
 import MenuDoUsuario from './MenuDoUsuario'
 import { carregarPerfil, iniciaisDe, type Perfil } from '@/lib/perfil-api'
+import { PERFIL_ALTERADO } from '@/lib/minha-conta-api'
 import { sairDoModoAdmin } from '@/lib/admin-api'
 import { sair as encerrarSessao } from '@/lib/session-client'
 import BuscaSpotlight, { type TelaBuscavel } from './BuscaSpotlight'
@@ -215,10 +216,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
    * simplesmente nao aparece.
    */
   useEffect(() => {
-    void (async () => {
+    const carregar = async () => {
       const p = await carregarPerfil()
       if (p.ok) setPerfil(p.dados)
-    })()
+    }
+    void carregar()
+    /* Trocar o nome no Meu perfil recarrega o cabecalho — NR-156. */
+    const aoMudar = () => void carregar()
+    window.addEventListener(PERFIL_ALTERADO, aoMudar)
+    return () => window.removeEventListener(PERFIL_ALTERADO, aoMudar)
   }, [])
 
   /*

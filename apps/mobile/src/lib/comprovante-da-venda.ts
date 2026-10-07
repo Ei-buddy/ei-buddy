@@ -66,6 +66,7 @@ export async function compartilharComprovante(
         valor: p.valor,
         parcelas: null,
       })),
+      troco: v.troco,
       situacao: v.status === 'estornada' ? 'cancelada' : 'normal',
     },
   })
