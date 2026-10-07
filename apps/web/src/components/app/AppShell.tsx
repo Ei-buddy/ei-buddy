@@ -55,6 +55,7 @@ import {
   IconShield,
   IconSparkles,
   IconStore,
+  IconTruck,
   IconUsers,
   IconWallet,
   type IconProps,
@@ -76,6 +77,7 @@ const navItems: NavItem[] = [
   { href: '/app/caixa', label: 'Caixa', icon: IconCash },
   { href: '/app/clientes', label: 'Clientes', icon: IconUsers },
   { href: '/app/produtos', label: 'Produtos', icon: IconBox },
+  { href: '/app/compras', label: 'Entrada de mercadoria', icon: IconTruck },
   { href: '/app/fornecedores', label: 'Conexões', icon: IconStore },
   {
     href: '/app/financeiro',

@@ -20,6 +20,8 @@ export const movementKindSchema = z.enum([
   'sale_cancelled',
   /** Saldo devolvido em devolucao total ou parcial — RF-024. */
   'sale_returned',
+  /** Entrada de mercadoria comprada do fornecedor — NR-158. */
+  'purchase',
 ])
 
 export type MovementKind = z.infer<typeof movementKindSchema>

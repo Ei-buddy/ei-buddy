@@ -23,6 +23,7 @@ import {
   buildCrmDeps,
   buildBaixasDeps,
   buildEstoqueDeps,
+  buildComprasDeps,
   buildPrivacidadeDeps,
   buildSuporteDeps,
   buildAuditoriaDeps,
@@ -58,6 +59,7 @@ import { registerWebhookRoutes } from './routes/webhooks.js'
 import { registerWhatsAppWebhookRoutes } from './routes/whatsapp-webhook.js'
 import { registerBaixasRoutes } from './routes/baixas.js'
 import { registerContasRoutes } from './routes/contas.js'
+import { registerComprasRoutes } from './routes/compras.js'
 import { registerCrmRoutes } from './routes/crm.js'
 import { registerEmissaoRoutes, registerFiscalRoutes } from './routes/fiscal.js'
 import { registerEstoqueRoutes } from './routes/estoque.js'
@@ -148,6 +150,7 @@ async function registrarRotas(): Promise<void> {
   registerRelatoriosRoutes(app, buildRelatoriosDeps())
   registerAuditoriaRoutes(app, buildAuditoriaDeps())
   registerEstoqueRoutes(app, buildEstoqueDeps())
+  registerComprasRoutes(app, buildComprasDeps())
   registerSuporteRoutes(app, buildSuporteDeps())
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())

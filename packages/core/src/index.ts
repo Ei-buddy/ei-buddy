@@ -621,3 +621,21 @@ export {
 export type { CashDeps } from './cash/cash-register.js'
 export type { CashRegister } from './ports/cash-register.js'
 export { InMemoryCashRegister } from './cash/fakes.js'
+
+/* Entrada de mercadoria — NR-158. */
+export {
+  custoMedio,
+  dividirEmParcelas,
+  listPurchases,
+  registerPurchase,
+} from './purchases/register-purchase.js'
+export type { ListPurchasesDeps, RegisterPurchaseDeps } from './purchases/register-purchase.js'
+export { InMemoryPurchases } from './purchases/fakes.js'
+export type {
+  NewPurchase,
+  NewPurchaseMovement,
+  PurchaseProductSnapshot,
+  PurchaseQueries,
+  PurchaseTransaction,
+  PurchaseUnitOfWork,
+} from './ports/purchase-register.js'

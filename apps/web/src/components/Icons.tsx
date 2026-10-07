@@ -54,6 +54,17 @@ export function IconCash({ size = 24, className }: IconProps) {
   )
 }
 
+/** A entrada de mercadoria: um caminhao de entrega — NR-158. */
+export function IconTruck({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M3.5 6.5h10v9h-10zM13.5 9.5h4l3 3v3h-7" />
+      <circle cx="7" cy="17.5" r="1.8" />
+      <circle cx="17" cy="17.5" r="1.8" />
+    </svg>
+  )
+}
+
 export function IconBox({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

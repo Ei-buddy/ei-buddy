@@ -266,13 +266,15 @@ export async function definirAtivo(
   return r.ok ? { ok: true } : { ok: false, erro: r.message }
 }
 
-export type CausaDoMovimento = 'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned'
+export type CausaDoMovimento =
+  'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned' | 'purchase'
 
 export const ROTULO_DA_CAUSA: Record<CausaDoMovimento, string> = {
   adjustment: 'Ajuste',
   sale: 'Venda',
   sale_cancelled: 'Venda estornada',
   sale_returned: 'Devolução',
+  purchase: 'Entrada de mercadoria',
 }
 
 export type MovimentoDeEstoque = {
