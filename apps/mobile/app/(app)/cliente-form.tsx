@@ -154,7 +154,9 @@ export default function ClienteFormScreen() {
     if (!endereco.bairro.trim()) return 'Informe o bairro.'
     if (!endereco.cidade.trim()) return 'Informe a cidade.'
     if (endereco.uf.trim().length !== 2) return 'Informe a UF.'
-    if (digitosDoc !== '') {
+    /* CPF/CNPJ obrigatorio, como no web (NR-149). */
+    if (digitosDoc === '') return 'Informe o CPF ou CNPJ.'
+    {
       const valido =
         digitosDoc.length === 11
           ? isValidCPF(digitosDoc)
@@ -216,8 +218,7 @@ export default function ClienteFormScreen() {
             valor={documento}
             onChange={(v) => setDocumento(mascaraDoDocumento(v))}
             tipoTeclado="numeric"
-            placeholder="Opcional"
-            dica="Opcional: sem documento, só a nota sai sem CPF. Celular e endereço são obrigatórios."
+            dica="CPF, celular e endereço são obrigatórios. O CNPJ preenche a razão social e o endereço."
           />
           {digitosDoc.length === 14 ? (
             <Botao
