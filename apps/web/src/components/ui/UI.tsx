@@ -147,20 +147,25 @@ export function Field({
       <span className={styles.labelRow}>
         <label className={styles.label} htmlFor={alvo}>
           {label}
-          {obrigatorio ? (
-            <>
-              <span className={styles.obrigatorio} aria-hidden="true">
-                {' '}
-                *
-              </span>
-              <span className={styles.somenteLeitor}> (obrigatório)</span>
-            </>
-          ) : null}
+          {obrigatorio ? <MarcaObrigatorio /> : null}
         </label>
         {hint ? <span className={styles.hint}>{hint}</span> : null}
       </span>
       {filhos}
     </div>
+  )
+}
+
+/** O asterisco de campo obrigatorio — para rotulo montado fora do `Field`. */
+export function MarcaObrigatorio() {
+  return (
+    <>
+      <span className={styles.obrigatorio} aria-hidden="true">
+        {' '}
+        *
+      </span>
+      <span className={styles.somenteLeitor}> (obrigatório)</span>
+    </>
   )
 }
 

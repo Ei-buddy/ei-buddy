@@ -23,6 +23,7 @@ import {
 import { daysUntil, describeDueDate, formatDate, formatMoney } from '@/lib/format'
 import Cabecalho from '@/components/Cabecalho'
 import BaixaModal from '@/components/BaixaModal'
+import CorrecaoTituloModal from '@/components/CorrecaoTituloModal'
 import EstornoModal from '@/components/EstornoModal'
 import NovoTituloModal from '@/components/NovoTituloModal'
 import Botao from '@/components/ui/Botao'
@@ -96,6 +97,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
    */
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
+  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
+    null,
+  )
   const [processando, setProcessando] = useState(false)
   const [erroDoDialogo, setErroDoDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -270,6 +274,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
@@ -292,6 +298,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
@@ -313,6 +321,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
@@ -359,6 +369,20 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         />
       ) : null}
 
+      {mudando !== null ? (
+        <CorrecaoTituloModal
+          tipo={tipo}
+          modo={mudando.modo}
+          titulo={mudando.linha}
+          onFeito={(msg) => {
+            setMudando(null)
+            setAviso(msg)
+            void buscar()
+          }}
+          onFechar={() => setMudando(null)}
+        />
+      ) : null}
+
       {estornando !== null ? (
         <EstornoModal
           tipo={tipo}
@@ -381,10 +405,14 @@ function LinhaTitulo({
   linha,
   onBaixar,
   onEstornar,
+  onCorrigir,
+  onCancelar,
 }: {
   linha: Linha
   onBaixar: () => void
   onEstornar: () => void
+  onCorrigir: () => void
+  onCancelar: () => void
 }) {
   const saldoCents = linha.valorCents - linha.baixadoCents
   const quitado = linha.status === 'pago'
@@ -423,15 +451,35 @@ function LinhaTitulo({
           </Text>
         </View>
 
-        <Pressable
-          onPress={quitado || linha.baixadoCents > 0 ? onEstornar : onBaixar}
-          style={[estilos.acao, quitado && estilos.acaoSecundaria]}
-          accessibilityRole="button"
-        >
-          <Text style={[estilos.acaoTexto, quitado && estilos.acaoTextoSecundario]}>
-            {quitado || linha.baixadoCents > 0 ? 'Estornar' : 'Baixar'}
-          </Text>
-        </Pressable>
+        <View style={estilos.acoes}>
+          {linha.mutavel ? (
+            <>
+              <Pressable
+                onPress={onCorrigir}
+                style={[estilos.acao, estilos.acaoSecundaria]}
+                accessibilityRole="button"
+              >
+                <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Corrigir</Text>
+              </Pressable>
+              <Pressable
+                onPress={onCancelar}
+                style={[estilos.acao, estilos.acaoSecundaria]}
+                accessibilityRole="button"
+              >
+                <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Cancelar</Text>
+              </Pressable>
+            </>
+          ) : null}
+          <Pressable
+            onPress={quitado || linha.baixadoCents > 0 ? onEstornar : onBaixar}
+            style={[estilos.acao, quitado && estilos.acaoSecundaria]}
+            accessibilityRole="button"
+          >
+            <Text style={[estilos.acaoTexto, quitado && estilos.acaoTextoSecundario]}>
+              {quitado || linha.baixadoCents > 0 ? 'Estornar' : 'Baixar'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   )
@@ -482,6 +530,7 @@ const estilos = StyleSheet.create({
     gap: espaco.md,
   },
   tituloSituacao: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs },
   tituloData: { fontSize: fonte.micro, color: cores.textoFraco },
 
   acao: {

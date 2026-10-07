@@ -67,6 +67,7 @@ export class InMemoryReceivables implements ReceivableQueries {
 type GuardadaManual = ReceivableOutput & {
   readonly companyId: CompanyId
   readonly createdBy: UserId
+  readonly isCustomerDebt: boolean
 }
 
 /**
@@ -109,6 +110,18 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
 
   private readonly saldos = new Map<string, number>()
 
+  /** Simula uma baixa ja registrada — so para os testes de correcao (NR-150). */
+  simularBaixa(id: string, cents: number): void {
+    const i = this.registros.findIndex((r) => r.id === id)
+    this.registros[i] = { ...this.registros[i]!, settledAmountCents: cents }
+  }
+
+  /** Simula um recebivel nascido de venda — so para os testes de correcao (NR-150). */
+  simularDeVenda(id: string, saleId: string): void {
+    const i = this.registros.findIndex((r) => r.id === id)
+    this.registros[i] = { ...this.registros[i]!, saleId }
+  }
+
   /** Quanto o cliente deve, segundo o que esta transacao somou. */
   saldoDe(customerId: string): number {
     return this.saldos.get(customerId) ?? 0
@@ -136,6 +149,7 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
           status: 'open',
           createdAt: novo.createdAt.toISOString(),
           createdBy: novo.createdBy,
+          isCustomerDebt: novo.isCustomerDebt,
         }
         this.registros.push(gravado)
         return gravado
@@ -144,6 +158,32 @@ export class InMemoryManualReceivables implements ManualReceivableUnitOfWork {
       /** O saldo devedor do cliente — RF-013. */
       adjustCustomerBalance: async (customerId, deltaCents) => {
         this.saldos.set(customerId, (this.saldos.get(customerId) ?? 0) + deltaCents)
+      },
+
+      findForChange: async (empresa, id) => {
+        const r = this.registros.find((x) => x.companyId === empresa && x.id === id)
+        return r === undefined ? null : { receivable: r, isCustomerDebt: r.isCustomerDebt }
+      },
+
+      update: async (empresa, id, mudancas) => {
+        const i = this.registros.findIndex((x) => x.companyId === empresa && x.id === id)
+        const atual = this.registros[i]!
+        const definidas = Object.fromEntries(
+          Object.entries(mudancas).filter(([, v]) => v !== undefined),
+        )
+        this.registros[i] = {
+          ...atual,
+          ...definidas,
+          /* Avulso nao tem tarifa: o liquido acompanha o bruto. */
+          netAmountCents: mudancas.amountCents ?? atual.netAmountCents,
+        }
+        return this.registros[i]!
+      },
+
+      cancel: async (empresa, id) => {
+        const i = this.registros.findIndex((x) => x.companyId === empresa && x.id === id)
+        this.registros[i] = { ...this.registros[i]!, status: 'cancelled' }
+        return this.registros[i]!
       },
     }
   }

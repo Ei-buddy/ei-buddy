@@ -327,3 +327,101 @@ describe('exportar contas a receber — GET /contas-a-receber/exportar', () => {
     expect(r.rawPayload.subarray(0, 5).toString('latin1')).toBe('%PDF-')
   })
 })
+
+describe('corrigir e cancelar recebivel avulso — NR-150', () => {
+  async function comRecebivel(principal: AuthenticatedPrincipal = PRINCIPAL) {
+    const c = await buildApp(principal)
+    app = c.app
+    const [r] = await c.receivablesUow.transaction('empresa-1', async (tx) => [
+      await tx.insert({
+        companyId: 'empresa-1',
+        description: 'Aluguel',
+        amountCents: 80_000,
+        dueDate: '2026-09-15',
+        customerId: null,
+        accountId: null,
+        isCustomerDebt: false,
+        createdBy: 'usuario-1',
+        createdAt: new Date('2026-09-02T12:00:00.000Z'),
+      }),
+    ])
+    return { ...c, id: r!.id }
+  }
+
+  it('PATCH corrige e devolve o titulo', async () => {
+    const { id } = await comRecebivel()
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/contas-a-receber/${id}`,
+      payload: { amountCents: 90_000 },
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().amountCents).toBe(90_000)
+  })
+
+  it('PATCH vazio e 400 — nao diz o que corrigir', async () => {
+    const { id } = await comRecebivel()
+
+    const r = await app.inject({ method: 'PATCH', url: `/contas-a-receber/${id}`, payload: {} })
+
+    expect(r.statusCode).toBe(400)
+  })
+
+  it('cancelar pede motivo', async () => {
+    const { id } = await comRecebivel()
+
+    const sem = await app.inject({
+      method: 'POST',
+      url: `/contas-a-receber/${id}/cancelar`,
+      payload: {},
+    })
+    const com = await app.inject({
+      method: 'POST',
+      url: `/contas-a-receber/${id}/cancelar`,
+      payload: { reason: 'Lancei em dobro' },
+    })
+
+    expect(sem.statusCode).toBe(400)
+    expect(com.statusCode).toBe(200)
+    expect(com.json().status).toBe('cancelled')
+  })
+
+  it('com recebimento registrado e 409', async () => {
+    const { id, receivablesUow } = await comRecebivel()
+    receivablesUow.simularBaixa(id, 10_000)
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/contas-a-receber/${id}`,
+      payload: { amountCents: 1 },
+    })
+
+    expect(r.statusCode).toBe(409)
+  })
+
+  it('titulo que nao existe e 404', async () => {
+    await comRecebivel()
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/contas-a-receber/nao-existe/cancelar',
+      payload: { reason: 'Lancei em dobro' },
+    })
+
+    expect(r.statusCode).toBe(404)
+  })
+
+  it('accountant nao corrige — e escrita', async () => {
+    const { id } = await comRecebivel({ ...PRINCIPAL, role: 'accountant' })
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/contas-a-receber/${id}`,
+      payload: { amountCents: 1 },
+    })
+
+    expect(r.statusCode).toBe(403)
+  })
+})
