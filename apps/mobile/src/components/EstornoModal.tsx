@@ -11,7 +11,7 @@ import { formatDate, formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { Vazio } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** O motivo e obrigatorio no servidor, e o minimo la sao 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -245,10 +245,12 @@ const estilos = StyleSheet.create({
   foraDaFolha: { flex: 1 },
 
   folha: {
+    ...vidro.painel,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
     maxHeight: '88%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
-    backgroundColor: cores.fundo,
   },
   alcaWrap: { alignItems: 'center', paddingTop: espaco.sm },
   alca: { width: 40, height: 4, borderRadius: 2, backgroundColor: cores.borda },
@@ -262,15 +264,13 @@ const estilos = StyleSheet.create({
 
   lista: { gap: espaco.sm },
   item: {
+    ...vidro.peca,
     gap: 3,
     minHeight: 56,
     justifyContent: 'center',
     paddingHorizontal: espaco.md,
     paddingVertical: espaco.sm,
     borderRadius: raio.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
-    backgroundColor: cores.superficie,
   },
   itemMarcado: { borderColor: cores.acento },
   /* Ja estornada ou linha de estorno: aparece, mas nao e escolhivel. */

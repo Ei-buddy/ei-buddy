@@ -27,7 +27,7 @@ import LeitorCodigo from '@/components/LeitorCodigo'
 import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_PRODUTOS, validarProduto } from '@/lib/campos-de-importacao'
 import BotoesExportar from '@/components/BotoesExportar'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
 const ESPERA_DA_BUSCA_MS = 400
@@ -313,11 +313,11 @@ const estilos = StyleSheet.create({
   /* Leitura de codigo — RF-018. Dois tons porque as acoes sao opostas:
      "nao cadastrado" convida a cadastrar, "erro" convida a tentar de novo. */
   avisoNovo: {
+    ...vidro.painel,
     marginHorizontal: espaco.lg,
     marginBottom: espaco.md,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficieAlta,
     gap: espaco.sm,
   },
   avisoErro: {
@@ -378,14 +378,12 @@ const estilos = StyleSheet.create({
 
   lista: { padding: espaco.lg, gap: espaco.sm },
   produto: {
+    ...vidro.peca,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco.md,
     padding: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   produtoInfo: { flex: 1, gap: 2 },
   produtoCodigo: {

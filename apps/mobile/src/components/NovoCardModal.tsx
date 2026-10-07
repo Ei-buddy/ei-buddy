@@ -11,7 +11,7 @@ import { dataDoTexto, formatDate, hoje, mascaraData } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { SeletorCliente } from '@/components/SeletoresDoPdv'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Novo card do CRM — o mesmo formulario do web: titulo, tipo (pendencia ou
@@ -179,10 +179,12 @@ const estilos = StyleSheet.create({
   fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
   fora: { flex: 1 },
   folha: {
+    ...vidro.painel,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
     maxHeight: '92%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
-    backgroundColor: cores.fundo,
   },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },

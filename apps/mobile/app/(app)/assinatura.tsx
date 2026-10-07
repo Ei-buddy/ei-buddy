@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import { Vazio } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * O plano — o MESMO do site (`apps/web/src/content/site.ts`). Repetido aqui
@@ -81,11 +81,9 @@ const estilos = StyleSheet.create({
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
   situacao: {
+    ...vidro.peca,
     padding: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
     gap: espaco.xs,
   },
   situacaoRotulo: { fontSize: fonte.micro, color: cores.textoFraco },

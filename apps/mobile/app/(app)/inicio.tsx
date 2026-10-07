@@ -18,7 +18,7 @@ import {
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Tela principal — NR-013.
@@ -411,13 +411,11 @@ const estilos = StyleSheet.create({
 
   indicadores: { flexDirection: 'row', gap: espaco.sm },
   indicador: {
+    ...vidro.peca,
     flex: 1,
     minWidth: 0,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
   /*
    * `acento` e nao `primaria`: `primaria` fica a 1,2:1 da superficie do
@@ -449,19 +447,18 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: raio.md,
     /*
-     * `acento`, como no `Botao` primario do design system.
+     * O azul de vidro, como no `Botao` primario (NR-160), com texto BRANCO.
      *
-     * Com `primaria` aqui, o rotulo — que usa `textoSobreAcento`, quase preto
-     * — ficava a 1,12:1. A acao principal da tela inicial, aquela que a pessoa
-     * abre o app para fazer, tinha o texto invisivel. Esta tela havia
-     * divergido do componente compartilhado, e foi na divergencia que o
-     * contraste se perdeu.
+     * Ja houve divergencia aqui: com `primaria` e o texto quase preto do
+     * acento, o rotulo ficava a 1,12:1 e a acao principal da tela inicial era
+     * ilegivel. Fundo e texto vem sempre em par — `vidro.ativo` com
+     * `textoSobreAtivo`, medido em `packages/ui`.
      */
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
   },
   atalhoPressionado: { opacity: 0.85 },
-  atalhoTexto: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.textoSobreAcento },
-  atalhoApoio: { fontSize: fonte.pequeno, color: cores.textoSobreAcento, opacity: 0.85 },
+  atalhoTexto: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.textoSobreAtivo },
+  atalhoApoio: { fontSize: fonte.pequeno, color: cores.textoSobreAtivo, opacity: 0.85 },
 
   linha: {
     flexDirection: 'row',

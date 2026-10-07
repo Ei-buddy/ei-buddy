@@ -29,7 +29,7 @@ import NovoTituloModal from '@/components/NovoTituloModal'
 import Botao from '@/components/ui/Botao'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Forma comum entre conta a pagar e a receber — vem pronta de `financeiro-api`.
@@ -537,7 +537,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco.lg,
     paddingVertical: espaco.sm,
     borderRadius: raio.pill,
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
     minHeight: 36,
     justifyContent: 'center',
   },
@@ -549,18 +549,18 @@ const estilos = StyleSheet.create({
   acaoTexto: {
     fontSize: fonte.micro,
     fontWeight: peso.forte,
-    color: cores.textoSobreAcento,
+    color: cores.textoSobreAtivo,
   },
   acaoTextoSecundario: { color: cores.textoFraco },
 
   aviso: {
+    ...vidro.painel,
     position: 'absolute',
     left: espaco.lg,
     right: espaco.lg,
     bottom: espaco.xl,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficieAlta,
     borderWidth: 1,
     borderColor: cores.sucesso,
   },

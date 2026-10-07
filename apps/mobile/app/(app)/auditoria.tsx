@@ -14,7 +14,7 @@ import {
   type RegistroDaTrilha,
 } from '@/lib/auditoria-api'
 import { formatDateTime } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Auditoria — RNF-031, a mesma tela do web.
@@ -129,12 +129,10 @@ const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.sm, paddingBottom: espaco.xxl },
   cartao: {
+    ...vidro.peca,
     gap: 2,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   nome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   apoio: { fontSize: fonte.micro, color: cores.textoFraco },

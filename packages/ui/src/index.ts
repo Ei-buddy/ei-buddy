@@ -12,6 +12,7 @@ export {
   fontFamily,
   fontSize,
   fontWeight,
+  glass,
   layout,
   light,
   lineHeight,

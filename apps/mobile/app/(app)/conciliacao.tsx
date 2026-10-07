@@ -19,7 +19,7 @@ import {
   type TransacaoBancaria,
 } from '@/lib/conciliacao-api'
 import { formatDate, formatMoney } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** O motivo do desfazer vai para a trilha; o contrato pede 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -358,12 +358,10 @@ const estilos = StyleSheet.create({
   recorteTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   recorteTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
   transacao: {
+    ...vidro.peca,
     gap: espaco.sm,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   transacaoTopo: { flexDirection: 'row', gap: espaco.md, alignItems: 'center' },
   nome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },

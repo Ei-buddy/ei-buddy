@@ -15,7 +15,7 @@ import {
 import { NOMES_BANCOS } from '@/lib/financeiro-api'
 import { dataDoTexto, formatDate, formatMoney, hoje, mascaraData } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Contas bancarias — RF-073, a mesma tela do web.
@@ -288,13 +288,11 @@ const estilos = StyleSheet.create({
   },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   conta: {
+    ...vidro.peca,
     flexDirection: 'row',
     gap: espaco.md,
     padding: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   contaNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },
   contaDireita: { alignItems: 'flex-end', justifyContent: 'space-between' },

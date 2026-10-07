@@ -19,7 +19,7 @@ import CancelarVendaModal from '@/components/CancelarVendaModal'
 import CancelarNotaModal from '@/components/CancelarNotaModal'
 import DevolverItensModal from '@/components/DevolverItensModal'
 import BotoesExportar from '@/components/BotoesExportar'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
 
@@ -407,12 +407,10 @@ const estilos = StyleSheet.create({
     gap: espaco.sm,
   },
   resumoItem: {
+    ...vidro.peca,
     flex: 1,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
     gap: 2,
   },
   resumoRotulo: { fontSize: 11, color: cores.textoFraco },

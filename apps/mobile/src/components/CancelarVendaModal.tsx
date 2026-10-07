@@ -4,7 +4,7 @@ import { estornarVenda } from '@/lib/vendas-api'
 import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** O motivo e obrigatorio no servidor, e o minimo la sao 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -103,10 +103,12 @@ const estilos = StyleSheet.create({
   fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
   foraDaFolha: { flex: 1 },
   folha: {
+    ...vidro.painel,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
     maxHeight: '88%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
-    backgroundColor: cores.fundo,
   },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },

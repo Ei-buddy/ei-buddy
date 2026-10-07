@@ -22,7 +22,7 @@ import {
   horaLocal,
 } from '@/lib/agenda-api'
 import { formatDate } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Agenda do dia — NR-078, US-045.
@@ -256,12 +256,12 @@ const estilos = StyleSheet.create({
   secaoItens: { gap: espaco.sm },
 
   compromisso: {
+    ...vidro.peca,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco.md,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   compromissoInfo: { flex: 1, gap: 2 },
   compromissoTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },

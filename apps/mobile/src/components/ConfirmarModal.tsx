@@ -1,6 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import Botao from '@/components/ui/Botao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Confirmacao do proprio app, no lugar do `Alert.alert` com botoes.
@@ -68,10 +68,10 @@ const estilos = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   caixa: {
+    ...vidro.painel,
     gap: espaco.md,
     padding: espaco.xl,
     borderRadius: raio.lg,
-    backgroundColor: cores.superficieAlta,
   },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   mensagem: { fontSize: fonte.corpo, lineHeight: 22, color: cores.textoFraco },

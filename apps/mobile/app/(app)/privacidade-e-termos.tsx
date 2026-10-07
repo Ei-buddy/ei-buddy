@@ -13,7 +13,7 @@ import {
   ROTULO_DO_DOCUMENTO,
   type TipoDeDocumento,
 } from '@/lib/legal-api'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Privacidade e Termos — RF-01, RF-03, RF-05.
@@ -139,24 +139,21 @@ const estilos = StyleSheet.create({
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
   aviso: {
+    ...vidro.peca,
     gap: espaco.sm,
     padding: espaco.lg,
     borderRadius: raio.lg,
-    borderWidth: 1,
     borderColor: cores.atencao,
-    backgroundColor: cores.superficie,
   },
   avisoTitulo: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.texto },
   avisoTexto: { fontSize: fonte.corpo, color: cores.textoFraco, lineHeight: 20 },
   erro: { fontSize: fonte.corpo, color: cores.erro },
 
   cartao: {
+    ...vidro.peca,
     gap: espaco.sm,
     padding: espaco.lg,
     borderRadius: raio.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
-    backgroundColor: cores.superficie,
   },
   secao: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.texto },
 

@@ -18,7 +18,7 @@ import {
   type ProdutoDaFicha,
 } from '@/lib/produtos-api'
 import { formatDateTime, formatMoney, formatPercent } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** O motivo do ajuste vai para a trilha; o contrato pede ao menos 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -292,13 +292,11 @@ const estilos = StyleSheet.create({
   link: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
   numeros: { flexDirection: 'row', gap: espaco.sm },
   numero: {
+    ...vidro.peca,
     flex: 1,
     gap: 2,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   numeroRotulo: { fontSize: 11, color: cores.textoFraco },
   numeroValor: { fontSize: fonte.pequeno, fontWeight: peso.pesado, color: cores.texto },
