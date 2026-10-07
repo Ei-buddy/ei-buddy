@@ -19,5 +19,14 @@ export type BankAccountRepository = {
   findById(companyId: CompanyId, id: string): Promise<BankAccountOutput | undefined>
   /** `undefined` quando o nome ja existe na loja (indice unico). */
   insert(nova: NewBankAccount): Promise<BankAccountOutput | undefined>
+  /**
+   * Editar — NR-152. A baixa grava o NOME da conta, entao renomear atualiza as
+   * baixas na mesma transacao. `'nome_em_uso'` quando outra conta ja tem o nome.
+   */
+  update(
+    companyId: CompanyId,
+    id: string,
+    changes: Omit<NewBankAccount, 'companyId' | 'createdBy' | 'createdAt'>,
+  ): Promise<BankAccountOutput | 'nome_em_uso'>
   remove(companyId: CompanyId, id: string): Promise<void>
 }

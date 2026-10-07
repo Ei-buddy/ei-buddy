@@ -5,6 +5,7 @@ import {
   carregarCustosFixos,
   carregarCustosVariaveis,
   criarCustoVariavel,
+  editarCustoVariavel,
   excluirCustoFixo,
   excluirCustoVariavel,
   gerarContasDoMes,
@@ -253,6 +254,8 @@ export function CustosVariaveis() {
   const [percentual, setPercentual] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  /* Editar usa o mesmo formulario do cadastro — NR-152. */
+  const [editandoVariavel, setEditandoVariavel] = useState<CustoVariavel | null>(null)
 
   useEffect(() => {
     let cancelado = false
@@ -273,12 +276,32 @@ export function CustosVariaveis() {
     if (!(p > 0 && p <= 100)) return setErro('Informe um percentual entre 0 e 100.')
     setErro(null)
     setSalvando(true)
-    const r = await criarCustoVariavel(nome, p)
+    const r =
+      editandoVariavel === null
+        ? await criarCustoVariavel(nome, p)
+        : await editarCustoVariavel(editandoVariavel.id, nome, p)
     setSalvando(false)
     if (!r.ok) return setErro(r.erro)
-    setCustos((c) => [...(c ?? []), r.dados])
+    setCustos((c) =>
+      editandoVariavel === null
+        ? [...(c ?? []), r.dados]
+        : (c ?? []).map((x) => (x.id === r.dados.id ? r.dados : x)),
+    )
+    limpar()
+  }
+
+  function limpar() {
+    setEditandoVariavel(null)
     setNome('')
     setPercentual('')
+    setErro(null)
+  }
+
+  function editar(c: CustoVariavel) {
+    setEditandoVariavel(c)
+    setNome(c.nome)
+    setPercentual(String(c.percentual).replace('.', ','))
+    setErro(null)
   }
 
   async function excluir(c: CustoVariavel) {
@@ -303,6 +326,13 @@ export function CustosVariaveis() {
           <View key={c.id} style={estilos.linha}>
             <Text style={[estilos.nome, estilos.flex]}>{c.nome}</Text>
             <Text style={estilos.valor}>{pct(c.percentual)}</Text>
+            <Pressable
+              onPress={() => editar(c)}
+              hitSlop={8}
+              accessibilityLabel={`Editar ${c.nome}`}
+            >
+              <Text style={estilos.editarTexto}>Editar</Text>
+            </Pressable>
             <Pressable
               onPress={() => void excluir(c)}
               hitSlop={8}
@@ -335,14 +365,20 @@ export function CustosVariaveis() {
         </View>
         {erro !== null ? <Text style={estilos.erro}>{erro}</Text> : null}
         <Botao variante="secundario" onPress={() => void adicionar()} carregando={salvando} largura>
-          Adicionar
+          {editandoVariavel === null ? 'Adicionar' : 'Salvar'}
         </Botao>
+        {editandoVariavel !== null ? (
+          <Botao variante="fantasma" onPress={limpar} largura>
+            Cancelar edição
+          </Botao>
+        ) : null}
       </View>
     </Sanfona>
   )
 }
 
 const estilos = StyleSheet.create({
+  editarTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.textoFraco },
   bloco: { gap: espaco.sm },
   form: {
     gap: espaco.sm,

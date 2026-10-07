@@ -269,6 +269,7 @@ export type {
 export {
   createBankAccount,
   deleteBankAccount,
+  updateBankAccount,
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
@@ -452,6 +453,8 @@ export type {
 /* --- Agenda — NR-034 --- */
 export { cancelAppointment } from './schedule/cancel-appointment.js'
 export type { CancelAppointmentDeps } from './schedule/cancel-appointment.js'
+export { updateAppointment } from './schedule/update-appointment.js'
+export type { UpdateAppointmentDeps } from './schedule/update-appointment.js'
 export { createAppointment, reminderFireAt } from './schedule/create-appointment.js'
 export type { CreateAppointmentDeps } from './schedule/create-appointment.js'
 export { listDayAppointments } from './schedule/list-day-appointments.js'
@@ -560,6 +563,7 @@ export type {
 export {
   createVariableCost,
   deleteVariableCost,
+  updateVariableCost,
   listVariableCosts,
 } from './variable-costs/manage-variable-costs.js'
 export type { VariableCostDeps } from './variable-costs/manage-variable-costs.js'

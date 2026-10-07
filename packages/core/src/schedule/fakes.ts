@@ -82,6 +82,29 @@ export class InMemoryAppointmentRepository implements AppointmentRepository {
   }
 
   /** `companyId` nao sai do repositorio: e do contexto, nao da resposta. */
+  async update(
+    companyId: CompanyId,
+    id: string,
+    changes: Omit<NewAppointment, 'companyId' | 'createdBy' | 'createdAt'>,
+  ): Promise<AppointmentOutput> {
+    const achado = this.registros.get(id)
+    if (!achado || achado.companyId !== companyId) {
+      throw new Error(`compromisso ${id} nao encontrado para a empresa ${companyId}`)
+    }
+    const editado = {
+      ...achado,
+      title: changes.title,
+      startsAt: changes.startsAt.toISOString(),
+      endsAt: changes.endsAt?.toISOString() ?? null,
+      location: changes.location ?? null,
+      customerId: changes.customerId ?? null,
+      notes: changes.notes ?? null,
+      reminderMinutesBefore: changes.reminderMinutesBefore ?? null,
+    }
+    this.registros.set(id, editado)
+    return this.semTenant(editado)
+  }
+
   private semTenant(registro: AppointmentOutput & { companyId: CompanyId }): AppointmentOutput {
     const { companyId: _omitido, ...resto } = registro
     return resto

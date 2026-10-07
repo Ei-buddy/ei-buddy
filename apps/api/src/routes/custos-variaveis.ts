@@ -1,8 +1,9 @@
-import { createVariableCostInputSchema } from '@na-regua/contracts'
+import { createVariableCostInputSchema, updateVariableCostInputSchema } from '@na-regua/contracts'
 import {
   createVariableCost,
   deleteVariableCost,
   listVariableCosts,
+  updateVariableCost,
   type VariableCostDeps,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
@@ -31,6 +32,19 @@ export function registerCustosVariaveisRoutes(
       const input = validate(createVariableCostInputSchema, request.body)
 
       return reply.code(201).send(await createVariableCost(deps, ctx, input))
+    },
+  )
+
+  /* Editar — NR-152. O formulario inteiro, como no cadastro. */
+  app.patch(
+    '/custos-variaveis/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateVariableCostInputSchema, request.body)
+
+      return reply.code(200).send(await updateVariableCost(deps, ctx, id, input))
     },
   )
 

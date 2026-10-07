@@ -784,7 +784,13 @@
 .contaAcoes {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 16px;
+}
+/* Mais especifico que `.contaBancaria span`, que vira grade. NR-152. */
+.contaBancaria .contaBancariaAcoes {
+  display: flex;
+  gap: 8px;
 }
 @media (max-width: 640px) {
   .contaBancaria {

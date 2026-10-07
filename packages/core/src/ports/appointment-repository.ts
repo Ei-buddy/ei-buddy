@@ -34,6 +34,13 @@ export type AppointmentRepository = {
   /** Devolve `undefined` quando nao existe OU e de outra empresa. */
   findById(companyId: CompanyId, id: string): Promise<AppointmentOutput | undefined>
 
+  /** Editar ou remarcar — NR-152. Substitui os campos do formulario. */
+  update(
+    companyId: CompanyId,
+    id: string,
+    changes: Omit<NewAppointment, 'companyId' | 'createdBy' | 'createdAt'>,
+  ): Promise<AppointmentOutput>
+
   /**
    * Compromissos que comecam dentro do intervalo, em ordem de horario.
    * Cancelados ficam de fora — RF-093 pede a agenda do dia, nao o historico.

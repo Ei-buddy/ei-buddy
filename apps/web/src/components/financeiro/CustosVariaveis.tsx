@@ -5,6 +5,7 @@ import {
   carregarCustosVariaveis,
   criarCustoVariavel,
   type CustoVariavel,
+  editarCustoVariavel,
   excluirCustoVariavel,
 } from '@/lib/financeiro-api'
 import { Card } from '@/components/ui/UI'
@@ -40,6 +41,8 @@ export default function CustosVariaveis() {
   const [nome, setNome] = useState('')
   const [percentual, setPercentual] = useState('')
   const [salvando, setSalvando] = useState(false)
+  /* Editar usa o mesmo formulario do cadastro — NR-152. */
+  const [editando, setEditando] = useState<CustoVariavel | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -61,13 +64,31 @@ export default function CustosVariaveis() {
 
     setErro(null)
     setSalvando(true)
-    const r = await criarCustoVariavel(nome, p)
+    const r =
+      editando === null
+        ? await criarCustoVariavel(nome, p)
+        : await editarCustoVariavel(editando.id, nome, p)
     setSalvando(false)
 
     if (!r.ok) return setErro(r.erro)
-    setCustos((c) => [...c, r.dados])
+    setCustos((c) =>
+      editando === null ? [...c, r.dados] : c.map((x) => (x.id === r.dados.id ? r.dados : x)),
+    )
+    limparFormulario()
+  }
+
+  function limparFormulario() {
+    setEditando(null)
     setNome('')
     setPercentual('')
+    setErro(null)
+  }
+
+  function editar(custo: CustoVariavel) {
+    setEditando(custo)
+    setNome(custo.nome)
+    setPercentual(String(custo.percentual).replace('.', ','))
+    setErro(null)
   }
 
   async function excluir(custo: CustoVariavel) {
@@ -94,6 +115,9 @@ export default function CustosVariaveis() {
               </span>
               <span className={styles.custoValor}>{formatarPercentual(c.percentual)}</span>
               <span className={styles.custoAcoes}>
+                <button type="button" className={styles.custoBotao} onClick={() => editar(c)}>
+                  Editar
+                </button>
                 <button
                   type="button"
                   className={`${styles.custoBotao} ${styles.custoExcluir}`}
@@ -134,10 +158,21 @@ export default function CustosVariaveis() {
             inputMode="decimal"
           />
         </label>
-        <Button type="submit" variant="secondary" disabled={salvando}>
-          <IconPlus size={14} />
-          Adicionar
-        </Button>
+        {editando === null ? (
+          <Button type="submit" variant="secondary" disabled={salvando}>
+            <IconPlus size={14} />
+            Adicionar
+          </Button>
+        ) : (
+          <>
+            <Button type="submit" disabled={salvando}>
+              Salvar
+            </Button>
+            <Button variant="ghost" onClick={limparFormulario} disabled={salvando}>
+              Cancelar
+            </Button>
+          </>
+        )}
       </form>
 
       {erro ? (
