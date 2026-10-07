@@ -64,7 +64,7 @@ export type {
 } from './ports/registration-repositories.js'
 export type { CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
-export type { CustomerPatch } from './ports/registration-repositories.js'
+export type { CustomerPatch, ProductPatch } from './ports/registration-repositories.js'
 export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
@@ -314,6 +314,7 @@ export type {
 } from './registration/register-customer.js'
 export {
   catalogSummary,
+  deleteProduct,
   findProductByBarcode,
   getProduct,
   importProducts,
@@ -324,7 +325,9 @@ export {
   registerProductWithStock,
   searchProducts,
   TETO_DO_CATALOGO,
+  updateProduct,
 } from './registration/register-product.js'
+export { resolveCustomerRef, resolveProductRef } from './registration/resolve-ref.js'
 export type {
   ImportProductsDeps,
   RegisterProductDeps,

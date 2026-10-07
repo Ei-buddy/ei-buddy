@@ -1,40 +1,40 @@
 /**
- * Runtime do assistente: tools, memoria e confirmacoes.
+ * Runtime do assistente: agente de várias etapas, memória e confirmações.
  *
- * Interpreta linguagem natural e transporta a intencao para um caso de uso de
- * core. NUNCA calcula valor — quem calcula e domain (RF-101).
- *
- * Runtime: Mastra + gpt-4o-mini (ADR-0010). Sem WhatsApp, o canal e HTTP
- * autenticado (`POST /agent/messages`) quando ha `OPENAI_API_KEY`. O `FakeLlm`
- * exportado abaixo e duble de teste (`script()`), nao modo de servidor.
+ * O modelo conduz a conversa e redige a resposta a partir do resultado das
+ * consultas. NUNCA calcula valor — quem calcula é `domain`, via `core` (RF-101).
+ * Gravação só por proposta e aceite (RF-103).
  */
-export { bytesFromMarker, FakeBarcodeDecoder } from './barcode-decoder.js'
 export { InMemoryAiUsageCounter, TEXTO_TETO_IA } from './ai-usage.js'
 export type { AiUsageCounter, InMemoryAiUsageOptions } from './ai-usage.js'
-export { createToolCatalog, textoDasCapacidades } from './catalog.js'
+export { createBuddyBrain, MAXIMO_DE_ETAPAS } from './buddy-brain.js'
+export type { CreateBuddyBrainOptions } from './buddy-brain.js'
+export {
+  FRASE_PEDIDO_DE_TEXTO,
+  TEXTO_RECUSA_BANCO,
+  TEXTO_RECUSA_CERTIFICADO,
+  TEXTO_RECUSA_CONTA_CONTATO,
+  TEXTO_RECUSA_NOTA,
+} from './catalog.js'
 export type { AgentUseCases } from './catalog.js'
 export { InMemoryConfirmations, novaConfirmacao } from './confirmations.js'
 export { InMemoryConversationStore } from './conversations.js'
 export { createAgentRuntime } from './create-runtime.js'
 export type { CreateRuntimeOptions } from './create-runtime.js'
-export { defineTool, parseToolArgs } from './define-tool.js'
-export { FakeLlm } from './fake-llm.js'
-export { CONFIRMATION_TTL_MS, eNao, eSim, processMessage } from './process-message.js'
+export { CONFIRMATION_TTL_MS, FRASE_DE_FALHA, processMessage } from './process-message.js'
 export type {
   AgentRuntime,
-  AgentTool,
-  BarcodeDecoder,
+  BuddyBrain,
   ConfirmationDecision,
   ConfirmationStore,
+  ConversarInput,
+  ConversarSaida,
   ConversationStore,
   HistoryTurn,
   IncomingMessage,
   LinkedPeer,
-  LlmDecision,
-  LlmPort,
   PeerDirectory,
   PendingConfirmation,
-  ToolDescriptor,
 } from './types.js'
 export { FixturePeerDirectory, normalizarPeer } from './studio/fixture-peer-directory.js'
 export type { StudioPeerRef } from './studio/fixture-peer-directory.js'

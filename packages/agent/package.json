@@ -7,11 +7,13 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./mastra": "./src/mastra-llm.ts"
+    "./mastra": "./src/buddy-brain.ts",
+    "./test-support": "./src/test-support/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
+    "eval": "vitest run --config vitest.eval.config.ts",
     "clean": "rm -rf dist .turbo",
     "lint": "eslint src"
   },

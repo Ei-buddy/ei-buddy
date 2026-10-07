@@ -1,7 +1,6 @@
 import {
   processMessage,
   type AgentRuntime,
-  type AgentTool,
   type IncomingMessage,
   type PeerDirectory,
 } from '@na-regua/agent'
@@ -11,7 +10,6 @@ import type { WebhookInbox } from '@na-regua/core'
 import { FakeMessageSender } from '@na-regua/whatsapp'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import type { ExecutionContext } from '@na-regua/core'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import {
@@ -84,8 +82,9 @@ function inboxDeTeste(opcoes: { marcar?: boolean } = {}) {
 
 function runtimeMinimo(peers: PeerDirectory): AgentRuntime {
   return {
-    llm: { decide: async () => ({ type: 'unknown' }) },
-    tools: [],
+    brain: {
+      conversar: async () => ({ texto: 'Oi!', etapas: 1, snapshot: { v: 2, entidades: [] } }),
+    },
     confirmations: {
       getOpen: async () => undefined,
       put: async () => {},
@@ -121,6 +120,7 @@ function montar(
      */
     reentrega: boolean
     scheduler: { esperar(ms: number): Promise<void> }
+    agora: () => Date
   }> = {},
 ): Montagem {
   const remetente = new FakeMessageSender({ webhookSecret: SEGREDO })
@@ -156,6 +156,7 @@ function montar(
   const deps: WhatsAppWebhookRouteDeps = {
     verificacao: { verifyToken: VERIFY },
     scheduler: ajustes.scheduler ?? schedulerImediato(),
+    agora: ajustes.agora ?? (() => new Date(RECEBIDA_EM)),
     meta: {
       remetente: remetentePorta,
       peers,
@@ -508,6 +509,22 @@ describe('POST /webhooks/whatsapp com Meta — US1', () => {
     expect(sendText).toHaveBeenCalledOnce()
   })
 
+  it('texto com carimbo da Meta atrasado nao chama o assistente nem responde', async () => {
+    const enviadaEm = '2026-09-02T12:00:00.000Z'
+    const { deps, remetente, processMessage, sendText, inbox } = montar({
+      agora: () => new Date(RECEBIDA_EM),
+    })
+    app = await buildApp(deps)
+    const corpo = corpoTexto('Oi', 'wamid.antiga', FROM, enviadaEm)
+
+    const resposta = await postar(app, corpo, assinar(remetente, corpo))
+
+    expect(resposta.statusCode).toBe(200)
+    expect(processMessage).not.toHaveBeenCalled()
+    expect(sendText).not.toHaveBeenCalled()
+    expect(inbox.marcados).toEqual(['wamid.antiga'])
+  })
+
   it('reentrega com processed_at nulo chama processMessage de novo', async () => {
     const { deps, remetente, processMessage, sendText } = montar({ reentrega: true })
     app = await buildApp(deps)
@@ -683,18 +700,6 @@ describe('POST /webhooks/whatsapp com Meta — US4 primeira empresa', () => {
     }
 
     let ctxDoTurno: ExecutionContext | undefined
-    const ferramentaCaptura: AgentTool = {
-      id: 'capturaCtx',
-      description: 'captura ctx do turno',
-      inputSchema: z.object({}),
-      mutatesValue: false,
-      execute: async (_input, ctx) => {
-        ctxDoTurno = ctx
-        return {}
-      },
-      formatReply: () => 'ok',
-      formatProposal: () => 'ok',
-    }
 
     const { deps, remetente, sendText } = montar({
       peers,
@@ -702,9 +707,11 @@ describe('POST /webhooks/whatsapp com Meta — US4 primeira empresa', () => {
         processMessage(
           {
             ...runtime,
-            tools: [ferramentaCaptura],
-            llm: {
-              decide: async () => ({ type: 'tool', name: 'capturaCtx', args: {} }),
+            brain: {
+              conversar: async (entrada) => {
+                ctxDoTurno = entrada.execucao
+                return { texto: 'ok', etapas: 1, snapshot: { v: 2, entidades: [] } }
+              },
             },
           },
           input,

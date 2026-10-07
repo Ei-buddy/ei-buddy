@@ -1,5 +1,5 @@
 import type { AiUsageCounter } from './ai-usage.js'
-import type { AgentReply, AgentReplyKind, ProductOutput, Role } from '@na-regua/contracts'
+import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
 import type {
   Channel,
   ConfirmationStore,
@@ -7,45 +7,17 @@ import type {
   ConversationStore,
   ExecutionContext,
 } from '@na-regua/core'
-import type { z } from 'zod'
+import type { BuddyBrain } from './buddy-brain.js'
 
 export type { ConversationRole, ConversationStore }
 
 export type { AgentReply, AgentReplyKind }
 export type { ConfirmationDecision, ConfirmationStore, PendingConfirmation } from '@na-regua/core'
-
-/** Descritor da tool para o LLM — sem o execute, que o modelo nao ve. */
-export type ToolDescriptor = {
-  readonly id: string
-  readonly description: string
-  readonly inputSchema: z.ZodType
-  readonly mutatesValue: boolean
-}
-
-export type AgentTool = ToolDescriptor & {
-  readonly execute: (input: unknown, ctx: ExecutionContext) => Promise<unknown>
-  readonly formatReply: (output: unknown) => string
-  readonly formatProposal: (input: unknown) => string
-}
-
-export type LlmDecision =
-  | { readonly type: 'tool'; readonly name: string; readonly args: unknown }
-  | { readonly type: 'text'; readonly text: string }
-  | { readonly type: 'unknown' }
+export type { BuddyBrain, ConversarInput, ConversarSaida } from './buddy-brain.js'
 
 export type HistoryTurn = {
   readonly role: ConversationRole
   readonly body: string
-}
-
-export type LlmPort = {
-  decide(input: {
-    readonly text: string
-    readonly tools: readonly ToolDescriptor[]
-    readonly today: string
-    /** 0..12; omitido = []. Idle ou store ausente = []. */
-    readonly history?: readonly HistoryTurn[]
-  }): Promise<LlmDecision>
 }
 
 export type LinkedPeer = {
@@ -63,6 +35,7 @@ export type IncomingMessage = {
   readonly requestId: string
   readonly now: Date
   readonly channel: Channel
+  /** Foto não é tratada nesta fatia: recebe o pedido de texto. */
   readonly image?: {
     readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
     readonly bytes: Uint8Array
@@ -73,27 +46,14 @@ export type IncomingMessage = {
   readonly peer?: string
 }
 
-export type BarcodeDecoder = {
-  decode(input: {
-    readonly mimeType: string
-    readonly bytes: Uint8Array
-  }): Promise<{ codes: string[] }> | { codes: string[] }
-}
-
 export type AgentRuntime = {
-  readonly llm: LlmPort
-  readonly tools: readonly AgentTool[]
+  readonly brain: BuddyBrain
   readonly confirmations: ConfirmationStore
   readonly timeZone: string
   readonly confirmationTtlMs: number
   readonly peers?: PeerDirectory
-  /** Contador de decides por empresa; ausente = sem teto e sem medicao. */
+  /** Uso de IA por empresa; teto opcional, desligado por padrão. */
   readonly aiUsage?: AiUsageCounter
-  /** Historico do fio ativo. Ausente = decide sem history e sem append. */
+  /** Historico do fio ativo. Ausente = sem janela e sem append. */
   readonly conversations?: ConversationStore
-  readonly barcodeDecoder?: BarcodeDecoder
-  readonly findProductByBarcode?: (
-    ctx: ExecutionContext,
-    barcode: string,
-  ) => Promise<ProductOutput | undefined>
 }

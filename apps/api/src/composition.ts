@@ -18,7 +18,8 @@ import {
   createDefaultSaleSettings,
   createPayable,
   createReceivable,
-  findProductByBarcode,
+  deleteCustomer,
+  deleteProduct,
   listPayables,
   listReceivables,
   listSales,
@@ -27,26 +28,31 @@ import {
   createAppointment,
   listDayAppointments,
   abrirCanal,
+  rankCustomers,
+  rankProducts,
   registerCustomer,
   registerProductWithStock,
   registerSale,
+  resolveCustomerRef,
+  resolveProductRef,
+  searchCustomers,
   searchProducts,
   sendCustomerCharge,
   settlePayable,
   settleReceivable,
+  updateCustomer,
+  updateProduct,
 } from '@na-regua/core'
 import { processMessage, type PeerDirectory as AgentPeerDirectory } from '@na-regua/agent'
 import { createFakeMessageSender, criarRemetenteMeta } from '@na-regua/whatsapp'
 import {
   createAgentRuntime,
-  createToolCatalog,
   FixturePeerDirectory,
   InMemoryAiUsageCounter,
   loadStudioPresets,
   type AgentRuntime,
   type AgentUseCases,
-  type LlmPort,
-  type ToolDescriptor,
+  type CreateBuddyBrainOptions,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
 import type {
@@ -973,19 +979,16 @@ export function motivoDoAgenteIndisponivel(): string | undefined {
   return undefined
 }
 
-async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPort> {
+function modeloDoAgente(): CreateBuddyBrainOptions['model'] {
   if (env.OPENAI_API_KEY === undefined) {
     /* Inalcancavel: `motivoDoAgenteIndisponivel` ja barrou antes de construir
        nada. Fica pelo estreitamento de tipo. */
     throw new Error('OPENAI_API_KEY ausente: o assistente nao monta (ADR-0010).')
   }
 
-  const { createMastraLlm } = await import('@na-regua/agent/mastra')
-  return createMastraLlm({
-    model: env.AGENT_MODEL,
-    apiKey: env.OPENAI_API_KEY,
-    tools,
-  })
+  /* A chave vai na configuracao do modelo, e nao em `process.env`: trocar de
+     provedor e trocar a string de `AGENT_MODEL`, sem estado global. */
+  return { id: env.AGENT_MODEL as `${string}/${string}`, apiKey: env.OPENAI_API_KEY }
 }
 
 /**
@@ -1181,6 +1184,9 @@ export function buildAgentUseCases(): AgentUseCases {
 
   return {
     listSales: (ctx, input) => listSales(sales, ctx, input),
+    resolveProductId: (ctx, ref) => resolveProductRef(cadastro, ctx, ref),
+    resolveCustomerId: (ctx, ref) =>
+      resolveCustomerRef({ customers: cadastro.customers }, ctx, ref),
     listReceivables: (ctx) => listReceivables(contas, ctx),
     checkStock: (ctx, input) => checkStock(estoque, ctx, input),
     checkStockByQuery: (ctx, input) =>
@@ -1247,7 +1253,13 @@ export function buildAgentUseCases(): AgentUseCases {
         ctx,
         input,
       ),
-    findProductByBarcode: (ctx, barcode) => findProductByBarcode(cadastro, ctx, barcode),
+    searchCustomers: (ctx, input) => searchCustomers({ customers: cadastro.customers }, ctx, input),
+    rankCustomers: (ctx, input) => rankCustomers(relatorios, ctx, input),
+    rankProducts: (ctx, input) => rankProducts(relatorios, ctx, input),
+    updateCustomer: (ctx, customerId, input) => updateCustomer(cadastro, ctx, customerId, input),
+    updateProduct: (ctx, productId, input) => updateProduct(cadastro, ctx, productId, input),
+    deleteCustomer: (ctx, customerId) => deleteCustomer(cadastro, ctx, customerId),
+    deleteProduct: (ctx, productId) => deleteProduct(cadastro, ctx, productId),
   }
 }
 
@@ -1256,15 +1268,13 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
   if (motivoDoAgenteIndisponivel() !== undefined) return null
 
   const useCases = buildAgentUseCases()
-  const tools = createToolCatalog(useCases)
-  const llm = await criarLlmDoAgente(tools)
   const studioDirectory = tentarDiretorioStudio()
   const sql = getClient(env.DATABASE_URL)
 
   return {
     runtime: createAgentRuntime({
       useCases,
-      llm,
+      model: modeloDoAgente(),
       timeZone: env.TZ,
       confirmations: createConfirmationStore(sql),
       aiUsage: new InMemoryAiUsageCounter({

@@ -660,6 +660,18 @@ export function createProductRepository(sql: Sql): ProductRepository {
       return linha === undefined ? undefined : paraProduto(linha)
     },
 
+    findByIdIncludingDeleted: async (companyId, productId) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaProduto[]>`
+          SELECT * FROM products
+          WHERE id = ${productId}
+        `,
+      )
+      return linha === undefined ? undefined : paraProduto(linha)
+    },
+
     /**
      * O catalogo do balcao — RF-019.
      *
@@ -832,6 +844,53 @@ export function createProductRepository(sql: Sql): ProductRepository {
         `,
       )
       return { categories: linha?.categories ?? [], suppliers: linha?.suppliers ?? [] }
+    },
+
+    /**
+     * Edita so o que veio — espelho do UPDATE de `customers`.
+     *
+     * `COALESCE(novo, coluna)` em toda coluna: ausente nao mexe. `undefined`
+     * quando nao atualizou nada — inexistente, excluido ou de outra loja.
+     */
+    update: async (companyId, productId, patch, updatedBy) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaProduto[]>`
+          UPDATE products
+             SET description      = COALESCE(${patch.description ?? null}, description),
+                 barcode          = COALESCE(${patch.barcode ?? null}, barcode),
+                 unit_of_measure  = COALESCE(${patch.unitOfMeasure ?? null}, unit_of_measure),
+                 sale_price_cents = COALESCE(${patch.salePriceCents ?? null}, sale_price_cents),
+                 cost_price_cents = COALESCE(${patch.costPriceCents ?? null}, cost_price_cents),
+                 tax_rate         = COALESCE(${patch.taxRate ?? null}, tax_rate),
+                 min_stock        = COALESCE(${patch.minStock ?? null}, min_stock),
+                 category         = COALESCE(${patch.category ?? null}, category),
+                 supplier         = COALESCE(${patch.supplier ?? null}, supplier),
+                 updated_by       = ${updatedBy},
+                 updated_at       = now()
+           WHERE id = ${productId} AND deleted_at IS NULL
+          RETURNING *
+        `,
+      )
+
+      return linha === undefined ? undefined : paraProduto(linha)
+    },
+
+    setDeletedAt: async (companyId, productId, deletedAt, updatedBy) => {
+      const linhas = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ id: string }[]>`
+          UPDATE products
+             SET deleted_at = ${deletedAt},
+                 updated_by = ${updatedBy},
+                 updated_at = now()
+           WHERE id = ${productId}
+          RETURNING id
+        `,
+      )
+      return linhas.length > 0
     },
   }
 }

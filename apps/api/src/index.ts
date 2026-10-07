@@ -161,7 +161,8 @@ async function registrarRotas(): Promise<void> {
   }
   const agentDeps = await buildAgentDeps()
   registerAgentRoutes(app, agentDeps, motivoDoAgente)
-  registerWhatsAppWebhookRoutes(app, buildWhatsAppWebhookDeps(agentDeps))
+  const whatsappDeps = buildWhatsAppWebhookDeps(agentDeps)
+  registerWhatsAppWebhookRoutes(app, whatsappDeps)
   await montarStudio(app, {
     motivo: motivoDoAgente,
     runtime: agentDeps?.runtime ?? null,

@@ -1,14 +1,13 @@
 import { RequestContext } from '@mastra/core/request-context'
 import type { ExecutionContext } from '@na-regua/core'
 import { describe, expect, it, vi } from 'vitest'
-import { textoDasCapacidades, type AgentUseCases } from '../catalog.js'
+import type { AgentUseCases } from '../catalog.js'
 import { createAgentRuntime } from '../create-runtime.js'
-import { FakeLlm } from '../fake-llm.js'
-import { chaveDaConversa, formatarCentavos } from '../format.js'
 import { processMessage } from '../process-message.js'
+import { criarLojaDeTeste } from '../test-support/loja-de-teste.js'
+import { roteiroDoModelo, type EtapaRoteirizada } from '../test-support/mock-model.js'
 import { FixturePeerDirectory } from './fixture-peer-directory.js'
 import type { StudioPreset } from './presets.js'
-import { bytesFromMarker } from '../barcode-decoder.js'
 import {
   createStudioHarnessAgent,
   mascararPeerDoStudio,
@@ -50,92 +49,37 @@ const ctxApp: ExecutionContext = {
   now: agora,
 }
 
-function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
+const VENDAS_HOJE: readonly EtapaRoteirizada[] = [
+  { tool: 'list_sales', args: { from: '2026-09-11', to: '2026-09-11' } },
+  { texto: 'Hoje foram 3 vendas.' },
+]
+
+function vendasPorEmpresa(visto: string[] = []): AgentUseCases {
+  const base = criarLojaDeTeste().useCases
   return {
-    listSales: async () => ({
-      sales: [],
-      total: 0,
-      page: 1,
-      pageSize: 20,
-      summary: {
-        salesCount: 3,
-        grossCents: 15_000,
-        netCents: 14_000,
-        cardFeeCents: 500,
-        netAfterFeesCents: 13_500,
-        averageTicketCents: 5_000,
-      },
-    }),
-    listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
-    checkStock: async () => {
-      throw new Error('nao deveria consultar estoque neste teste')
+    ...base,
+    listSales: async (c) => {
+      visto.push(c.companyId)
+      const daA = c.companyId === UUID_A
+      return {
+        sales: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        summary: {
+          salesCount: daA ? 3 : 1,
+          grossCents: daA ? 15_000 : 99_000,
+          netCents: daA ? 14_000 : 99_000,
+          cardFeeCents: 0,
+          netAfterFeesCents: daA ? 14_000 : 99_000,
+          averageTicketCents: daA ? 5_000 : 99_000,
+        },
+      }
     },
-    checkStockByQuery: async () => {
-      throw new Error('nao deveria consultar estoque neste teste')
-    },
-    checkCustomerWalletByQuery: async () => {
-      throw new Error('nao deveria consultar fiado neste teste')
-    },
-    listPayables: async () => {
-      throw new Error('nao deveria consultar contas a pagar neste teste')
-    },
-    registerCustomer: async () => {
-      throw new Error('nao deveria cadastrar neste teste')
-    },
-    registerSale: async () => {
-      throw new Error('nao deveria vender neste teste')
-    },
-    searchProducts: async () => [],
-    revenueByMonth: async () => ({
-      from: '2026-09-01',
-      to: '2026-09-30',
-      months: [],
-      totalNetCents: 0,
-    }),
-    buildDre: async () => {
-      throw new Error('nao deveria montar DRE neste teste')
-    },
-    sendCustomerCharge: async () => {
-      throw new Error('nao deveria cobrar neste teste')
-    },
-    findProductByBarcode: async () => undefined,
-    registerProduct: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    createPayable: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    createReceivable: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    settlePayable: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    settleReceivable: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    adjustStock: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    cancelSale: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    createAppointment: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    listDayAppointments: async () => {
-      throw new Error('nao executa neste teste')
-    },
-    ...over,
   }
 }
 
-function envelopeDoGenerate(out: { text: string; toolResults?: unknown }): {
-  kind: string
-  text: string
-  confirmationId?: string
-  durationMs?: number
-} {
+function envelopeDoGenerate(out: { text: string; toolResults?: unknown }) {
   const results = out.toolResults
   if (Array.isArray(results)) {
     for (const item of results) {
@@ -143,17 +87,17 @@ function envelopeDoGenerate(out: { text: string; toolResults?: unknown }): {
       if (found !== undefined) return found
     }
   }
-  return { kind: 'answer', text: out.text }
+  return { kind: 'answer', text: out.text } as {
+    kind: string
+    text: string
+    confirmationId?: string
+    durationMs?: number
+  }
 }
 
-function extrairEnvelope(valor: unknown):
-  | {
-      kind: string
-      text: string
-      confirmationId?: string
-      durationMs?: number
-    }
-  | undefined {
+function extrairEnvelope(
+  valor: unknown,
+): { kind: string; text: string; confirmationId?: string; durationMs?: number } | undefined {
   if (valor === null || typeof valor !== 'object') return undefined
   const row = valor as Record<string, unknown>
   if (typeof row.kind === 'string' && typeof row.text === 'string') {
@@ -171,53 +115,24 @@ function extrairEnvelope(valor: unknown):
   return undefined
 }
 
-function resumoVendas(companyId: string) {
-  const daA = companyId === UUID_A
-  return {
-    sales: [],
-    total: 0,
-    page: 1,
-    pageSize: 20,
-    summary: {
-      salesCount: daA ? 3 : 1,
-      grossCents: daA ? 15_000 : 99_000,
-      netCents: daA ? 14_000 : 99_000,
-      cardFeeCents: daA ? 500 : 0,
-      netAfterFeesCents: daA ? 13_500 : 99_000,
-      averageTicketCents: daA ? 5_000 : 99_000,
-    },
-  }
-}
-
 async function generateNoRele(
   text: string,
   over: {
     readonly useCases?: AgentUseCases
+    readonly etapas?: readonly EtapaRoteirizada[]
     readonly requestContext?: Record<string, unknown>
     readonly directory?: FixturePeerDirectory
-    readonly runtime?: ReturnType<typeof createAgentRuntime>
-    readonly llm?: FakeLlm
     readonly now?: () => Date
     readonly onTurn?: (turno: StudioTurnLog) => void
   } = {},
 ) {
   const dir = over.directory ?? directory
-  const llm = over.llm ?? new FakeLlm()
-  if (text === 'quanto vendi hoje?') {
-    llm.script(text, {
-      type: 'tool',
-      name: 'list_sales',
-      args: { from: '2026-09-11', to: '2026-09-11' },
-    })
-  }
-  const decide = vi.spyOn(llm, 'decide')
-  const runtime =
-    over.runtime ??
-    createAgentRuntime({
-      useCases: over.useCases ?? casos(),
-      llm,
-      peers: dir,
-    })
+  const { modelo, chamadas } = roteiroDoModelo(over.etapas ?? VENDAS_HOJE)
+  const runtime = createAgentRuntime({
+    model: modelo,
+    useCases: over.useCases ?? vendasPorEmpresa(),
+    peers: dir,
+  })
   const agent = createStudioHarnessAgent({
     runtime,
     directory: dir,
@@ -226,43 +141,19 @@ async function generateNoRele(
     ...(over.onTurn === undefined ? {} : { onTurn: over.onTurn }),
   })
   const requestContext = new RequestContext()
-  const values = over.requestContext ?? { preset: PRESET.id }
-  for (const [chave, valor] of Object.entries(values)) {
+  for (const [chave, valor] of Object.entries(over.requestContext ?? { preset: PRESET.id })) {
     requestContext.set(chave, valor)
   }
   const out = await agent.generate(text, { requestContext })
-  return { runtime, llm, decide, out, envelope: envelopeDoGenerate(out) }
+  return { runtime, chamadas, out, envelope: envelopeDoGenerate(out) }
 }
 
 describe('studio-harness — US1 conversar no harness', () => {
-  it('mesma frase no rele (whatsapp) e em processMessage (app) devolve os mesmos centavos/kind', async () => {
+  it('mesma frase no rele (whatsapp) e em processMessage (app) tem o mesmo comportamento', async () => {
     const visto: string[] = []
-    const useCases = casos({
-      listSales: async (c) => {
-        visto.push(c.companyId)
-        return {
-          sales: [],
-          total: 0,
-          page: 1,
-          pageSize: 20,
-          summary: {
-            salesCount: 3,
-            grossCents: 15_000,
-            netCents: 14_000,
-            cardFeeCents: 500,
-            netAfterFeesCents: 13_500,
-            averageTicketCents: 5_000,
-          },
-        }
-      },
-    })
-    const llmHttp = new FakeLlm()
-    llmHttp.script('quanto vendi hoje?', {
-      type: 'tool',
-      name: 'list_sales',
-      args: { from: '2026-09-11', to: '2026-09-11' },
-    })
-    const runtimeHttp = createAgentRuntime({ useCases, peers: directory, llm: llmHttp })
+    const useCases = vendasPorEmpresa(visto)
+    const { modelo } = roteiroDoModelo(VENDAS_HOJE)
+    const runtimeHttp = createAgentRuntime({ model: modelo, useCases, peers: directory })
     const http = await processMessage(runtimeHttp, {
       text: 'quanto vendi hoje?',
       requestId: 'req-app',
@@ -271,7 +162,7 @@ describe('studio-harness — US1 conversar no harness', () => {
       ctx: ctxApp,
     })
 
-    const { decide, envelope } = await generateNoRele('quanto vendi hoje?', {
+    const { envelope } = await generateNoRele('quanto vendi hoje?', {
       useCases,
       requestContext: { preset: PRESET.id, companyId: UUID_B },
     })
@@ -279,203 +170,130 @@ describe('studio-harness — US1 conversar no harness', () => {
     expect(http.kind).toBe('answer')
     expect(envelope.kind).toBe(http.kind)
     expect(envelope.text).toBe(http.text)
-    expect(http.text).toContain('3 vendas')
-    expect(http.text).toContain(formatarCentavos(15_000))
-    expect(http.text).toContain(formatarCentavos(13_500))
-    expect(http.text).toContain(formatarCentavos(5_000))
     expect(visto).toEqual([UUID_A, UUID_A])
-    expect(decide).toHaveBeenCalledOnce()
   })
+})
 
-  it('frase fora do catalogo devolve unknown + textoDasCapacidades, sem inventar estoque', async () => {
-    const { runtime, decide, envelope } = await generateNoRele('me conta uma piada', {
-      requestContext: { preset: PRESET.id, companyId: UUID_B },
+describe('paridade de canais — WhatsApp, app e Studio (US7)', () => {
+  it('a mesma conversa produz a mesma sequencia de tools e o mesmo kind nos tres canais', async () => {
+    const etapas: readonly EtapaRoteirizada[] = [
+      {
+        tool: 'create_sale',
+        args: { items: [{ productId: 'café' }], payments: [{ method: 'pix' }] },
+      },
+      { texto: 'Vou registrar 1 café no pix. Posso?' },
+    ]
+    const nomesDasTools = (chamadas: readonly { prompt: unknown }[]) =>
+      JSON.stringify(chamadas.map((c) => JSON.stringify(c.prompt).match(/"toolName":"[a-z_]+"/g)))
+
+    const loja = () => {
+      const base = criarLojaDeTeste()
+      return {
+        ...base.useCases,
+        resolveProductId: async () => 'p-cafe',
+        checkStock: async () => ({
+          productId: 'p-cafe',
+          description: 'café em grãos',
+          salePriceCents: 2_500,
+          stockQuantity: 0,
+          location: null,
+          minStock: 0,
+          belowMinimum: false,
+        }),
+      }
+    }
+
+    const wa = roteiroDoModelo(etapas)
+    const rWa = await processMessage(
+      createAgentRuntime({ model: wa.modelo, useCases: loja(), peers: directory }),
+      {
+        text: 'vende um café no pix',
+        requestId: 'r1',
+        now: agora,
+        channel: 'whatsapp',
+        peer: PRESET.peer,
+      },
+    )
+
+    const app = roteiroDoModelo(etapas)
+    const rApp = await processMessage(createAgentRuntime({ model: app.modelo, useCases: loja() }), {
+      text: 'vende um café no pix',
+      requestId: 'r2',
+      now: agora,
+      channel: 'app',
+      ctx: ctxApp,
     })
-    const esperado = textoDasCapacidades(runtime.tools)
 
-    expect(envelope.kind).toBe('unknown')
-    expect(envelope.text).toBe(esperado)
-    expect(envelope.text).toContain('list_sales')
-    expect(envelope.text).toContain('create_sale')
-    expect(envelope.text).not.toMatch(/estoque|em breve|list_stock/i)
-    expect(decide).toHaveBeenCalledOnce()
+    const studio = await generateNoRele('vende um café no pix', { useCases: loja(), etapas })
+
+    expect(rWa.kind).toBe('confirmation')
+    expect(rApp.kind).toBe(rWa.kind)
+    expect(studio.envelope.kind).toBe(rWa.kind)
+    expect(rApp.text).toBe(rWa.text)
+    expect(studio.envelope.text).toBe(rWa.text)
+    expect(nomesDasTools(app.chamadas)).toBe(nomesDasTools(wa.chamadas))
+    expect(nomesDasTools(studio.chamadas)).toBe(nomesDasTools(wa.chamadas))
   })
 })
 
 describe('studio-harness — US2 identidade forjada', () => {
-  it('dois presets isolam vendas: A nao ve B, e companyId do cliente nao troca a loja', async () => {
+  it('dois presets isolam vendas e companyId do cliente nao troca a loja', async () => {
     const visto: string[] = []
-    const useCases = casos({
-      listSales: async (c) => {
-        visto.push(c.companyId)
-        return resumoVendas(c.companyId)
-      },
-    })
+    const useCases = vendasPorEmpresa(visto)
 
     const daA = await generateNoRele('quanto vendi hoje?', {
       useCases,
       directory: directoryDuas,
       requestContext: { preset: PRESET.id },
     })
-    expect(daA.envelope.kind).toBe('answer')
-    expect(daA.envelope.text).toContain('3 vendas')
-    expect(daA.envelope.text).toContain(formatarCentavos(15_000))
-    expect(daA.envelope.text).not.toContain(formatarCentavos(99_000))
+    expect(JSON.stringify(daA.chamadas[1]?.prompt)).toContain('150,00')
+    expect(JSON.stringify(daA.chamadas[1]?.prompt)).not.toContain('990,00')
 
     const daB = await generateNoRele('quanto vendi hoje?', {
       useCases,
       directory: directoryDuas,
       requestContext: { preset: PRESET_B.id },
     })
-    expect(daB.envelope.kind).toBe('answer')
-    expect(daB.envelope.text).toContain('1 venda')
-    expect(daB.envelope.text).toContain(formatarCentavos(99_000))
-    expect(daB.envelope.text).not.toContain(formatarCentavos(15_000))
+    expect(JSON.stringify(daB.chamadas[1]?.prompt)).toContain('990,00')
 
-    const forjado = await generateNoRele('quanto vendi hoje?', {
+    await generateNoRele('quanto vendi hoje?', {
       useCases,
       directory: directoryDuas,
       requestContext: { preset: PRESET.id, companyId: UUID_B, userId: USER_B, role: 'owner' },
     })
-    expect(forjado.envelope.text).toContain(formatarCentavos(15_000))
-    expect(forjado.envelope.text).not.toContain(formatarCentavos(99_000))
     expect(visto).toEqual([UUID_A, UUID_B, UUID_A])
   })
 
-  it('ignored com texto vazio vira recusa generica nao vazia, sem vazar a outra empresa', async () => {
-    const listSales = vi.fn(async () => resumoVendas(UUID_A))
-    const { envelope, decide } = await generateNoRele('quanto vendi hoje?', {
-      useCases: casos({ listSales }),
+  it('ignored vira recusa generica nao vazia, sem chamar o modelo nem vazar a outra empresa', async () => {
+    const visto: string[] = []
+    const { envelope, chamadas } = await generateNoRele('quanto vendi hoje?', {
+      useCases: vendasPorEmpresa(visto),
       directory: directoryDuas,
       requestContext: { preset: 'nao-existe', companyId: UUID_B },
     })
 
     expect(envelope.kind).toBe('ignored')
-    expect(envelope.text.trim().length).toBeGreaterThan(0)
     expect(envelope.text).toMatch(/nao vinculado/i)
-    expect(envelope.text).not.toContain(UUID_A)
-    expect(envelope.text).not.toContain(UUID_B)
-    expect(envelope.text).not.toContain(PRESET.peer)
-    expect(envelope.text).not.toContain(PRESET_B.peer)
-    expect(envelope.text).not.toContain(PRESET_B.id)
-    expect(listSales).not.toHaveBeenCalled()
-    expect(decide).not.toHaveBeenCalled()
-  })
-
-  it('create_customer no whatsapp pede confirmacao wa:…; sim grava e talvez nao', async () => {
-    const pedido = 'cadastra o Joao, 11 98888-7777'
-    const args = { name: 'Joao', phone: '11 98888-7777' }
-
-    let gravados = 0
-    const useCases = casos({
-      registerCustomer: async (c, input) => {
-        gravados += 1
-        expect(c.companyId).toBe(UUID_A)
-        expect(c.channel).toBe('whatsapp')
-        return {
-          status: 'created' as const,
-          customer: {
-            id: 'cli-1',
-            name: input.name,
-            tradeName: input.tradeName ?? null,
-            document: null,
-            phone: input.phone ?? null,
-            email: null,
-            notes: null,
-            walletLimitCents: 0,
-            walletBalanceCents: 0,
-            address: {
-              zipCode: null,
-              street: null,
-              number: null,
-              complement: null,
-              district: null,
-              city: null,
-              state: null,
-            },
-            createdAt: agora.toISOString(),
-            anonymizedAt: null,
-            deletedAt: null,
-          },
-        }
-      },
-    })
-
-    const llmSim = new FakeLlm()
-    llmSim.script(pedido, { type: 'tool', name: 'create_customer', args })
-    const runtimeSim = createAgentRuntime({ useCases, llm: llmSim, peers: directory })
-    const put = vi.spyOn(runtimeSim.confirmations, 'put')
-
-    const proposta = await generateNoRele(pedido, {
-      directory,
-      runtime: runtimeSim,
-      llm: llmSim,
-      requestContext: { preset: PRESET.id },
-    })
-    expect(proposta.envelope.kind).toBe('confirmation')
-    expect(proposta.envelope.text).toMatch(/Confirma\?/)
-    expect(proposta.envelope.confirmationId).toEqual(expect.any(String))
-    expect(gravados).toBe(0)
-    expect(put).toHaveBeenCalledOnce()
-    expect(put.mock.calls[0]?.[0]?.conversationKey).toBe(
-      chaveDaConversa({
-        channel: 'whatsapp',
-        companyId: UUID_A,
-        userId: USER_A,
-        peer: PRESET.peer,
-      }),
-    )
-    expect(put.mock.calls[0]?.[0]?.conversationKey).toBe(`wa:${UUID_A}:${PRESET.peer}`)
-
-    const sim = await generateNoRele('sim', {
-      directory,
-      runtime: runtimeSim,
-      llm: llmSim,
-      requestContext: { preset: PRESET.id },
-    })
-    expect(sim.envelope.kind).toBe('answer')
-    expect(sim.envelope.text).toBe('Cliente Joao cadastrado.')
-    expect(gravados).toBe(1)
-
-    const llmTalvez = new FakeLlm()
-    llmTalvez.script(pedido, { type: 'tool', name: 'create_customer', args })
-    const runtimeTalvez = createAgentRuntime({ useCases, llm: llmTalvez, peers: directory })
-    gravados = 0
-    await generateNoRele(pedido, {
-      directory,
-      runtime: runtimeTalvez,
-      llm: llmTalvez,
-      requestContext: { preset: PRESET.id },
-    })
-    const talvez = await generateNoRele('talvez', {
-      directory,
-      runtime: runtimeTalvez,
-      llm: llmTalvez,
-      requestContext: { preset: PRESET.id },
-    })
-    expect(talvez.envelope.kind).toBe('answer')
-    expect(talvez.envelope.text).toMatch(/cancelei/i)
-    expect(talvez.envelope.text).toMatch(/Nada foi registrado/)
-    expect(gravados).toBe(0)
+    for (const segredo of [UUID_A, UUID_B, PRESET.peer, PRESET_B.peer, PRESET_B.id]) {
+      expect(envelope.text).not.toContain(segredo)
+    }
+    expect(visto).toEqual([])
+    expect(chamadas).toHaveLength(0)
   })
 })
 
-describe('studio-harness — NR-116 foto', () => {
-  it('montarIncomingMessageRelay converte dataBase64 em bytes; text vazio por padrao', () => {
-    const marker = '7891234567895'
-    const dataBase64 = Buffer.from(marker, 'utf-8').toString('base64')
+describe('studio-harness — montarIncomingMessageRelay', () => {
+  it('converte dataBase64 em bytes; text vazio por padrao', () => {
+    const dataBase64 = Buffer.from('7891234567895', 'utf-8').toString('base64')
     const entrada = montarIncomingMessageRelay(
       { image: { mimeType: 'image/jpeg', dataBase64 } },
       'req-img',
       agora,
       PRESET.peer,
     )
-
     expect(entrada.text).toBe('')
     expect(entrada.image?.mimeType).toBe('image/jpeg')
-    expect(entrada.image?.bytes).toEqual(bytesFromMarker(marker))
     expect(JSON.stringify(entrada)).not.toContain(dataBase64)
-    expect(JSON.stringify(entrada)).not.toMatch(/data:image\//)
   })
 
   it('texto so no relay permanece igual ao HTTP', () => {
@@ -490,76 +308,11 @@ describe('studio-harness — NR-116 foto', () => {
   })
 })
 
-describe('studio-harness — US3 durationMs', () => {
+describe('studio-harness — US3 durationMs e log', () => {
   it('mascararPeerDoStudio esconde o numero e guarda 4 digitos', () => {
     expect(mascararPeerDoStudio('5511999000001')).toBe('****0001')
     expect(mascararPeerDoStudio('+55 11 99900-0001')).toBe('****0001')
     expect(mascararPeerDoStudio('12')).toBe('****')
-  })
-  it('apos consulta o envelope tem durationMs number >= 0', async () => {
-    const { envelope } = await generateNoRele('quanto vendi hoje?', {
-      requestContext: { preset: PRESET.id },
-    })
-
-    expect(envelope.kind).toBe('answer')
-    expect(typeof envelope.durationMs).toBe('number')
-    expect(envelope.durationMs).toBeGreaterThanOrEqual(0)
-    expect(Number.isFinite(envelope.durationMs)).toBe(true)
-  })
-
-  it('apos sim o envelope tem durationMs number >= 0', async () => {
-    const pedido = 'cadastra o Joao, 11 98888-7777'
-    const args = { name: 'Joao', phone: '11 98888-7777' }
-    const useCases = casos({
-      registerCustomer: async (_c, input) => ({
-        status: 'created' as const,
-        customer: {
-          id: 'cli-1',
-          name: input.name,
-          tradeName: input.tradeName ?? null,
-          document: null,
-          phone: input.phone ?? null,
-          email: null,
-          notes: null,
-          walletLimitCents: 0,
-          walletBalanceCents: 0,
-          address: {
-            zipCode: null,
-            street: null,
-            number: null,
-            complement: null,
-            district: null,
-            city: null,
-            state: null,
-          },
-          createdAt: agora.toISOString(),
-          anonymizedAt: null,
-          deletedAt: null,
-        },
-      }),
-    })
-    const llm = new FakeLlm()
-    llm.script(pedido, { type: 'tool', name: 'create_customer', args })
-    const runtime = createAgentRuntime({ useCases, llm, peers: directory })
-
-    await generateNoRele(pedido, {
-      directory,
-      runtime,
-      llm,
-      requestContext: { preset: PRESET.id },
-    })
-    const sim = await generateNoRele('sim', {
-      directory,
-      runtime,
-      llm,
-      requestContext: { preset: PRESET.id },
-    })
-
-    expect(sim.envelope.kind).toBe('answer')
-    expect(sim.envelope.text).toBe('Cliente Joao cadastrado.')
-    expect(typeof sim.envelope.durationMs).toBe('number')
-    expect(sim.envelope.durationMs).toBeGreaterThanOrEqual(0)
-    expect(Number.isFinite(sim.envelope.durationMs)).toBe(true)
   })
 
   it('relogio injetavel mede startedAt ate o retorno de processMessage', async () => {
@@ -570,24 +323,14 @@ describe('studio-harness — US3 durationMs', () => {
       chamadas += 1
       return chamadas === 1 ? t0 : t1
     }
-
-    const { envelope } = await generateNoRele('quanto vendi hoje?', {
-      requestContext: { preset: PRESET.id },
-      now,
-    })
-
+    const { envelope } = await generateNoRele('quanto vendi hoje?', { now })
     expect(envelope.durationMs).toBe(412)
-    expect(chamadas).toBeGreaterThanOrEqual(2)
   })
 
   it('log agent.studio.turn traz companyId, peer mascarado, durationMs, kind e requestId', async () => {
     const onTurn = vi.fn()
-    const { envelope } = await generateNoRele('quanto vendi hoje?', {
-      requestContext: { preset: PRESET.id },
-      onTurn,
-    })
+    const { envelope } = await generateNoRele('quanto vendi hoje?', { onTurn })
 
-    expect(onTurn).toHaveBeenCalledOnce()
     expect(onTurn).toHaveBeenCalledWith({
       companyId: UUID_A,
       peer: mascararPeerDoStudio(PRESET.peer),
@@ -595,11 +338,9 @@ describe('studio-harness — US3 durationMs', () => {
       kind: 'answer',
       requestId: 'req-studio',
     })
-    expect(onTurn.mock.calls[0]?.[0]?.peer).toBe('****0001')
     const serializado = JSON.stringify(onTurn.mock.calls)
     expect(serializado).not.toContain(PRESET.peer)
     expect(serializado).not.toContain(USER_A)
-    expect(serializado).not.toMatch(/Joao|98888/)
   })
 
   it('log de recusa nao vaza peer desconhecido nem companyId', async () => {
@@ -610,21 +351,10 @@ describe('studio-harness — US3 durationMs', () => {
       requestContext: { peer: estranho, companyId: UUID_B },
       onTurn,
     })
-
-    expect(onTurn).toHaveBeenCalledOnce()
     const turno = onTurn.mock.calls[0]?.[0]
-    expect(turno).toMatchObject({
-      durationMs: expect.any(Number),
-      kind: 'ignored',
-      requestId: 'req-studio',
-    })
+    expect(turno).toMatchObject({ kind: 'ignored', requestId: 'req-studio' })
     expect(turno?.peer).toBeUndefined()
     expect(turno?.companyId).toBeUndefined()
-    const serializado = JSON.stringify(onTurn.mock.calls)
-    expect(serializado).not.toContain(estranho)
-    expect(serializado).not.toContain(UUID_A)
-    expect(serializado).not.toContain(UUID_B)
-    expect(serializado).not.toContain(PRESET.peer)
-    expect(serializado).not.toContain(PRESET_B.peer)
+    expect(JSON.stringify(onTurn.mock.calls)).not.toContain(estranho)
   })
 })

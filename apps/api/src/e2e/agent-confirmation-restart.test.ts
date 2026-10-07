@@ -1,6 +1,11 @@
 import { agentReplySchema } from '@na-regua/contracts'
 import { registerCustomer, type RegisterCustomerDeps } from '@na-regua/core'
-import { createAgentRuntime, FakeLlm, type AgentUseCases } from '@na-regua/agent'
+import { createAgentRuntime, type AgentUseCases } from '@na-regua/agent'
+import {
+  criarLojaDeTeste,
+  roteiroDoModelo,
+  type EtapaRoteirizada,
+} from '@na-regua/agent/test-support'
 import { createConfirmationStore, getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -12,16 +17,14 @@ import { registerAuthRoutes } from '../routes/auth.js'
 import { registerCadastroRoutes } from '../routes/cadastro.js'
 
 /**
- * T041 / FR-008 — o smoke manual do quickstart NR-061, pela API de verdade.
+ * T041 / FR-008 — a proposta sobrevive a matar o processo (NR-061), agora
+ * sobre o agente de várias etapas (spec 013, T052).
  *
- * FakeLlm local nao reconhece cadastro (so consulta). Por isso o pedido e
- * roteirizado. O que este arquivo prova, e que o teste in-memory da rota nao
- * prova: a pendencia sobrevive a matar o Fastify. Segunda instancia = processo
- * novo; store novo no mesmo Postgres; sessao lida do banco (NR-083).
+ * O modelo é o dublê do Mastra: ele escolhe as tools; o que se prova é o que
+ * o Postgres guarda. Segunda instância = processo novo, store novo no mesmo
+ * banco, sessão lida do banco (NR-083). Canal `app` (HTTP).
  *
- * Canal so `app` (HTTP). Nao manda `sim` numa chave `wa:` — research §4.
- *
- * Sem `DATABASE_URL` a suite e pulada, como o caminho critico.
+ * Sem `DATABASE_URL` a suíte é pulada, como o caminho crítico.
  */
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -42,112 +45,29 @@ function cnpjValido(base12: string): string {
 
 const agoraMs = Date.now()
 const CNPJ = cnpjValido(String(agoraMs).slice(-12))
-const SENHA = 'senha-de-teste'
 const CADASTRO = {
   name: 'Operadora NR-061 Restart',
   email: `dona-nr061@${CNPJ}.local`,
-  secret: SENHA,
+  secret: 'senha-de-teste',
   legalName: 'Barbearia Confirmacao Persistente LTDA',
   cnpj: CNPJ,
   acceptedLegalTerms: true as const,
 }
 
-/*
- * Nome e telefone unicos por execucao.
- *
- * O banco da CI e compartilhado entre suites E2E; `GET /clientes` sem filtro
- * pode enxergar linhas de outras lojas se a conexao ignorar RLS (o caminho
- * critico ja documenta isso). Contar `total === 0` falha com lixo alheio.
- * Buscar pelo telefone desta rodada isola o efeito do `sim`.
- */
+/* Nome e telefone únicos por execução: o banco da CI é compartilhado entre
+   suítes, e buscar pelo telefone desta rodada isola o efeito do aceite. */
 const NOME_CLIENTE = `Joao NR061 ${String(agoraMs).slice(-8)}`
 const TELEFONE_CLIENTE = `1198${String(agoraMs).slice(-7)}`
 const PEDIDO = `cadastra o ${NOME_CLIENTE}, ${TELEFONE_CLIENTE}`
-const ARGS_CADASTRO = { name: NOME_CLIENTE, phone: TELEFONE_CLIENTE }
+const PROPOR: readonly EtapaRoteirizada[] = [
+  { tool: 'create_customer', args: { name: NOME_CLIENTE, phone: TELEFONE_CLIENTE } },
+  { texto: `Vou cadastrar o ${NOME_CLIENTE}. Posso confirmar?` },
+]
 
-const leituraVazia: AgentUseCases = {
-  listSales: async () => ({
-    sales: [],
-    total: 0,
-    page: 1,
-    pageSize: 20,
-    summary: {
-      salesCount: 0,
-      grossCents: 0,
-      netCents: 0,
-      cardFeeCents: 0,
-      netAfterFeesCents: 0,
-      averageTicketCents: 0,
-    },
-  }),
-  listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
-  checkStock: async () => {
-    throw new Error('nao deveria consultar estoque neste smoke')
-  },
-  checkStockByQuery: async () => {
-    throw new Error('nao deveria consultar estoque neste smoke')
-  },
-  checkCustomerWalletByQuery: async () => {
-    throw new Error('nao deveria consultar fiado neste smoke')
-  },
-  listPayables: async () => {
-    throw new Error('nao deveria consultar contas a pagar neste smoke')
-  },
-  registerCustomer: async () => {
-    throw new Error('registerCustomer precisa do cadastro real')
-  },
-  registerSale: async () => {
-    throw new Error('nao deveria vender neste smoke')
-  },
-  searchProducts: async () => [],
-  revenueByMonth: async () => ({
-    from: '2026-09-01',
-    to: '2026-09-30',
-    months: [],
-    totalNetCents: 0,
-  }),
-  buildDre: async () => {
-    throw new Error('nao deveria montar DRE neste smoke')
-  },
-  sendCustomerCharge: async () => {
-    throw new Error('nao deveria cobrar neste smoke')
-  },
-  findProductByBarcode: async () => undefined,
-  registerProduct: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createPayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settlePayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settleReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  adjustStock: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  cancelSale: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createAppointment: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listDayAppointments: async () => {
-    throw new Error('nao executa neste teste')
-  },
-}
-
-describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', () => {
+describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, aceite', () => {
   let composicao: Composicao
   let app: FastifyInstance | undefined
   let token: string
-
-  const sql = () => getClient(DATABASE_URL!)
 
   const http = (): FastifyInstance => {
     if (app === undefined) throw new Error('API ainda nao subiu')
@@ -165,10 +85,13 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
       : http().inject({ ...base, payload: opcoes.payload })
   }
 
-  async function clientesDoPedido(): Promise<{
-    total: number
-    customers: ReadonlyArray<{ name: string; phone: string | null }>
-  }> {
+  const falar = async (text: string) => {
+    const r = await comSessao({ method: 'POST', url: '/agent/messages', payload: { text } })
+    expect(r.statusCode).toBe(200)
+    return agentReplySchema.parse(JSON.parse(r.body))
+  }
+
+  async function clientesDoPedido(): Promise<{ total: number; customers: { name: string }[] }> {
     const lista = await comSessao({
       method: 'GET',
       url: `/clientes?q=${encodeURIComponent(TELEFONE_CLIENTE)}`,
@@ -180,28 +103,27 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
   function casosComCadastroReal(): AgentUseCases {
     const cadastro: RegisterCustomerDeps = composicao.buildCadastroDeps()
     return {
-      ...leituraVazia,
+      ...criarLojaDeTeste().useCases,
       registerCustomer: (ctx, input) => registerCustomer(cadastro, ctx, input),
     }
   }
 
-  async function subir(llm: FakeLlm): Promise<void> {
+  async function subir(etapas: readonly EtapaRoteirizada[]): Promise<void> {
     if (app !== undefined) await app.close()
     app = undefined
 
     const proxima = Fastify({ logger: false })
     registerErrorHandler(proxima)
     await registerRateLimit(proxima)
-
     const authDeps = composicao.buildAuthDeps()
     registerSession(proxima, authDeps.sessions)
     registerAuthRoutes(proxima, authDeps)
     registerCadastroRoutes(proxima, composicao.buildCadastroDeps())
 
     const runtime = createAgentRuntime({
+      model: roteiroDoModelo(etapas).modelo,
       useCases: casosComCadastroReal(),
-      llm,
-      confirmations: createConfirmationStore(sql()),
+      confirmations: createConfirmationStore(getClient(DATABASE_URL!)),
     })
     registerAgentRoutes(proxima, { runtime })
     await proxima.ready()
@@ -214,10 +136,12 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
     vi.stubEnv('REDIS_URL', process.env.REDIS_URL ?? 'redis://localhost:6379')
     composicao = await import('../composition.js')
     await migrate(MIGRATION_URL!)
-
-    const llm = new FakeLlm()
-    llm.script(PEDIDO, { type: 'tool', name: 'create_customer', args: ARGS_CADASTRO })
-    await subir(llm)
+    await subir([
+      ...PROPOR,
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Certo, qual é o telefone novo?' },
+      ...PROPOR,
+    ])
   }, 90_000)
 
   afterAll(async () => {
@@ -227,59 +151,45 @@ describe.skipIf(!DATABASE_URL)('NR-061 T041 — HTTP proposta, restart, sim', ()
   })
 
   it('abre a fixture e a sessao fica no banco', async () => {
-    const r = await http().inject({
-      method: 'POST',
-      url: '/auth/signup',
-      payload: CADASTRO,
-    })
+    const r = await http().inject({ method: 'POST', url: '/auth/signup', payload: CADASTRO })
     expect(r.statusCode).toBe(201)
     token = r.json().token
     expect(token).toBeTruthy()
   })
 
-  it('SC-001: mutacao devolve confirmation e nao cria cliente', async () => {
-    const proposta = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: PEDIDO },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
+  it('SC-001: pedido de cadastro devolve confirmation e nao cria cliente', async () => {
+    const corpo = await falar(PEDIDO)
     expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Confirma\?/)
-
-    const lista = await clientesDoPedido()
-    expect(lista.total).toBe(0)
+    expect(corpo.confirmationId).toEqual(expect.any(String))
+    expect((await clientesDoPedido()).total).toBe(0)
   })
 
-  it('SC-003: depois de matar o processo, sim no prazo grava uma vez', async () => {
-    /* Processo novo: FakeLlm vazio. "sim" nao passa pelo modelo — getOpen no
-       Postgres acha a aberta. Canal continua app: (HTTP), nao wa:. */
-    await subir(new FakeLlm())
-
-    const sim = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    expect(sim.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(sim.body))
+  it('resposta com ressalva nao grava, mesmo com o modelo chamando o aceite', async () => {
+    const corpo = await falar('pode, mas troca o telefone')
     expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toBe(`Cliente ${NOME_CLIENTE} cadastrado.`)
+    expect((await clientesDoPedido()).total).toBe(0)
+  })
+
+  it('SC-003: proposta refeita, processo novo, "fechou" no prazo grava uma vez', async () => {
+    expect((await falar(PEDIDO)).kind).toBe('confirmation')
+
+    await subir([
+      { tool: 'accept_proposal', args: {} },
+      { texto: `Pronto, ${NOME_CLIENTE} cadastrado.` },
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Não há nada pendente.' },
+    ])
+    const corpo = await falar('fechou')
+    expect(corpo.kind).toBe('answer')
+    expect(corpo.text).toContain(NOME_CLIENTE)
 
     const lista = await clientesDoPedido()
     expect(lista.total).toBe(1)
     expect(lista.customers[0]?.name).toBe(NOME_CLIENTE)
   })
 
-  it('segundo sim nao duplica', async () => {
-    const deNovo = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    expect(deNovo.statusCode).toBe(200)
-    const lista = await clientesDoPedido()
-    expect(lista.total).toBe(1)
+  it('segundo aceite nao duplica', async () => {
+    await falar('fechou')
+    expect((await clientesDoPedido()).total).toBe(1)
   })
 })

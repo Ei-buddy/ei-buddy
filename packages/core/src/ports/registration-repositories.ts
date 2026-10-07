@@ -263,6 +263,25 @@ export type NewProduct = {
   readonly taxSituationCode: string | null
 }
 
+/**
+ * O que a edicao pode mudar.
+ *
+ * Espelha `updateProductInputSchema` de `contracts`: tudo opcional. Ausente
+ * quer dizer "nao mexe". A checagem preco >= custo NAO mora aqui — o schema e
+ * `.partial()` sem refine; quem enxerga o produto inteiro e o caso de uso.
+ */
+export type ProductPatch = {
+  readonly description?: string | undefined
+  readonly barcode?: string | undefined
+  readonly unitOfMeasure?: ProductOutput['unitOfMeasure'] | undefined
+  readonly salePriceCents?: number | undefined
+  readonly costPriceCents?: number | undefined
+  readonly taxRate?: number | undefined
+  readonly minStock?: number | undefined
+  readonly category?: string | undefined
+  readonly supplier?: string | undefined
+}
+
 export type ProductRepository = {
   create(product: NewProduct): Promise<ProductOutput>
 
@@ -276,9 +295,21 @@ export type ProductRepository = {
    * granel, produto sem embalagem e etiqueta amassada usam o codigo interno, e
    * a ficha precisa abrir para eles tambem.
    *
-   * `undefined` quando nao existe OU e de outra empresa.
+   * `undefined` quando nao existe, foi excluido OU e de outra empresa.
+   * Diferente do cliente: produto apagado nao reabre ficha pelo id vigente.
    */
   findById(companyId: CompanyId, productId: string): Promise<ProductOutput | undefined>
+
+  /**
+   * Como `findById`, mas inclui produto com `deleted_at` preenchido.
+   *
+   * Existe para o soft-delete ser idempotente: `findById` esconde o excluido,
+   * e sem isto o segundo delete nao distinguiria "ja saiu" de "nunca existiu".
+   */
+  findByIdIncludingDeleted(
+    companyId: CompanyId,
+    productId: string,
+  ): Promise<ProductOutput | undefined>
 
   /**
    * Catalogo para o balcao — RF-019.
@@ -352,4 +383,30 @@ export type ProductRepository = {
     readonly categories: readonly string[]
     readonly suppliers: readonly string[]
   }>
+
+  /**
+   * Edita so o que veio. Campo ausente fica como esta.
+   *
+   * `undefined` quando nao ha o que atualizar: inexistente, excluido ou de
+   * outra empresa — indistinguiveis daqui por causa da RLS.
+   */
+  update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
+
+  /**
+   * Soft-delete (data) ou reativacao (`null`).
+   *
+   * `false` quando nao ha o que atualizar — inexistente ou de outra empresa.
+   * Enxerga linhas ja excluidas: o caso de uso precisa disso para idempotencia.
+   */
+  setDeletedAt(
+    companyId: CompanyId,
+    productId: string,
+    deletedAt: Date | null,
+    updatedBy: UserId,
+  ): Promise<boolean>
 }

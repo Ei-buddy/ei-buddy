@@ -104,7 +104,7 @@ describe('agente — ADR-0010', () => {
   it('nao expoe AGENT_PROVIDER e deixa a chave opcional', () => {
     const env = loadApiEnv(base)
     expect(env).not.toHaveProperty('AGENT_PROVIDER')
-    expect(env.AGENT_MODEL).toBe('openai/gpt-4o-mini')
+    expect(env.AGENT_MODEL).toBe('openai/gpt-5.4-mini')
     expect(env.OPENAI_API_KEY).toBeUndefined()
     expect(env.AGENT_MONTHLY_BUDGET_CENTS).toBeUndefined()
     expect(env.AGENT_HARNESS).toBe(false)
@@ -125,7 +125,7 @@ describe('agente — ADR-0010', () => {
     const env = loadApiEnv({ ...base, AGENT_PROVIDER: 'fake' })
     expect(env).not.toHaveProperty('AGENT_PROVIDER')
     expect(env.OPENAI_API_KEY).toBeUndefined()
-    expect(env.AGENT_MODEL).toBe('openai/gpt-4o-mini')
+    expect(env.AGENT_MODEL).toBe('openai/gpt-5.4-mini')
   })
 
   it('converte o teto mensal', () => {

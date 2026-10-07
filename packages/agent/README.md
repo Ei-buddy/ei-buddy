@@ -3,10 +3,10 @@
 Runtime do assistente: tools, memória e confirmações.
 
 **Estado:** 🟡 runtime local sem adapter real · [ADR-0010](../../docs/decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
-(Mastra + `openai/gpt-4o-mini`) · identidade do canal
+(Mastra + `openai/gpt-5.4-mini`, agente de várias etapas — spec 013) · identidade do canal
 [ADR-0012](../../docs/decisoes/adr/0012-identidade-do-canal-whatsapp.md)
 (`PeerDirectory` pelo celular do owner) · canal de teste `POST /agent/messages`
-quando há `OPENAI_API_KEY` · a CI usa `script()` no `FakeLlm` · harness **Mastra Studio** (eng.) é `NR-121` ·
+quando há `OPENAI_API_KEY` · a CI usa o modelo dublê do Mastra · harness **Mastra Studio** (eng.) é `NR-121` ·
 webhook Meta é `NR-046`
 ([ADR-0014](../../docs/decisoes/adr/0014-meta-cloud-api.md)) · confirmação
 persistente é `NR-061` (tabela `confirmations`) · memória da conversa **entregue**
@@ -40,23 +40,41 @@ inteira de erro em que o número da conversa não bate com o número do relatór
 não canal de produção. Contrato:
 [`integracoes/mastra.md`](../../docs/arquitetura/integracoes/mastra.md).
 
-Modelo inicial: `openai/gpt-4o-mini`. Trocar de modelo é `AGENT_MODEL`. Trocar
+Modelo padrão: `openai/gpt-5.4-mini`. Trocar de modelo é `AGENT_MODEL`, depois da avaliação. Trocar
 de framework reabre a ADR-0010.
 
 ### Como o laço gira
 
 ```
-mensagem → processMessage
-        → LlmPort.decide()          # FakeLlm | Agent.generate(maxSteps: 1)
-        → parseToolArgs(contracts)
-        → se mutatesValue: confirmação nossa
-        → AgentTool.execute → core
+mensagem → processMessage                       # identidade, janela, pendente, turno
+        → BuddyBrain.conversar()                # Agent Mastra, até 5 etapas
+            → tools de leitura → core           # o modelo vê o resultado e redige
+            → tools de proposta → confirmations # não gravam
+            → accept_proposal → trava → core    # grava com os args guardados
+        → texto sem termo técnico → resposta
 ```
 
-O `execute` das tools no `Agent` Mastra é identidade (devolve args). O efeito
-em `core` só acontece no catálogo (`defineTool` / `catalog.ts`), depois da
-confirmação quando a ação mexe em valor. HITL do Mastra (`requireApproval`)
-não é usado.
+As consultas executam o caso de uso de `core` dentro do laço, com o
+`ExecutionContext` que viaja no `RequestContext` (nunca no prompt, nunca em
+argumento do modelo). As tools de gravação só gravam uma `PendingConfirmation`;
+`accept_proposal` roda a trava `ehConcordanciaPura` sobre o texto da dona e
+executa com `idempotencyKey = confirmation:{id}`. HITL do Mastra
+(`requireApproval`) não é usado. Contrato:
+[`buddy-runtime.md`](../../specs/013-buddy-conversa-natural/contracts/buddy-runtime.md).
+
+| Arquivo                     | O que faz                                                                  |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `process-message.ts`        | Borda: identidade, foto, teto, janela, pendente, uso de IA, turno, falha   |
+| `buddy-brain.ts`            | `Agent` + `generate` (`maxSteps: 5`, `prepareStep`, `activeTools`)         |
+| `instructions.ts`           | Tom e regras de conversa (não é a barreira: as regras de valor são código) |
+| `tools/read-tools.ts`       | Consultas e `find_customer` / `find_product`                               |
+| `tools/proposal-tools.ts`   | As 15 propostas e o `executar` usado no aceite                             |
+| `tools/acceptance-tools.ts` | `accept_proposal` (trava) e `cancel_proposal`                              |
+| `tools/refusal-tools.ts`    | `refuse_*`                                                                 |
+| `acceptance-guard.ts`       | `ehConcordanciaPura` — dado novo ou ressalva nunca grava                   |
+| `conversation-context.ts`   | Snapshot `v: 2` e resumo de entidades (ADR-0016)                           |
+| `technical-terms.ts`        | Processador de saída e limpeza de UUID, código, campo, tool e centavos     |
+| `views.ts`                  | Visões humanizadas (reais, pagamento em português, sem vazios)             |
 
 ## Fronteiras
 
@@ -93,7 +111,9 @@ a API recusa. **Não escreva definição de tool à mão.**
 | Exclui ou estorna |    ✅     | cancelar venda             |
 | Envia a terceiro  |    ✅     | enviar cobrança ao cliente |
 
-Confirmação pendente **expira**. Resposta ambígua conta como **não**: o custo de
+Confirmação pendente **expira**. O modelo interpreta a resposta, mas dado novo
+ou ressalva **nunca** grava (trava `ehConcordanciaPura`): vira correção e nova
+proposta. Resposta ambígua conta como **não**: o custo de
 errar para o lado do "não" é uma pergunta repetida; para o lado do "sim" é um
 lançamento financeiro errado. [RF-103](../../docs/produto/requisitos-funcionais.md),
 [RF-104](../../docs/produto/requisitos-funcionais.md).
@@ -141,8 +161,9 @@ o valor. Citar preço ou saldo só do retrieve é bug.
 
 ## Custo
 
-Consumo medido por empresa desde o primeiro dia. Teto configurável, com
-degradação avisada em vez de conta surpresa —
+Consumo medido por empresa e por etapa de modelo desde o primeiro dia. Teto
+configurável e **desligado por padrão** (assinante sem limite), com degradação
+avisada quando ligado —
 [RNF-072](../../docs/produto/requisitos-nao-funcionais.md),
 [RNF-073](../../docs/produto/requisitos-nao-funcionais.md).
 O denominador da mensalidade ainda é [QST-002](../../docs/decisoes/README.md#qst-002).
@@ -158,7 +179,7 @@ Produção sem `AGENT_HARNESS=1` continua desligada mesmo com a chave. O Studio
 (NR-121) é harness de engenharia, não canal de produto.
 
 A CI não chama a OpenAI. Cada turno que precisa de tool grava a decisão com
-`script()`. Frase sem roteiro é `unknown`. Passo a passo:
+o modelo dublê do Mastra. Passo a passo:
 [quickstart](../../specs/010-assistente-sempre-openai/quickstart.md).
 
 ### Harness Studio (NR-121)
@@ -190,12 +211,12 @@ hoje?` — centavos/`kind` iguais ao HTTP; `durationMs` no output da tool.
 
 ### Smoke SC-003 — tetos RNF-006 (manual, fora da CI)
 
-A CI com FakeLlm só prova que `durationMs` existe e é `number ≥ 0`. Os tetos
+A CI com o modelo dublê só prova que `durationMs` existe e é `number ≥ 0`. Os tetos
 de 5 s / 8 s medem-se **no painel**, com provedor real — não rode isto no
 GitHub Actions nem em job que chame OpenAI.
 
 ```bash
-OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-5.4-mini
 ```
 
 1. Subir a API em não-produção e `pnpm studio`. Preset de fixture (número
@@ -210,7 +231,7 @@ OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
    ([RNF-034](../../docs/produto/requisitos-nao-funcionais.md)).
 
 O generate do Studio **ainda** não chama o modelo: só o laço interno
-(`processMessage`) usa `gpt-4o-mini`.
+(`processMessage`) usa `AGENT_MODEL` (padrão `gpt-5.4-mini`).
 
 ### Fora desta fatia (NR-121)
 
@@ -241,46 +262,33 @@ Consultas somente-leitura NR-115 (`check_stock`, `list_payables`,
 Gates completos:
 [`specs/006-consultar-estoque-pagar-fiado/quickstart.md`](../../specs/006-consultar-estoque-pagar-fiado/quickstart.md).
 
-## Foto do código de barras (NR-116)
+## Operação diária no WhatsApp (012)
 
-`POST /agent/messages` aceita **texto e/ou imagem** (`agentMessageInputSchema`:
-pelo menos um dos dois). A API converte `image.dataBase64` em bytes e chama o
-mesmo `processMessage` — `companyId` nunca vem no body.
+Tools novas/reorientadas — inputs de `contracts`, execução via `AgentUseCases` →
+`core` (sem HTTP interno):
 
-Com `image` presente, o laço **decodifica antes do LLM** (`BarcodeDecoder` +
-`findProductByBarcode`); **não** usa visão do modelo. Sem imagem, o fluxo
-permanece `LlmPort.decide()` → tool.
+| Tool id                                          | Confirma? | Core                               | Notas                                                       |
+| ------------------------------------------------ | :-------: | ---------------------------------- | ----------------------------------------------------------- |
+| `rank_customers` / `rank_products`               |    ❌     | `rankCustomers` / `rankProducts`   | Período obrigatório; sem datas, o Buddy pergunta            |
+| `list_sales` (histórico)                         |    ❌     | `listSales`                        | `customerId` = compras do cliente; ticket nulo sem inventar |
+| `update_customer` / `update_product`             |    ✅     | `updateCustomer` / `updateProduct` | Só campos pedidos + id                                      |
+| `mark_customer_deleted` / `mark_product_deleted` |    ✅     | `deleteCustomer` / `deleteProduct` | Soft-delete; frase **deletado**                             |
+| `create_sale`                                    |    ✅     | `registerSale`                     | “Compra” do cliente = venda (não `create_receivable`)       |
+| `cancel_sale`                                    |    ✅     | `cancelSale`                       | “Apague a venda” = cancelamento; linha permanece            |
+| `refuse_delete_account_or_contact`               |    ❌     | —                                  | Conta bancária / contato: recusa sem remoção                |
 
-```
-mensagem (+ image?) → processMessage
-        → [se image] decode → lookup (sem LLM)
-        → senão LlmPort.decide() → tool
-        → confirmação quando mutatesValue
-        → AgentTool.execute → core
-```
+Proibido: tool que execute `DELETE` físico em tabela de negócio.
 
-Na CI só entra `FakeBarcodeDecoder` (mapa de
-fixture → 0, 1 ou N códigos). **Não** há ZXing real no pipeline de teste.
-
-| Situação                                                    | Rota                                                                    | Confirma? |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------- | :-------: |
-| Foto legível + produto, sem pagamento                       | `clarify` (pergunta forma de pagamento); rascunho de venda por um turno |    ❌     |
-| Pagamento inequívoco na mesma mensagem ou no turno seguinte | `create_sale` (qty 1, `unitPriceCents` = `salePriceCents` do produto)   |    ✅     |
-| Próxima mensagem **não** é pagamento                        | descarta o item; segue o laço normal                                    |    ❌     |
-| Ilegível / MIME inválido / 0 códigos                        | `answer` recusa; pede venda ou cadastro **por texto**                   |    ❌     |
-| 2+ códigos na foto                                          | `answer` “um produto por vez”                                           |    ❌     |
-| Código sem produto, sem pedido de cadastro                  | `answer` recusa; sem item avulso                                        |    ❌     |
-| Foto + cadastro explícito (`cadastr…`)                      | `answer` com o código lido; **não** é venda (NR-117)                    |    ❌     |
-
-A imagem **nunca** é persistida: histórico e memória gravam o placeholder
-`[foto do codigo]` (com o código quando lido). Bytes e `dataBase64` não entram
-em `messages.body` nem em logs estruturados.
-
-Preço e total da venda por foto continuam vindos do catálogo/`core` — o agente
-**nunca calcula** margem, parcela ou desconto.
-
+Roteiro manual:
+[`docs/qa/buddy-roteiro-de-prompts.md`](../../docs/qa/buddy-roteiro-de-prompts.md).
 Gates:
-[`specs/007-foto-codigo-barras/quickstart.md`](../../specs/007-foto-codigo-barras/quickstart.md).
+[`specs/012-buddy-operacao-whatsapp/quickstart.md`](../../specs/012-buddy-operacao-whatsapp/quickstart.md).
+
+## Foto do código de barras
+
+Fora da spec 013: uma foto recebe o pedido de texto (`FRASE_PEDIDO_DE_TEXTO`),
+sem chamar o modelo. O fluxo de decodificação da NR-116 foi retirado do agente;
+o caso de uso `findProductByBarcode` continua em `core` para a tela.
 
 ## Cadastro, pagar e receber por mensagem (NR-117)
 
@@ -288,69 +296,46 @@ Três tools de escrita geradas de `contracts`, com `mutatesValue: true` e o mesm
 caso de uso das telas (`registerProduct`, `createPayable`, `createReceivable` em
 `core`):
 
-| Tool                | Confirma? | Exemplo de frase (quickstart, decisão via `script()`) |
-| ------------------- | :-------: | ----------------------------------------------------- |
-| `create_product`    |    ✅     | `cadastra camiseta M custo 20 vende 49,90`            |
-| `create_payable`    |    ✅     | `lança aluguel 1800 vence dia 10`                     |
-| `create_receivable` |    ✅     | `a receber 500 do João na sexta, aluguel vitrine`     |
+| Tool                | Confirma? | Exemplo de frase                                  |
+| ------------------- | :-------: | ------------------------------------------------- |
+| `create_product`    |    ✅     | `cadastra camiseta M custo 20 vende 49,90`        |
+| `create_payable`    |    ✅     | `lança aluguel 1800 vence dia 10`                 |
+| `create_receivable` |    ✅     | `a receber 500 do João na sexta, aluguel vitrine` |
 
 Proposta → `sim` / `não` / TTL segue a máquina de confirmação da NR-061. Valor,
 vencimento, fornecedor e descrição **não** são inventados: pedido incompleto vira
-`clarify` ou `unknown` sem `confirmationId`. Preço de venda abaixo do custo cai
+pergunta, sem `confirmationId`. Preço de venda abaixo do custo cai
 no schema antes de qualquer pendência; EAN duplicado devolve o conflito do núcleo
 sem atalho de “reutilizar” no chat.
-
-Handoff com foto (NR-116): após `cadastra este` com código lido, o turno seguinte
-com nome, custo e preço (e `barcode` nos args) fecha o cadastro — não é venda.
 
 **Fora do aceite desta fatia:** tools da NR-118 (`settle_*`, `adjust_stock`,
 `cancel_sale`).
 
-Matriz mínima, gates e smoke opcional com Postgres:
-[`specs/008-cadastrar-produto-pagar-receber/quickstart.md`](../../specs/008-cadastrar-produto-pagar-receber/quickstart.md).
+## Testes e avaliação (spec 013)
+
+A CI não chama a OpenAI. Os testes usam o `MastraLanguageModelV2Mock` do
+próprio Mastra no `Agent` real (`src/test-support/mock-model.ts`, uma resposta
+por etapa) e uma loja em memória (`src/test-support/loja-de-teste.ts`).
+`apps/api` importa os dois por `@na-regua/agent/test-support`.
 
 ```bash
-pnpm --filter @na-regua/agent test -- src/catalog.test.ts src/process-message.test.ts
+pnpm --filter @na-regua/agent test
 pnpm --filter @na-regua/api test -- src/routes/agent.test.ts src/composition.test.ts
-# Com DATABASE_URL: integracao persistida (SC-001 / SC-003)
-pnpm --filter @na-regua/api test -- src/e2e/agent-mutations-nr117.test.ts
+# Com DATABASE_URL: proposta sobrevive ao reinício; mutações persistidas
+pnpm --filter @na-regua/api test -- src/e2e/agent-confirmation-restart.test.ts src/e2e/agent-mutations-nr117.test.ts
 ```
 
-O quickstart pede API + Postgres + sessão de fixture. Sem servidor local, cada
-linha do DoD está coberta pelos testes acima, com `script()` e sem OpenAI:
-
-| #   | Mensagem                           | Teste                                                                                                    |
-| --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 1   | `quanto vendi hoje?`               | `process-message.test.ts` (totais = `listSales`); `apps/api/src/routes/agent.test.ts` (POST autenticado) |
-| 2   | `quem está me devendo?`            | `process-message.test.ts` (totais = `listReceivables`)                                                   |
-| 3   | `quanto tem de camiseta?`          | `process-message.test.ts` + `catalog.test.ts` + `apps/api/src/routes/agent.test.ts` (NR-115)             |
-| 3b  | `o que vence essa semana?`         | `process-message.test.ts` + `catalog.test.ts` + rota (NR-115 `list_payables`)                            |
-| 3c  | `quanto o joão deve?`              | `process-message.test.ts` + `catalog.test.ts` + rota (NR-115 `check_customer_wallet`)                    |
-| 4   | cadastrar cliente                  | `process-message.test.ts` (`create_customer` → confirmação → sim; duplicata; “talvez”)                   |
-| 5   | venda scriptada                    | `process-message.test.ts` (`create_sale` → sim; líquido = core)                                          |
-| 6   | produto ambíguo                    | `process-message.test.ts` (`search_products` → `clarify`)                                                |
-| 7   | cobrança                           | `process-message.test.ts` (`send_charge` → sim / sem dívida)                                             |
-| 8   | `resumo do mês`                    | `process-message.test.ts` + `format.test.ts` (quatro eixos DRE; truncamento; sem arquivo/link)           |
-| 9   | certificado / OFX / “emite a nota” | `process-message.test.ts` (`refuse_*`; zero efeito)                                                      |
-| 10  | mutação sem `sim` / TTL            | `process-message.test.ts` (não grava; expiração)                                                         |
-
-## Fumaça opcional — Mastra real (fora da CI)
-
-Com `OPENAI_API_KEY` (mesmo contrato de `POST /agent/messages`):
+A qualidade da conversa (tom, perguntas, retomada, ausência de termo técnico)
+é medida com o modelo real, **fora da CI**, antes de liberar e a cada troca de
+modelo:
 
 ```bash
-OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-4o-mini
+OPENAI_API_KEY=… AGENT_MODEL=openai/gpt-5.4-mini pnpm --filter @na-regua/agent eval
 ```
 
-1. Subir a API em não-produção (ou `AGENT_HARNESS=1` em staging). Produção
-   sem a flag deixa o endpoint desligado para o lojista.
-2. Autenticar como fixture.
-3. Repetir **uma consulta** (`quanto vendi hoje?`) e **uma venda**
-   (proposta → `sim`). A intenção vem de `Agent.generate`; tools → `core`
-   é o mesmo laço que a CI prova com `script()`.
-
-Não rode isto na CI. Sem chave, o assistente responde 503 e o restante da
-API segue. Esta fumaça não cobre o webhook Meta (NR-046).
+As conversas ficam em `eval/*.eval.ts`; a transcrição de cada uma vai para
+`eval/.transcricoes/` (fora do git) e é anexada ao PR de liberação. Roteiro
+manual: [`docs/qa/buddy-roteiro-de-prompts.md`](../../docs/qa/buddy-roteiro-de-prompts.md).
 
 ## Variáveis de ambiente
 
@@ -360,7 +345,7 @@ completa: [`ambientes.md`](../../docs/engenharia/ambientes.md).
 | Variável                     | Local                                | Função                                                                                           |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `OPENAI_API_KEY`             | vazia no parse                       | Opcional para a API subir. Obrigatória só para o assistente montar. Sem ela, 503 no harness.     |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe.                               |
+| `AGENT_MODEL`                | `openai/gpt-5.4-mini`                | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe.                               |
 | `AGENT_HARNESS`              | ausente \| `1`                       | Porteiro (FR-001b): `1` libera HTTP **e** Studio em produção. Ausente, vazio ou `0` = desligado. |
 | `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default.                                  |
 | `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês ([RNF-073](../../docs/produto/requisitos-nao-funcionais.md)).         |

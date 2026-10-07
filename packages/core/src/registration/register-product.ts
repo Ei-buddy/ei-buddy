@@ -8,6 +8,7 @@ import type {
   ImportRejection,
   ProductOutput,
   ProductSuggestionsOutput,
+  UpdateProductInput,
 } from '@na-regua/contracts'
 import { AppError, isAppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
@@ -208,6 +209,80 @@ export async function getProduct(
   }
 
   return produto
+}
+
+/**
+ * Edita o cadastro do produto.
+ *
+ * A tela manda o que mudou. Ausente fica como esta. A checagem de preco contra
+ * custo mora AQUI — e nao no schema — porque `updateProductInputSchema` e
+ * `.partial()` sem refine: so o core enxerga o produto inteiro depois do merge.
+ */
+export async function updateProduct(
+  deps: RegisterProductDeps,
+  ctx: ExecutionContext,
+  productId: string,
+  input: UpdateProductInput,
+): Promise<ProductOutput> {
+  assertCanWrite(ctx)
+
+  const atual = await deps.products.findById(ctx.companyId, productId)
+  if (atual === undefined) {
+    throw AppError.notFound('Produto nao encontrado.')
+  }
+
+  if (input.barcode !== undefined && input.barcode !== atual.barcode) {
+    const existente = await deps.products.findByBarcode(ctx.companyId, input.barcode)
+    if (existente !== undefined && existente.id !== productId) {
+      throw AppError.conflict(
+        `Este codigo de barras ja esta em "${existente.description}". ` +
+          'Edite o produto existente em vez de criar outro.',
+      )
+    }
+  }
+
+  const salePriceCents = input.salePriceCents ?? atual.salePriceCents
+  const costPriceCents = input.costPriceCents ?? atual.costPriceCents
+
+  if (salePriceCents < costPriceCents) {
+    throw AppError.validation('Preco de venda menor que o custo. Confira os valores.', [
+      { path: 'salePriceCents', message: 'Preco de venda menor que o custo. Confira os valores.' },
+    ])
+  }
+
+  const atualizado = await deps.products.update(ctx.companyId, productId, input, ctx.userId)
+  if (atualizado === undefined) {
+    throw AppError.notFound('Produto nao encontrado.')
+  }
+
+  await indexarProduto(deps, ctx.companyId, atualizado, ctx.now)
+
+  return atualizado
+}
+
+/**
+ * Exclui o produto da lista vigente (soft-delete).
+ *
+ * Produto apagado some de `search` / `listCatalog` / `findById`, mas a linha
+ * permanece — historico de vendas e movimentos de estoque continuam apontando
+ * para ele. Segundo delete e sucesso: o estado pedido ja e o atual.
+ */
+export async function deleteProduct(
+  deps: RegisterProductDeps,
+  ctx: ExecutionContext,
+  productId: string,
+): Promise<void> {
+  assertCanWrite(ctx)
+
+  const qualquer = await deps.products.findByIdIncludingDeleted(ctx.companyId, productId)
+  if (qualquer === undefined) {
+    throw AppError.notFound('Produto nao encontrado.')
+  }
+
+  const vigente = await deps.products.findById(ctx.companyId, productId)
+  if (vigente === undefined) return
+
+  await deps.products.setDeletedAt(ctx.companyId, productId, ctx.now, ctx.userId)
 }
 
 /**

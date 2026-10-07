@@ -10,7 +10,7 @@ import {
   type MovimentoDeEstoque,
   type ProdutoDaFicha,
 } from '@/lib/catalogo-api'
-import { calcularMargem, nivelEstoque } from '@/lib/produtos-api'
+import { atualizarProduto, calcularMargem, nivelEstoque } from '@/lib/produtos-api'
 import { formatDate, formatMoney, formatPercent } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -43,6 +43,11 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
   const [ajustando, setAjustando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
+  const [editDescricao, setEditDescricao] = useState('')
+  const [editVenda, setEditVenda] = useState('')
+  const [editCusto, setEditCusto] = useState('')
+  const [salvandoFicha, setSalvandoFicha] = useState(false)
+
   const carregar = useCallback(async () => {
     /*
      * As duas chamadas em paralelo, e nao em sequencia: sao independentes, e
@@ -63,6 +68,9 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
     setErro(null)
     setProduto(ficha.dados)
     setNovaQuantidade(String(ficha.dados.estoque))
+    setEditDescricao(ficha.dados.descricao)
+    setEditVenda(String(ficha.dados.precoVenda))
+    setEditCusto(String(ficha.dados.precoCusto))
 
     /*
      * A trilha falhar NAO derruba a ficha. O cadastro e o que se veio ver; o
@@ -109,6 +117,39 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
     setNovaQuantidade(String(r.dados.saldoDepois))
     setMovimentos((atuais) => [r.dados, ...atuais])
     setToast({ msg: 'Ajuste registrado na trilha do produto.', tone: 'success' })
+  }
+
+  async function salvarFicha() {
+    if (produto === null) return
+
+    const descricao = editDescricao.trim()
+    if (descricao.length < 2 || descricao.length > 200) {
+      setToast({ msg: 'Descricao precisa ter entre 2 e 200 caracteres.', tone: 'error' })
+      return
+    }
+    const precoVenda = Number(editVenda.replace(',', '.'))
+    const precoCusto = Number(editCusto.replace(',', '.'))
+    if (
+      !Number.isFinite(precoVenda) ||
+      precoVenda < 0 ||
+      !Number.isFinite(precoCusto) ||
+      precoCusto < 0
+    ) {
+      setToast({ msg: 'Informe preco de venda e custo validos.', tone: 'error' })
+      return
+    }
+
+    setSalvandoFicha(true)
+    const r = await atualizarProduto(produto.id, { descricao, precoVenda, precoCusto })
+    setSalvandoFicha(false)
+
+    if (!r.ok) {
+      setToast({ msg: r.error, tone: 'error' })
+      return
+    }
+
+    setProduto({ ...produto, descricao, precoVenda, precoCusto })
+    setToast({ msg: 'Ficha atualizada.', tone: 'success' })
   }
 
   if (carregando) {
@@ -175,6 +216,46 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
       <div className={styles.grid}>
         {/* --- Ficha --- */}
         <Card title="Ficha do produto">
+          <div className={styles.ajusteCampos}>
+            <label className={styles.ajusteCampo}>
+              <span>Descricao</span>
+              <input
+                className={styles.ajusteInput}
+                value={editDescricao}
+                onChange={(e) => setEditDescricao(e.target.value)}
+                maxLength={200}
+              />
+            </label>
+            <label className={styles.ajusteCampo}>
+              <span>Preco de venda (R$)</span>
+              <input
+                className={styles.ajusteInput}
+                value={editVenda}
+                onChange={(e) => setEditVenda(e.target.value)}
+                inputMode="decimal"
+              />
+            </label>
+            <label className={styles.ajusteCampo}>
+              <span>Preco de custo (R$)</span>
+              <input
+                className={styles.ajusteInput}
+                value={editCusto}
+                onChange={(e) => setEditCusto(e.target.value)}
+                inputMode="decimal"
+              />
+            </label>
+            <Button onClick={salvarFicha} disabled={salvandoFicha}>
+              {salvandoFicha ? (
+                <>
+                  <Spinner size={15} />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar ficha'
+              )}
+            </Button>
+          </div>
+
           <dl className={styles.ficha}>
             <div>
               <dt>Codigo interno</dt>

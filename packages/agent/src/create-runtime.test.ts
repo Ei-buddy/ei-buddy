@@ -1,118 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentUseCases } from './catalog.js'
 import { InMemoryConfirmations } from './confirmations.js'
-import { InMemoryConversationStore } from './conversations.js'
 import { createAgentRuntime } from './create-runtime.js'
-import { FakeLlm } from './fake-llm.js'
-import type { LlmPort } from './types.js'
+import { CONFIRMATION_TTL_MS, processMessage } from './process-message.js'
+import { AGORA, criarLojaDeTeste } from './test-support/loja-de-teste.js'
+import { roteiroDoModelo } from './test-support/mock-model.js'
 
-const useCases: AgentUseCases = {
-  listSales: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listReceivables: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  checkStock: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  checkStockByQuery: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  checkCustomerWalletByQuery: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listPayables: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  registerCustomer: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  registerSale: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  searchProducts: async () => [],
-  revenueByMonth: async () => ({
-    from: '2026-09-01',
-    to: '2026-09-30',
-    months: [],
-    totalNetCents: 0,
-  }),
-  buildDre: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  sendCustomerCharge: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  findProductByBarcode: async () => undefined,
-  registerProduct: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createPayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settlePayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settleReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  adjustStock: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  cancelSale: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createAppointment: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listDayAppointments: async () => {
-    throw new Error('nao executa neste teste')
-  },
-}
-
-describe('createAgentRuntime — US1', () => {
-  it('injeta FakeLlm quando ninguem passa llm — modo local sem OpenAI', () => {
-    const runtime = createAgentRuntime({ useCases })
-    expect(runtime.llm).toBeInstanceOf(FakeLlm)
-    expect(runtime.conversations).toBeInstanceOf(InMemoryConversationStore)
-  })
-
-  it('respeita o LlmPort injetado — caminho Mastra no mesmo runtime', () => {
-    const llm: LlmPort = {
-      decide: async () => ({ type: 'unknown' }),
-    }
-    const runtime = createAgentRuntime({ useCases, llm })
-    expect(runtime.llm).toBe(llm)
-    expect(runtime.llm).not.toBeInstanceOf(FakeLlm)
-  })
-
-  it('injeta InMemoryConfirmations quando ninguem passa confirmations', () => {
-    const runtime = createAgentRuntime({ useCases })
-    expect(runtime.confirmations).toBeInstanceOf(InMemoryConfirmations)
-  })
-
-  it('respeita o ConfirmationStore injetado', () => {
-    const confirmations = new InMemoryConfirmations()
-    const runtime = createAgentRuntime({ useCases, confirmations })
-    expect(runtime.confirmations).toBe(confirmations)
-  })
-
-  it('LlmPort.decide aceita history opcional sem mudar o laco', async () => {
-    const llm: LlmPort = {
-      decide: async ({ history }) => {
-        expect(history === undefined || history.length <= 12).toBe(true)
-        return { type: 'unknown' }
+describe('createAgentRuntime', () => {
+  it('com model + useCases monta o brain do Buddy e defaults', async () => {
+    const { modelo } = roteiroDoModelo([{ texto: 'Oi! Em que posso ajudar?' }])
+    const runtime = createAgentRuntime({
+      model: modelo,
+      useCases: criarLojaDeTeste().useCases,
+      peers: {
+        resolve: async () => ({ companyId: 'emp-A', userId: 'user-A', role: 'owner' }),
       },
-    }
-    await llm.decide({
-      text: 'oi',
-      tools: [],
-      today: '2026-09-11',
-      history: [{ role: 'user', body: 'oi' }],
     })
+
+    expect(runtime.confirmationTtlMs).toBe(CONFIRMATION_TTL_MS)
+    expect(runtime.timeZone).toBe('America/Sao_Paulo')
+    expect(runtime.conversations).toBeDefined()
+
+    const r = await processMessage(runtime, {
+      text: 'oi',
+      requestId: 'req-1',
+      now: AGORA,
+      channel: 'whatsapp',
+      peer: '5511999990000',
+    })
+    expect(r).toEqual({ kind: 'answer', text: 'Oi! Em que posso ajudar?' })
+  })
+
+  it('reaproveita as confirmations recebidas', () => {
+    const confirmations = new InMemoryConfirmations()
+    const runtime = createAgentRuntime({
+      brain: {
+        conversar: async () => ({ texto: '', etapas: 0, snapshot: { v: 2, entidades: [] } }),
+      },
+      confirmations,
+    })
+    expect(runtime.confirmations).toBe(confirmations)
   })
 })

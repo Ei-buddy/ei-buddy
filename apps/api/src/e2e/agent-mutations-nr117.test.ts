@@ -1,5 +1,6 @@
 import { agentReplySchema } from '@na-regua/contracts'
-import { createAgentRuntime, FakeLlm } from '@na-regua/agent'
+import { createAgentRuntime } from '@na-regua/agent'
+import { roteiroDoModelo } from '@na-regua/agent/test-support'
 import { createConfirmationStore, getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,7 @@ import { registerContasRoutes } from '../routes/contas.js'
 /**
  * NR-117 T020d — paridade persistida (SC-001 / SC-003) quando `DATABASE_URL`
  * aponta para o Postgres do Compose. Mesmos casos de uso das telas via
- * `buildAgentUseCases()`; FakeLlm so roteia a intencao.
+ * `buildAgentUseCases()`; o modelo dublê só escolhe as tools (spec 013, T057).
  */
 
 const DATABASE_URL = process.env.DATABASE_URL
@@ -33,24 +34,22 @@ function cnpjValido(base12: string): string {
   return `${base12}${d1}${d2}`
 }
 
-describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao', () => {
+describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos o aceite', () => {
   let composicao: Composicao
   let app: FastifyInstance | undefined
   let token: string
 
   const agoraMs = Date.now()
   const CNPJ = cnpjValido(String(agoraMs).slice(-12))
-  const SENHA = 'senha-de-teste'
   const CADASTRO = {
     name: 'Operadora NR-117 Mutacoes',
     email: `dona-nr117@${CNPJ}.local`,
-    secret: SENHA,
+    secret: 'senha-de-teste',
     legalName: 'Loja Mutacoes Agent LTDA',
     cnpj: CNPJ,
     acceptedLegalTerms: true as const,
   }
 
-  const PEDIDO_PRODUTO = 'cadastra camiseta M custo 20 vende 49,90'
   const ARGS_PRODUTO = {
     description: 'camiseta m',
     unitOfMeasure: 'un' as const,
@@ -59,9 +58,6 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     stock: 0,
     minStock: 0,
   }
-
-  /** Frase curta apos `lanca`. A decisao entra por `script()`, nao por regex. */
-  const PEDIDO_PAGAR_VENCIDA = 'lanca aluguel 1500 vence dia 1'
   const ARGS_PAGAR_VENCIDA = {
     supplier: 'Aluguel',
     description: 'Aluguel',
@@ -85,28 +81,10 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
       : http().inject({ ...base, payload: opcoes.payload })
   }
 
-  async function subir(llm: FakeLlm): Promise<void> {
-    if (app !== undefined) await app.close()
-    app = undefined
-
-    const proxima = Fastify({ logger: false })
-    registerErrorHandler(proxima)
-    await registerRateLimit(proxima)
-
-    const authDeps = composicao.buildAuthDeps()
-    registerSession(proxima, authDeps.sessions)
-    registerAuthRoutes(proxima, authDeps)
-    registerCadastroRoutes(proxima, composicao.buildCadastroDeps())
-    registerContasRoutes(proxima, composicao.buildContasDeps())
-
-    const runtime = createAgentRuntime({
-      useCases: composicao.buildAgentUseCases(),
-      llm,
-      confirmations: createConfirmationStore(getClient(DATABASE_URL!)),
-    })
-    registerAgentRoutes(proxima, { runtime })
-    await proxima.ready()
-    app = proxima
+  const falar = async (text: string) => {
+    const r = await comSessao({ method: 'POST', url: '/agent/messages', payload: { text } })
+    expect(r.statusCode).toBe(200)
+    return agentReplySchema.parse(JSON.parse(r.body))
   }
 
   beforeAll(async () => {
@@ -116,14 +94,35 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
     composicao = await import('../composition.js')
     await migrate(MIGRATION_URL!)
 
-    const llm = new FakeLlm()
-    llm.script(PEDIDO_PRODUTO, { type: 'tool', name: 'create_product', args: ARGS_PRODUTO })
-    llm.script(PEDIDO_PAGAR_VENCIDA, {
-      type: 'tool',
-      name: 'create_payable',
-      args: ARGS_PAGAR_VENCIDA,
+    const proxima = Fastify({ logger: false })
+    registerErrorHandler(proxima)
+    await registerRateLimit(proxima)
+    const authDeps = composicao.buildAuthDeps()
+    registerSession(proxima, authDeps.sessions)
+    registerAuthRoutes(proxima, authDeps)
+    registerCadastroRoutes(proxima, composicao.buildCadastroDeps())
+    registerContasRoutes(proxima, composicao.buildContasDeps())
+
+    const { modelo } = roteiroDoModelo([
+      { tool: 'create_product', args: ARGS_PRODUTO },
+      { texto: 'Vou cadastrar a camiseta m, custo R$ 20,00, venda R$ 49,90. Posso?' },
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Pronto, camiseta m cadastrada.' },
+      { tool: 'create_payable', args: ARGS_PAGAR_VENCIDA },
+      { texto: 'Vou lançar o aluguel de R$ 1.500,00 com vencimento em 2026-09-01. Posso?' },
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Pronto, conta do aluguel lançada.' },
+      { tool: 'list_payables', args: {} },
+      { texto: 'Você tem contas vencidas: o aluguel.' },
+    ])
+    const runtime = createAgentRuntime({
+      model: modelo,
+      useCases: composicao.buildAgentUseCases(),
+      confirmations: createConfirmationStore(getClient(DATABASE_URL!)),
     })
-    await subir(llm)
+    registerAgentRoutes(proxima, { runtime })
+    await proxima.ready()
+    app = proxima
   }, 90_000)
 
   afterAll(async () => {
@@ -133,43 +132,22 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
   })
 
   it('abre a fixture e a sessao fica no banco', async () => {
-    const r = await http().inject({
-      method: 'POST',
-      url: '/auth/signup',
-      payload: CADASTRO,
-    })
+    const r = await http().inject({ method: 'POST', url: '/auth/signup', payload: CADASTRO })
     expect(r.statusCode).toBe(201)
     token = r.json().token
     expect(token).toBeTruthy()
   })
 
-  it('SC-001: sim em cadastro de produto persiste custo e preco', async () => {
-    const proposta = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: PEDIDO_PRODUTO },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpoProposta = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpoProposta.kind).toBe('confirmation')
-    expect(corpoProposta.text).toMatch(/Confirma\?/)
+  it('SC-001: aceite em cadastro de produto persiste custo e preco', async () => {
+    const proposta = await falar('cadastra camiseta M custo 20 vende 49,90')
+    expect(proposta.kind).toBe('confirmation')
 
     const antes = await comSessao({ method: 'GET', url: '/produtos?q=camiseta' })
-    expect(antes.statusCode).toBe(200)
     expect(antes.json().products).toHaveLength(0)
 
-    const sim = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    expect(sim.statusCode).toBe(200)
-    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
-    expect(corpoSim.kind).toBe('answer')
-    expect(corpoSim.text).toMatch(/cadastrado/i)
+    expect((await falar('pode')).kind).toBe('answer')
 
     const depois = await comSessao({ method: 'GET', url: '/produtos?q=camiseta' })
-    expect(depois.statusCode).toBe(200)
     const lista = depois.json() as {
       products: ReadonlyArray<{
         description: string
@@ -178,41 +156,14 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos confirmacao
       }>
     }
     expect(lista.products).toHaveLength(1)
-    expect(lista.products[0]?.description).toMatch(/camiseta/i)
     expect(lista.products[0]?.costPriceCents).toBe(2_000)
     expect(lista.products[0]?.salePriceCents).toBe(4_990)
   })
 
   it('SC-003: conta a pagar vencida persiste open e aparece na faixa vencidas', async () => {
-    const proposta = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: PEDIDO_PAGAR_VENCIDA },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpoProposta = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpoProposta.kind).toBe('confirmation')
-    expect(corpoProposta.text).toMatch(/Confirma\?/)
-
-    const sim = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    expect(sim.statusCode).toBe(200)
-    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
-    expect(corpoSim.kind).toBe('answer')
-    expect(corpoSim.text).toContain('2026-09-01')
-
-    const consulta = await comSessao({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto tenho a pagar?' },
-    })
-    expect(consulta.statusCode).toBe(200)
-    const corpoConsulta = agentReplySchema.parse(JSON.parse(consulta.body))
-    expect(corpoConsulta.kind).toBe('answer')
-    expect(corpoConsulta.text).toMatch(/vencidas/i)
+    expect((await falar('lanca aluguel 1500 vence dia 1')).kind).toBe('confirmation')
+    expect((await falar('sim')).kind).toBe('answer')
+    expect((await falar('quanto tenho a pagar?')).kind).toBe('answer')
 
     const titulos = await comSessao({ method: 'GET', url: '/contas-a-pagar' })
     expect(titulos.statusCode).toBe(200)

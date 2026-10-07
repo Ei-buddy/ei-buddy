@@ -1,5 +1,10 @@
 import { agentReplySchema } from '@na-regua/contracts'
-import { createAgentRuntime, FakeLlm, type AgentUseCases } from '@na-regua/agent'
+import { createAgentRuntime, FRASE_PEDIDO_DE_TEXTO } from '@na-regua/agent'
+import {
+  criarLojaDeTeste,
+  roteiroDoModelo,
+  type EtapaRoteirizada,
+} from '@na-regua/agent/test-support'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -8,95 +13,20 @@ import type { AuthenticatedPrincipal } from '../plugins/execution-context.js'
 import { registerAgentRoutes } from './agent.js'
 
 const PRINCIPAL: AuthenticatedPrincipal = {
-  companyId: 'empresa-1',
-  userId: 'usuario-1',
+  companyId: 'emp-A',
+  userId: 'user-A',
   role: 'owner',
 }
 
-const useCases: AgentUseCases = {
-  listSales: async () => ({
-    sales: [],
-    total: 0,
-    page: 1,
-    pageSize: 20,
-    summary: {
-      salesCount: 1,
-      grossCents: 10_000,
-      netCents: 10_000,
-      cardFeeCents: 0,
-      netAfterFeesCents: 10_000,
-      averageTicketCents: 10_000,
-    },
-  }),
-  listReceivables: async () => ({
-    grupos: [],
-    totalCents: 0,
-    temVencidas: false,
-  }),
-  checkStock: async () => {
-    throw new Error('nao deveria consultar estoque neste teste')
-  },
-  checkStockByQuery: async () => {
-    throw new Error('nao deveria consultar estoque neste teste')
-  },
-  checkCustomerWalletByQuery: async () => {
-    throw new Error('nao deveria consultar fiado neste teste')
-  },
-  listPayables: async () => {
-    throw new Error('nao deveria consultar contas a pagar neste teste')
-  },
-  registerCustomer: async () => {
-    throw new Error('nao deveria cadastrar neste teste')
-  },
-  registerSale: async () => {
-    throw new Error('nao deveria vender neste teste')
-  },
-  searchProducts: async () => [],
-  revenueByMonth: async () => ({
-    from: '2026-09-01',
-    to: '2026-09-30',
-    months: [],
-    totalNetCents: 0,
-  }),
-  buildDre: async () => {
-    throw new Error('nao deveria montar DRE neste teste')
-  },
-  sendCustomerCharge: async () => {
-    throw new Error('nao deveria cobrar neste teste')
-  },
-  findProductByBarcode: async () => undefined,
-  registerProduct: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createPayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settlePayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settleReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  adjustStock: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  cancelSale: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createAppointment: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listDayAppointments: async () => {
-    throw new Error('nao executa neste teste')
-  },
+function runtimeCom(etapas: readonly EtapaRoteirizada[]) {
+  const { modelo, chamadas } = roteiroDoModelo(etapas)
+  const loja = criarLojaDeTeste()
+  return { runtime: createAgentRuntime({ model: modelo, useCases: loja.useCases }), chamadas, loja }
 }
 
 function buildApp(
   principal: AuthenticatedPrincipal | null = PRINCIPAL,
-  runtime = createAgentRuntime({ useCases }),
+  runtime = runtimeCom([{ texto: 'Oi!' }]).runtime,
 ): FastifyInstance {
   const app = Fastify({ logger: false })
   registerErrorHandler(app)
@@ -107,229 +37,77 @@ function buildApp(
   return app
 }
 
+async function enviar(app: FastifyInstance, payload: unknown) {
+  return app.inject({ method: 'POST', url: '/agent/messages', payload: payload as never })
+}
+
 describe('POST /agent/messages', () => {
-  it('responde consulta autenticada sem WhatsApp', async () => {
-    const llm = new FakeLlm()
-    llm.script('quanto vendi hoje?', {
-      type: 'tool',
-      name: 'list_sales',
-      args: { from: '2026-09-11', to: '2026-09-11' },
-    })
-    const app = buildApp(PRINCIPAL, createAgentRuntime({ useCases, llm }))
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?' },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toContain('1 venda')
-    await app.close()
-  })
-
-  it('aceita corpo so com imagem — NR-116 T007', async () => {
-    const app = buildApp()
-    const marker = '7891234567895'
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: {
-        image: {
-          mimeType: 'image/jpeg',
-          dataBase64: Buffer.from(marker, 'utf-8').toString('base64'),
-        },
-      },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    await app.close()
-  })
-
-  it('intencao desconhecida lista capacidades, sem inventar — RF-097', async () => {
-    const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'me conta uma piada' },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('unknown')
-    expect(corpo.text).toContain('list_sales')
-    expect(corpo.text).toContain('create_sale')
-    expect(corpo.text).not.toMatch(/US-065|estoque|em breve/i)
-    await app.close()
-  })
-
-  it('consulta de contas a pagar responde pelo harness — US2 / NR-115', async () => {
-    const listPayables = async () => ({
-      grupos: [
-        { faixa: 'overdue' as const, totalCents: 5_000, payables: [] },
-        { faixa: 'today' as const, totalCents: 2_000, payables: [] },
-        { faixa: 'week' as const, totalCents: 0, payables: [] },
-        { faixa: 'month' as const, totalCents: 0, payables: [] },
-        { faixa: 'later' as const, totalCents: 0, payables: [] },
-      ],
-      totalCents: 7_000,
-      temVencidas: true,
-    })
-    const llm = new FakeLlm()
-    llm.script('o que vence essa semana?', { type: 'tool', name: 'list_payables', args: {} })
-    const runtime = createAgentRuntime({
-      useCases: { ...useCases, listPayables },
-      llm,
-    })
+  it('responde consulta autenticada sem WhatsApp, redigida a partir do resultado', async () => {
+    const { runtime, chamadas } = runtimeCom([
+      { tool: 'check_stock', args: { query: 'café' } },
+      { texto: 'Tem café em grãos a R$ 25,00.' },
+    ])
     const app = buildApp(PRINCIPAL, runtime)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'o que vence essa semana?' },
-    })
+    const res = await enviar(app, { text: 'quanto tem de café?' })
+
     expect(res.statusCode).toBe(200)
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toMatch(/vencid/i)
+    expect(corpo).toEqual({ kind: 'answer', text: 'Tem café em grãos a R$ 25,00.' })
+    expect(JSON.stringify(chamadas[1]?.prompt)).toMatch(/R\$\s?25,00/)
     await app.close()
   })
 
-  it('consulta de estoque responde pelo harness — US-065 / NR-115', async () => {
-    const llm = new FakeLlm()
-    llm.script('quanto tem de camiseta?', {
-      type: 'tool',
-      name: 'check_stock',
-      args: { query: 'camiseta' },
-    })
-    const checkStockByQuery = async () => ({
-      status: 'found' as const,
-      view: {
-        productId: 'p-azul',
-        description: 'Camiseta M azul',
-        salePriceCents: 4_990,
-        stockQuantity: 10,
-        location: 'Prateleira A',
-        minStock: 0,
-        belowMinimum: false,
-      },
-    })
-    const runtime = createAgentRuntime({
-      useCases: { ...useCases, checkStockByQuery },
-      llm,
-    })
+  it('corpo so com imagem recebe o pedido de texto, sem chamar o modelo — US7', async () => {
+    const { runtime, chamadas } = runtimeCom([{ texto: 'nao deveria responder' }])
     const app = buildApp(PRINCIPAL, runtime)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto tem de camiseta?' },
+    const res = await enviar(app, {
+      image: { mimeType: 'image/jpeg', dataBase64: Buffer.from('foto').toString('base64') },
     })
     expect(res.statusCode).toBe(200)
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toContain('Camiseta M azul')
-    expect(corpo.text).toContain('10 un')
-    await app.close()
-  })
-
-  it('consulta de fiado responde pelo harness — US3 / NR-115', async () => {
-    const checkCustomerWalletByQuery = async () => ({
-      status: 'found' as const,
-      customerName: 'Joao Devedor',
-      walletBalanceCents: 2_500,
-    })
-    const llm = new FakeLlm()
-    llm.script('quanto o joao deve?', {
-      type: 'tool',
-      name: 'check_customer_wallet',
-      args: { query: 'joao' },
-    })
-    const runtime = createAgentRuntime({
-      useCases: { ...useCases, checkCustomerWalletByQuery },
-      llm,
-    })
-    const app = buildApp(PRINCIPAL, runtime)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto o joao deve?' },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toContain('Joao Devedor')
-    expect(corpo.text).toMatch(/R\$\s*25/)
+    expect(corpo).toEqual({ kind: 'answer', text: FRASE_PEDIDO_DE_TEXTO })
+    expect(chamadas).toHaveLength(0)
     await app.close()
   })
 
   it('recusa sem sessao', async () => {
     const app = buildApp(null)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?' },
-    })
+    const res = await enviar(app, { text: 'quanto vendi hoje?' })
     expect(res.statusCode).toBe(401)
     await app.close()
   })
 
   it('recusa mensagem vazia', async () => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: '   ' },
-    })
+    const res = await enviar(app, { text: '   ' })
     expect(res.statusCode).toBe(400)
     await app.close()
   })
 
   it('recusa companyId no body — tenant vem so da sessao da fixture', async () => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?', companyId: 'outra-loja' },
-    })
+    const res = await enviar(app, { text: 'quanto vendi hoje?', companyId: 'outra-loja' })
     expect(res.statusCode).toBe(400)
     await app.close()
   })
 
   it('recusa peer e channel no body — schema continua so text (NR-121)', async () => {
     const app = buildApp()
-    const comPeer = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?', peer: '5511999000001' },
-    })
-    expect(comPeer.statusCode).toBe(400)
-
-    const comCanal = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?', channel: 'whatsapp' },
-    })
-    expect(comCanal.statusCode).toBe(400)
+    expect((await enviar(app, { text: 'oi', peer: '5511999000001' })).statusCode).toBe(400)
+    expect((await enviar(app, { text: 'oi', channel: 'whatsapp' })).statusCode).toBe(400)
     await app.close()
   })
 
   it('devolve o texto do modelo numa string so, sem formatar para o WhatsApp', async () => {
-    const llm = new FakeLlm()
     const texto = '**Total**\n- a\n- b'
-    llm.script('resumo', { type: 'text', text: texto })
-    const app = buildApp(PRINCIPAL, createAgentRuntime({ useCases, llm }))
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'resumo' },
-    })
+    const app = buildApp(PRINCIPAL, runtimeCom([{ texto }]).runtime)
+    const res = await enviar(app, { text: 'resumo' })
 
     expect(res.statusCode).toBe(200)
     const bruto = JSON.parse(res.body) as { text?: unknown; messages?: unknown }
     expect(Array.isArray(bruto)).toBe(false)
     expect(bruto.messages).toBeUndefined()
-    const corpo = agentReplySchema.parse(bruto)
-    expect(corpo.text).toBe(texto)
-    expect(corpo.text).not.toBe('*Total*\n- a\n- b')
+    expect(agentReplySchema.parse(bruto).text).toBe(texto)
 
     const fonte = readFileSync(new URL('./agent.ts', import.meta.url), 'utf8')
     expect(fonte).not.toContain('formatarTextoWhatsApp')
@@ -337,438 +115,84 @@ describe('POST /agent/messages', () => {
   })
 })
 
-describe('POST /agent/messages — confirmacao (RF-103, US1)', () => {
-  const agora = new Date('2026-09-11T15:00:00.000Z')
-  const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
-  const argsCadastro = { name: 'Joao', phone: '11 98888-7777' }
-  const fraseVenda = 'venda pro Joao: 2 camisetas M a 49,90, pagou no Pix'
-  const argsVenda = {
-    items: [{ productId: 'p-azul', quantity: 2, unitPriceCents: 4_990 }],
-    payments: [{ method: 'pix' as const, amountCents: 9_980 }],
-  }
+describe('POST /agent/messages — proposta e aceite (US3 da spec 013)', () => {
+  it('create_customer vira proposta com confirmationId e so grava no aceite', async () => {
+    const { runtime, loja } = runtimeCom([
+      { tool: 'create_customer', args: { name: 'João' } },
+      { texto: 'Vou cadastrar o João. Posso?' },
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Pronto, João cadastrado.' },
+    ])
+    const app = buildApp(PRINCIPAL, runtime)
 
-  function clienteSaida(name: string, phone: string | null) {
-    return {
-      id: 'cli-1',
-      name,
-      tradeName: null,
-      document: null,
-      phone,
-      email: null,
-      notes: null,
-      walletLimitCents: 0,
-      walletBalanceCents: 0,
-      address: {
-        zipCode: null,
-        street: null,
-        number: null,
-        complement: null,
-        district: null,
-        city: null,
-        state: null,
-      },
-      createdAt: agora.toISOString(),
-      anonymizedAt: null,
-      deletedAt: null,
-    }
-  }
-
-  function vendaSaida() {
-    return {
-      sale: {
-        id: 's1',
-        number: 1042,
-        grossAmountCents: 9_980,
-        costAmountCents: 4_000,
-        taxAmountCents: 0,
-        cardFeeAmountCents: 0,
-        netAmountCents: 9_980,
-        changeCents: 0,
-        createdAt: agora.toISOString(),
-      },
-      replayed: false,
-      stockWarnings: [],
-    }
-  }
-
-  function buildAppConfirmacao(over: Partial<AgentUseCases>, llm: FakeLlm): FastifyInstance {
-    return buildApp(PRINCIPAL, createAgentRuntime({ useCases: { ...useCases, ...over }, llm }))
-  }
-
-  it('create_customer pede confirmacao e so grava no sim', async () => {
-    let chamadas = 0
-    const llm = new FakeLlm()
-    llm.script(pedidoCadastro, { type: 'tool', name: 'create_customer', args: argsCadastro })
-    const app = buildAppConfirmacao(
-      {
-        registerCustomer: async (_ctx, input) => {
-          chamadas += 1
-          return {
-            status: 'created',
-            customer: clienteSaida(input.name, input.phone ?? null),
-          }
-        },
-      },
-      llm,
+    const proposta = agentReplySchema.parse(
+      JSON.parse((await enviar(app, { text: 'cadastra o João' })).body),
     )
+    expect(proposta.kind).toBe('confirmation')
+    expect(proposta.confirmationId).toEqual(expect.any(String))
+    expect(loja.gravacoes).toEqual([])
 
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: pedidoCadastro },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpoProposta = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpoProposta.kind).toBe('confirmation')
-    expect(corpoProposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
-    expect(chamadas).toBe(0)
-
-    const sim = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    expect(sim.statusCode).toBe(200)
-    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
-    expect(corpoSim.kind).toBe('answer')
-    expect(corpoSim.text).toBe('Cliente Joao cadastrado.')
-    expect(chamadas).toBe(1)
+    const aceite = agentReplySchema.parse(JSON.parse((await enviar(app, { text: 'pode' })).body))
+    expect(aceite).toEqual({ kind: 'answer', text: 'Pronto, João cadastrado.' })
+    expect(loja.gravacoes.map((g) => g.acao)).toEqual(['registerCustomer'])
     await app.close()
   })
 
-  it('create_product pede confirmacao para cadastro de produto — NR-117 / US-069', async () => {
-    let chamadas = 0
-    const pedidoProduto = 'cadastra camiseta M custo 20 vende 49,90'
-    const argsProduto = {
-      description: 'camiseta m',
-      unitOfMeasure: 'un' as const,
-      costPriceCents: 2_000,
-      salePriceCents: 4_990,
-      stock: 0,
-      minStock: 0,
-    }
-    const llm = new FakeLlm()
-    llm.script(pedidoProduto, { type: 'tool', name: 'create_product', args: argsProduto })
-    const app = buildAppConfirmacao(
+  it('create_sale vira proposta e resposta com ressalva nao grava', async () => {
+    const { runtime, loja } = runtimeCom([
       {
-        registerProduct: async () => {
-          chamadas += 1
-          return {
-            id: 'p-1',
-            description: 'camiseta m',
-            barcode: null,
-            internalCode: 'PROD-0001',
-            unitOfMeasure: 'un',
-            salePriceCents: 4_990,
-            costPriceCents: 2_000,
-            taxRate: 0,
-            ncm: null,
-            cfop: null,
-            taxSituationCode: null,
-            stock: 0,
-            minStock: 0,
-            category: null,
-            supplier: null,
-          }
+        tool: 'create_sale',
+        args: {
+          customerId: 'Maria',
+          items: [{ productId: 'café' }],
+          payments: [{ method: 'pix' }],
         },
       },
-      llm,
-    )
+      { texto: 'Vou registrar 1 café pra Maria no pix. Posso?' },
+      { tool: 'accept_proposal', args: {} },
+      { texto: 'Certo, qual a forma de pagamento então?' },
+    ])
+    const app = buildApp(PRINCIPAL, runtime)
 
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: pedidoProduto },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Cadastrar produto camiseta m/i)
-    expect(corpo.text).toMatch(/Confirma\?/)
-    expect(chamadas).toBe(0)
+    expect(
+      JSON.parse((await enviar(app, { text: 'vende um café pra Maria no pix' })).body).kind,
+    ).toBe('confirmation')
+    const r = agentReplySchema.parse(
+      JSON.parse((await enviar(app, { text: 'pode, mas no dinheiro' })).body),
+    )
+    expect(r.kind).toBe('answer')
+    expect(loja.gravacoes).toEqual([])
     await app.close()
   })
 
-  it('create_payable pede confirmacao para conta a pagar — NR-117 / US-070', async () => {
-    let chamadas = 0
-    const pedidoAluguel = 'lança aluguel 1800 vence dia 10'
-    const llm = new FakeLlm()
-    llm.script(pedidoAluguel, {
-      type: 'tool',
-      name: 'create_payable',
-      args: {
-        supplier: 'Aluguel',
-        description: 'Aluguel',
-        amountCents: 180_000,
-        dueDate: '2026-10-10',
-      },
-    })
-    const app = buildAppConfirmacao(
+  it('mutacoes NR-117 so gravam no aceite', async () => {
+    const { runtime, loja } = runtimeCom([
       {
-        createPayable: async () => {
-          chamadas += 1
-          return [
-            {
-              id: 'pag-1',
-              supplier: 'Aluguel',
-              description: 'Aluguel',
-              amountCents: 180_000,
-              settledAmountCents: 0,
-              dueDate: '2026-10-10',
-              status: 'open' as const,
-              attachmentKey: null,
-              accountId: null,
-              recurrenceId: null,
-              occurrenceNumber: null,
-              occurrenceCount: null,
-              createdAt: '2026-09-11T15:00:00.000Z',
-            },
-          ]
+        tool: 'create_payable',
+        args: {
+          supplier: 'Imobiliária',
+          description: 'Aluguel',
+          amountCents: 180_000,
+          dueDate: '2026-10-10',
         },
       },
-      llm,
+      { texto: 'Vou lançar o aluguel de R$ 1.800,00 para 2026-10-10. Posso?' },
+      { tool: 'cancel_proposal', args: {} },
+      { texto: 'Tudo bem, não lancei.' },
+    ])
+    const app = buildApp(PRINCIPAL, runtime)
+    expect(JSON.parse((await enviar(app, { text: 'lança o aluguel' })).body).kind).toBe(
+      'confirmation',
     )
-
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: pedidoAluguel },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Lancar conta a pagar de Aluguel/i)
-    expect(corpo.text).toMatch(/Confirma\?/)
-    expect(chamadas).toBe(0)
-    await app.close()
-  })
-
-  it('create_receivable pede confirmacao para recebivel avulso — NR-117 / US-071', async () => {
-    let chamadas = 0
-    const pedidoRecebivel = 'a receber 500 do João na sexta, aluguel vitrine'
-    const llm = new FakeLlm()
-    llm.script(pedidoRecebivel, {
-      type: 'tool',
-      name: 'create_receivable',
-      args: {
-        description: 'aluguel vitrine',
-        amountCents: 50_000,
-        dueDate: '2026-09-18',
-      },
-    })
-    const app = buildAppConfirmacao(
-      {
-        createReceivable: async () => {
-          chamadas += 1
-          return {
-            id: 'rec-1',
-            saleId: null,
-            customerId: null,
-            customerName: null,
-            description: 'aluguel vitrine',
-            amountCents: 50_000,
-            netAmountCents: 50_000,
-            settledAmountCents: 0,
-            dueDate: '2026-09-18',
-            installmentNumber: 1,
-            installmentCount: 1,
-            status: 'open' as const,
-            createdAt: '2026-09-11T15:00:00.000Z',
-          }
-        },
-      },
-      llm,
-    )
-
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: pedidoRecebivel },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Lancar a receber: aluguel vitrine/i)
-    expect(corpo.text).toMatch(/Confirma\?/)
-    expect(chamadas).toBe(0)
-    await app.close()
-  })
-
-  it('create_sale pede confirmacao e sem sim nao grava', async () => {
-    let chamadas = 0
-    const llm = new FakeLlm()
-    llm.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
-    const app = buildAppConfirmacao(
-      {
-        registerSale: async () => {
-          chamadas += 1
-          return vendaSaida()
-        },
-      },
-      llm,
-    )
-
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: fraseVenda },
-    })
-    expect(proposta.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(proposta.body))
-    expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Confirma\?/)
-    expect(chamadas).toBe(0)
-    await app.close()
-  })
-
-  it('create_sale no sim grava uma vez; nao recusa sem gravar', async () => {
-    let chamadas = 0
-    const llm = new FakeLlm()
-    llm.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
-    const app = buildAppConfirmacao(
-      {
-        registerSale: async () => {
-          chamadas += 1
-          return vendaSaida()
-        },
-      },
-      llm,
-    )
-
-    const proposta = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: fraseVenda },
-    })
-    expect(agentReplySchema.parse(JSON.parse(proposta.body)).kind).toBe('confirmation')
-    expect(chamadas).toBe(0)
-
-    const sim = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'sim' },
-    })
-    const corpoSim = agentReplySchema.parse(JSON.parse(sim.body))
-    expect(sim.statusCode).toBe(200)
-    expect(corpoSim.kind).toBe('answer')
-    expect(corpoSim.text).toContain('#1042')
-    expect(chamadas).toBe(1)
-    await app.close()
-
-    let recusas = 0
-    const llmRecusa = new FakeLlm()
-    llmRecusa.script(fraseVenda, { type: 'tool', name: 'create_sale', args: argsVenda })
-    const appRecusa = buildAppConfirmacao(
-      {
-        registerSale: async () => {
-          recusas += 1
-          return vendaSaida()
-        },
-      },
-      llmRecusa,
-    )
-    await appRecusa.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: fraseVenda },
-    })
-    const nao = await appRecusa.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'nao' },
-    })
-    const corpoNao = agentReplySchema.parse(JSON.parse(nao.body))
-    expect(nao.statusCode).toBe(200)
-    expect(corpoNao.kind).toBe('answer')
-    expect(corpoNao.text).toMatch(/Cancelado/)
-    expect(recusas).toBe(0)
-    await appRecusa.close()
-  })
-
-  it('foto com pagamento pede confirmacao de venda — NR-116 US1 / T009', async () => {
-    const barcode = '7891234567895'
-    const app = buildAppConfirmacao(
-      {
-        findProductByBarcode: async (_ctx, code) => {
-          if (code !== barcode) return undefined
-          return {
-            id: 'p-ean',
-            description: 'Camiseta M',
-            barcode,
-            internalCode: 'PROD-EAN',
-            unitOfMeasure: 'un',
-            salePriceCents: 4_990,
-            costPriceCents: 2_000,
-            taxRate: 0,
-            ncm: null,
-            cfop: null,
-            taxSituationCode: null,
-            stock: 10,
-            minStock: 0,
-            category: null,
-            supplier: null,
-          }
-        },
-        registerSale: async () => vendaSaida(),
-      },
-      new FakeLlm(),
-    )
-
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: {
-        text: 'no pix',
-        image: {
-          mimeType: 'image/png',
-          dataBase64: Buffer.from(barcode).toString('base64'),
-        },
-      },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('confirmation')
-    expect(corpo.text).toMatch(/Confirma\?/)
-    expect(corpo.text).toContain('p-ean')
-    await app.close()
-  })
-
-  it('foto com cadastra este devolve codigo sem confirmacao — NR-116 US3 / T019', async () => {
-    const barcode = '0000000000000'
-    const app = buildAppConfirmacao(
-      {
-        findProductByBarcode: async () => undefined,
-        registerSale: async () => vendaSaida(),
-      },
-      new FakeLlm(),
-    )
-
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: {
-        text: 'cadastra este',
-        image: {
-          mimeType: 'image/png',
-          dataBase64: Buffer.from(barcode).toString('base64'),
-        },
-      },
-    })
-    expect(res.statusCode).toBe(200)
-    const corpo = agentReplySchema.parse(JSON.parse(res.body))
-    expect(corpo.kind).toBe('answer')
-    expect(corpo.text).toContain(barcode)
-    expect(corpo.confirmationId).toBeUndefined()
+    expect(JSON.parse((await enviar(app, { text: 'deixa pra lá' })).body).kind).toBe('answer')
+    expect(loja.gravacoes).toEqual([])
     await app.close()
   })
 })
 
-/**
- * Sem runtime configurado — ADR-0010.
- *
- * O ponto nao e o 503: e que exista resposta. Enquanto a api recusava subir
- * por falta de chave de IA, isto aqui era um processo em laco de reinicio e
- * nenhuma outra rota respondendo.
+/*
+ * Sem runtime a rota responde 503 com motivo: quem chama sabe que o
+ * assistente esta desligado, e nao confunde com rota inexistente.
  */
 describe('POST /agent/messages sem runtime', () => {
   function buildAppSemRuntime(motivo?: string): FastifyInstance {
@@ -783,11 +207,7 @@ describe('POST /agent/messages sem runtime', () => {
 
   it('responde 503 com motivo, em vez de 404', async () => {
     const app = buildAppSemRuntime()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?' },
-    })
+    const res = await enviar(app, { text: 'quanto vendi hoje?' })
 
     expect(res.statusCode).toBe(503)
     const corpo = JSON.parse(res.body) as { error: { code: string; message: string } }
@@ -798,16 +218,12 @@ describe('POST /agent/messages sem runtime', () => {
     await app.close()
   })
 
-  it('propaga o motivo de harness off / fake em prod (FR-001b)', async () => {
+  it('propaga o motivo de harness off em prod (FR-001b)', async () => {
     const app = buildAppSemRuntime(
       'Harness do assistente desligado em producao (FR-001b). ' +
         'Defina AGENT_HARNESS=1 so para staging de engenharia.',
     )
-    const res = await app.inject({
-      method: 'POST',
-      url: '/agent/messages',
-      payload: { text: 'quanto vendi hoje?' },
-    })
+    const res = await enviar(app, { text: 'quanto vendi hoje?' })
 
     expect(res.statusCode).toBe(503)
     const corpo = JSON.parse(res.body) as { error: { code: string; message: string } }

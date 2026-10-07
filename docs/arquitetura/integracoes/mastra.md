@@ -1,13 +1,14 @@
 # Mastra + OpenAI — o runtime do assistente
 
-O lojista manda uma mensagem. O Mastra interpreta a intenção e escolhe uma
-_tool_. A tool chama um caso de uso de `core`. `domain` calcula. O lojista
-recebe um número que é o mesmo do relatório.
+O lojista manda uma mensagem. O agente raciocina em até 5 etapas: consulta
+pelas _tools_ (que chamam casos de uso de `core`, onde `domain` calcula) e
+redige a resposta a partir do resultado. O lojista recebe um número que é o
+mesmo do relatório, em português comum.
 
 Este texto diz **o que o Mastra faz aqui**, **como o laço gira** e **o que ele
 está proibido de fazer**. Não substitui a
 [documentação do Mastra](https://mastra.ai/docs). Versão de referência no
-código: `@mastra/core` ^1.66.
+código: `@mastra/core` ^1.70.
 
 Decisão: [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 ([DEC-007](../../decisoes/README.md#dec-007)). Origem das regras de negócio:
@@ -18,29 +19,32 @@ Decisão: [ADR-0010](../../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 
 ## Em uma frase
 
-**O Mastra é biblioteca dentro de `packages/agent`, não é um serviço.** Usamos
-**Agent** + **tools** (`createTool`), chamados por `processMessage()`. O
-modelo inicial é `openai/gpt-4o-mini`. **RAG entra** como recuperação auxiliar
+**O Mastra é biblioteca dentro de `packages/agent`, não é um serviço.** Um
+`Agent` de **até 5 etapas** (`createBuddyBrain`), chamado por
+`processMessage()`. As consultas executam o caso de uso de `core` **dentro do
+laço** e o modelo redige a resposta a partir do resultado real. Gravação só
+por **proposta e aceite**, na tabela `confirmations`. Modelo padrão
+`openai/gpt-5.4-mini`. **RAG entra** como recuperação auxiliar
 ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)): achar candidatos
 e trechos; **totais e efeitos em dinheiro** continuam só via tool → `core` →
-`domain`. **Memory** e **Workflow** do Mastra **não** entram. **Studio** e um
-servidor Mastra de **desenvolvimento** entram só como harness de engenharia
-([NR-121](../../processo/task-ledger.md)): substituto do WhatsApp no teste,
-sempre atrás do mesmo `processMessage` — **não** como canal do lojista.
+`domain`. **Memory**, **Storage**, **HITL** e **Workflow** do Mastra **não**
+entram. **Studio** e um servidor Mastra de **desenvolvimento** entram só como
+harness de engenharia ([NR-121](../../processo/task-ledger.md)): substituto do
+WhatsApp no teste, sempre atrás do mesmo `processMessage` — **não** como canal
+do lojista. Desenho completo: [spec 013](../../../specs/013-buddy-conversa-natural/plan.md).
 
 ```mermaid
 flowchart LR
   L["Lojista"] -->|"mensagem"| API["apps/api"]
   API --> PM["processMessage"]
-  PM -->|"decide"| AG["Agent.generate<br/>maxSteps: 1"]
-  AG -->|"prompt mínimo + tools"| OAI["OpenAI<br/>gpt-4o-mini"]
-  OAI -->|"tool call"| AG
-  AG -->|"args validados"| PM
-  PM -->|"se mutatesValue"| CONF["confirmação<br/>nossa"]
-  CONF -->|"sim"| C["core"]
-  PM -->|"leitura"| C
+  PM -->|"janela 12 + resumo + pendente"| AG["Agent.generate<br/>maxSteps: 5"]
+  AG <-->|"etapas"| OAI["OpenAI<br/>gpt-5.4-mini"]
+  AG -->|"consulta"| C["core"]
+  AG -->|"proposta"| CONF["confirmations"]
+  AG -->|"accept_proposal + trava"| C
   C --> D["domain calcula"]
   C --> DB[("Postgres + RLS")]
+  AG -->|"texto sem termo técnico"| PM
   PM -->|"resposta"| L
 ```
 
@@ -50,31 +54,42 @@ O dono do fluxo **não** é o Mastra. É `processMessage` em `packages/agent`:
 
 1. Resolve `ExecutionContext` (app: sessão; WhatsApp: `PeerDirectory` pelo
    celular do owner — [ADR-0012](../../decisoes/adr/0012-identidade-do-canal-whatsapp.md)).
-2. Se há confirmação aberta, trata sim/não/ambiguidade/expiração
-   ([RF-103](../../produto/requisitos-funcionais.md),
-   [RF-104](../../produto/requisitos-funcionais.md)) — **máquina nossa**, não
-   `requireApproval` do Mastra.
-3. Chama `LlmPort.decide()` — implementação real: `Agent` + `agent.generate(text, { maxSteps: 1 })`.
-4. Valida os args com o mesmo schema Zod de `contracts`.
-5. Se a tool `mutatesValue`, grava proposta e pede confirmação; só no "sim"
-   executa.
-6. Execução real chama o caso de uso de `core` via catálogo em `catalog.ts`.
+2. Foto recebe o pedido de texto, sem modelo. Teto de IA configurado e estourado
+   recebe o aviso fixo.
+3. Carrega a janela ativa (até 12 mensagens, idle de 2 h) e monta o **resumo de
+   entidades** a partir do snapshot `v: 2` em `messages.tool_calls`
+   ([ADR-0016](../../decisoes/adr/0016-memoria-da-conversa-tabelas-nossas.md)).
+4. Busca a proposta pendente. Vencida: `expired` e um aviso ao modelo.
+5. Chama `BuddyBrain.conversar()`: `agent.generate(mensagens, { maxSteps: 5,
+maxProcessorRetries: 1, requestContext, system, activeTools, prepareStep })`.
+   O `ExecutionContext`, o texto da dona e a pendente vão no `RequestContext`,
+   que **não** entra no prompt. Na quinta etapa, `prepareStep` força
+   `toolChoice: 'none'`.
+6. Registra o uso de IA por etapa, rejeita a pendente se o modelo mudou de
+   assunto sem decidi-la, grava o turno com o snapshot e devolve `answer`,
+   `confirmation` (proposta nova) ou `ignored`. Exceção vira frase fixa.
 
-Detalhe deliberado: nas tools registradas no `Agent` do Mastra, `execute`
-**só devolve os argumentos**. Quem grava valor é o catálogo nosso, depois da
-confirmação. Assim o `generate` não tem efeito colateral financeiro mesmo se o
-modelo disparar a tool.
+Gravação: as tools de gravação só gravam uma `PendingConfirmation` com os
+`args` já validados por `contracts`. `accept_proposal` (ativa só com pendente)
+roda a trava `ehConcordanciaPura` sobre o texto da dona — dado novo ou ressalva
+nunca grava — e executa o caso de uso com `idempotencyKey = confirmation:{id}`.
+
+Nada técnico na tela: as tools devolvem visões humanizadas (reais, rótulos em
+português, sem campo vazio); o processador de saída `sem-termo-tecnico` pede uma
+reescrita se aparecer UUID, código interno, nome de campo/tool ou centavos; e
+`limparTermosTecnicos` remove o que sobrar.
 
 ```
-contracts (Zod)  ──→  createTool (Mastra)     → só escolhe intenção + args
-                 ──→  defineTool (catálogo)   → executa core após confirmação
-                 ──→  rota HTTP               → mesmo schema
+contracts (Zod)  ──→  createTool (Mastra)  → consulta executa core; gravação propõe
+                 ──→  accept_proposal      → executa core após a trava
+                 ──→  rota HTTP            → mesmo schema
 ```
 
-Porta `LlmPort`: o processo que serve monta só `createMastraLlm` quando
-`OPENAI_API_KEY` existe e o porteiro está aberto. Sem a chave a API sobe e o
-assistente fica indisponível (503). A CI não chama a OpenAI: o dublê `FakeLlm`
-só devolve o que o teste gravou com `script()`. Frase sem roteiro é `unknown`.
+O processo que serve só monta o brain quando `OPENAI_API_KEY` existe e o
+porteiro está aberto; a chave vai na configuração do modelo
+(`{ id: AGENT_MODEL, apiKey }`), não em `process.env`. A CI não chama a
+OpenAI: os testes usam o `MastraLanguageModelV2Mock` do próprio Mastra no
+`Agent` real. A avaliação com o modelo real é `pnpm --filter @na-regua/agent eval`.
 
 | Ambiente     | Chave    | `AGENT_HARNESS` | Runtime |
 | ------------ | -------- | --------------- | ------- |
@@ -84,41 +99,17 @@ só devolve o que o teste gravou com `script()`. Frase sem roteiro é `unknown`.
 | Produção     | presente | desligado       | Ausente |
 | Produção     | ausente  | qualquer        | Ausente |
 
-## Catálogo mínimo (NR-060)
+## Catálogo
 
-Tools em [`packages/agent/src/catalog.ts`](../../../packages/agent/src/catalog.ts).
-Input = schema de `contracts`. Nas tools do `Agent` Mastra, `execute` continua
-**identidade** — efeito só no catálogo, depois da confirmação quando mexe em
-valor.
+Tools em [`packages/agent/src/tools/`](../../../packages/agent/src/tools/).
+Contrato: [`buddy-runtime.md`](../../../specs/013-buddy-conversa-natural/contracts/buddy-runtime.md).
 
-**Leituras**
-
-| Tool               | Caso de uso           | Notas                                                                                                  |
-| ------------------ | --------------------- | ------------------------------------------------------------------------------------------------------ |
-| `list_sales`       | `listSales`           | “quanto vendi hoje?”                                                                                   |
-| `list_receivables` | `listReceivables`     | “quem está me devendo?”                                                                                |
-| `search_products`  | `searchProducts`      | desambiguação (RF-102)                                                                                 |
-| `period_summary`   | `buildDre`            | RF-108: faturamento, custo, despesas, resultado; texto truncado (4096). RF-109 (arquivo/link) é dívida |
-| `revenue_by_month` | `buildRevenueByMonth` | opcional; **não** é o caminho de “resumo do mês”                                                       |
-
-**Mutações / envio** (`mutatesValue`; confirmação nossa antes de executar)
-
-| Tool              | Caso de uso          | Notas                                                             |
-| ----------------- | -------------------- | ----------------------------------------------------------------- |
-| `create_customer` | `registerCustomer`   | duplicata pelo `core`                                             |
-| `create_sale`     | `registerSale`       | centavos do app; NFC-e só como efeito da venda                    |
-| `send_charge`     | `sendCustomerCharge` | `MessageSender` falso no harness; sem dívida, informa e não envia |
-
-**Recusas** (input vazio, `execute` sem efeito, texto aponta o app)
-
-| Tool                     | RF     | Recusa                             |
-| ------------------------ | ------ | ---------------------------------- |
-| `refuse_certificate`     | RF-149 | certificado A1, senha, emitente    |
-| `refuse_banking`         | RF-150 | OFX/CSV, Open Finance, conciliação |
-| `refuse_invoice_command` | RF-151 | emitir/cancelar nota avulsa        |
-
-Estoque / contas a pagar / saldo de carteira **não** têm tool nesta fatia
-(NR-115): a resposta é RF-097 — só as capacidades atuais, sem roadmap.
+| Grupo    | Tools                                                                                                                                                                                                                                                                                      | Efeito                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| Leitura  | `find_customer`, `find_product`, `list_sales`, `period_summary`, `revenue_by_month`, `check_stock`, `search_products`, `check_customer_wallet`, `list_payables`, `list_receivables`, `day_agenda`, `rank_customers`, `rank_products`                                                       | Executa `core` no laço; visão humanizada     |
+| Proposta | `create_customer`, `update_customer`, `mark_customer_deleted`, `create_product`, `update_product`, `mark_product_deleted`, `create_sale`, `cancel_sale`, `create_payable`, `create_receivable`, `settle_payable`, `settle_receivable`, `adjust_stock`, `create_appointment`, `send_charge` | Grava `PendingConfirmation`; não toca `core` |
+| Aceite   | `accept_proposal`, `cancel_proposal`                                                                                                                                                                                                                                                       | Só com pendente; trava antes de gravar       |
+| Recusa   | `refuse_certificate`, `refuse_banking`, `refuse_invoice_command`, `refuse_delete_account_or_contact`                                                                                                                                                                                       | Devolve a regra; o modelo redige             |
 
 ## Harness (NR-060)
 
@@ -129,7 +120,7 @@ autenticar); `companyId` nunca vem no body. Serve em não-produção; em staging
 o Studio (NR-121) é só harness de engenharia e **não** monta o adapter.
 Sem chave, o mesmo endpoint responde 503 mesmo com a flag. Teto de IA:
 `AGENT_MONTHLY_BUDGET_CENTS` (degradação avisada; não executa tool que muta
-valor). A CI prova o laço com `script()`, sem OpenAI:
+valor). A CI prova o laço com o modelo dublê do Mastra, sem OpenAI:
 [quickstart](../../../specs/010-assistente-sempre-openai/quickstart.md).
 Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 
@@ -139,9 +130,9 @@ Studio: [quickstart NR-121](../../../specs/003-studio-harness/quickstart.md).
 | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Agent` de `@mastra/core/agent`                                                                               | Rotas `/api/agents` do Mastra como **canal do lojista** (segunda composição de deps)                                                                                    |
 | `createTool` de `@mastra/core/tools` com `inputSchema` de `contracts`                                         | Tool escrita à mão, paralela à rota HTTP                                                                                                                                |
-| `agent.generate(..., { maxSteps: 1 })` atrás de `processMessage()`                                            | Studio / `mastra dev` como **runtime de produção** do lojista                                                                                                           |
+| `agent.generate(..., { maxSteps: 5 })` atrás de `processMessage()`                                            | Studio / `mastra dev` como **runtime de produção** do lojista                                                                                                           |
 | Harness Studio de eng. ([NR-121](../../processo/task-ledger.md)) → mesmo `processMessage`                     | Studio que desvie do laço (confirmação/memória/`core` paralelos)                                                                                                        |
-| Modelo `openai/gpt-4o-mini` via `AGENT_MODEL` (`provedor/modelo`)                                             | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                                                                           |
+| Modelo `openai/gpt-5.4-mini` via `AGENT_MODEL` (`provedor/modelo`)                                            | Usar chunk do RAG como saldo, faturamento ou estoque (RF-101)                                                                                                           |
 | RAG sobre store **nosso** com `company_id` + RLS ([ADR-0017](../../decisoes/adr/0017-rag-com-tools-e-rls.md)) | Índice vetorial sem tenant; Memory/Storage padrão do Mastra em `public`                                                                                                 |
 | Sem `OPENAI_API_KEY` a API sobe e o assistente fica 503                                                       | Chave da OpenAI obrigatória para `pnpm dev` subir o processo inteiro                                                                                                    |
 | Confirmação na tabela `confirmations` (Postgres + stub em `conversations`; NR-061)                            | HITL do Mastra (`requireApproval` / `requireToolApproval` / `approveToolCall`) — não isola por empresa nem expira como RF-103 pede                                      |
@@ -177,7 +168,7 @@ processor Mastra.
 
 | Variável                     | Valor inicial                        | Notas                                                              |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| `AGENT_MODEL`                | `openai/gpt-4o-mini`                 | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe  |
+| `AGENT_MODEL`                | `openai/gpt-5.4-mini`                | Formato Mastra `provedor/modelo`. Só é lida quando a chave existe  |
 | `AGENT_HARNESS`              | ausente                              | `1` libera HTTP + Studio em produção (staging). Mesmo porteiro     |
 | `AGENT_STUDIO_PRESETS`       | `packages/agent/studio/presets.json` | Path do JSON de presets (NR-121). Ausente/vazio = esse default     |
 | `AGENT_MONTHLY_BUDGET_CENTS` | vazio = sem teto                     | Teto de IA por empresa/mês (RNF-073)                               |
@@ -286,10 +277,10 @@ A instância Mastra do harness registra **um** agent, `studio-harness`. A
 `channel: 'whatsapp'` e o peer forjado resolvido no servidor. O generate do
 Studio **não** chama OpenAI: o model do relé só encaminha o texto. A chamada
 ao modelo, quando a chave existe, ocorre dentro de `processMessage`. A CI
-grava a decisão com `script()` e não manda a frase ao `gpt-4o-mini`.
+roteiriza o modelo com o dublê do Mastra e não chama a OpenAI.
 
-**Não há `/api/agents` de negócio.** O `erp-agent` (tools de catálogo com
-`execute` identidade) continua atrás de `LlmPort.decide()` — não aparece na
+**Não há `/api/agents` de negócio.** O agent `buddy` (tools de consulta,
+proposta e aceite) continua atrás de `BuddyBrain.conversar()` — não aparece na
 lista do Studio. Registrar tools de venda/cadastro no adapter furaria a
 confirmação e o `core`.
 
@@ -297,7 +288,7 @@ confirmação e o `core`.
 Studio chat → POST /api/agents/studio-harness/generate
            → relé (tool process_message)
            → processMessage({ channel: 'whatsapp', peer })
-           → LlmPort → catálogo → core
+           → BuddyBrain (agent buddy) → tools → core
 ```
 
 Envelope da tool (visível no painel): `{ kind, text, durationMs, confirmationId? }`.

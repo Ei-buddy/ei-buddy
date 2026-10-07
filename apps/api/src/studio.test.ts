@@ -1,9 +1,9 @@
+import { createAgentRuntime, FixturePeerDirectory, type AgentUseCases } from '@na-regua/agent'
 import {
-  createAgentRuntime,
-  FakeLlm,
-  FixturePeerDirectory,
-  type AgentUseCases,
-} from '@na-regua/agent'
+  criarLojaDeTeste,
+  roteiroDoModelo,
+  type EtapaRoteirizada,
+} from '@na-regua/agent/test-support'
 import { agentReplySchema } from '@na-regua/contracts'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { describe, expect, it } from 'vitest'
@@ -15,82 +15,7 @@ import { montarStudio, origemDoPainelStudio } from './studio.js'
 const UUID_A = '00000000-0000-4000-8000-000000000001'
 const USER_A = '00000000-0000-4000-8000-000000000011'
 
-const useCases: AgentUseCases = {
-  listSales: async () => ({
-    sales: [],
-    total: 0,
-    page: 1,
-    pageSize: 20,
-    summary: {
-      salesCount: 1,
-      grossCents: 10_000,
-      netCents: 10_000,
-      cardFeeCents: 0,
-      netAfterFeesCents: 10_000,
-      averageTicketCents: 10_000,
-    },
-  }),
-  listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
-  checkStock: async () => {
-    throw new Error('nao deveria consultar estoque neste teste')
-  },
-  checkStockByQuery: async () => {
-    throw new Error('nao deveria consultar estoque neste teste')
-  },
-  checkCustomerWalletByQuery: async () => {
-    throw new Error('nao deveria consultar fiado neste teste')
-  },
-  listPayables: async () => {
-    throw new Error('nao deveria consultar contas a pagar neste teste')
-  },
-  registerCustomer: async () => {
-    throw new Error('nao deveria cadastrar neste teste')
-  },
-  registerSale: async () => {
-    throw new Error('nao deveria vender neste teste')
-  },
-  searchProducts: async () => [],
-  revenueByMonth: async () => ({
-    from: '2026-09-01',
-    to: '2026-09-30',
-    months: [],
-    totalNetCents: 0,
-  }),
-  buildDre: async () => {
-    throw new Error('nao deveria montar DRE neste teste')
-  },
-  sendCustomerCharge: async () => {
-    throw new Error('nao deveria cobrar neste teste')
-  },
-  findProductByBarcode: async () => undefined,
-  registerProduct: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createPayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settlePayable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  settleReceivable: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  adjustStock: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  cancelSale: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  createAppointment: async () => {
-    throw new Error('nao executa neste teste')
-  },
-  listDayAppointments: async () => {
-    throw new Error('nao executa neste teste')
-  },
-}
+const useCases: AgentUseCases = criarLojaDeTeste().useCases
 
 const directory = new FixturePeerDirectory([
   {
@@ -102,18 +27,17 @@ const directory = new FixturePeerDirectory([
   },
 ])
 
-function llmVendas(): FakeLlm {
-  const llm = new FakeLlm()
-  llm.script('quanto vendi hoje?', {
-    type: 'tool',
-    name: 'list_sales',
-    args: { from: '2026-09-11', to: '2026-09-11' },
-  })
-  return llm
+/** Cada pergunta de vendas: consulta e depois texto. Repetido para varios turnos. */
+function modeloVendas() {
+  const turno: EtapaRoteirizada[] = [
+    { tool: 'list_sales', args: { from: '2026-09-11', to: '2026-09-11' } },
+    { texto: 'Hoje foi 1 venda de R$ 100,00.' },
+  ]
+  return roteiroDoModelo(Array.from({ length: 6 }, () => turno).flat()).modelo
 }
 
 function runtime() {
-  return createAgentRuntime({ useCases, peers: directory, llm: llmVendas() })
+  return createAgentRuntime({ model: modeloVendas(), useCases, peers: directory })
 }
 
 async function appComStudio(over: Parameters<typeof montarStudio>[1]): Promise<FastifyInstance> {
@@ -274,7 +198,7 @@ describe('montarStudio — porteiro', () => {
 })
 
 describe('montarStudio — generate US1', () => {
-  it('POST /api/agents/studio-harness/generate com FakeLlm devolve os mesmos centavos/kind do HTTP', async () => {
+  it('POST /api/agents/studio-harness/generate com o modelo duble devolve os mesmos centavos/kind do HTTP', async () => {
     const visto: string[] = []
     const useCasesEmpresa: AgentUseCases = {
       ...useCases,
@@ -297,7 +221,7 @@ describe('montarStudio — generate US1', () => {
       },
     }
     const dir = directory
-    const rt = createAgentRuntime({ useCases: useCasesEmpresa, peers: dir, llm: llmVendas() })
+    const rt = createAgentRuntime({ model: modeloVendas(), useCases: useCasesEmpresa, peers: dir })
     const principal: AuthenticatedPrincipal = {
       companyId: UUID_A,
       userId: USER_A,

@@ -1,4 +1,5 @@
 import {
+  FRASE_PEDIDO_DE_TEXTO,
   processMessage,
   type AgentRuntime,
   type IncomingMessage,
@@ -50,6 +51,11 @@ export type WhatsAppWebhookRouteDeps = {
   readonly scheduler?: {
     esperar(ms: number): Promise<void>
   }
+  /**
+   * Relógio de “agora” para decidir se o carimbo da Meta está atrasado.
+   * Ausente: `new Date()`. Teste injeta o instante do cenário.
+   */
+  readonly agora?: () => Date
 }
 
 const INDISPONIVEL = { error: { code: 'UNAVAILABLE' as const } }
@@ -57,8 +63,7 @@ const PROVEDOR = 'meta'
 const CABECALHO_ASSINATURA = 'x-hub-signature-256'
 
 /** Mensagem fixa quando a dona manda mídia ou corpo vazio — sem modelo (RNF-073). */
-export const FRASE_PEDIDO_DE_TEXTO_WHATSAPP =
-  'Envie sua pergunta ou pedido por texto para eu poder ajudar.'
+export const FRASE_PEDIDO_DE_TEXTO_WHATSAPP = FRASE_PEDIDO_DE_TEXTO
 
 const FRASE_DE_FALHA_WHATSAPP = 'Não consegui responder agora. Tente de novo em instantes.'
 
@@ -75,6 +80,12 @@ const PAUSA_DA_RAJADA_MS = 3_000
 const INTERVALO_ENTRE_BALOES_MS = 800
 /** O provedor apaga o digitando em 25 s; renovamos se a resposta ainda não saiu. */
 const RENOVACAO_DIGITANDO_MS = 20_000
+/**
+ * Reentrega da Meta conserva o `timestamp` original. Acima disto a dona já
+ * seguiu a conversa — responder agora parece mensagem espontânea.
+ * Entrega ao vivo chegou em ~6 s; as de “Oi” reentregues tinham 22–100 min.
+ */
+const ATRASO_MAXIMO_MS = 3 * 60_000
 
 type MetaPronta = NonNullable<WhatsAppWebhookRouteDeps['meta']>
 
@@ -212,6 +223,14 @@ export function registerWhatsAppWebhookRoutes(
         })
 
         if (situacao === 'processado') {
+          return reply.code(200).send()
+        }
+
+        const relogio = deps.agora ?? (() => new Date())
+        const enviadaEm = Date.parse(inbound.receivedAt)
+        const idadeMs = Number.isFinite(enviadaEm) ? relogio().getTime() - enviadaEm : 0
+        if (idadeMs > ATRASO_MAXIMO_MS) {
+          await marcarProcessado(meta, vinculo.companyId, [inbound.providerMessageId])
           return reply.code(200).send()
         }
 

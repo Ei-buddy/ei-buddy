@@ -18,6 +18,13 @@ substituida_por: null
 | **Decisores**         | Trilha 2 — Plataforma & Integrações |
 | **Decisão de origem** | [DEC-011](../README.md#dec-011)     |
 
+> **Nota (2026-10-06, spec 013):** o "metadado da mensagem" previsto no item 1
+> da decisão virou um **snapshot de turno versionado** em `messages.tool_calls`
+> (`v: 2`: entidades com `ref` e rótulo, intenção em andamento, id da proposta).
+> O resumo enviado ao modelo é derivado da janela ativa (12 mensagens, idle de
+> 2 h) e zera junto com ela. Sem tabela nova, sem Memory do Mastra. Formato em
+> [`specs/013-buddy-conversa-natural/data-model.md`](../../../specs/013-buddy-conversa-natural/data-model.md).
+
 ## Contexto
 
 A [DEC-011](../README.md#dec-011) perguntava o que a conversa lembra, por

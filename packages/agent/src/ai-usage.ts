@@ -2,8 +2,10 @@
  * Contador de consumo de IA por empresa — RNF-072, RNF-073, FR-020, NR-060.
  *
  * Estado de processo (sem tabela nesta fatia). A chave e empresa + mes civil.
- * Cada `decide` do LLM conta 1 unidade; o teto `AGENT_MONTHLY_BUDGET_CENTS`
- * e comparado a essa contagem ate a NR-063 precificar tokens.
+ * Cada ETAPA de modelo conta 1 unidade — uma mensagem pode ter ate 5 (spec
+ * 013, FR-039). O teto `AGENT_MONTHLY_BUDGET_CENTS` e opcional e vem
+ * desligado: sem ele ninguem e bloqueado (FR-040); o uso continua medido
+ * para acompanhamento interno ate a NR-063 precificar tokens.
  */
 
 export type AiUsageCounter = {

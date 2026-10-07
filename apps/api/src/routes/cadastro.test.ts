@@ -28,7 +28,7 @@ const PRINCIPAL: AuthenticatedPrincipal = {
 function cadastroEmMemoria() {
   const empresas: CompanyOutput[] = []
   const clientes: (CustomerOutput & { companyId: string })[] = []
-  const produtos: (ProductOutput & { companyId: string })[] = []
+  const produtos: (ProductOutput & { companyId: string; deletedAt: string | null })[] = []
   let seq = 0
 
   const companies: CompanyRepository = {
@@ -222,10 +222,11 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return produtos
-        .filter((p) => p.companyId === companyId)
+        .filter((p) => p.companyId === companyId && p.deletedAt === null)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .sort((a, b) => a.description.localeCompare(b.description))
         .slice(0, criterio.limite)
+        .map(semDeletedAt)
     },
 
     /* O catalogo do backoffice (NR-072). Corta a pagina DEPOIS de contar,
@@ -234,7 +235,7 @@ function cadastroEmMemoria() {
     listCatalog: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = produtos
-        .filter((p) => p.companyId === companyId)
+        .filter((p) => p.companyId === companyId && p.deletedAt === null)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .filter((p) => {
           if (criterio.stock === 'esgotado') return p.stock <= 0
@@ -245,12 +246,12 @@ function cadastroEmMemoria() {
 
       return {
         total: casam.length,
-        produtos: casam.slice(criterio.offset, criterio.offset + criterio.limite),
+        produtos: casam.slice(criterio.offset, criterio.offset + criterio.limite).map(semDeletedAt),
       }
     },
 
     catalogSummary: async (companyId) => {
-      const meus = produtos.filter((p) => p.companyId === companyId)
+      const meus = produtos.filter((p) => p.companyId === companyId && p.deletedAt === null)
       return {
         total: meus.length,
         belowMinimum: meus.filter((p) => p.stock < p.minStock).length,
@@ -278,6 +279,7 @@ function cadastroEmMemoria() {
         minStock: p.minStock,
         category: p.category ?? null,
         supplier: p.supplier ?? null,
+        deletedAt: null as string | null,
       }
       produtos.push(pr)
 
@@ -293,17 +295,29 @@ function cadastroEmMemoria() {
         minStock: pr.minStock,
       })
 
-      return pr
+      return semDeletedAt(pr)
     },
     /* Filtra por empresa de verdade: um falso que ignorasse isso faria o teste
        de isolamento medir o vazio. */
-    findByBarcode: async (companyId, barcode) =>
-      produtos.find((p) => p.companyId === companyId && p.barcode === barcode),
-    findById: async (companyId, productId) =>
-      produtos.find((p) => p.companyId === companyId && p.id === productId),
+    findByBarcode: async (companyId, barcode) => {
+      const achado = produtos.find(
+        (p) => p.companyId === companyId && p.barcode === barcode && p.deletedAt === null,
+      )
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
+    findById: async (companyId, productId) => {
+      const achado = produtos.find(
+        (p) => p.companyId === companyId && p.id === productId && p.deletedAt === null,
+      )
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
+    findByIdIncludingDeleted: async (companyId, productId) => {
+      const achado = produtos.find((p) => p.companyId === companyId && p.id === productId)
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
     countAll: async (companyId) => produtos.filter((p) => p.companyId === companyId).length,
     listSuggestions: async (companyId) => {
-      const meus = produtos.filter((p) => p.companyId === companyId)
+      const meus = produtos.filter((p) => p.companyId === companyId && p.deletedAt === null)
       const distintosEmOrdem = (valores: (string | null)[]) =>
         [...new Set(valores.filter((v): v is string => v !== null))].sort((a, b) =>
           a.localeCompare(b),
@@ -313,6 +327,37 @@ function cadastroEmMemoria() {
         suppliers: distintosEmOrdem(meus.map((p) => p.supplier)),
       }
     },
+    update: async (companyId, productId, patch) => {
+      const alvo = produtos.find(
+        (p) => p.companyId === companyId && p.id === productId && p.deletedAt === null,
+      )
+      if (alvo === undefined) return undefined
+
+      alvo.description = patch.description ?? alvo.description
+      if (patch.barcode !== undefined) alvo.barcode = patch.barcode
+      alvo.unitOfMeasure = patch.unitOfMeasure ?? alvo.unitOfMeasure
+      alvo.salePriceCents = patch.salePriceCents ?? alvo.salePriceCents
+      alvo.costPriceCents = patch.costPriceCents ?? alvo.costPriceCents
+      if (patch.taxRate !== undefined) alvo.taxRate = patch.taxRate
+      alvo.minStock = patch.minStock ?? alvo.minStock
+      if (patch.category !== undefined) alvo.category = patch.category
+      if (patch.supplier !== undefined) alvo.supplier = patch.supplier
+
+      return semDeletedAt(alvo)
+    },
+    setDeletedAt: async (companyId, productId, deletedAt) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return false
+      alvo.deletedAt = deletedAt === null ? null : deletedAt.toISOString()
+      return true
+    },
+  }
+
+  function semDeletedAt(
+    p: ProductOutput & { companyId: string; deletedAt: string | null },
+  ): ProductOutput & { companyId: string } {
+    const { deletedAt: _omitido, ...resto } = p
+    return resto
   }
 
   /* O onboarding semeia o plano de contas (RF-081, NR-077), entao a rota
@@ -1315,6 +1360,58 @@ describe('a ficha do produto — RF-017', () => {
 
     expect(r.statusCode).toBe(200)
     expect(r.json().description).toBe('Cafe torrado 500g')
+  })
+})
+
+describe('editar e excluir produto — PATCH/DELETE /produtos/:id', () => {
+  const CAFE = {
+    description: 'Cafe torrado 500g',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 1990,
+    costPriceCents: 1200,
+  }
+
+  async function comProduto() {
+    const c = await buildApp()
+    app = c.app
+    const criado = await app.inject({ method: 'POST', url: '/produtos', payload: CAFE })
+    return { id: criado.json().id as string }
+  }
+
+  it('PATCH altera so o que veio e responde 200', async () => {
+    const { id } = await comProduto()
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/produtos/${id}`,
+      payload: { salePriceCents: 2490 },
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().salePriceCents).toBe(2490)
+    expect(r.json().costPriceCents).toBe(1200)
+    expect(r.json().description).toBe('Cafe torrado 500g')
+  })
+
+  it('DELETE responde 204 e o produto some da busca', async () => {
+    const { id } = await comProduto()
+
+    const r = await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+    expect(r.statusCode).toBe(204)
+
+    const busca = await app.inject({ method: 'GET', url: '/produtos?q=Cafe' })
+    expect(busca.json().products).toHaveLength(0)
+
+    expect((await app.inject({ method: 'GET', url: `/produtos/${id}` })).statusCode).toBe(404)
+  })
+
+  it('segundo DELETE e 204 idempotente', async () => {
+    const { id } = await comProduto()
+
+    await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+    const r = await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+
+    expect(r.statusCode).toBe(204)
   })
 })
 

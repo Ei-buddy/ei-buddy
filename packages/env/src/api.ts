@@ -106,7 +106,7 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * e ignorado pelo Zod (o schema nao e strict) e nao religa modo nenhum.
    */
   OPENAI_API_KEY: opcionalNaoVazia,
-  AGENT_MODEL: z.string().min(1).default('openai/gpt-4o-mini'),
+  AGENT_MODEL: z.string().min(1).default('openai/gpt-5.4-mini'),
   /**
    * Porteiro do harness (FR-001b / NR-060).
    *

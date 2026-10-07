@@ -507,6 +507,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: r.customer.id,
       customerName: 'Maria Devedora',
       walletBalanceCents: 3_500,
     })
@@ -525,6 +526,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: expect.any(String),
       customerName: 'Joao Quitado',
       walletBalanceCents: 0,
     })
@@ -1046,11 +1048,14 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       },
       findByBarcode: (c, b) => produtos.findByBarcode(c, b),
       findById: (c, id) => produtos.findById(c, id),
+      findByIdIncludingDeleted: (c, id) => produtos.findByIdIncludingDeleted(c, id),
       search: (c, k) => produtos.search(c, k),
       listCatalog: (c, k) => produtos.listCatalog(c, k),
       catalogSummary: (c) => produtos.catalogSummary(c),
       countAll: (c) => produtos.countAll(c),
       listSuggestions: (c) => produtos.listSuggestions(c),
+      update: (c, id, patch, by) => produtos.update(c, id, patch, by),
+      setDeletedAt: (c, id, at, by) => produtos.setDeletedAt(c, id, at, by),
     }
 
     return {

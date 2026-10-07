@@ -135,13 +135,13 @@ do sistema — ver [`seguranca.md`](../arquitetura/seguranca.md#certificado-digi
 
 ### Agente / LLM — [ADR-0010](../decisoes/adr/0010-mastra-e-gpt-4o-mini.md)
 
-| Variável                     | Obr. | Seg. | local                                | Descrição                                                                                       |
-| ---------------------------- | :--: | :--: | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`             |      |  🔒  | vazio                                | opcional no parse; obrigatória só para o assistente montar                                      |
-| `AGENT_MODEL`                |      |      | `openai/gpt-4o-mini`                 | formato Mastra `provedor/modelo`                                                                |
-| `AGENT_HARNESS`              |      |      | ausente                              | `1` libera HTTP (`/agent/messages`) **e** Studio (`/api/agents`) em produção (staging)          |
-| `AGENT_STUDIO_PRESETS`       |      |      | `packages/agent/studio/presets.json` | path do JSON de presets do Studio (NR-121). Ausente/vazio = esse default. IDs reais fora do git |
-| `AGENT_MONTHLY_BUDGET_CENTS` |      |      | —                                    | teto por empresa ([RNF-073](../produto/requisitos-nao-funcionais.md))                           |
+| Variável                     | Obr. | Seg. | local                                | Descrição                                                                                        |
+| ---------------------------- | :--: | :--: | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `OPENAI_API_KEY`             |      |  🔒  | vazio                                | opcional no parse; obrigatória só para o assistente montar                                       |
+| `AGENT_MODEL`                |      |      | `openai/gpt-5.4-mini`                | formato Mastra `provedor/modelo`; trocar só com a avaliação `pnpm --filter @na-regua/agent eval` |
+| `AGENT_HARNESS`              |      |      | ausente                              | `1` libera HTTP (`/agent/messages`) **e** Studio (`/api/agents`) em produção (staging)           |
+| `AGENT_STUDIO_PRESETS`       |      |      | `packages/agent/studio/presets.json` | path do JSON de presets do Studio (NR-121). Ausente/vazio = esse default. IDs reais fora do git  |
+| `AGENT_MONTHLY_BUDGET_CENTS` |      |      | —                                    | teto por empresa ([RNF-073](../produto/requisitos-nao-funcionais.md))                            |
 
 O mesmo porteiro (`motivoDoAgenteIndisponivel`) vale para os dois harnesses:
 sem `OPENAI_API_KEY`, ou produção sem `AGENT_HARNESS=1`, o

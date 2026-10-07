@@ -29,6 +29,18 @@ substituida_por: null
 > substitui o WhatsApp no desenvolvimento, chama o mesmo `processMessage`, com
 > preset/número forjado e observabilidade. Não é canal de produção.
 >
+> **Revisão parcial (2026-10-06, spec 013 — Buddy com conversa natural):** o
+> modelo padrão passa a ser `openai/gpt-5.4-mini` (trocar a string não reabre
+> esta ADR; a troca segue a avaliação `pnpm --filter @na-regua/agent eval`).
+> O laço deixa de ser `generate(maxSteps: 1)` com tools identidade: é um
+> `Agent` de até 5 etapas em que as consultas executam o caso de uso de `core`
+> dentro do laço e o modelo redige a resposta a partir do resultado. Tools de
+> gravação só **propõem** (tabela `confirmations`); a gravação acontece em
+> `accept_proposal`, com trava determinística sobre o texto da dona e chave de
+> idempotência `confirmation:{id}`. HITL (`requireApproval`/`suspend`),
+> Memory e Storage do Mastra continuam desligados. Contrato:
+> [`specs/013-buddy-conversa-natural/contracts/buddy-runtime.md`](../../../specs/013-buddy-conversa-natural/contracts/buddy-runtime.md).
+>
 > **Revisão parcial (2026-10-01):** a exigência de subir o local em
 > `AGENT_PROVIDER=fake` foi **retirada**. O processo que serve mensagem monta
 > só o Mastra quando `OPENAI_API_KEY` existe; sem a chave a API sobe e o

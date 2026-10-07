@@ -1,47 +1,53 @@
 import type { AiUsageCounter } from './ai-usage.js'
-import { FakeBarcodeDecoder } from './barcode-decoder.js'
-import { createToolCatalog, type AgentUseCases } from './catalog.js'
+import { createBuddyBrain, type CreateBuddyBrainOptions } from './buddy-brain.js'
+import type { AgentUseCases } from './catalog.js'
+import { InMemoryConfirmations } from './confirmations.js'
 import { InMemoryConversationStore } from './conversations.js'
 import { CONFIRMATION_TTL_MS } from './process-message.js'
-import { InMemoryConfirmations } from './confirmations.js'
-import { FakeLlm } from './fake-llm.js'
 import type {
   AgentRuntime,
-  BarcodeDecoder,
+  BuddyBrain,
   ConfirmationStore,
   ConversationStore,
-  LlmPort,
   PeerDirectory,
 } from './types.js'
 
 export type CreateRuntimeOptions = {
-  readonly useCases: AgentUseCases
-  readonly llm?: LlmPort
   readonly timeZone?: string
   readonly confirmationTtlMs?: number
   readonly confirmations?: ConfirmationStore
   readonly peers?: PeerDirectory
   readonly aiUsage?: AiUsageCounter
   readonly conversations?: ConversationStore
-  readonly barcodeDecoder?: BarcodeDecoder
-}
+} & (
+  | { readonly brain: BuddyBrain }
+  | { readonly model: CreateBuddyBrainOptions['model']; readonly useCases: AgentUseCases }
+)
 
 /**
- * Monta o runtime. Sem `llm`, usa o duble de teste.
- * `apps/api/src/composition.ts` nao deve servir mensagem por esse default.
+ * Monta o runtime. Com `model` + `useCases`, cria o `BuddyBrain` com as
+ * mesmas `confirmations` do runtime; com `brain`, usa o dado (teste de borda).
  */
 export function createAgentRuntime(opcoes: CreateRuntimeOptions): AgentRuntime {
-  const tools = createToolCatalog(opcoes.useCases)
+  const confirmations = opcoes.confirmations ?? new InMemoryConfirmations()
+  const confirmationTtlMs = opcoes.confirmationTtlMs ?? CONFIRMATION_TTL_MS
+  const brain =
+    'brain' in opcoes
+      ? opcoes.brain
+      : createBuddyBrain({
+          model: opcoes.model,
+          useCases: opcoes.useCases,
+          confirmations,
+          ttlMs: confirmationTtlMs,
+        })
+
   return {
-    llm: opcoes.llm ?? new FakeLlm(),
-    tools,
-    confirmations: opcoes.confirmations ?? new InMemoryConfirmations(),
+    brain,
+    confirmations,
     timeZone: opcoes.timeZone ?? 'America/Sao_Paulo',
-    confirmationTtlMs: opcoes.confirmationTtlMs ?? CONFIRMATION_TTL_MS,
+    confirmationTtlMs,
     ...(opcoes.peers === undefined ? {} : { peers: opcoes.peers }),
     ...(opcoes.aiUsage === undefined ? {} : { aiUsage: opcoes.aiUsage }),
     conversations: opcoes.conversations ?? new InMemoryConversationStore(),
-    findProductByBarcode: opcoes.useCases.findProductByBarcode,
-    barcodeDecoder: opcoes.barcodeDecoder ?? new FakeBarcodeDecoder(),
   }
 }
