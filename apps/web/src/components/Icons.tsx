@@ -65,6 +65,16 @@ export function IconTruck({ size = 24, className }: IconProps) {
   )
 }
 
+/** O orcamento: uma prancheta com a lista — NR-159. */
+export function IconClipboard({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3.5h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4" />
+    </svg>
+  )
+}
+
 export function IconBox({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

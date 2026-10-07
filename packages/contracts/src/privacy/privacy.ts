@@ -30,6 +30,8 @@ export const exportCollectionSchema = z.enum([
   'inventory_movements',
   'purchases',
   'purchase_items',
+  'quotes',
+  'quote_items',
   'appointments',
   'ledger_accounts',
   'bank_transactions',

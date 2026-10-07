@@ -639,3 +639,8 @@ export type {
   PurchaseTransaction,
   PurchaseUnitOfWork,
 } from './ports/purchase-register.js'
+/* Orcamento — NR-159. */
+export { cancelQuote, convertQuote, createQuote, getQuote, listQuotes } from './quotes/quotes.js'
+export type { QuoteDeps } from './quotes/quotes.js'
+export type { NewQuote, QuoteRepository } from './ports/quote-repository.js'
+export { InMemoryQuotes } from './quotes/fakes.js'

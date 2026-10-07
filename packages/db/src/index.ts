@@ -34,6 +34,7 @@ export {
 } from './registration-repositories.js'
 export { createPayableQueries, createPayableUnitOfWork } from './payable-repository.js'
 export { createPurchaseQueries, createPurchaseUnitOfWork } from './purchase-repository.js'
+export { createQuoteRepository } from './quote-repository.js'
 export {
   createManualReceivableUnitOfWork,
   createReceivableRepository,

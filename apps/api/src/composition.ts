@@ -50,6 +50,7 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
+import type { OrcamentosDeps } from './routes/orcamentos.js'
 import type { CaixaDeps } from './routes/caixa.js'
 import type { ComprasDeps } from './routes/compras.js'
 import type {
@@ -88,6 +89,7 @@ import {
   createInventoryUnitOfWork,
   createPurchaseQueries,
   createPurchaseUnitOfWork,
+  createQuoteRepository,
   createReportRepository,
   createAuditQueries,
   createAuditTrail,
@@ -910,6 +912,15 @@ export function buildComprasDeps(): ComprasDeps {
     uow: createPurchaseUnitOfWork(sql),
     queries: createPurchaseQueries(sql),
     ids: { next: () => randomUUID() },
+  }
+}
+
+/** Orcamento — NR-159. */
+export function buildOrcamentosDeps(): OrcamentosDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    quotes: createQuoteRepository(sql),
+    audit: createAuditTrail(sql),
   }
 }
 

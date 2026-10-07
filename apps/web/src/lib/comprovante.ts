@@ -139,3 +139,61 @@ export function montarComprovante({ loja, venda }: DadosDoComprovante): string {
 
   return l.join('\n')
 }
+
+/** Orcamento para o cliente — NR-159. Mesmo papel do comprovante. */
+export type DadosDoOrcamento = {
+  loja: DadosDoComprovante['loja']
+  orcamento: {
+    numero: number
+    /** Ja formatados: "07/10/2026". */
+    emitido: string
+    validoAte: string
+    cliente: string | null
+    itens: { descricao: string; quantidade: number; precoUnitario: number; total: number }[]
+    /** Em reais. */
+    bruto: number
+    desconto: number
+    total: number
+    observacoes: string | null
+  }
+}
+
+export function montarOrcamento({ loja, orcamento }: DadosDoOrcamento): string {
+  const l: string[] = []
+
+  l.push(...quebrar(loja.nome).map(centro))
+  l.push(centro(`CNPJ ${cnpjFormatado(loja.cnpj)}`))
+  if (loja.endereco) l.push(...quebrar(loja.endereco).map(centro))
+  if (loja.telefone) l.push(centro(loja.telefone))
+  l.push(linha('='))
+  l.push(centro('ORCAMENTO'))
+  l.push(centro('NAO E DOCUMENTO FISCAL'))
+  l.push(linha('='))
+  l.push(colunas(`Orcamento #${orcamento.numero}`, orcamento.emitido))
+  if (orcamento.cliente) l.push(...quebrar(`Cliente: ${orcamento.cliente}`))
+  l.push(linha())
+
+  for (const item of orcamento.itens) {
+    l.push(...quebrar(item.descricao))
+    l.push(
+      colunas(
+        `  ${quantidade(item.quantidade)} x ${dinheiro(item.precoUnitario)}`,
+        dinheiro(item.total),
+      ),
+    )
+  }
+
+  l.push(linha())
+  if (orcamento.desconto > 0) {
+    l.push(colunas('Subtotal', dinheiro(orcamento.bruto)))
+    l.push(colunas('Desconto', `-${dinheiro(orcamento.desconto)}`))
+  }
+  l.push(colunas('TOTAL', dinheiro(orcamento.total)))
+  l.push(linha())
+  l.push(`Valido ate ${orcamento.validoAte}`)
+  if (orcamento.observacoes) l.push(...quebrar(`Obs.: ${orcamento.observacoes}`))
+  l.push(linha())
+  l.push(centro('Obrigado pela preferencia!'))
+
+  return l.join('\n')
+}
