@@ -33,6 +33,7 @@ const GRUPOS: Grupo[] = [
     itens: [
       { rota: '/clientes', rotulo: 'Clientes' },
       { rota: '/catalogo', rotulo: 'Produtos' },
+      { rota: '/compras', rotulo: 'Entrada de mercadoria' },
       { rota: '/empresa', rotulo: 'Empresa' },
       { rota: '/fornecedores', rotulo: 'Fornecedores' },
       { rota: '/conexoes', rotulo: 'Conexões' },

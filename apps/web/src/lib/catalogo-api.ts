@@ -198,7 +198,8 @@ export async function buscarProduto(id: string): Promise<Resultado<ProdutoDaFich
  * divergencia este mes?" sem cruzar com venda. Entrada e saida respondem o
  * quanto, e nunca o porque — e e o porque que faz alguem agir.
  */
-export type CausaDoMovimento = 'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned'
+export type CausaDoMovimento =
+  'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned' | 'purchase'
 
 export type MovimentoDeEstoque = {
   id: string

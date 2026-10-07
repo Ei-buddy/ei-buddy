@@ -52,9 +52,12 @@ describe('ajuste de estoque — RF-023', () => {
 })
 
 describe('causa do movimento', () => {
-  it.each(['adjustment', 'sale', 'sale_cancelled', 'sale_returned'])('aceita %s', (k) => {
-    expect(movementKindSchema.parse(k)).toBe(k)
-  })
+  it.each(['adjustment', 'sale', 'sale_cancelled', 'sale_returned', 'purchase'])(
+    'aceita %s',
+    (k) => {
+      expect(movementKindSchema.parse(k)).toBe(k)
+    },
+  )
 
   it('recusa causa que nao existe', () => {
     expect(movementKindSchema.safeParse('sumiu').success).toBe(false)

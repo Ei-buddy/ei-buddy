@@ -31,6 +31,7 @@ const CAUSA: Record<CausaDoMovimento, string> = {
   sale: 'Venda',
   sale_cancelled: 'Venda cancelada',
   sale_returned: 'Devolução',
+  purchase: 'Entrada de mercadoria',
 }
 
 export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {

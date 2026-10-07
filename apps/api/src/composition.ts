@@ -51,6 +51,7 @@ import {
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
 import type { CaixaDeps } from './routes/caixa.js'
+import type { ComprasDeps } from './routes/compras.js'
 import type {
   IdentityAccountEditor,
   IdentityPhoneChanger,
@@ -85,6 +86,8 @@ import {
   createInventoryHistory,
   createInventoryQueries,
   createInventoryUnitOfWork,
+  createPurchaseQueries,
+  createPurchaseUnitOfWork,
   createReportRepository,
   createAuditQueries,
   createAuditTrail,
@@ -897,6 +900,16 @@ export function buildCaixaDeps(): CaixaDeps {
   return {
     cash: createCashRegister(sql),
     audit: createAuditTrail(sql),
+  }
+}
+
+/** Entrada de mercadoria — NR-158. */
+export function buildComprasDeps(): ComprasDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    uow: createPurchaseUnitOfWork(sql),
+    queries: createPurchaseQueries(sql),
+    ids: { next: () => randomUUID() },
   }
 }
 

@@ -69,6 +69,8 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
   payables: { tabela: 'payables', escopo: 'company_id' },
   settlements: { tabela: 'settlements', escopo: 'company_id' },
   inventory_movements: { tabela: 'inventory_movements', escopo: 'company_id' },
+  purchases: { tabela: 'purchases', escopo: 'company_id' },
+  purchase_items: { tabela: 'purchase_items', escopo: 'company_id' },
   appointments: { tabela: 'appointments', escopo: 'company_id' },
   ledger_accounts: { tabela: 'ledger_accounts', escopo: 'company_id' },
   bank_transactions: { tabela: 'bank_transactions', escopo: 'company_id' },
