@@ -401,6 +401,7 @@ export type EnderecoDoCliente = {
  * o contrato de verdade, e acusa no dia em que divergirem.
  */
 export function camposFaltandoNoCliente(c: {
+  readonly document: string | null
   readonly phone: string | null
   readonly address: {
     readonly zipCode: string | null
@@ -415,6 +416,7 @@ export function camposFaltandoNoCliente(c: {
   const e = c.address
   return (
     [
+      [c.document, 'CPF/CNPJ'],
       [c.phone, 'celular'],
       [e.zipCode, 'CEP'],
       [e.street, 'rua'],

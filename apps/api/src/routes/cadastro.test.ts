@@ -526,7 +526,12 @@ const ENDERECO = {
 }
 
 describe('cadastrar cliente — RF-009, RF-010', () => {
-  const CLIENTE = { name: 'Dona Marta', phone: '41988887777', address: ENDERECO }
+  const CLIENTE = {
+    name: 'Dona Marta',
+    document: '52998224725',
+    phone: '41988887777',
+    address: ENDERECO,
+  }
 
   it('cria com nome, celular e endereco — RF-009', async () => {
     const c = await buildApp()
@@ -554,7 +559,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
 
     expect(semNada.statusCode).toBe(400)
     expect(semNada.json().error.fields.map((f: { path: string }) => f.path)).toEqual(
-      expect.arrayContaining(['phone', 'address']),
+      expect.arrayContaining(['document', 'phone', 'address']),
     )
     expect(semRua.statusCode).toBe(400)
     expect(semRua.json().error.fields[0].path).toBe('address.street')
@@ -568,7 +573,12 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Marta Souza', phone: '41988887777', address: ENDERECO },
+      payload: {
+        name: 'Marta Souza',
+        document: '11144477735',
+        phone: '41988887777',
+        address: ENDERECO,
+      },
     })
 
     expect(r.statusCode).toBe(409)
@@ -597,7 +607,12 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes?duplicado=permitir',
-      payload: { name: 'Marta Souza', phone: '41988887777', address: ENDERECO },
+      payload: {
+        name: 'Marta Souza',
+        document: '11144477735',
+        phone: '41988887777',
+        address: ENDERECO,
+      },
     })
 
     expect(r.statusCode).toBe(201)
@@ -666,7 +681,11 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes/importacao',
-      payload: { customers: [{ name: 'Do lote', phone: '41966665555', address: ENDERECO }] },
+      payload: {
+        customers: [
+          { name: 'Do lote', document: '39053344705', phone: '41966665555', address: ENDERECO },
+        ],
+      },
     })
 
     expect(r.statusCode).toBe(200)
@@ -682,7 +701,12 @@ describe('contatos da ficha — RF-011', () => {
     const criado = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Seu Antonio', phone: '41977776666', address: ENDERECO },
+      payload: {
+        name: 'Seu Antonio',
+        document: '87748248800',
+        phone: '41977776666',
+        address: ENDERECO,
+      },
     })
 
     return { id: criado.json().id as string }
@@ -718,7 +742,12 @@ describe('contatos da ficha — RF-011', () => {
 
 describe('excluir e reativar cliente — RF-009', () => {
   /* Fixture propria: a `CLIENTE` la de cima vive no describe do cadastro. */
-  const CLIENTE_A_EXCLUIR = { name: 'Dona Marta', phone: '41988887777', address: ENDERECO }
+  const CLIENTE_A_EXCLUIR = {
+    name: 'Dona Marta',
+    document: '52998224725',
+    phone: '41988887777',
+    address: ENDERECO,
+  }
 
   async function comCliente() {
     const c = await buildApp()

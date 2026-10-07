@@ -353,6 +353,7 @@ describe('studio-harness — US2 identidade forjada', () => {
     const pedido = 'cadastra o Joao, 11 98888-7777'
     const args = {
       name: 'Joao',
+      document: '52998224725',
       phone: '11 98888-7777',
       address: {
         zipCode: '80010000',
@@ -509,6 +510,7 @@ describe('studio-harness — US3 durationMs', () => {
     const pedido = 'cadastra o Joao, 11 98888-7777'
     const args = {
       name: 'Joao',
+      document: '52998224725',
       phone: '11 98888-7777',
       address: {
         zipCode: '80010000',

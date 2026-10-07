@@ -628,18 +628,22 @@ da taxa de cartão.
 
 ### <a id="dec-025"></a>DEC-025 — Cliente sempre com celular e endereço
 
-|             |                                                                      |
-| ----------- | -------------------------------------------------------------------- |
-| **Status**  | 🟢 Decidida — NR-142                                                 |
-| **Escolha** | Celular e endereço completo obrigatórios em todo cadastro de cliente |
-| **Data**    | 2026-10-06                                                           |
+|             |                                                                     |
+| ----------- | ------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — NR-142                                                |
+| **Escolha** | CPF/CNPJ, celular e endereço completo obrigatórios em todo cadastro |
+| **Data**    | 2026-10-06                                                          |
 
 O web exigia celular e endereço, mas o app e a api aceitavam só o nome. A
 regra única passou a ser a do web, e mora no contrato, então vale para web,
 app, cadastro rápido do PDV, importação por planilha e IA do WhatsApp. Só o
-complemento continua opcional, e o documento também: quem não quer se
-identificar compra como "venda sem cliente". Cliente cadastrado antes da regra
+complemento continua opcional. Quem não quer se identificar compra como
+"venda sem cliente", que não cria cadastro. Cliente cadastrado antes da regra
 continua existindo, e completa os dados na próxima edição.
+
+**Revisão em 2026-10-07 (NR-149).** O CPF/CNPJ também passou a ser
+obrigatório: o cadastro de cliente é um só no web e no app, com os mesmos
+requisitos. Antes ele era exigido só no formulário do web.
 
 ## Documentos relacionados
 

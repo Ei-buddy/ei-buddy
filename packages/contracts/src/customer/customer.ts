@@ -69,6 +69,7 @@ export type CustomerAddress = z.infer<typeof customerAddressSchema>
  * Vazia = cadastro completo. Os nomes ja vem prontos para a tela.
  */
 export function camposFaltandoNoCliente(c: {
+  readonly document: string | null
   readonly phone: string | null
   readonly address: {
     readonly zipCode: string | null
@@ -81,6 +82,7 @@ export function camposFaltandoNoCliente(c: {
 }): string[] {
   const vazio = (v: string | null) => v === null || v.trim() === ''
   const faltando: string[] = []
+  if (vazio(c.document)) faltando.push('CPF/CNPJ')
   if (vazio(c.phone)) faltando.push('celular')
   const e = c.address
   if (vazio(e.zipCode)) faltando.push('CEP')
@@ -103,11 +105,12 @@ const camposDoCliente = z
   .object({
     name: nameSchema,
     /**
-     * Documento e opcional de proposito: exigir CPF para vender empurra o
-     * lojista de volta para o caderno. Quem nao quer se identificar compra
-     * como "venda sem cliente", sem cadastro nenhum.
+     * CPF ou CNPJ, obrigatorio — DEC-025 (revisada em 2026-10-07): o cadastro
+     * de cliente e um so no web e no app, com as mesmas regras. Quem nao quer
+     * se identificar continua comprando como "venda sem cliente", que nao cria
+     * cadastro nenhum.
      */
-    document: documentSchema.optional(),
+    document: documentSchema,
     /**
      * Nome fantasia — obrigatorio quando o cliente e PJ (regra logo abaixo).
      *
@@ -142,7 +145,8 @@ const camposDoCliente = z
  * reimplementa-la em SQL criaria duas respostas para a mesma pergunta, e a
  * primeira mudanca deixaria uma das duas para tras.
  *
- * Sem documento nao ha PJ conhecida, e a regra nao se aplica.
+ * O documento e obrigatorio no cadastro; na edicao parcial, sem documento no
+ * corpo nao ha PJ conhecida, e a regra nao se aplica.
  */
 export const createCustomerInputSchema = camposDoCliente.refine(pjTemFantasia, EXIGE_FANTASIA)
 
