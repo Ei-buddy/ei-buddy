@@ -62,9 +62,23 @@ const CADASTRO = {
  */
 const NOME_CLIENTE = `Joao NR061 ${String(agoraMs).slice(-8)}`
 const TELEFONE_CLIENTE = `1198${String(agoraMs).slice(-7)}`
+/* CPF valido e unico por rodada: o banco e compartilhado, e um fixo esbarraria
+   no cadastro de uma rodada anterior (duplicado por documento). */
+function cpfDaRodada(): string {
+  const base = String(agoraMs).slice(-9).split('').map(Number)
+  const dv = (d: number[]) => {
+    const r = (d.reduce((a, x, i) => a + x * (d.length + 1 - i), 0) * 10) % 11
+    return r === 10 ? 0 : r
+  }
+  base.push(dv(base))
+  base.push(dv(base))
+  return base.join('')
+}
+const DOCUMENTO_CLIENTE = cpfDaRodada()
 const PEDIDO = `cadastra o ${NOME_CLIENTE}, ${TELEFONE_CLIENTE}`
 const ARGS_CADASTRO = {
   name: NOME_CLIENTE,
+  document: DOCUMENTO_CLIENTE,
   phone: TELEFONE_CLIENTE,
   /* Celular e endereco sao obrigatorios no cadastro (NR-142). */
   address: {

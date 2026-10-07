@@ -295,7 +295,7 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
     defineTool({
       id: 'create_customer',
       description:
-        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem. Nome, celular com DDD e endereco completo (CEP, rua, numero, bairro, cidade e UF) sao obrigatorios: se faltar algum, pergunte antes de chamar.',
+        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem. Nome, CPF ou CNPJ, celular com DDD e endereco completo (CEP, rua, numero, bairro, cidade e UF) sao obrigatorios: se faltar algum, pergunte antes de chamar.',
       inputSchema: createCustomerInputSchema,
       mutatesValue: true,
       execute: (input, ctx) => casos.registerCustomer(ctx, input),

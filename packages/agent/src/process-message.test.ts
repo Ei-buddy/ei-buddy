@@ -714,6 +714,7 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',
@@ -762,6 +763,7 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',
@@ -804,6 +806,7 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',
@@ -848,6 +851,7 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
         name: 'create_customer',
         args: {
           name: 'Joao',
+          document: '52998224725',
           phone: '11988887777',
           address: {
             zipCode: '80010000',
@@ -888,6 +892,7 @@ describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
   const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
   const argsCadastro = {
     name: 'Joao',
+    document: '52998224725',
     phone: '11 98888-7777',
     address: {
       zipCode: '80010000',
@@ -1965,6 +1970,7 @@ describe('processMessage — desfechos restantes', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',
@@ -2005,6 +2011,7 @@ describe('processMessage — desfechos restantes', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',
@@ -2053,6 +2060,7 @@ describe('processMessage — desfechos restantes', () => {
       name: 'create_customer',
       args: {
         name: 'Joao',
+        document: '52998224725',
         phone: '11988887777',
         address: {
           zipCode: '80010000',

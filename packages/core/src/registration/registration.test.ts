@@ -39,7 +39,7 @@ import {
   updateProduct,
 } from './register-product.js'
 
-/* Celular e endereco sao obrigatorios no cadastro (NR-142). O celular muda a
+/* Documento, celular e endereco sao obrigatorios no cadastro (NR-142, NR-149). O celular muda a
    cada chamada: repetido, o cadastro acusaria cliente duplicado. */
 let celularDoTeste = 0
 const ENDERECO_DO_TESTE = {
@@ -50,9 +50,26 @@ const ENDERECO_DO_TESTE = {
   city: 'Curitiba',
   state: 'PR',
 } as const
+/* CPF valido e unico por chamada: repetido, o cadastro acusaria duplicado. */
+function cpfDoTeste(n: number): string {
+  const base = String(100_000_000 + n)
+    .slice(-9)
+    .split('')
+    .map(Number)
+  const dv = (d: number[]) => {
+    const soma = d.reduce((a, x, i) => a + x * (d.length + 1 - i), 0)
+    const r = (soma * 10) % 11
+    return r === 10 ? 0 : r
+  }
+  base.push(dv(base))
+  base.push(dv(base))
+  return base.join('')
+}
+
 function cliente<T extends object>(campos: T) {
   celularDoTeste += 1
   return {
+    document: cpfDoTeste(celularDoTeste),
     phone: `4198${String(celularDoTeste).padStart(7, '0')}`,
     address: ENDERECO_DO_TESTE,
     ...campos,
@@ -197,14 +214,14 @@ describe('registerCompany — RF-001, RF-002', () => {
 })
 
 describe('registerCustomer — RF-009, RF-010', () => {
-  it('cadastra com nome, celular e endereco, sem documento', async () => {
+  it('cadastra com documento, nome, celular e endereco', async () => {
     const customers = new InMemoryCustomerRepository()
 
     const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao do Bar' }))
 
     expect(r.status).toBe('created')
     if (r.status !== 'created') return
-    expect(r.customer.document).toBeNull()
+    expect(r.customer.document).toMatch(/^\d{11}$/)
     expect(r.customer.address.street).toBe('Rua XV de Novembro')
     /* Nao deve nada e zero, nao nulo. */
     expect(r.customer.walletBalanceCents).toBe(0)
@@ -391,9 +408,9 @@ describe('registerCustomer — RF-009, RF-010', () => {
     const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Anonimo' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
-    /* Cadastro novo sempre tem celular (NR-142); sem telefone e sem documento
-       so sobra o cliente antigo, de antes da regra. */
-    expect(() => assertIdentifiable({ ...r.customer, phone: null })).toThrow(
+    /* Cadastro novo sempre tem documento e celular (NR-142, NR-149); sem os
+       dois so sobra o cliente antigo, de antes da regra. */
+    expect(() => assertIdentifiable({ ...r.customer, phone: null, document: null })).toThrow(
       /telefone nem documento/i,
     )
   })
