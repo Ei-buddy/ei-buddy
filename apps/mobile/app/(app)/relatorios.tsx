@@ -22,6 +22,7 @@ import {
 } from '@/lib/relatorios-api'
 import { ultimosMeses } from '@/lib/periodo'
 import { formatMoney } from '@/lib/format'
+import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /**
@@ -133,7 +134,18 @@ export default function Relatorios() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Relatórios" subtitulo="Quanto entrou, e por conta de quem" />
+      <Cabecalho
+        titulo="Relatórios"
+        subtitulo="Quanto entrou, e por conta de quem"
+        acao={
+          dados === null ? undefined : (
+            <BotoesExportar
+              lista="faturamento"
+              filtros={{ from: dados.faturamento.from, to: dados.faturamento.to }}
+            />
+          )
+        }
+      />
 
       <View style={estilos.abas}>
         {([6, 12] as const).map((meses) => (

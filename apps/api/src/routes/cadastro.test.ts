@@ -1626,3 +1626,63 @@ describe('inativar e reativar produto — NR-151', () => {
     expect(r.statusCode).toBe(403)
   })
 })
+
+describe('exportar listas — NR-155', () => {
+  it('clientes em CSV, com os mesmos filtros da tela', async () => {
+    const c = await buildApp()
+    app = c.app
+    await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: {
+        name: 'Maria Exportada',
+        document: '52998224725',
+        phone: '41999990001',
+        address: {
+          zipCode: '80000000',
+          street: 'Rua A',
+          number: '10',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
+
+    const r = await app.inject({ method: 'GET', url: '/clientes/exportar?formato=csv' })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('text/csv')
+    expect(r.headers['content-disposition']).toContain('clientes.csv')
+    expect(r.body).toContain('Maria Exportada')
+  })
+
+  it('produtos em PDF de verdade', async () => {
+    const c = await buildApp()
+    app = c.app
+    await app.inject({
+      method: 'POST',
+      url: '/produtos',
+      payload: {
+        description: 'Arroz',
+        unitOfMeasure: 'un',
+        salePriceCents: 2890,
+        costPriceCents: 2100,
+      },
+    })
+
+    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=pdf' })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.rawPayload.subarray(0, 5).toString()).toBe('%PDF-')
+  })
+
+  it('formato desconhecido e 400', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=xls' })
+
+    expect(r.statusCode).toBe(400)
+  })
+})
