@@ -509,5 +509,16 @@ export const criarCustoVariavel = (
     body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
   }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
 
+/** Editar nome e percentual — NR-152. */
+export const editarCustoVariavel = (
+  id: string,
+  nome: string,
+  percentual: number,
+): Promise<Resultado<CustoVariavel>> =>
+  pedir<CustoVariavelDaApi>(`/api/custos-variaveis/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name: nome.trim(), ratePercent: percentual }),
+  }).then((r) => (r.ok ? { ok: true, dados: paraCustoVariavel(r.dados) } : r))
+
 export const excluirCustoVariavel = (id: string): Promise<Resultado<unknown>> =>
   pedir(`/api/custos-variaveis/${encodeURIComponent(id)}`, { method: 'DELETE' })

@@ -17,15 +17,29 @@ export async function listarContasBancarias(): Promise<Resultado<ContaBancaria[]
   return r.ok ? { ok: true, dados: r.dados.accounts } : r
 }
 
-export const cadastrarContaBancaria = (entrada: {
+export type DadosContaBancaria = {
   name: string
   bank?: string
   agency?: string
   accountNumber?: string
   openingBalanceCents: number
   openingDate: string
-}): Promise<Resultado<ContaBancaria>> =>
+}
+
+export const cadastrarContaBancaria = (
+  entrada: DadosContaBancaria,
+): Promise<Resultado<ContaBancaria>> =>
   pedir<ContaBancaria>('/api/contas-bancarias', { method: 'POST', body: JSON.stringify(entrada) })
 
 export const excluirContaBancaria = (id: string): Promise<Resultado<unknown>> =>
   pedir(`/api/contas-bancarias/${encodeURIComponent(id)}`, { method: 'DELETE' })
+
+/** Editar — NR-152. O formulario inteiro; renomear mantem o saldo. */
+export const editarContaBancaria = (
+  id: string,
+  entrada: DadosContaBancaria,
+): Promise<Resultado<ContaBancaria>> =>
+  pedir<ContaBancaria>(`/api/contas-bancarias/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(entrada),
+  })

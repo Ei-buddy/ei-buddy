@@ -126,6 +126,21 @@ export async function criarCustoVariavel(
     : { ok: false, erro: r.message }
 }
 
+/** Editar nome e percentual — NR-152. */
+export async function editarCustoVariavel(
+  id: string,
+  nome: string,
+  percentual: number,
+): Promise<Resultado<CustoVariavel>> {
+  const r = await chamarApi<{ id: string; name: string; ratePercent: number }>(
+    `/custos-variaveis/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: { name: nome.trim(), ratePercent: percentual } },
+  )
+  return r.ok
+    ? { ok: true, dados: { id: r.dados.id, nome: r.dados.name, percentual: r.dados.ratePercent } }
+    : { ok: false, erro: r.message }
+}
+
 export async function excluirCustoVariavel(id: string): Promise<Resultado<null>> {
   const r = await chamarApi<unknown>(`/custos-variaveis/${encodeURIComponent(id)}`, {
     method: 'DELETE',

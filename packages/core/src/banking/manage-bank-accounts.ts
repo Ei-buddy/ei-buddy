@@ -1,4 +1,8 @@
-import type { BankAccountOutput, CreateBankAccountInput } from '@na-regua/contracts'
+import type {
+  BankAccountOutput,
+  CreateBankAccountInput,
+  UpdateBankAccountInput,
+} from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
@@ -89,4 +93,55 @@ export async function deleteBankAccount(
     before: { name: conta.name },
     after: null,
   })
+}
+
+/**
+ * Editar a conta — NR-152.
+ *
+ * Renomear e seguro: o repositorio leva o nome novo para as baixas ja
+ * registradas, na mesma transacao, e o saldo continua o mesmo. Mudar o saldo
+ * inicial ou a data de abertura muda o saldo atual — e e para isso que serve.
+ */
+export async function updateBankAccount(
+  deps: BankAccountDeps,
+  ctx: ExecutionContext,
+  id: string,
+  input: UpdateBankAccountInput,
+): Promise<BankAccountOutput> {
+  assertCanWrite(ctx)
+
+  const antes = await deps.bankAccounts.findById(ctx.companyId, id)
+  if (antes === undefined) throw AppError.notFound('Conta nao encontrada.')
+
+  const depois = await deps.bankAccounts.update(ctx.companyId, id, {
+    name: input.name,
+    bank: input.bank ?? null,
+    agency: input.agency ?? null,
+    accountNumber: input.accountNumber ?? null,
+    openingBalanceCents: input.openingBalanceCents,
+    openingDate: input.openingDate,
+  })
+  if (depois === 'nome_em_uso') throw AppError.conflict('Ja existe uma conta com este nome.')
+
+  await deps.audit.record({
+    companyId: ctx.companyId,
+    entity: 'BankAccount',
+    entityId: id,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: {
+      name: antes.name,
+      openingBalanceCents: antes.openingBalanceCents,
+      openingDate: antes.openingDate,
+    },
+    after: {
+      name: depois.name,
+      openingBalanceCents: depois.openingBalanceCents,
+      openingDate: depois.openingDate,
+    },
+  })
+
+  return depois
 }

@@ -3,6 +3,7 @@ import {
   createAppointmentInputSchema,
   listAppointmentRangeInputSchema,
   listDayAppointmentsInputSchema,
+  updateAppointmentInputSchema,
 } from '@na-regua/contracts'
 import {
   type CancelAppointmentDeps,
@@ -12,6 +13,8 @@ import {
   listAppointmentRange,
   type ListAppointmentRangeDeps,
   listDayAppointments,
+  updateAppointment,
+  type UpdateAppointmentDeps,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -27,7 +30,10 @@ import { validate } from '../plugins/validate.js'
  * por outro caminho, com outras regras.
  */
 
-export type AgendaDeps = CreateAppointmentDeps & CancelAppointmentDeps & ListAppointmentRangeDeps
+export type AgendaDeps = CreateAppointmentDeps &
+  CancelAppointmentDeps &
+  UpdateAppointmentDeps &
+  ListAppointmentRangeDeps
 
 export function registerAgendaRoutes(app: FastifyInstance, deps: AgendaDeps): void {
   /** Marcar — RF-089, RF-090, RF-091. */
@@ -89,6 +95,15 @@ export function registerAgendaRoutes(app: FastifyInstance, deps: AgendaDeps): vo
    * compromisso continua existindo, some da agenda do dia e continua
    * respondendo por id. `DELETE` prometeria o contrario.
    */
+  /* Editar ou remarcar — NR-152. O lembrete e refeito para o horario novo. */
+  app.patch('/agenda/:id', { config: { rateLimit: LIMITE_DE_ESCRITA } }, async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+    const input = validate(updateAppointmentInputSchema, request.body)
+
+    return reply.code(200).send(await updateAppointment(deps, ctx, id, input))
+  })
+
   app.post(
     '/agenda/:id/cancelar',
     { config: { rateLimit: LIMITE_DE_ESCRITA } },

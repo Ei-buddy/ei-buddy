@@ -1,4 +1,8 @@
-import type { CreateVariableCostInput, VariableCostOutput } from '@na-regua/contracts'
+import type {
+  CreateVariableCostInput,
+  UpdateVariableCostInput,
+  VariableCostOutput,
+} from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
@@ -79,4 +83,37 @@ export async function deleteVariableCost(
     before: { name: custo.name, ratePercent: custo.ratePercent },
     after: null,
   })
+}
+
+/** Editar nome e percentual — NR-152. */
+export async function updateVariableCost(
+  deps: VariableCostDeps,
+  ctx: ExecutionContext,
+  id: string,
+  input: UpdateVariableCostInput,
+): Promise<VariableCostOutput> {
+  assertCanWrite(ctx)
+
+  const antes = await deps.variableCosts.findById(ctx.companyId, id)
+  if (antes === undefined) throw AppError.notFound('Custo variavel nao encontrado.')
+
+  const depois = await deps.variableCosts.update(ctx.companyId, id, {
+    name: input.name,
+    rateBps: Math.round(input.ratePercent * 100),
+  })
+  if (depois === undefined) throw AppError.notFound('Custo variavel nao encontrado.')
+
+  await deps.audit.record({
+    companyId: ctx.companyId,
+    entity: 'VariableCost',
+    entityId: id,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { name: antes.name, ratePercent: antes.ratePercent },
+    after: { name: depois.name, ratePercent: depois.ratePercent },
+  })
+
+  return depois
 }

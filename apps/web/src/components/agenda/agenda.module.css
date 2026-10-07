@@ -216,6 +216,23 @@
   color: var(--app-danger);
 }
 
+/* Editar — NR-152. */
+.eventoEditar {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--app-muted);
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+}
+
+.eventoEditar:hover {
+  background: var(--app-field);
+  color: var(--app-text);
+}
+
 /* ===================== Proximos ===================== */
 
 .destaqueHoje {

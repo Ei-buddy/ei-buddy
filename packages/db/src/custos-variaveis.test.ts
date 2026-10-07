@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { migrate } from './migrate.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
 import { withTenant } from './tenant.js'
+import { createAppointmentRepository } from './appointment-repository.js'
 import { createVariableCostRepository } from './variable-cost-repository.js'
 
 /**
@@ -78,5 +79,49 @@ describe.skipIf(!DATABASE_URL)('custos variaveis', () => {
 
     await repo.remove(empresaA, criado.id)
     expect(await repo.findById(empresaA, criado.id)).toBeUndefined()
+  })
+
+  it('editar troca nome e percentual — e nao acha o da outra loja', async () => {
+    const criado = await repo.insert({
+      companyId: empresaA,
+      name: 'Imposto',
+      rateBps: 600,
+      createdBy: usuarioA,
+      createdAt: new Date('2026-09-24T13:00:00.000Z'),
+    })
+
+    const editado = await repo.update(empresaA, criado.id, { name: 'Simples', rateBps: 450 })
+
+    expect(editado).toMatchObject({ name: 'Simples', ratePercent: 4.5 })
+    expect(await repo.update(empresaB, criado.id, { name: 'X', rateBps: 1 })).toBeUndefined()
+  })
+
+  /* Aqui e nao em `appointments.test.ts`, que testa o SCHEMA com SQL cru: este
+     arquivo ja tem a loja e o usuario montados para um repositorio. */
+  it('remarcar compromisso substitui o formulario inteiro — NR-152', async () => {
+    const agenda = createAppointmentRepository(aplicacao.sql)
+    const apt = await agenda.save({
+      companyId: empresaA,
+      title: 'Entrega',
+      startsAt: new Date('2026-12-12T13:00:00Z'),
+      location: 'Rua A, 10',
+      reminderMinutesBefore: 30,
+      createdBy: usuarioA,
+      createdAt: new Date(),
+    })
+
+    const r = await agenda.update(empresaA, apt.id, {
+      title: 'Entrega remarcada',
+      startsAt: new Date('2026-12-13T15:00:00Z'),
+      endsAt: new Date('2026-12-13T16:00:00Z'),
+    })
+
+    expect(r).toMatchObject({
+      title: 'Entrega remarcada',
+      startsAt: '2026-12-13T15:00:00.000Z',
+      endsAt: '2026-12-13T16:00:00.000Z',
+      location: null,
+      reminderMinutesBefore: null,
+    })
   })
 })

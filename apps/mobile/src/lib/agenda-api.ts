@@ -13,6 +13,8 @@ export type CompromissoDaApi = {
   readonly title: string
   /** Instante em UTC. Quem exibe converte. */
   readonly startsAt: string
+  readonly endsAt: string | null
+  readonly location: string | null
   readonly customerId: string | null
   readonly notes: string | null
   readonly reminderMinutesBefore: number | null
@@ -59,7 +61,7 @@ export async function agendaDoDia(dia: string): Promise<ResultadoAgenda<AgendaDo
  * hora locais; converter aqui, e nao la, evita que cada tela invente a sua
  * conversao — e uma delas marque o compromisso uma hora errado.
  */
-export async function marcarCompromisso(entrada: {
+export type DadosCompromisso = {
   titulo: string
   quando: Date
   /** Fim vazio e legitimo: "pagar aluguel as 10h" nao dura nada. */
@@ -68,7 +70,38 @@ export async function marcarCompromisso(entrada: {
   clienteId?: string
   observacao?: string
   lembreteMinutosAntes?: number
-}): Promise<ResultadoAgenda<CompromissoDaApi>> {
+}
+
+const corpoDoCompromisso = (entrada: DadosCompromisso) => ({
+  title: entrada.titulo,
+  startsAt: entrada.quando.toISOString(),
+  ...(entrada.ate === undefined ? {} : { endsAt: entrada.ate.toISOString() }),
+  ...(entrada.local === undefined ? {} : { location: entrada.local }),
+  ...(entrada.clienteId === undefined ? {} : { customerId: entrada.clienteId }),
+  ...(entrada.observacao === undefined ? {} : { notes: entrada.observacao }),
+  ...(entrada.lembreteMinutosAntes === undefined
+    ? {}
+    : { reminderMinutesBefore: entrada.lembreteMinutosAntes }),
+})
+
+/**
+ * Editar ou remarcar — NR-152. O mesmo corpo do cadastro: o que nao vier fica
+ * vazio, e o lembrete e refeito para o horario novo no servidor.
+ */
+export async function editarCompromisso(
+  id: string,
+  entrada: DadosCompromisso,
+): Promise<ResultadoAgenda<CompromissoDaApi>> {
+  const r = await chamarApi<CompromissoDaApi>(`/agenda/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: corpoDoCompromisso(entrada),
+  })
+  return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}
+
+export async function marcarCompromisso(
+  entrada: DadosCompromisso,
+): Promise<ResultadoAgenda<CompromissoDaApi>> {
   const r = await chamarApi<CompromissoDaApi>('/agenda', {
     method: 'POST',
     body: {

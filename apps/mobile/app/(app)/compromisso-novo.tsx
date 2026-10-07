@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
   Alert,
@@ -15,7 +15,13 @@ import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { SeletorCliente } from '@/components/SeletoresDoPdv'
-import { hojeLocal, marcarCompromisso } from '@/lib/agenda-api'
+import {
+  type CompromissoDaApi,
+  editarCompromisso,
+  hojeLocal,
+  horaLocal,
+  marcarCompromisso,
+} from '@/lib/agenda-api'
 import { dataDoTexto, formatDate, mascaraData } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
@@ -27,16 +33,27 @@ import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
  */
 export default function CompromissoNovoScreen() {
   const router = useRouter()
+  /* Com `compromisso`, a tela EDITA (NR-152): o mesmo formulario, preenchido. */
+  const params = useLocalSearchParams<{ compromisso?: string }>()
+  const editando: CompromissoDaApi | null =
+    typeof params.compromisso === 'string' ? JSON.parse(params.compromisso) : null
 
-  const [titulo, setTitulo] = useState('')
-  const [dia, setDia] = useState(formatDate(hojeLocal()))
-  const [hora, setHora] = useState('')
-  const [horaFim, setHoraFim] = useState('')
-  const [local, setLocal] = useState('')
-  const [observacao, setObservacao] = useState('')
-  const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(null)
+  const [titulo, setTitulo] = useState(editando?.title ?? '')
+  const [dia, setDia] = useState(
+    formatDate(editando === null ? hojeLocal() : hojeLocal(new Date(editando.startsAt))),
+  )
+  const [hora, setHora] = useState(editando === null ? '' : horaLocal(editando.startsAt))
+  const [horaFim, setHoraFim] = useState(editando?.endsAt == null ? '' : horaLocal(editando.endsAt))
+  const [local, setLocal] = useState(editando?.location ?? '')
+  const [observacao, setObservacao] = useState(editando?.notes ?? '')
+  /* O nome do cliente nao vem na agenda; o vinculo continua pelo id. */
+  const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(
+    editando?.customerId == null ? null : { id: editando.customerId, nome: 'Cliente vinculado' },
+  )
   const [escolhendoCliente, setEscolhendoCliente] = useState(false)
-  const [lembrete, setLembrete] = useState('30')
+  const [lembrete, setLembrete] = useState(
+    editando === null ? '30' : String(editando.reminderMinutesBefore ?? ''),
+  )
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -67,7 +84,7 @@ export default function CompromissoNovoScreen() {
     setErro(null)
     setSalvando(true)
 
-    const r = await marcarCompromisso({
+    const dados = {
       titulo: titulo.trim(),
       quando,
       ...(ate === undefined ? {} : { ate }),
@@ -75,7 +92,11 @@ export default function CompromissoNovoScreen() {
       ...(observacao.trim() === '' ? {} : { observacao: observacao.trim() }),
       ...(cliente === null ? {} : { clienteId: cliente.id }),
       ...(minutos === undefined ? {} : { lembreteMinutosAntes: minutos }),
-    })
+    }
+    const r =
+      editando === null
+        ? await marcarCompromisso(dados)
+        : await editarCompromisso(editando.id, dados)
 
     setSalvando(false)
 
@@ -87,14 +108,17 @@ export default function CompromissoNovoScreen() {
       return
     }
 
-    Alert.alert('Compromisso marcado', titulo.trim(), [
+    Alert.alert(editando === null ? 'Compromisso marcado' : 'Compromisso salvo', titulo.trim(), [
       { text: 'OK', onPress: () => router.back() },
     ])
   }
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Novo compromisso" subtitulo="Entrega, visita, pagamento" />
+      <Cabecalho
+        titulo={editando === null ? 'Novo compromisso' : 'Editar compromisso'}
+        subtitulo="Entrega, visita, pagamento"
+      />
 
       <KeyboardAvoidingView
         style={estilos.flex}
@@ -161,7 +185,7 @@ export default function CompromissoNovoScreen() {
           />
 
           <Botao onPress={() => void salvar()} carregando={salvando} largura>
-            {salvando ? 'Marcando...' : 'Marcar'}
+            {salvando ? 'Salvando...' : editando === null ? 'Marcar' : 'Salvar'}
           </Botao>
         </ScrollView>
       </KeyboardAvoidingView>
