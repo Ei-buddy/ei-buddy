@@ -55,6 +55,11 @@ $COMPOSE exec -T postgres sh -c \
 $COMPOSE exec -T postgres sh -c \
   "printf '%s\n' '${inicio_wal}' > '/backups/${destino}/INICIO_WAL'"
 
+# `pg_basebackup` roda como root no container e cria a pasta `0700` de root.
+# Quem roda este script no host precisa ler `INICIO_WAL` e o rclone precisa
+# ler o resto — sem o chown, aparar WAL e enviar para fora falhavam calados.
+$COMPOSE exec -T postgres chown -R "$(id -u):$(id -g)" "/backups/${destino}"
+
 passo 'Aparando backups antigos'
 # `ls -1d` ordena por nome, e o nome e a data em UTC — entao ordem alfabetica e
 # ordem cronologica, de proposito.
@@ -92,3 +97,15 @@ fi
 
 passo "Concluido — ${BACKUP_DIR}/${destino}"
 du -sh "${BACKUP_DIR}/${destino}" 2>/dev/null || true
+
+passo 'Arquivamento de WAL'
+# Backup base sem WAL arquivado restaura so ate a hora do backup: a RNF-013
+# (RPO <= 15 min) depende disto, e o Postgres so reclama no proprio log.
+# Sai com erro para o cron registrar a falha em vez de passar em silencio.
+estado=$($COMPOSE exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT coalesce(last_failed_time > coalesce(last_archived_time, '"'"'-infinity'"'"'), false) FROM pg_stat_archiver"')
+if [ "$(printf '%s' "$estado" | tr -d '[:space:]')" = 't' ]; then
+  printf '\n\033[31mO arquivamento de WAL esta falhando — veja `logs postgres`.\033[0m\n'
+  exit 1
+fi
+echo 'ok'

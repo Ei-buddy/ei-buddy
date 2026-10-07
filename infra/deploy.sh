@@ -42,10 +42,30 @@ MIGRAR="${MIGRAR:-sim}"
 # ci-cd.md ja documentava como limite antes de considerar o deploy perdido.
 ESPERA_DE_SAUDE_S="${ESPERA_DE_SAUDE_S:-120}"
 
+# Espaco livre minimo para comecar o build. Cada commit gera tres imagens de
+# ~2,6 GB; abaixo disto o build enche o disco no meio do unpack, depois de uma
+# hora, e leva o Postgres junto — foi o que aconteceu no deploy #126.
+LIVRE_MINIMO_GB="${LIVRE_MINIMO_GB:-10}"
+
 passo() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 passo "Commit em deploy: ${DEPLOY_TAG}"
 git --no-pager log -1 --format='%h %s' || true
+
+passo "Espaco em disco (minimo ${LIVRE_MINIMO_GB} GB)"
+raiz_docker=$(docker info --format '{{.DockerRootDir}}')
+livre_gb=$(df -Pk "$raiz_docker" | awk 'NR == 2 { print int($4 / 1048576) }')
+echo "livre em ${raiz_docker}: ${livre_gb} GB"
+# A reversao sobe imagens que ja estao na maquina e nao builda nada: barrar
+# por espaco justo ela, com o disco cheio do deploy que falhou, seria o pior
+# momento.
+if docker image inspect "eibuddy-web:${DEPLOY_TAG}" >/dev/null 2>&1; then
+  echo 'imagens deste commit ja existem — o build e so cache'
+elif [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
+  printf '\n\033[31mSo %s GB livres. Nada foi buildado.\033[0m\n' "$livre_gb"
+  printf 'Veja `docker system df` e `docker images eibuddy-*` na maquina.\n'
+  exit 1
+fi
 
 passo 'Build das imagens (cache da maquina; sem registry)'
 $COMPOSE build
@@ -82,9 +102,22 @@ until $COMPOSE exec -T api wget -qO- http://127.0.0.1:3333/health >/dev/null 2>&
   sleep 3
 done
 
-passo 'Saudavel. Limpando imagens orfas'
-# So as sem tag: as `eibuddy-*:<commit>` ficam, e sao elas que tornam a
-# reversao possivel sem rebuild.
+passo 'Saudavel. Limpando imagens antigas'
+# Ficam a do commit que acabou de subir e a mais recente antes dela — que e o
+# alvo da reversao, e o motivo de a tag ser o commit. O resto so ocupava disco:
+# sem isto, cada deploy deixava ~8 GB para tras ate o disco encher.
+# `docker images` lista da mais nova para a mais antiga.
+mapfile -t antigas < <(
+  docker images --filter 'reference=eibuddy-*' --format '{{.Tag}}' \
+    | grep -vxF -e "$DEPLOY_TAG" -e '<none>' | awk '!visto[$0]++' | tail -n +2
+)
+for tag in "${antigas[@]}"; do
+  echo "removendo imagens ${tag}"
+  docker images --filter "reference=eibuddy-*:${tag}" --format '{{.Repository}}:{{.Tag}}' \
+    | xargs -r docker rmi >/dev/null || true
+done
 docker image prune -f >/dev/null || true
+docker builder prune -f --keep-storage 5GB >/dev/null || true
+df -h "$raiz_docker" | tail -1
 
 passo "Deploy concluido — ${DEPLOY_TAG}"
