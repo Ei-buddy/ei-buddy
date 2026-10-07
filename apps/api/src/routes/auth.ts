@@ -1,4 +1,7 @@
 import {
+  changeEmailInputSchema,
+  changeNameInputSchema,
+  changePasswordInputSchema,
   changePhoneInputSchema,
   couponCodeInputSchema,
   loginInputSchema,
@@ -10,6 +13,9 @@ import {
 import {
   AppError,
   type AuthDeps,
+  changeEmail,
+  changeName,
+  changePassword,
   changePhone,
   type ChangePhoneDeps,
   currentPhone,
@@ -25,6 +31,8 @@ import {
   type RequestPasswordResetDeps,
   resetPassword,
   type ResetPasswordDeps,
+  myAccount,
+  type MyAccountDeps,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { LIMITE_DE_AUTENTICACAO } from '../plugins/rate-limit.js'
@@ -71,7 +79,8 @@ export type AuthRouteDeps = AuthDeps &
   SignupDeps &
   Omit<RequestPasswordResetDeps, 'users'> &
   ResetPasswordDeps &
-  Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'>
+  Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'> &
+  Pick<MyAccountDeps, 'editor'>
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**
@@ -291,6 +300,54 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
     },
   )
 
+  /**
+   * Meu perfil — NR-153. Nome, e-mail e senha da PESSOA logada; vale para
+   * todas as lojas dela. E-mail e senha pedem a senha atual (como o celular).
+   */
+  app.get('/auth/conta', async (request, reply) => {
+    const claims = request.sessionClaims
+    if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+    return reply.code(200).send(await myAccount(deps, { userId: claims.userId }))
+  })
+
+  app.put(
+    '/auth/nome',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const claims = request.sessionClaims
+      if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+      const input = validate(changeNameInputSchema, request.body)
+      return reply.code(200).send(await changeName(deps, quemTroca(claims), input))
+    },
+  )
+
+  app.put(
+    '/auth/email',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const claims = request.sessionClaims
+      if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+      const input = validate(changeEmailInputSchema, request.body)
+      return reply.code(200).send(await changeEmail(deps, quemTroca(claims), input))
+    },
+  )
+
+  app.put(
+    '/auth/senha',
+    { config: { rateLimit: LIMITE_DE_AUTENTICACAO } },
+    async (request, reply) => {
+      const claims = request.sessionClaims
+      if (claims === undefined) throw AppError.unauthorized('Entre na sua conta para continuar.')
+
+      const input = validate(changePasswordInputSchema, request.body)
+      await changePassword(deps, quemTroca(claims), input)
+      return reply.code(204).send()
+    },
+  )
+
   app.get('/auth/me', async (request, reply) => {
     const claims = request.sessionClaims
     if (claims === undefined) {
@@ -304,3 +361,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
     })
   })
 }
+
+const quemTroca = (claims: { userId: string; companyId: string | null }) => ({
+  userId: claims.userId,
+  companyId: claims.companyId,
+  now: new Date(),
+})

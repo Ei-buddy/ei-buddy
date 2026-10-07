@@ -52,6 +52,7 @@ const GRUPOS: Grupo[] = [
   {
     grupo: 'Mais',
     itens: [
+      { rota: '/perfil', rotulo: 'Meu perfil' },
       { rota: '/crm', rotulo: 'CRM' },
       { rota: '/assistente', rotulo: 'Assistente' },
       { rota: '/assinatura', rotulo: 'Assinatura' },
