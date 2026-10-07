@@ -79,6 +79,8 @@ function escopo(tx: TransactionSql, companyId: string): SaleTransaction {
             FROM products
            WHERE id = ANY(${ids as unknown as string[]}::uuid[])
              AND deleted_at IS NULL
+             /* Inativo nao se vende — NR-151. Cai no "nao encontrado" da venda. */
+             AND is_active
         `
 
         return linhas.map((l): SaleProductSnapshot => ({

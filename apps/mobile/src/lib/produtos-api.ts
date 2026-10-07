@@ -205,6 +205,8 @@ export type ProdutoDaFicha = {
   precoCusto: number
   estoque: number
   estoqueMinimo: number
+  /** Inativo sai do PDV, mas fica no historico — NR-151. */
+  ativo: boolean
 }
 
 export async function buscarProduto(
@@ -225,6 +227,7 @@ export async function buscarProduto(
     costPriceCents: number
     stock: number
     minStock: number
+    isActive: boolean
   }>(`/produtos/${encodeURIComponent(produtoId)}`)
   if (!r.ok) return { ok: false, erro: r.message }
 
@@ -246,8 +249,21 @@ export async function buscarProduto(
       precoCusto: p.costPriceCents / 100,
       estoque: p.stock,
       estoqueMinimo: p.minStock,
+      ativo: p.isActive,
     },
   }
+}
+
+/** Inativar ou reativar — NR-151. O produto nao some: sai do PDV e da venda. */
+export async function definirAtivo(
+  produtoId: string,
+  ativo: boolean,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const r = await chamarApi<unknown>(
+    `/produtos/${encodeURIComponent(produtoId)}/${ativo ? 'reativar' : 'inativar'}`,
+    { method: 'POST' },
+  )
+  return r.ok ? { ok: true } : { ok: false, erro: r.message }
 }
 
 export type CausaDoMovimento = 'adjustment' | 'sale' | 'sale_cancelled' | 'sale_returned'
@@ -370,6 +386,7 @@ export type ProdutoDoCatalogo = {
   precoCusto: number
   estoque: number
   estoqueMinimo: number
+  ativo: boolean
 }
 
 export type FiltroDeEstoque = 'todos' | 'baixo' | 'esgotado'
@@ -386,6 +403,8 @@ const ITENS_DO_CATALOGO = 100
 export async function listarCatalogo(opcoes: {
   termo?: string
   estoque?: FiltroDeEstoque
+  /** Ausente = ativos, o padrao da api. O PDV nunca pede inativos — NR-151. */
+  situacao?: 'ativos' | 'inativos'
 }): Promise<
   | { ok: true; dados: { produtos: ProdutoDoCatalogo[]; total: number } }
   | { ok: false; erro: string }
@@ -393,9 +412,14 @@ export async function listarCatalogo(opcoes: {
   const query = new URLSearchParams({ pageSize: String(ITENS_DO_CATALOGO) })
   if (opcoes.termo) query.set('q', opcoes.termo)
   if (opcoes.estoque && opcoes.estoque !== 'todos') query.set('stock', opcoes.estoque)
+  if (opcoes.situacao) query.set('situacao', opcoes.situacao)
 
   const r = await chamarApi<{
-    products: (ProdutoDaApi & { minStock: number; category: string | null })[]
+    products: (ProdutoDaApi & {
+      minStock: number
+      category: string | null
+      isActive: boolean
+    })[]
     total: number
   }>(`/produtos/catalogo?${query.toString()}`)
   if (!r.ok) return { ok: false, erro: r.message }
@@ -413,6 +437,7 @@ export async function listarCatalogo(opcoes: {
         precoCusto: p.costPriceCents / 100,
         estoque: p.stock,
         estoqueMinimo: p.minStock,
+        ativo: p.isActive,
       })),
     },
   }

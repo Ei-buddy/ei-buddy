@@ -9,6 +9,7 @@ import { Cartao, Etiqueta, Vazio } from '@/components/ui/Cartao'
 import {
   ajustarEstoque,
   buscarProduto,
+  definirAtivo,
   calcularMargem,
   carregarMovimentos,
   nivelEstoque,
@@ -39,6 +40,8 @@ export default function ProdutoScreen() {
   const [motivo, setMotivo] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erroAjuste, setErroAjuste] = useState<string | null>(null)
+  const [mudandoSituacao, setMudandoSituacao] = useState(false)
+  const [erroSituacao, setErroSituacao] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     const [p, m] = await Promise.all([buscarProduto(id), carregarMovimentos(id)])
@@ -57,6 +60,20 @@ export default function ProdutoScreen() {
       void carregar()
     }, [carregar]),
   )
+
+  /* Reversivel e sem perda: por isso sem "tem certeza?" — NR-151. */
+  async function alternarAtivo() {
+    if (produto === null) return
+    setMudandoSituacao(true)
+    setErroSituacao(null)
+    const r = await definirAtivo(id, !produto.ativo)
+    setMudandoSituacao(false)
+    if (!r.ok) {
+      setErroSituacao(r.erro)
+      return
+    }
+    void carregar()
+  }
 
   async function confirmarAjuste() {
     const n = Number.parseInt(contagem, 10)
@@ -114,6 +131,16 @@ export default function ProdutoScreen() {
       />
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+        {!produto.ativo ? (
+          <View style={estilos.avisoInativo} accessibilityRole="summary">
+            <Etiqueta tom="neutro">Inativo</Etiqueta>
+            <Text style={estilos.avisoInativoTexto}>
+              Este produto não aparece no PDV nem pode ser vendido. As vendas passadas continuam no
+              histórico.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={estilos.numeros}>
           <Numero rotulo="Venda" valor={formatMoney(produto.precoVenda)} />
           <Numero rotulo="Custo" valor={formatMoney(produto.precoCusto)} />
@@ -209,6 +236,20 @@ export default function ProdutoScreen() {
             ))
           )}
         </Cartao>
+
+        {erroSituacao !== null ? (
+          <Text style={estilos.erroSituacao} accessibilityRole="alert">
+            {erroSituacao}
+          </Text>
+        ) : null}
+        <Botao
+          variante={produto.ativo ? 'fantasma' : 'secundario'}
+          onPress={() => void alternarAtivo()}
+          carregando={mudandoSituacao}
+          largura
+        >
+          {produto.ativo ? 'Inativar produto' : 'Reativar produto'}
+        </Botao>
       </ScrollView>
     </SafeAreaView>
   )
@@ -233,6 +274,16 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
 }
 
 const estilos = StyleSheet.create({
+  avisoInativo: {
+    gap: espaco.sm,
+    padding: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.md,
+    backgroundColor: cores.campo,
+  },
+  avisoInativoTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  erroSituacao: { fontSize: fonte.pequeno, color: cores.erro },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1 },

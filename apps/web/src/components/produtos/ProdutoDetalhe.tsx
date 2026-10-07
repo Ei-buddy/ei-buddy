@@ -7,6 +7,7 @@ import {
   buscarProduto,
   carregarMovimentos,
   type CausaDoMovimento,
+  definirAtivo,
   type MovimentoDeEstoque,
   type ProdutoDaFicha,
 } from '@/lib/catalogo-api'
@@ -42,6 +43,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
   const [motivo, setMotivo] = useState('')
   const [ajustando, setAjustando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+  const [mudandoSituacao, setMudandoSituacao] = useState(false)
 
   const carregar = useCallback(async () => {
     /*
@@ -137,6 +139,25 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
   const nivel = nivelEstoque(produto)
   const margem = calcularMargem(produto.precoCusto, produto.precoVenda)
 
+  /* Reversivel e sem perda: por isso sem "tem certeza?" — NR-151. */
+  async function alternarAtivo() {
+    if (produto === null) return
+    setMudandoSituacao(true)
+    const r = await definirAtivo(produtoId, !produto.ativo)
+    setMudandoSituacao(false)
+    if (!r.ok) {
+      setToast({ msg: r.erro, tone: 'error' })
+      return
+    }
+    setToast({
+      msg: produto.ativo
+        ? 'Produto inativado. Ele sai do PDV, mas o histórico continua.'
+        : 'Produto reativado. Ele volta ao PDV.',
+      tone: 'success',
+    })
+    await carregar()
+  }
+
   const entradas = movimentos.filter((m) => m.delta > 0).reduce((acc, m) => acc + m.delta, 0)
   const saidas = movimentos.filter((m) => m.delta < 0).reduce((acc, m) => acc - m.delta, 0)
 
@@ -152,10 +173,24 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
             </ButtonLink>
             {/* Preco, descricao e fiscais — RF-017. A quantidade segue no
                 "Ajustar estoque" abaixo, que pede motivo. */}
+            <Button
+              variant={produto.ativo ? 'ghost' : 'secondary'}
+              onClick={() => void alternarAtivo()}
+              disabled={mudandoSituacao}
+            >
+              {produto.ativo ? 'Inativar' : 'Reativar'}
+            </Button>
             <ButtonLink href={`/app/produtos/${produtoId}/editar`}>Editar</ButtonLink>
           </>
         }
       />
+
+      {!produto.ativo ? (
+        <p className={styles.avisoInativo} role="status">
+          <Badge tone="neutral">Inativo</Badge> Este produto não aparece no PDV nem pode ser
+          vendido. As vendas passadas continuam no histórico.
+        </p>
+      ) : null}
 
       <div className="statRow">
         <Stat

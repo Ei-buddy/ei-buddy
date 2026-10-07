@@ -193,6 +193,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
         {
           id: 'p-branca',
@@ -210,6 +211,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
       ]
     },
@@ -377,6 +379,7 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
         {
           id: 'p-branca',
@@ -394,6 +397,7 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
       ],
     }))
@@ -1004,6 +1008,7 @@ function produtoSaida(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }
@@ -3432,6 +3437,7 @@ function produtoEan(): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
   }
 }
 

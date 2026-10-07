@@ -31,15 +31,20 @@ import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
 const ESPERA_DA_BUSCA_MS = 400
 
-const FILTROS: { valor: FiltroDeEstoque; rotulo: string }[] = [
+/* Inativos e filtro a parte (NR-151): por padrao a lista so mostra o que esta
+   a venda. */
+type FiltroDoCatalogo = FiltroDeEstoque | 'inativos'
+
+const FILTROS: { valor: FiltroDoCatalogo; rotulo: string }[] = [
   { valor: 'todos', rotulo: 'Todos' },
   { valor: 'baixo', rotulo: 'Estoque baixo' },
   { valor: 'esgotado', rotulo: 'Esgotados' },
+  { valor: 'inativos', rotulo: 'Inativos' },
 ]
 
 export default function Catalogo() {
   const [busca, setBusca] = useState('')
-  const [estoque, setEstoque] = useState<FiltroDeEstoque>('todos')
+  const [estoque, setEstoque] = useState<FiltroDoCatalogo>('todos')
   const [lendo, setLendo] = useState(false)
   const router = useRouter()
   const [consultando, setConsultando] = useState(false)
@@ -71,7 +76,10 @@ export default function Catalogo() {
     let cancelado = false
     async function carregar() {
       setCarregando(true)
-      const r = await listarCatalogo({ termo: busca.trim(), estoque })
+      const r = await listarCatalogo({
+        termo: busca.trim(),
+        ...(estoque === 'inativos' ? { situacao: 'inativos' as const } : { estoque }),
+      })
       if (cancelado) return
       setCarregando(false)
       if (!r.ok) {
@@ -275,7 +283,9 @@ function LinhaProduto({ produto, onAbrir }: { produto: ProdutoDoCatalogo; onAbri
 
       <View style={estilos.produtoNumeros}>
         <Text style={estilos.produtoPreco}>{formatMoney(produto.precoVenda)}</Text>
-        {nivel === 'esgotado' ? (
+        {!produto.ativo ? (
+          <Etiqueta tom="neutro">Inativo</Etiqueta>
+        ) : nivel === 'esgotado' ? (
           <Etiqueta tom="erro">Esgotado</Etiqueta>
         ) : nivel === 'baixo' ? (
           <Etiqueta tom="atencao">{produto.estoque} un</Etiqueta>

@@ -129,8 +129,9 @@ export async function registerSale(
        */
       throw AppError.notFound(
         ausentes.length === 1
-          ? 'Um dos produtos da venda nao foi encontrado. Refaca o carrinho.'
-          : `${ausentes.length} produtos da venda nao foram encontrados. Refaca o carrinho.`,
+          ? 'Um dos produtos da venda nao foi encontrado ou esta inativo. Refaca o carrinho.'
+          : `${ausentes.length} produtos da venda nao foram encontrados ou estao inativos. ` +
+              'Refaca o carrinho.',
       )
     }
 

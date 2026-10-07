@@ -35,6 +35,7 @@ import {
   type RegisterCompanyDeps,
   restoreCustomer,
   updateCustomer,
+  setProductActive,
   updateProduct,
   updateCompany,
   registerCustomer,
@@ -371,6 +372,34 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     },
   )
 
+  /**
+   * Inativar e reativar produto — NR-151.
+   *
+   * `POST`, e nao `DELETE`: o produto nao some. Sai do PDV, do leitor e da
+   * venda, mas as vendas passadas continuam apontando para ele.
+   */
+  app.post(
+    '/produtos/:id/inativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      return reply.code(200).send(await setProductActive(deps, ctx, id, false))
+    },
+  )
+
+  app.post(
+    '/produtos/:id/reativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      return reply.code(200).send(await setProductActive(deps, ctx, id, true))
+    },
+  )
+
   app.post('/produtos', { config: { rateLimit: LIMITE_DE_ESCRITA } }, async (request, reply) => {
     const ctx = requireContext(request)
     const input = validate(createProductInputSchema, request.body)
@@ -482,6 +511,12 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
       /* O balcao precisa distinguir "nao existe" de "existe e esta zerado" —
          a segunda e cadastro feito, a primeira e cadastro a fazer. */
       throw AppError.notFound('Produto nao encontrado para este codigo de barras.')
+    }
+
+    /* Inativo existe, mas nao se vende — NR-151. Conflito, e nao 404: o
+       balcao nao deve oferecer "cadastrar" para um codigo que ja e da loja. */
+    if (!produto.isActive) {
+      throw AppError.conflict('Este produto esta inativo. Reative-o no cadastro para vender.')
     }
 
     return reply.code(200).send(produto)

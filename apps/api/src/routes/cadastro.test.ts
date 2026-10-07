@@ -222,7 +222,7 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return produtos
-        .filter((p) => p.companyId === companyId)
+        .filter((p) => p.companyId === companyId && p.isActive)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .sort((a, b) => a.description.localeCompare(b.description))
         .slice(0, criterio.limite)
@@ -235,6 +235,7 @@ function cadastroEmMemoria() {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = produtos
         .filter((p) => p.companyId === companyId)
+        .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .filter((p) => {
           if (criterio.stock === 'esgotado') return p.stock <= 0
@@ -278,6 +279,7 @@ function cadastroEmMemoria() {
         minStock: p.minStock,
         category: p.category ?? null,
         supplier: p.supplier ?? null,
+        isActive: true,
       }
       produtos.push(pr)
 
@@ -332,6 +334,13 @@ function cadastroEmMemoria() {
       alvo.cfop = patch.cfop ?? alvo.cfop
       alvo.taxSituationCode = patch.taxSituationCode ?? alvo.taxSituationCode
 
+      return alvo
+    },
+
+    setActive: async (companyId, productId, ativo) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return undefined
+      alvo.isActive = ativo
       return alvo
     },
   }
@@ -1537,5 +1546,83 @@ describe('o cadastro da propria loja — RF-003', () => {
     const r = await app.inject({ method: 'POST', url: '/empresas', payload: EMPRESA })
 
     expect(r.statusCode).toBe(201)
+  })
+})
+
+describe('inativar e reativar produto — NR-151', () => {
+  const COM_CODIGO = {
+    description: 'Arroz 5kg',
+    barcode: '7891234567895',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 2890,
+    costPriceCents: 2100,
+  }
+
+  async function comProduto(principal: AuthenticatedPrincipal = PRINCIPAL) {
+    const dono = await buildApp()
+    const criado = await dono.app.inject({ method: 'POST', url: '/produtos', payload: COM_CODIGO })
+    await dono.app.close()
+    const c = await buildApp(principal, dono.memoria)
+    app = c.app
+    return criado.json().id as string
+  }
+
+  it('inativa: some do balcao, e o leitor responde 409 em vez de oferecer cadastro', async () => {
+    const id = await comProduto()
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+    const balcao = await app.inject({ method: 'GET', url: '/produtos?q=arroz' })
+    const leitor = await app.inject({
+      method: 'GET',
+      url: '/produtos/codigo-de-barras/7891234567895',
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().isActive).toBe(false)
+    expect(balcao.json().products).toHaveLength(0)
+    expect(leitor.statusCode).toBe(409)
+  })
+
+  it('o catalogo mostra o inativo so no filtro de inativos', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const ativos = await app.inject({ method: 'GET', url: '/produtos/catalogo' })
+    const inativos = await app.inject({
+      method: 'GET',
+      url: '/produtos/catalogo?situacao=inativos',
+    })
+
+    expect(ativos.json().total).toBe(0)
+    expect(inativos.json().products.map((p: { id: string }) => p.id)).toEqual([id])
+  })
+
+  it('reativa e volta ao balcao', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/reativar` })
+
+    expect(r.statusCode).toBe(200)
+    expect(
+      (await app.inject({ method: 'GET', url: '/produtos?q=arroz' })).json().products,
+    ).toHaveLength(1)
+  })
+
+  it('inativar duas vezes e 409', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    expect(r.statusCode).toBe(409)
+  })
+
+  it('accountant nao inativa', async () => {
+    const id = await comProduto({ ...PRINCIPAL, role: 'accountant' })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    expect(r.statusCode).toBe(403)
   })
 })

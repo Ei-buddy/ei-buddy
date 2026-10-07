@@ -610,6 +610,7 @@ const paraProduto = (l: LinhaProduto): ProductOutput => ({
   minStock: l.min_stock,
   category: l.category,
   supplier: l.supplier,
+  isActive: l.is_active,
 })
 
 export function createProductRepository(sql: Sql): ProductRepository {
@@ -683,7 +684,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
         companyId,
         (tx) => tx<LinhaProduto[]>`
           SELECT * FROM products
-          WHERE company_id = ${companyId} AND deleted_at IS NULL
+          WHERE company_id = ${companyId} AND deleted_at IS NULL AND is_active
           ${
             criterio.termo === undefined
               ? tx``
@@ -725,6 +726,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
         (tx) => tx<(LinhaProduto & { total_geral: string })[]>`
           SELECT *, count(*) OVER () AS total_geral FROM products
           WHERE company_id = ${companyId} AND deleted_at IS NULL
+            AND is_active = ${criterio.situacao === 'ativos'}
           ${
             criterio.termo === undefined
               ? tx``
@@ -779,7 +781,7 @@ export function createProductRepository(sql: Sql): ProductRepository {
                  count(*) FILTER (WHERE stock <= 0)           AS out_of_stock,
                  COALESCE(SUM(stock * cost_price_cents), 0)   AS stock_value_cents
           FROM products
-          WHERE company_id = ${companyId} AND deleted_at IS NULL
+          WHERE company_id = ${companyId} AND deleted_at IS NULL AND is_active
         `,
       )
 
@@ -830,6 +832,20 @@ export function createProductRepository(sql: Sql): ProductRepository {
         `,
       )
 
+      return linha === undefined ? undefined : paraProduto(linha)
+    },
+
+    setActive: async (companyId, productId, ativo, updatedBy) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaProduto[]>`
+          UPDATE products
+             SET is_active = ${ativo}, updated_by = ${updatedBy}, updated_at = now()
+           WHERE id = ${productId} AND deleted_at IS NULL
+          RETURNING *
+        `,
+      )
       return linha === undefined ? undefined : paraProduto(linha)
     },
 

@@ -36,6 +36,8 @@ import {
   productSuggestions,
   registerProduct,
   registerProductWithStock,
+  searchProducts,
+  setProductActive,
   updateProduct,
 } from './register-product.js'
 
@@ -1009,6 +1011,7 @@ describe('catalogo do backoffice — NR-072, US-008', () => {
 
   const pedido = {
     stock: 'todos' as const,
+    situacao: 'ativos' as const,
     page: 1,
     pageSize: 24,
   }
@@ -1234,6 +1237,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       countAll: (c) => produtos.countAll(c),
       listSuggestions: (c) => produtos.listSuggestions(c),
       update: (empresa, id, patch, autor) => produtos.update(empresa, id, patch, autor),
+      setActive: (empresa, id, ativo, autor) => produtos.setActive(empresa, id, ativo, autor),
     }
 
     return {
@@ -1255,6 +1259,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
 
     const catalogo = await c.produtos.listCatalog('emp-1', {
       stock: 'todos',
+      situacao: 'ativos',
       offset: 0,
       limite: 10,
     })
@@ -1290,6 +1295,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     /* E a linha 2 entrou: a recusa nao interrompeu o lote. */
     const catalogo = await c.produtos.listCatalog('emp-1', {
       stock: 'todos',
+      situacao: 'ativos',
       offset: 0,
       limite: 10,
     })
@@ -1591,6 +1597,121 @@ describe('editar produto — RF-017', () => {
     const erro = await updateProduct({ products }, contexto(), criado.id, {
       salePriceCents: 1,
     }).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
+  })
+})
+
+describe('inativar e reativar produto — NR-151', () => {
+  const produto = {
+    description: 'Cafe torrado 500g',
+    barcode: '7891234567895',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 1890,
+    costPriceCents: 1275,
+    stock: 0,
+    minStock: 0,
+  }
+
+  async function comProduto() {
+    const products = new InMemoryProductRepository()
+    const audit = new InMemoryAuditTrail()
+    const criado = await registerProduct({ products }, contexto(), produto)
+    return { products, audit, id: criado.id }
+  }
+
+  it('nasce ativo', async () => {
+    const { products, id } = await comProduto()
+
+    expect((await getProduct({ products }, contexto(), id)).isActive).toBe(true)
+  })
+
+  it('inativo sai do balcao: busca e leitor nao acham', async () => {
+    const { products, audit, id } = await comProduto()
+
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    expect(await searchProducts({ products }, contexto(), { termo: 'cafe' })).toHaveLength(0)
+    expect(await findProductByBarcode({ products }, contexto(), '7891234567895')).toBeUndefined()
+  })
+
+  it('inativo sai do catalogo e do resumo, mas aparece no filtro de inativos', async () => {
+    const { products, audit, id } = await comProduto()
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    const pedido = { stock: 'todos' as const, page: 1, pageSize: 24 }
+    const ativos = await listCatalog({ products }, contexto(), { ...pedido, situacao: 'ativos' })
+    const inativos = await listCatalog({ products }, contexto(), {
+      ...pedido,
+      situacao: 'inativos',
+    })
+
+    expect(ativos.total).toBe(0)
+    expect(inativos.products.map((p) => p.id)).toEqual([id])
+    expect((await catalogSummary({ products }, contexto())).total).toBe(0)
+  })
+
+  it('a ficha continua abrindo — o historico aponta para ela', async () => {
+    const { products, audit, id } = await comProduto()
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    expect((await getProduct({ products }, contexto(), id)).isActive).toBe(false)
+  })
+
+  it('reativar devolve ao balcao, e a trilha registra os dois', async () => {
+    const { products, audit, id } = await comProduto()
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    const r = await setProductActive({ products, audit }, contexto(), id, true)
+
+    expect(r.isActive).toBe(true)
+    expect(await searchProducts({ products }, contexto(), { termo: 'cafe' })).toHaveLength(1)
+    expect(audit.daEmpresa('emp-1').map((e) => e.after)).toEqual([
+      { isActive: false },
+      { isActive: true },
+    ])
+  })
+
+  it('inativar o que ja esta inativo e conflito', async () => {
+    const { products, audit, id } = await comProduto()
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    const erro = await setProductActive({ products, audit }, contexto(), id, false).catch((e) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('CONFLICT')
+  })
+
+  it('cadastrar o mesmo codigo de barras sugere reativar', async () => {
+    const { products, audit, id } = await comProduto()
+    await setProductActive({ products, audit }, contexto(), id, false)
+
+    const erro = await registerProduct({ products }, contexto(), produto).catch((e) => e)
+
+    expect(isAppError(erro) && erro.message).toMatch(/inativo: reative/)
+  })
+
+  it('contador so le, nao inativa', async () => {
+    const { products, audit, id } = await comProduto()
+
+    const erro = await setProductActive(
+      { products, audit },
+      contexto({ role: 'accountant' }),
+      id,
+      false,
+    ).catch((e) => e)
+
+    expect(isAppError(erro)).toBe(true)
+  })
+
+  it('de outra empresa responde NOT_FOUND', async () => {
+    const { products, audit, id } = await comProduto()
+
+    const erro = await setProductActive(
+      { products, audit },
+      contexto({ companyId: 'emp-2' }),
+      id,
+      false,
+    ).catch((e) => e)
 
     expect(isAppError(erro) && erro.code).toBe('NOT_FOUND')
   })

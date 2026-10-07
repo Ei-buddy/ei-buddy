@@ -313,7 +313,7 @@ export type ProductRepository = {
    * significaria carregar o catalogo inteiro a cada tecla digitada. Uma loja de
    * mercearia tem milhares de itens.
    *
-   * Sem `deleted_at`: produto apagado nao se vende. O `limite` existe porque
+   * Sem `deleted_at` e so ativos: produto apagado ou inativo nao se vende. O `limite` existe porque
    * a tela mostra uma lista, nao um banco de dados — quem nao achou refina a
    * busca, e devolver dez mil linhas so trava o navegador.
    */
@@ -339,6 +339,8 @@ export type ProductRepository = {
     criterio: {
       readonly termo?: string
       readonly stock: 'todos' | 'baixo' | 'esgotado'
+      /** Ativos por padrao; o inativo so aparece quando pedido — NR-151. */
+      readonly situacao: 'ativos' | 'inativos'
       readonly offset: number
       readonly limite: number
     },
@@ -373,6 +375,20 @@ export type ProductRepository = {
     companyId: CompanyId,
     productId: string,
     patch: ProductPatch,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
+
+  /**
+   * Inativa ou reativa — NR-151.
+   *
+   * Inativo sai do balcao (busca, leitor, venda) e do resumo do catalogo, mas a
+   * linha fica: as vendas passadas continuam apontando para ela. `undefined`
+   * quando nao existe ou e de outra empresa.
+   */
+  setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
     updatedBy: UserId,
   ): Promise<ProductOutput | undefined>
 

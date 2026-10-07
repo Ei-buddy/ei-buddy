@@ -334,6 +334,7 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  setProductActive,
   updateProduct,
   registerProductWithStock,
   searchProducts,

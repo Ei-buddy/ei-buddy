@@ -35,6 +35,8 @@ export type ProdutoDoCatalogo = {
   estoqueMinimo: number
   categoria: string | null
   fornecedor: string | null
+  /** Inativo sai do PDV, mas fica no historico — NR-151. */
+  ativo: boolean
 }
 
 export type NivelDeEstoque = 'todos' | 'baixo' | 'esgotado'
@@ -67,6 +69,7 @@ type ProdutoDaApi = {
   minStock: number
   category: string | null
   supplier: string | null
+  isActive: boolean
 }
 
 const emReais = (centavos: number) => centavos / 100
@@ -83,11 +86,14 @@ const paraTela = (p: ProdutoDaApi): ProdutoDoCatalogo => ({
   estoqueMinimo: p.minStock,
   categoria: p.category,
   fornecedor: p.supplier,
+  ativo: p.isActive,
 })
 
 export type FiltroDoCatalogo = {
   termo: string
   estoque: NivelDeEstoque
+  /** Ausente = ativos, o padrao da api — NR-151. */
+  situacao?: 'ativos' | 'inativos'
   pagina: number
   porPagina: number
 }
@@ -108,6 +114,8 @@ export async function carregarCatalogo(
     page: String(filtro.pagina),
     pageSize: String(filtro.porPagina),
   })
+
+  if (filtro.situacao !== undefined) query.set('situacao', filtro.situacao)
 
   /* Termo vazio nao viaja: e "me mostre o catalogo", nao "ache nada". */
   const termo = filtro.termo.trim()
@@ -134,6 +142,12 @@ export async function carregarCatalogo(
 }
 
 /** Os numeros do topo, sobre o catalogo inteiro — nunca somados da pagina. */
+/** Inativar ou reativar — NR-151. O produto nao some: sai do PDV e da venda. */
+export const definirAtivo = (id: string, ativo: boolean): Promise<Resultado<unknown>> =>
+  pedir(`/api/produtos/${encodeURIComponent(id)}/${ativo ? 'reativar' : 'inativar'}`, {
+    method: 'POST',
+  })
+
 export const carregarResumoDoCatalogo = (): Promise<Resultado<ResumoDoCatalogo>> =>
   pedir('/api/produtos/resumo')
 
