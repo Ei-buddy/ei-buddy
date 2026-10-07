@@ -9,6 +9,7 @@ import {
   type VendaHistorico,
 } from '@/lib/vendas-api'
 import { formatDateTime, formatMoney } from '@/lib/format'
+import { compartilharComprovante } from '@/lib/comprovante-da-venda'
 import { hojeLocal } from '@/lib/periodo'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
@@ -249,6 +250,19 @@ export default function Vendas() {
                         : 'sem nota'
                     }
                   />
+
+                  {/* Recibo nao fiscal, para a venda estornada tambem (sai
+                      marcado) — NR-154. */}
+                  <View style={estilos.acoes}>
+                    <Acao
+                      rotulo="Comprovante"
+                      onPress={() =>
+                        void compartilharComprovante(v).then((r) => {
+                          if (!r.ok) Alert.alert('Comprovante', r.erro)
+                        })
+                      }
+                    />
+                  </View>
 
                   {!estornada ? (
                     <View style={estilos.acoes}>

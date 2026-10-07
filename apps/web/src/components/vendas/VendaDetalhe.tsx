@@ -151,6 +151,10 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
             <ButtonLink href="/app/vendas" variant="secondary">
               Voltar
             </ButtonLink>
+            {/* Recibo nao fiscal para imprimir ou mandar — NR-154. */}
+            <ButtonLink href={`/app/vendas/${venda.id}/comprovante`} variant="secondary">
+              Comprovante
+            </ButtonLink>
             {!estornada && devolviveis.length > 0 ? (
               <Button variant="secondary" onClick={() => setDevolvendo(true)}>
                 Devolver itens
