@@ -153,8 +153,11 @@
   overflow-y: auto;
   padding: 22px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-panel);
 }
 
 .dialogCabecalho {

@@ -11,8 +11,9 @@
   gap: 8px;
   padding: 11px 20px;
   border-radius: var(--radius-full);
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-family: var(--font-display);
   font-size: 14.5px;
   font-weight: 600;
@@ -23,7 +24,7 @@
 }
 
 .whatsBotao:hover {
-  background: #4ad9cd;
+  background: var(--glass-active-hover);
   transform: translateY(-1px);
 }
 
@@ -218,9 +219,10 @@
   width: 100%;
   min-height: 80px;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font: inherit;
   font-size: 14px;

@@ -109,6 +109,7 @@ NR-140 — Web: rotulos ligados aos campos e prejuizo do DRE com sinal (QA),Spri
 NR-143 — Aviso de cadastro de cliente incompleto (clientes antigos),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts web mobile,"RF-009, RF-011, DEC-025",docs/processo/task-ledger.md
 NR-144 — Ticket medio com a base explicita (bruto ou liquido),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,"US-041, DEC-024",docs/processo/task-ledger.md
 "NR-145 — Login caia no aviso ""painel nao abriu"" (prefetch sem sessao)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-120, NR-132",docs/processo/task-ledger.md
+NR-146 — Vidro da barra lateral no painel inteiro (tokens --glass-),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,3,Sprint 6,,,web ui,"NR-131, RNF-052",docs/processo/task-ledger.md
 NR-147 — Sino de avisos zera ao ser visto e atualiza ao navegar,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"NR-013, NR-136",docs/processo/task-ledger.md
 NR-148 — Campos obrigatorios marcados nos cadastros de produto e cliente,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,"RF-009, RF-014, RNF-052",docs/processo/task-ledger.md
 NR-149 — CPF/CNPJ obrigatorio no cadastro de cliente (web e app iguais),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts web mobile,"RF-009, DEC-025",docs/processo/task-ledger.md

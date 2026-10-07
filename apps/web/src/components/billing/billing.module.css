@@ -126,10 +126,10 @@
   gap: 9px;
   max-width: 380px;
   padding: 28px 26px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-lg);
-  background: var(--app-surface);
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   text-align: center;
   transition: transform var(--transition);
 }
@@ -166,8 +166,9 @@
   margin-top: 6px;
   padding: 9px 18px;
   border-radius: var(--radius-full);
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-family: var(--font-display);
   font-size: 13.5px;
   font-weight: 600;
@@ -201,11 +202,13 @@
   max-height: 90vh;
   overflow-y: auto;
   padding: 30px 26px 26px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-lg);
-  background: var(--app-surface);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   color: var(--app-text);
-  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--glass-shadow-panel);
 }
 
 .modal:focus {
@@ -330,8 +333,9 @@
   justify-content: center;
   padding: 12px 22px;
   border-radius: var(--radius-full);
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-family: var(--font-display);
   font-size: 14.5px;
   font-weight: 600;
@@ -341,14 +345,16 @@
 }
 
 .modalPrimary:hover {
-  background: #4ad9cd;
+  background: var(--glass-active-hover);
   transform: translateY(-1px);
 }
 
 .modalGhost {
   padding: 12px 20px;
   border-radius: var(--radius-full);
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-muted);
   font-family: var(--font-display);
   font-size: 14.5px;

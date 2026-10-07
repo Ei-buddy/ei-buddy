@@ -25,9 +25,10 @@
 
 .cartao {
   padding: 20px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: 12px;
-  background: var(--app-surface);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
 }
 
 .secaoTitulo {

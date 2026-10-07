@@ -19,15 +19,16 @@
     background-color var(--transition);
 }
 
-.filtro:hover {
+.filtro:hover:not(.filtroAtivo) {
   border-color: var(--app-accent);
   color: var(--app-text);
 }
 
 .filtroAtivo {
-  background: var(--app-accent-soft);
+  background: var(--glass-active);
   border-color: transparent;
-  color: var(--app-accent);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 
@@ -53,9 +54,10 @@
 .filtroSelect {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -299,7 +301,9 @@
   align-items: center;
   gap: 5px;
   padding: 5px 11px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--radius-full);
   font-size: 12px;
   color: var(--app-muted);
@@ -346,11 +350,13 @@
   display: grid;
   gap: 14px;
   padding: 22px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-lg);
-  background: var(--app-surface);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   color: var(--app-text);
-  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--glass-shadow-panel);
 }
 
 .dialogPainel:focus {
@@ -444,9 +450,10 @@
   display: flex;
   gap: 6px;
   padding: 4px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-full);
-  background: var(--app-field);
+  background: var(--glass-surface-deep);
+  box-shadow: var(--glass-shadow-inset);
 }
 
 .baixaModo {
@@ -461,8 +468,9 @@
 }
 
 .baixaModoAtivo {
-  background: var(--brand-accent);
-  color: #06312e;
+  background: var(--glass-active);
+  box-shadow: var(--glass-shadow-active);
+  color: var(--glass-active-text);
   font-weight: 600;
 }
 
@@ -479,9 +487,10 @@
 .baixaInput {
   width: 100%;
   padding: 12px 15px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-display);
   font-size: 18px;
@@ -568,9 +577,10 @@
 .estornoItem {
   display: block;
   padding: 11px 13px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   cursor: pointer;
 }
 
@@ -635,9 +645,10 @@
   width: 100%;
   min-height: 74px;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: inherit;
   font-size: 14px;
@@ -676,9 +687,10 @@
 .input {
   width: 100%;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 14.5px;
