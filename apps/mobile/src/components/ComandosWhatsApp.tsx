@@ -47,8 +47,10 @@ const estilos = criarEstilos(() => ({
     paddingVertical: espaco.sm,
     borderRadius: raio.pill,
     minHeight: 40,
+    /* Frase longa quebra dentro da peca, em vez de vazar do cartao (NR-176). */
+    maxWidth: '100%',
     justifyContent: 'center',
   },
   chipPressionado: { opacity: 0.85 },
-  chipTexto: { fontSize: fonte.micro, fontWeight: peso.medio, color: cores.texto },
+  chipTexto: { flexShrink: 1, fontSize: fonte.micro, fontWeight: peso.medio, color: cores.texto },
 }))
