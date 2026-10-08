@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import {
@@ -55,7 +55,12 @@ const FILTROS: [Filtro, string][] = [
 export default function Clientes() {
   const router = useRouter()
   const [busca, setBusca] = useState('')
-  const [filtro, setFiltro] = useState<Filtro>('todos')
+  /* `?filtro=`: o sino (NR-162) abre a lista ja no recorte do aviso. */
+  const { filtro: filtroDaRota } = useLocalSearchParams<{ filtro?: Filtro }>()
+  const [filtro, setFiltro] = useState<Filtro>(filtroDaRota ?? 'todos')
+  useEffect(() => {
+    if (filtroDaRota !== undefined) setFiltro(filtroDaRota)
+  }, [filtroDaRota])
   const [lista, setLista] = useState<ClienteDaLista[]>([])
   const [inadimplentes, setInadimplentes] = useState<ClienteInadimplente[]>([])
   const [total, setTotal] = useState(0)

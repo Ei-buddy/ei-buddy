@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -45,7 +45,12 @@ const FILTROS: { valor: FiltroDoCatalogo; rotulo: string }[] = [
 
 export default function Catalogo() {
   const [busca, setBusca] = useState('')
-  const [estoque, setEstoque] = useState<FiltroDoCatalogo>('todos')
+  /* `?estoque=`: o sino (NR-162) abre o catalogo ja em esgotados ou baixo. */
+  const { estoque: estoqueDaRota } = useLocalSearchParams<{ estoque?: FiltroDoCatalogo }>()
+  const [estoque, setEstoque] = useState<FiltroDoCatalogo>(estoqueDaRota ?? 'todos')
+  useEffect(() => {
+    if (estoqueDaRota !== undefined) setEstoque(estoqueDaRota)
+  }, [estoqueDaRota])
   const [lendo, setLendo] = useState(false)
   const router = useRouter()
   const [consultando, setConsultando] = useState(false)
