@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -19,6 +19,7 @@ import {
 } from '@/lib/produtos-api'
 import { formatDateTime, formatMoney, formatPercent } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O motivo do ajuste vai para a trilha; o contrato pede ao menos 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -273,7 +274,7 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   avisoInativo: {
     gap: espaco.sm,
     padding: espaco.md,
@@ -309,4 +310,4 @@ const estilos = StyleSheet.create({
   delta: { fontSize: fonte.corpo, fontWeight: peso.pesado },
   deltaEntrada: { color: cores.sucesso },
   deltaSaida: { color: cores.erro },
-})
+}))

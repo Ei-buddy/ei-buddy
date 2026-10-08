@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { carregarPlano, criarConta, type ContaContabil } from '@/lib/contabilidade-api'
 import { lancarContaAPagar, lancarContaAReceber } from '@/lib/financeiro-api'
 import { dataDoTexto, formatDate, hoje, mascaraData } from '@/lib/format'
@@ -8,6 +8,7 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { SeletorCliente } from '@/components/SeletoresDoPdv'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Lancar conta a pagar ou a receber — RF-061, RF-064, o mesmo formulario do web.
@@ -258,13 +259,13 @@ function Chips({
   )
 }
 
-const estilos = StyleSheet.create({
-  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
+const estilos = criarEstilos(() => ({
+  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: cores.veu },
   foraDaFolha: { flex: 1 },
   folha: {
     ...vidro.painel,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopColor: cores.borda,
     maxHeight: '92%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
@@ -295,4 +296,4 @@ const estilos = StyleSheet.create({
   chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

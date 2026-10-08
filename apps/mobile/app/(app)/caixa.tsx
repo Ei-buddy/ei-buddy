@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -19,6 +19,7 @@ import {
 import { formatMoney } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const reais = (cents: number) => formatMoney(cents / 100)
 const quando = (iso: string) =>
@@ -286,7 +287,7 @@ function Linha({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   form: { gap: espaco.md },
@@ -314,4 +315,4 @@ const estilos = StyleSheet.create({
   },
   tipoAtivo: { borderColor: cores.acento, backgroundColor: cores.campo },
   tipoTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
-})
+}))

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -15,6 +15,7 @@ import {
 import { linkDoWhatsApp } from '@/lib/clientes-api'
 import { maskPhone } from '@/lib/validation'
 import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Minhas conexoes — a mesma tela do web.
@@ -169,7 +170,7 @@ export default function Conexoes() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1, gap: 2 },
@@ -182,4 +183,4 @@ const estilos = StyleSheet.create({
   nome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   apoio: { fontSize: fonte.micro, color: cores.textoFraco },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
-})
+}))

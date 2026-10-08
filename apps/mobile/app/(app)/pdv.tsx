@@ -1,15 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import {
@@ -53,6 +44,7 @@ import LeitorCodigo from '@/components/LeitorCodigo'
 import ConfirmarModal from '@/components/ConfirmarModal'
 import { DescontoModal, SeletorCliente, SeletorProduto } from '@/components/SeletoresDoPdv'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
 type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
@@ -705,7 +697,7 @@ function Parcelas({ valor, onChange }: { valor: number; onChange: (n: number) =>
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   /* Resumo da venda — US-020. */
   resumo: {
     ...vidro.painel,
@@ -877,7 +869,7 @@ const estilos = StyleSheet.create({
 
   acoes: { flexDirection: 'row', gap: espaco.sm },
   acaoPrincipal: { flex: 1 },
-})
+}))
 
 /**
  * O resumo da venda fechada — US-020, RF-040 a RF-042.

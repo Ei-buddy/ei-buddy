@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -14,6 +14,7 @@ import {
   type SugestaoDeFornecedor,
 } from '@/lib/conexoes-api'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Buscar fornecedores por proximidade — ADR-0008, DEC-021, a mesma tela do web.
@@ -187,7 +188,7 @@ function Linha({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1, gap: 2 },
@@ -216,4 +217,4 @@ const estilos = StyleSheet.create({
   detalhe: { fontSize: fonte.micro, color: cores.texto },
   erro: { fontSize: fonte.micro, color: cores.erro },
   enviado: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.acento },
-})
+}))

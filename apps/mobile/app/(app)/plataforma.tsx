@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import ConfirmarModal from '@/components/ConfirmarModal'
@@ -36,6 +36,7 @@ import { atualizarEmpresaAtiva } from '@/lib/session'
 import { formatDateTime } from '@/lib/format'
 import { maskCNPJ, maskPhone } from '@/lib/validation'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Aba = 'empresas' | 'usuarios' | 'lista' | 'parceiros'
 
@@ -655,7 +656,7 @@ function Busca({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1 },
@@ -708,4 +709,4 @@ const estilos = StyleSheet.create({
   barraFundo: { flex: 1, height: 8, borderRadius: 4, backgroundColor: cores.campo },
   barra: { height: 8, borderRadius: 4, backgroundColor: cores.acento },
   barraValor: { minWidth: 28, textAlign: 'right', fontSize: fonte.micro, color: cores.texto },
-})
+}))

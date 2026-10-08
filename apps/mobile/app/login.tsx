@@ -1,13 +1,5 @@
 import { useState } from 'react'
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { entrar, escolherLoja } from '@/lib/auth-api'
@@ -16,6 +8,7 @@ import { validateCredential, validateLoginPassword } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O papel na tela e em portugues, e nao o valor do contrato. */
 const PAPEL: Record<string, string> = {
@@ -200,7 +193,7 @@ export default function Login() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
   conteudo: {
@@ -253,4 +246,4 @@ const estilos = StyleSheet.create({
   lojaPressionada: { borderColor: cores.acento },
   lojaNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },
   lojaPapel: { fontSize: fonte.micro, color: cores.textoFraco },
-})
+}))

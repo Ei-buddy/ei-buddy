@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -31,6 +31,7 @@ import { describeDueDate, formatDate, formatDateTime, formatMoney, hoje } from '
 import { maskPhone } from '@/lib/validation'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O contrato da anonimizacao pede 10 caracteres de motivo. */
 const MOTIVO_MINIMO = 10
@@ -677,7 +678,7 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1 },
@@ -724,4 +725,4 @@ const estilos = StyleSheet.create({
   chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

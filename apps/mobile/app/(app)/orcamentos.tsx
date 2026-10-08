@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -20,6 +20,7 @@ import {
 import { listarCatalogo, type ProdutoDoCatalogo } from '@/lib/produtos-api'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const reais = (cents: number) => formatMoney(cents / 100)
 const emTexto = (v: number) => v.toFixed(2).replace('.', ',')
@@ -357,7 +358,7 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   form: { gap: espaco.md },
@@ -388,4 +389,4 @@ const estilos = StyleSheet.create({
   },
   detalhe: { gap: espaco.xs, paddingTop: espaco.sm },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm, marginTop: espaco.sm },
-})
+}))

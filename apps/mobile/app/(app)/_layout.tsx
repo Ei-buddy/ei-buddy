@@ -21,7 +21,7 @@ export default function LayoutApp() {
         screenOptions={{
           headerShown: false,
           drawerType: 'front',
-          drawerStyle: { backgroundColor: '#0b1029', width: 280 },
+          drawerStyle: { backgroundColor: cores.painel, width: 280 },
           sceneStyle: { backgroundColor: cores.fundo },
           /* Deslizar da borda para abrir — gesto esperado no celular. */
           swipeEnabled: true,

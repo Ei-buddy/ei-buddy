@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Campo de texto com rotulo e erro inline.
@@ -76,7 +77,7 @@ export default function Campo({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   campo: { gap: espaco.sm },
   rotulo: {
     fontSize: fonte.pequeno,
@@ -109,4 +110,4 @@ const estilos = StyleSheet.create({
   },
   erro: { fontSize: fonte.micro, color: cores.erro },
   dica: { fontSize: fonte.micro, color: cores.textoFraco },
-})
+}))

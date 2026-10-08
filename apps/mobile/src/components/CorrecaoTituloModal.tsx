@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import {
   cancelarTitulo,
   corrigirTitulo,
@@ -12,6 +12,7 @@ import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O minimo do servidor para o motivo do cancelamento. */
 const MOTIVO_MINIMO = 3
@@ -202,13 +203,13 @@ export default function CorrecaoTituloModal({
   )
 }
 
-const estilos = StyleSheet.create({
-  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
+const estilos = criarEstilos(() => ({
+  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: cores.veu },
   foraDaFolha: { flex: 1 },
   folha: {
     ...vidro.painel,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopColor: cores.borda,
     maxHeight: '92%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
@@ -219,4 +220,4 @@ const estilos = StyleSheet.create({
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   linha: { flexDirection: 'row', gap: espaco.md },
   flex: { flex: 1 },
-})
+}))

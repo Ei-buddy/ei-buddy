@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Aviso } from '@/lib/avisos-api'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * O painel do sino — NR-162, o mesmo do web: cada aviso leva a tela que
@@ -56,12 +57,12 @@ export default function Avisos({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   fundo: {
     flex: 1,
     alignItems: 'flex-end',
     paddingHorizontal: espaco.md,
-    backgroundColor: 'rgba(4, 6, 20, 0.55)',
+    backgroundColor: cores.veu,
   },
   painel: {
     ...vidro.painel,
@@ -85,4 +86,4 @@ const estilos = StyleSheet.create({
   pontoPerigo: { backgroundColor: cores.erro },
   avisoTexto: { flex: 1, fontSize: fonte.pequeno, color: cores.texto },
   seta: { fontSize: fonte.medio, color: cores.textoFraco },
-})
+}))

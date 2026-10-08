@@ -1,7 +1,7 @@
 import { getDocumentAsync } from 'expo-document-picker'
 import { File } from 'expo-file-system'
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -20,6 +20,7 @@ import {
 } from '@/lib/conciliacao-api'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O motivo do desfazer vai para a trilha; o contrato pede 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -341,7 +342,7 @@ function PainelDesfazer({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1, gap: 2 },
@@ -380,4 +381,4 @@ const estilos = StyleSheet.create({
   },
   link: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
-})
+}))

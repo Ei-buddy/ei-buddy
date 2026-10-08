@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
@@ -22,6 +22,7 @@ import CancelarNotaModal from '@/components/CancelarNotaModal'
 import DevolverItensModal from '@/components/DevolverItensModal'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
 
@@ -410,7 +411,7 @@ function Detalhe({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   topo: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -476,4 +477,4 @@ const estilos = StyleSheet.create({
   acaoPerigo: { borderColor: cores.erro },
   acaoTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
   acaoTextoPerigo: { color: cores.erro },
-})
+}))

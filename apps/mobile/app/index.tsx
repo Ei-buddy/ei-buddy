@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, View } from 'react-native'
 import { Redirect } from 'expo-router'
 import { lerSessao } from '@/lib/session'
 import { cores } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Porta de entrada: decide entre login e app conforme haja sessao.
@@ -59,11 +60,11 @@ export default function Entrada() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   centro: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: cores.fundo,
   },
-})
+}))

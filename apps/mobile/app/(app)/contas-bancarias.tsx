@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -16,6 +16,7 @@ import { NOMES_BANCOS } from '@/lib/financeiro-api'
 import { dataDoTexto, formatDate, formatMoney, hoje, mascaraData } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Contas bancarias — RF-073, a mesma tela do web.
@@ -270,7 +271,7 @@ export default function ContasBancarias() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1 },
@@ -301,4 +302,4 @@ const estilos = StyleSheet.create({
   excluir: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
   editar: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
   acoesConta: { flexDirection: 'row', gap: espaco.md },
-})
+}))

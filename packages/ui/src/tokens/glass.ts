@@ -44,3 +44,40 @@ export const glass = {
   shadowPanel:
     '0 1px 1px rgba(255, 255, 255, 0.08) inset, 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 20px rgba(0, 0, 0, 0.3)',
 } as const
+
+/**
+ * O vidro no tema CLARO — os mesmos valores do bloco
+ * `:root[data-theme='light'] .appTheme` do `globals.css` (NR-099/NR-146).
+ *
+ * No claro a peca e branca com sombra azul-escura bem fraca, e o ativo e azul
+ * CHAPADO: o translucido desbota sobre superficie clara e o texto branco por
+ * cima reprovaria no AA.
+ */
+export const glassLight = {
+  surface: '#f6f8fc',
+  surfacePressed: '#e6ebf5',
+  surfaceDeep: '#eef1f8',
+  borderTop: 'rgba(255, 255, 255, 0.95)',
+  border: 'rgba(15, 42, 58, 0.1)',
+  sheen: 'linear-gradient(180deg, #ffffff, #eef1f8)',
+  shadow:
+    '0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset, 0 6px 14px rgba(15, 42, 58, 0.1)',
+  shadowRaised:
+    '0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -10px 18px rgba(15, 42, 58, 0.035) inset, 0 10px 24px rgba(15, 42, 58, 0.08)',
+
+  active: 'linear-gradient(180deg, #2f74e0, #1f5bc4)',
+  activeSolid: '#1f5bc4',
+  activeBorderTop: 'rgba(255, 255, 255, 0.45)',
+  shadowActive:
+    '0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.12) inset, 0 8px 24px rgba(59, 130, 246, 0.35)',
+  activeText: '#ffffff',
+
+  inset: 'rgba(19, 23, 52, 0.035)',
+  insetBorder: '#e6e8ef',
+  shadowInset: '0 2px 5px rgba(15, 42, 58, 0.08) inset, 0 -1px 0 rgba(255, 255, 255, 0.9) inset',
+
+  panel: 'linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 246, 251, 0.97))',
+  panelSolid: '#fbfcfe',
+  shadowPanel:
+    '0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 30px 60px rgba(15, 42, 58, 0.16), 0 8px 20px rgba(15, 42, 58, 0.1)',
+} as const satisfies Record<keyof typeof glass, string>

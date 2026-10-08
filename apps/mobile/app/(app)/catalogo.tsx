@@ -1,14 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import ComandosWhatsApp from '@/components/ComandosWhatsApp'
 import { COMANDOS_PRODUTOS } from '@/lib/comandos'
@@ -30,6 +22,7 @@ import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_PRODUTOS, validarProduto } from '@/lib/campos-de-importacao'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Espera a pessoa parar de digitar antes de ir ao servidor. */
 const ESPERA_DA_BUSCA_MS = 400
@@ -318,7 +311,7 @@ function LinhaProduto({ produto, onAbrir }: { produto: ProdutoDoCatalogo; onAbri
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   /* Leitura de codigo — RF-018. Dois tons porque as acoes sao opostas:
      "nao cadastrado" convida a cadastrar, "erro" convida a tentar de novo. */
   avisoNovo: {
@@ -404,4 +397,4 @@ const estilos = StyleSheet.create({
   produtoCategoria: { fontSize: fonte.micro, color: cores.textoFraco },
   produtoNumeros: { alignItems: 'flex-end', gap: espaco.sm },
   produtoPreco: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.texto },
-})
+}))

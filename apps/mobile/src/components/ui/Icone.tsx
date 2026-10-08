@@ -1,5 +1,6 @@
-import { StyleSheet, View } from 'react-native'
+import { View } from 'react-native'
 import { cores } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Icones desenhados com View.
@@ -101,7 +102,7 @@ export default function Icone({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   centro: { alignItems: 'center', justifyContent: 'flex-end' },
 
   grade: {
@@ -137,4 +138,4 @@ const estilos = StyleSheet.create({
   argola: { width: 1.8, height: 4, borderRadius: 1 },
   calendario: { borderWidth: 1.8, borderRadius: 3, justifyContent: 'flex-start' },
   calendarioLinha: { height: 1.8, marginTop: 4 },
-})
+}))

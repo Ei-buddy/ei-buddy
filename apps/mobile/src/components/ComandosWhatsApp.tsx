@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { Cartao } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * O bloco "Via WhatsApp" das telas — NR-165, o mesmo do web: as perguntas que
@@ -37,7 +38,7 @@ export default function ComandosWhatsApp({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   descricao: { fontSize: fonte.pequeno, color: cores.textoFraco, lineHeight: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
   chip: {
@@ -50,4 +51,4 @@ const estilos = StyleSheet.create({
   },
   chipPressionado: { opacity: 0.85 },
   chipTexto: { fontSize: fonte.micro, fontWeight: peso.medio, color: cores.texto },
-})
+}))

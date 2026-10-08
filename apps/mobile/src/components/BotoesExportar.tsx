@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, Text, View } from 'react-native'
 import { exportarLista, type ListaExportavel } from '@/lib/exportar-api'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * CSV e PDF de uma lista — NR-155. Os mesmos dois botoes de contas a pagar e a
@@ -41,7 +42,7 @@ export default function BotoesExportar({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   linha: { flexDirection: 'row', gap: espaco.sm },
   botao: {
     minHeight: 40,
@@ -52,4 +53,4 @@ const estilos = StyleSheet.create({
     borderRadius: raio.pill,
   },
   texto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
-})
+}))

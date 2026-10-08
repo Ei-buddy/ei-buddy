@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useFocusEffect, useNavigation } from 'expo-router'
 import type { DrawerActionType } from '@react-navigation/native'
 import Avisos from '@/components/Avisos'
@@ -12,6 +12,7 @@ import {
   type Aviso,
 } from '@/lib/avisos-api'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Cabecalho das telas do app.
@@ -131,7 +132,7 @@ export default function Cabecalho({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   cabecalho: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,4 +214,4 @@ const estilos = StyleSheet.create({
   badgeTexto: { fontSize: 10, fontWeight: peso.pesado, color: cores.fundo },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   subtitulo: { fontSize: fonte.micro, color: cores.textoFraco },
-})
+}))

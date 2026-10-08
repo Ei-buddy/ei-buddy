@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import { CelularDoCanal } from '@/components/EmpresaSecoes'
@@ -14,6 +14,7 @@ import {
   trocarSenha,
 } from '@/lib/minha-conta-api'
 import { cores, espaco, fonte } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Mensagem = { tom: 'ok' | 'erro'; texto: string } | null
 
@@ -187,10 +188,10 @@ function SuaSenha() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   formulario: { gap: espaco.md },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   ok: { fontSize: fonte.pequeno, color: cores.sucesso },
-})
+}))

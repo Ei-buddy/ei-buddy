@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
@@ -21,6 +21,7 @@ import {
 } from '@/lib/suporte-api'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const TOM_STATUS: Record<StatusChamado, 'neutro' | 'sucesso' | 'atencao' | 'erro'> = {
   open: 'atencao',
@@ -363,7 +364,7 @@ export default function Suporte() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -420,4 +421,4 @@ const estilos = StyleSheet.create({
     borderColor: cores.sucesso,
   },
   avisoTexto: { fontSize: fonte.pequeno, color: cores.texto },
-})
+}))
