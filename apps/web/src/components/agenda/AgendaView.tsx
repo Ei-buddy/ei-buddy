@@ -557,7 +557,7 @@ function FormCompromisso({
           </label>
 
           <label className={styles.campo}>
-            <span>Descricao</span>
+            <span>Descrição</span>
             <textarea
               className={`${styles.input} ${styles.textarea}`}
               value={descricao}

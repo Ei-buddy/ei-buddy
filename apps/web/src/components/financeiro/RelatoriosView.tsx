@@ -159,7 +159,7 @@ export default function RelatoriosView() {
           <Field label="De">
             <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
           </Field>
-          <Field label="Ate">
+          <Field label="Até">
             <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
           </Field>
           <Button onClick={aplicarPeriodo} disabled={periodoInvalido || carregando}>
@@ -312,7 +312,7 @@ function Clientes({ dados }: { dados: RankingDeClientes }) {
         </ol>
       )}
 
-      <Sobra rotulo="Venda de balcao, sem cliente identificado" cents={dados.unidentifiedCents} />
+      <Sobra rotulo="Venda de balcão, sem cliente identificado" cents={dados.unidentifiedCents} />
     </section>
   )
 }

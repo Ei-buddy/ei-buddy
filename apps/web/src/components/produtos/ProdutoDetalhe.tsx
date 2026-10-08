@@ -124,11 +124,11 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         <PageHeader title="Produto" />
         <Card>
           <EmptyState
-            title="Nao foi possivel abrir a ficha"
+            title="Não foi possível abrir a ficha"
             description={erro ?? 'Este produto não existe ou não é da sua loja.'}
             action={
               <Link href="/app/produtos" className={styles.verMais}>
-                Voltar ao catalogo
+                Voltar ao catálogo
               </Link>
             }
           />
@@ -170,7 +170,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         actions={
           <>
             <ButtonLink href="/app/produtos" variant="secondary">
-              Voltar ao catalogo
+              Voltar ao catálogo
             </ButtonLink>
             {/* Preco, descricao e fiscais — RF-017. A quantidade segue no
                 "Ajustar estoque" abaixo, que pede motivo. */}
@@ -200,7 +200,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
           hint={`mínimo ${produto.estoqueMinimo} ${produto.unidade}`}
           tone={nivel === 'normal' ? 'positive' : 'warning'}
         />
-        <Stat label="Preco de venda" value={formatMoney(produto.precoVenda)} />
+        <Stat label="Preço de venda" value={formatMoney(produto.precoVenda)} />
         <Stat
           label="Margem"
           value={margem === null ? '—' : formatPercent(margem)}
@@ -209,7 +209,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         <Stat
           label="Valor em estoque"
           value={formatMoney(produto.estoque * produto.precoCusto)}
-          hint="pelo preco de custo"
+          hint="pelo preço de custo"
         />
       </div>
 
@@ -218,11 +218,11 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         <Card title="Ficha do produto">
           <dl className={styles.ficha}>
             <div>
-              <dt>Codigo interno</dt>
+              <dt>Código interno</dt>
               <dd>{produto.codigo}</dd>
             </div>
             <div>
-              <dt>Codigo de barras</dt>
+              <dt>Código de barras</dt>
               {/*
                 Sem EAN e o caso NORMAL, e nao uma pendencia: granel, produto
                 sem embalagem e etiqueta amassada usam o codigo interno. Por
@@ -255,7 +255,7 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
               <dd>{produto.cst ?? '—'}</dd>
             </div>
             <div>
-              <dt>Situacao</dt>
+              <dt>Situação</dt>
               <dd>
                 {nivel === 'esgotado' ? (
                   <Badge tone="danger">Esgotado</Badge>
@@ -312,10 +312,10 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
         </Card>
 
         {/* --- Historico --- */}
-        <Card title="Historico de estoque" className={styles.largo}>
+        <Card title="Histórico de estoque" className={styles.largo}>
           {movimentos.length === 0 ? (
             <EmptyState
-              title="Nenhuma movimentacao ainda"
+              title="Nenhuma movimentação ainda"
               description="Baixas por venda, devoluções e ajustes manuais aparecem aqui."
               mascote
             />

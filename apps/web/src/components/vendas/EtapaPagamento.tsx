@@ -256,14 +256,14 @@ export default function EtapaPagamento({
               })}
             </ul>
           ) : (
-            <p className={styles.pagamentoVazio}>Nenhum pagamento lancado ainda.</p>
+            <p className={styles.pagamentoVazio}>Nenhum pagamento lançado ainda.</p>
           )}
 
           {taxaTotal > 0 ? (
             <div className={styles.liquidoBox}>
               <span>
                 Entra em contas a receber
-                <small>ja descontada a taxa de {formatMoney(taxaTotal)}</small>
+                <small>já descontada a taxa de {formatMoney(taxaTotal)}</small>
               </span>
               <strong>{formatMoney(liquido)}</strong>
             </div>
@@ -334,7 +334,7 @@ export default function EtapaPagamento({
                 className={styles.demoBotao}
                 onClick={() => confirmarCobranca(cobrando.id)}
               >
-                Simular pagamento confirmado (demonstracao)
+                Simular pagamento confirmado (demonstração)
               </button>
             ) : null}
           </div>

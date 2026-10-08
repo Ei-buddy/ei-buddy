@@ -166,7 +166,7 @@ export default function ConciliacaoView() {
             className={fila ? styles.aba : styles.abaAtiva}
             onClick={() => trocarRecorte('reconciled')}
           >
-            Ja conciliadas
+            Já conciliadas
           </button>
         </div>
 

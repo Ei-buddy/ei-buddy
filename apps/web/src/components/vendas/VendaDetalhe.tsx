@@ -196,7 +196,7 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
       <div className="statRow">
         <Stat label="Total" value={formatMoney(venda.total)} hint={`${totalItens} item(ns)`} />
         <Stat
-          label="Valor liquido"
+          label="Valor líquido"
           value={formatMoney(valorLiquido)}
           hint="sem imposto e taxa de cartão"
           tone={estornada ? 'warning' : 'positive'}
@@ -276,7 +276,7 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
               {/* NFC-e e o unico modelo que o sistema emite hoje (NR-042). O
                   seletor NFS-e existia so nos dados de exemplo. */}
               <Badge tone="info">NFC-e</Badge>
-              <strong>Numero {notaNumero}</strong>
+              <strong>Número {notaNumero}</strong>
               {venda.notaChave !== null ? (
                 <span className={styles.notaChave}>{venda.notaChave}</span>
               ) : null}

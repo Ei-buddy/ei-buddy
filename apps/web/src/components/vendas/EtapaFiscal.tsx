@@ -227,7 +227,7 @@ export default function EtapaFiscal({
                 <strong>{formatMoney(nota.impostos.reduce((a, i) => a + i.valor, 0))}</strong>
               </li>
             </ul>
-            <p className={styles.impostosNota}>Guardados na venda para consulta e relatorio.</p>
+            <p className={styles.impostosNota}>Guardados na venda para consulta e relatório.</p>
 
             <div className={styles.notaAcoes}>
               {/* O PDF e o DANFE que o provedor devolve na autorizacao. O botao

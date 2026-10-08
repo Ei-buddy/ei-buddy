@@ -46,7 +46,7 @@ const ESPERA_DA_BUSCA_MS = 350
 
 /** Os recortes de periodo da barra, em dias para tras a partir de hoje. */
 const PERIODOS = [
-  { valor: 0, rotulo: 'Qualquer periodo' },
+  { valor: 0, rotulo: 'Qualquer período' },
   { valor: 1, rotulo: 'Hoje e ontem' },
   { valor: 7, rotulo: '7 dias' },
   { valor: 30, rotulo: '30 dias' },
@@ -220,7 +220,7 @@ export default function HistoricoVendas() {
             className={styles.select}
             value={periodo}
             onChange={(e) => mudarPeriodo(Number(e.target.value))}
-            aria-label="Periodo"
+            aria-label="Período"
           >
             {PERIODOS.map((p) => (
               <option key={p.valor} value={p.valor}>

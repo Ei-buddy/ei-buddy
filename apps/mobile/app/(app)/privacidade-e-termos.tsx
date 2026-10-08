@@ -100,7 +100,7 @@ export default function PrivacidadeETermos() {
               <Text style={estilos.meta}>
                 {carregando
                   ? ' '
-                  : `${versoes[tipo] === undefined ? '' : `Versao ${versoes[tipo]} · `}${
+                  : `${versoes[tipo] === undefined ? '' : `Versão ${versoes[tipo]} · `}${
                       estaPendente(tipo) ? 'Aceite pendente' : 'Aceito'
                     }`}
               </Text>
@@ -111,23 +111,23 @@ export default function PrivacidadeETermos() {
             style={estilos.item}
             onPress={() => void Linking.openURL(`${WEB_URL}/politica-de-cookies`)}
           >
-            <Text style={estilos.documento}>Politica de Cookies</Text>
-            <Text style={estilos.meta}>Inventario gerado do codigo</Text>
+            <Text style={estilos.documento}>Política de Cookies</Text>
+            <Text style={estilos.meta}>Inventário gerado do código</Text>
           </Pressable>
         </View>
 
         <View style={estilos.cartao}>
           <Text style={estilos.secao}>Seus direitos (LGPD art. 18)</Text>
           <Text style={estilos.texto}>
-            Voce pode pedir acesso, correcao, portabilidade e exclusao dos seus dados, alem de
-            revogar consentimentos. A exportacao completa esta no painel web, em Empresa; pedidos de
-            exclusao e revogacao passam pelo Suporte.
+            Você pode pedir acesso, correção, portabilidade e exclusão dos seus dados, além de
+            revogar consentimentos. A exportação completa está no painel web, em Empresa; pedidos de
+            exclusão e revogação passam pelo Suporte.
           </Text>
           {/* O contato do encarregado ainda nao existe (DEC-016/QST-004). Dizer
               isso em voz alta e melhor que inventar um e-mail que nao responde. */}
           <Text style={estilos.pendenteNota}>
-            Pendente: o contato do encarregado (DPO) sera publicado aqui e na Politica de
-            Privacidade assim que a revisao juridica for concluida.
+            Pendente: o contato do encarregado (DPO) será publicado aqui e na Política de
+            Privacidade assim que a revisão jurídica for concluída.
           </Text>
         </View>
       </ScrollView>
