@@ -13,6 +13,8 @@ import {
   type TipoDeConta,
 } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_PLANO_CONTAS } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
@@ -226,6 +228,8 @@ export default function PlanoDeContas() {
             ))
           )}
         </Sanfona>
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={COMANDOS_PLANO_CONTAS} />
       </ScrollView>
     </SafeAreaView>
   )

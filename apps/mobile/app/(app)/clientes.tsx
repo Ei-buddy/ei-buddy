@@ -12,6 +12,8 @@ import {
 } from 'react-native'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_CLIENTES } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import {
   linkDoWhatsApp,
@@ -192,6 +194,8 @@ export default function Clientes() {
           data={inadimplentes}
           keyExtractor={(c) => c.id}
           contentContainerStyle={estilos.lista}
+          /* Via WhatsApp, como no web — NR-165. */
+          ListFooterComponent={<ComandosWhatsApp comandos={COMANDOS_CLIENTES} />}
           renderItem={({ item }) => (
             <LinhaInadimplente cliente={item} onAbrir={() => abrir(item.id)} />
           )}
@@ -204,6 +208,8 @@ export default function Clientes() {
           data={lista}
           keyExtractor={(c) => c.id}
           contentContainerStyle={estilos.lista}
+          /* Via WhatsApp, como no web — NR-165. */
+          ListFooterComponent={<ComandosWhatsApp comandos={COMANDOS_CLIENTES} />}
           renderItem={({ item }) => <LinhaCliente cliente={item} onAbrir={() => abrir(item.id)} />}
           ListEmptyComponent={
             busca === '' && filtro === 'todos' ? (

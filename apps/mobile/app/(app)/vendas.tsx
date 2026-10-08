@@ -11,6 +11,8 @@ import {
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { compartilharComprovante } from '@/lib/comprovante-da-venda'
 import { hojeLocal } from '@/lib/periodo'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_VENDAS } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Botao from '@/components/ui/Botao'
@@ -320,6 +322,8 @@ export default function Vendas() {
             ) : null}
           </>
         )}
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={COMANDOS_VENDAS} />
       </ScrollView>
 
       {estornando !== null ? (
