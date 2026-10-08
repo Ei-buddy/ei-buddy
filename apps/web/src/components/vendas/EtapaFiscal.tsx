@@ -230,7 +230,18 @@ export default function EtapaFiscal({
             <p className={styles.impostosNota}>Guardados na venda para consulta e relatorio.</p>
 
             <div className={styles.notaAcoes}>
-              <Button variant="secondary">Baixar PDF</Button>
+              {/* O PDF e o DANFE que o provedor devolve na autorizacao. O botao
+                  existia sem acao nenhuma — NR-169. Em contingencia nao ha link. */}
+              {nota.url ? (
+                <ButtonLink
+                  href={nota.url}
+                  variant="secondary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Baixar PDF
+                </ButtonLink>
+              ) : null}
               <Button onClick={onConcluir}>Concluir venda</Button>
             </div>
           </div>

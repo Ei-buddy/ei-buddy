@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
+  estadoDaNota,
   FORMAS,
   listarHistoricoDeVendas,
   type ResumoDoHistorico,
@@ -40,6 +41,18 @@ function inicioDoPeriodo(periodo: Periodo): string | undefined {
   const d = new Date()
   d.setDate(d.getDate() - dias)
   return hojeLocal(d)
+}
+
+/** Abre o DANFE da venda — o link vem da consulta da nota (NR-169). */
+async function abrirPdfDaNota(vendaId: string) {
+  const nota = await estadoDaNota(vendaId)
+  if (nota?.status === 'authorized' && nota.danfeUrl) {
+    await Linking.openURL(nota.danfeUrl).catch(() =>
+      Alert.alert('Nota fiscal', 'Não deu para abrir o PDF da nota.'),
+    )
+    return
+  }
+  Alert.alert('Nota fiscal', 'O PDF desta nota ainda não está disponível.')
 }
 
 /**
@@ -289,6 +302,10 @@ export default function Vendas() {
                         })
                       }
                     />
+                    {/* O PDF da nota (DANFE), como o "Baixar PDF" do web — NR-169. */}
+                    {v.nota !== null ? (
+                      <Acao rotulo="PDF da nota" onPress={() => void abrirPdfDaNota(v.id)} />
+                    ) : null}
                   </View>
 
                   {!estornada ? (
