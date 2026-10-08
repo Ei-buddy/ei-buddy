@@ -298,6 +298,7 @@ const estilos = criarEstilos(() => ({
   comentar: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   comentarCampo: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     paddingHorizontal: espaco.md,
     borderWidth: 1,

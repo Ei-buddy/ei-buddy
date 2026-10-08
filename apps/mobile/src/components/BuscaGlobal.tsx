@@ -170,6 +170,7 @@ const estilos = criarEstilos(() => ({
   campo: {
     ...vidro.campo,
     flex: 1,
+    minWidth: 0,
     minHeight: 48,
     paddingHorizontal: espaco.md,
     borderRadius: raio.sm,

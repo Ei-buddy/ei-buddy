@@ -349,6 +349,9 @@ const estilos = criarEstilos(() => ({
   },
   entradaCampo: {
     flex: 1,
+    /* Sem isto o campo nao encolhe abaixo da largura propria e empurra o
+       botao de enviar para fora da tela (NR-177). */
+    minWidth: 0,
     maxHeight: 110,
     minHeight: 46,
     paddingHorizontal: espaco.lg,

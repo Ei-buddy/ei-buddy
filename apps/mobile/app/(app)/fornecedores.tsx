@@ -195,6 +195,7 @@ const estilos = criarEstilos(() => ({
   busca: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   campo: {
     flex: 1,
+    minWidth: 0,
     minHeight: 48,
     paddingHorizontal: espaco.lg,
     borderWidth: 1,

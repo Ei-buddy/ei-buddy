@@ -820,6 +820,7 @@ const estilos = criarEstilos(() => ({
   metaInput: {
     ...vidro.campo,
     flex: 1,
+    minWidth: 0,
     minHeight: 48,
     paddingHorizontal: espaco.md,
     borderRadius: raio.sm,

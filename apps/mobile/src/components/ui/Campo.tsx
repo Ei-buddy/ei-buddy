@@ -97,6 +97,7 @@ const estilos = criarEstilos(() => ({
   caixaErro: { borderColor: cores.erro },
   input: {
     flex: 1,
+    minWidth: 0,
     fontSize: fonte.corpo,
     color: cores.texto,
     /* Sem padding vertical: a altura vem do container, senao Android e
