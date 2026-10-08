@@ -107,17 +107,17 @@ export async function sendCustomerCharge(
 
   if (cliente.phone === null || cliente.phone === '') {
     throw AppError.validation(
-      'Este cliente nao tem telefone cadastrado. Inclua o numero no cadastro para enviar a cobranca.',
+      'Este cliente não tem telefone cadastrado. Inclua o número no cadastro para enviar a cobrança.',
     )
   }
 
   const consentimento = await deps.consents.of(ctx.companyId, cliente.id)
   if (consentimento.optedOutAt !== null) {
-    throw AppError.forbidden('Este cliente pediu para nao receber mensagens. Nada foi enviado.')
+    throw AppError.forbidden('Este cliente pediu para não receber mensagens. Nada foi enviado.')
   }
   if (consentimento.optedInAt === null) {
     throw AppError.forbidden(
-      'Este cliente ainda nao autorizou mensagens. Peca o aceite dele no aplicativo antes de cobrar por aqui.',
+      'Este cliente ainda não autorizou mensagens. Peça o aceite dele no aplicativo antes de cobrar por aqui.',
     )
   }
 
@@ -245,14 +245,14 @@ async function resolverCliente(
   if (input.customerId !== undefined) {
     const achado = await customers.findById(ctx.companyId, input.customerId)
     if (achado === undefined) {
-      throw AppError.notFound('Nao encontramos esse cliente.')
+      throw AppError.notFound('Não encontramos esse cliente.')
     }
     return { id: achado.id, name: achado.name, phone: achado.phone }
   }
 
   const parecidos = await customers.findSimilar(ctx.companyId, { phone: input.phone })
   if (parecidos.length === 0) {
-    throw AppError.notFound('Nao encontramos cliente com esse telefone.')
+    throw AppError.notFound('Não encontramos cliente com esse telefone.')
   }
   if (parecidos.length > 1) {
     throw AppError.validation(
@@ -262,7 +262,7 @@ async function resolverCliente(
   }
   const unico = parecidos[0]
   if (unico === undefined) {
-    throw AppError.notFound('Nao encontramos cliente com esse telefone.')
+    throw AppError.notFound('Não encontramos cliente com esse telefone.')
   }
   return { id: unico.id, name: unico.name, phone: unico.phone }
 }
@@ -304,7 +304,7 @@ function montarPedido(input: {
   const parsed = sendTextRequestSchema.safeParse(bruto)
   if (!parsed.success) {
     throw AppError.validation(
-      'Nao deu para montar o envio. Confira o telefone do cliente e tente de novo.',
+      'Não deu para montar o envio. Confira o telefone do cliente e tente de novo.',
     )
   }
   return parsed.data

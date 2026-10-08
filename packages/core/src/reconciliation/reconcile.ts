@@ -50,14 +50,14 @@ export async function reconcile(
 
   await deps.uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
-    if (transacao === undefined) throw AppError.notFound('Transacao nao encontrada.')
+    if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
 
     if (transacao.reconciledEntryId !== null) {
-      throw AppError.conflict('Esta transacao ja esta conciliada. Desfaca antes de casar de novo.')
+      throw AppError.conflict('Esta transação já está conciliada. Desfaça antes de casar de novo.')
     }
 
     const lancamento = await tx.findEntry(ctx.companyId, input.entryKind, input.entryId)
-    if (lancamento === undefined) throw AppError.notFound('Lancamento nao encontrado.')
+    if (lancamento === undefined) throw AppError.notFound('Lançamento não encontrado.')
 
     conferePodeCasar(transacao, lancamento, input.entryKind)
 
@@ -72,7 +72,7 @@ export async function reconcile(
     /* A leitura acima disse que estava livre, e entre ela e o `link` outra aba
        pode ter conciliado a mesma transacao. Quem decide e a escrita. */
     if (!casou) {
-      throw AppError.conflict('Esta transacao acabou de ser conciliada. Recarregue a tela.')
+      throw AppError.conflict('Esta transação acabou de ser conciliada. Recarregue a tela.')
     }
 
     await registra(tx, ctx, transacao, input.entryKind, lancamento.id, 'updated', {
@@ -104,10 +104,10 @@ export async function createEntryFromTransaction(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
-    if (transacao === undefined) throw AppError.notFound('Transacao nao encontrada.')
+    if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
 
     if (transacao.reconciledEntryId !== null) {
-      throw AppError.conflict('Esta transacao ja esta conciliada.')
+      throw AppError.conflict('Esta transação já está conciliada.')
     }
 
     const entryKind = tipoQueCasaCom(transacao.direction)
@@ -131,7 +131,7 @@ export async function createEntryFromTransaction(
        dentro — lancamento orfao no meio das contas do lojista seria pior que a
        falha. */
     if (!casou) {
-      throw AppError.conflict('Esta transacao acabou de ser conciliada. Recarregue a tela.')
+      throw AppError.conflict('Esta transação acabou de ser conciliada. Recarregue a tela.')
     }
 
     await registra(tx, ctx, transacao, entryKind, criado.id, 'created', {
@@ -167,10 +167,10 @@ export async function undoReconciliation(
 
   await deps.uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
-    if (transacao === undefined) throw AppError.notFound('Transacao nao encontrada.')
+    if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
 
     if (transacao.reconciledEntryId === null) {
-      throw AppError.conflict('Esta transacao nao esta conciliada.')
+      throw AppError.conflict('Esta transação não está conciliada.')
     }
 
     await tx.unlink(ctx.companyId, transacao.id)
@@ -202,17 +202,17 @@ function conferePodeCasar(
   if (tipoQueCasaCom(transacao.direction) !== entryKind) {
     throw AppError.validation(
       transacao.direction === 'debit'
-        ? 'Uma saida do banco so casa com conta a pagar.'
-        : 'Uma entrada no banco so casa com titulo a receber.',
+        ? 'Uma saída do banco só casa com conta a pagar.'
+        : 'Uma entrada no banco só casa com título a receber.',
     )
   }
 
   if (lancamento.reconciled) {
-    throw AppError.conflict('Este lancamento ja esta conciliado com outra transacao.')
+    throw AppError.conflict('Este lançamento já está conciliado com outra transação.')
   }
 
   if (lancamento.status === 'cancelled') {
-    throw AppError.conflict('Este lancamento esta cancelado e nao corresponde a nada no banco.')
+    throw AppError.conflict('Este lançamento está cancelado e não corresponde a nada no banco.')
   }
 
   const esperado = lancamento.netAmountCents ?? lancamento.amountCents
@@ -222,8 +222,8 @@ function conferePodeCasar(
        diferenca para descobrir o que ela e: R$ 2,50 e taxa, R$ 200 e outra
        conta. */
     throw AppError.validation(
-      `O banco mostra ${reais(transacao.amountCents)} e o lancamento e de ${reais(esperado)}. ` +
-        'Confira se e o titulo certo, ou lance a diferenca antes de conciliar.',
+      `O banco mostra ${reais(transacao.amountCents)} e o lançamento é de ${reais(esperado)}. ` +
+        'Confira se é o título certo, ou lance a diferença antes de conciliar.',
     )
   }
 }

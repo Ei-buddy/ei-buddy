@@ -73,7 +73,7 @@ export async function getSale(
   const venda = await deps.history.findById(ctx.companyId, saleId)
 
   if (venda === undefined) {
-    throw AppError.notFound('Venda nao encontrada.')
+    throw AppError.notFound('Venda não encontrada.')
   }
 
   return { ...venda, items: [...venda.items], payments: [...venda.payments] }

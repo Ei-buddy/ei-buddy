@@ -48,7 +48,7 @@ export async function createBankAccount(
     createdAt: ctx.now,
   })
   if (conta === undefined) {
-    throw AppError.conflict('Ja existe uma conta com este nome.')
+    throw AppError.conflict('Já existe uma conta com este nome.')
   }
 
   await deps.audit.record({
@@ -78,7 +78,7 @@ export async function deleteBankAccount(
   assertCanWrite(ctx)
 
   const conta = await deps.bankAccounts.findById(ctx.companyId, id)
-  if (conta === undefined) throw AppError.notFound('Conta nao encontrada.')
+  if (conta === undefined) throw AppError.notFound('Conta não encontrada.')
 
   await deps.bankAccounts.remove(ctx.companyId, id)
 
@@ -111,7 +111,7 @@ export async function updateBankAccount(
   assertCanWrite(ctx)
 
   const antes = await deps.bankAccounts.findById(ctx.companyId, id)
-  if (antes === undefined) throw AppError.notFound('Conta nao encontrada.')
+  if (antes === undefined) throw AppError.notFound('Conta não encontrada.')
 
   const depois = await deps.bankAccounts.update(ctx.companyId, id, {
     name: input.name,
@@ -121,7 +121,7 @@ export async function updateBankAccount(
     openingBalanceCents: input.openingBalanceCents,
     openingDate: input.openingDate,
   })
-  if (depois === 'nome_em_uso') throw AppError.conflict('Ja existe uma conta com este nome.')
+  if (depois === 'nome_em_uso') throw AppError.conflict('Já existe uma conta com este nome.')
 
   await deps.audit.record({
     companyId: ctx.companyId,

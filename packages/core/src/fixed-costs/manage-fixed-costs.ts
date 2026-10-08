@@ -65,7 +65,7 @@ export async function updateFixedCost(
   assertCanWrite(ctx)
 
   const atual = await deps.fixedCosts.findById(ctx.companyId, id)
-  if (atual === undefined) throw AppError.notFound('Custo fixo nao encontrado.')
+  if (atual === undefined) throw AppError.notFound('Custo fixo não encontrado.')
 
   const custo = await deps.fixedCosts.update(ctx.companyId, id, {
     name: input.name,
@@ -104,7 +104,7 @@ export async function deleteFixedCost(
   assertCanWrite(ctx)
 
   const custo = await deps.fixedCosts.findById(ctx.companyId, id)
-  if (custo === undefined) throw AppError.notFound('Custo fixo nao encontrado.')
+  if (custo === undefined) throw AppError.notFound('Custo fixo não encontrado.')
 
   await deps.fixedCosts.remove(ctx.companyId, id)
 

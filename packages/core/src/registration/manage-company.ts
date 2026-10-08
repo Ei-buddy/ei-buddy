@@ -39,7 +39,7 @@ export async function getCompany(
      * responder 404 e melhor que devolver um cadastro em branco que a tela
      * salvaria por cima.
      */
-    throw AppError.notFound('Empresa nao encontrada.')
+    throw AppError.notFound('Empresa não encontrada.')
   }
 
   return empresa

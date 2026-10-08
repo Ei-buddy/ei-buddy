@@ -40,7 +40,7 @@ export async function checkStock(
   const produto = await deps.products.findById(ctx.companyId, input.productId)
 
   if (produto === undefined) {
-    throw AppError.notFound('Produto nao encontrado.')
+    throw AppError.notFound('Produto não encontrado.')
   }
 
   return {

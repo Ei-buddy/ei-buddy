@@ -54,7 +54,7 @@ export async function registerCompany(
    */
   if (await deps.companies.cnpjTaken(input.cnpj)) {
     throw AppError.conflict(
-      'Este CNPJ ja tem cadastro. Se a empresa e sua, peca acesso a quem administra a conta.',
+      'Este CNPJ já tem cadastro. Se a empresa é sua, peça acesso a quem administra a conta.',
     )
   }
 

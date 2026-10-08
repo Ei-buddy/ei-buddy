@@ -101,7 +101,7 @@ export class InMemoryPartnerApplicationRepository implements PartnerApplicationR
     note: string | undefined
   }): Promise<void> {
     const registro = this.registros.find((r) => r.partnerId === input.partnerId)
-    if (registro === undefined) throw AppError.notFound('Candidatura nao encontrada.')
+    if (registro === undefined) throw AppError.notFound('Candidatura não encontrada.')
     if (registro.status !== 'pending') throw new Error('Esta candidatura ja foi revisada.')
 
     registro.status = input.decision === 'approve' ? 'active' : 'rejected'

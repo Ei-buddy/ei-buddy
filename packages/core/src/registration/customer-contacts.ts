@@ -55,7 +55,7 @@ export async function addCustomerContact(
    * ids, que aquele cliente existe em alguma outra loja.
    */
   if (gravado === undefined) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   return gravado

@@ -22,13 +22,13 @@ async function tituloMutavel(
   id: string,
 ): Promise<PayableOutput> {
   const titulo = await tx.findById(ctx.companyId, id)
-  if (titulo === null) throw AppError.notFound('Conta a pagar nao encontrada.')
+  if (titulo === null) throw AppError.notFound('Conta a pagar não encontrada.')
   if (titulo.status === 'cancelled') {
-    throw AppError.conflict('Esta conta ja foi cancelada.')
+    throw AppError.conflict('Esta conta já foi cancelada.')
   }
   if (titulo.settledAmountCents > 0) {
     throw AppError.conflict(
-      'Esta conta ja tem pagamento registrado. Estorne a baixa antes de corrigir ou cancelar.',
+      'Esta conta já tem pagamento registrado. Estorne a baixa antes de corrigir ou cancelar.',
     )
   }
   return titulo

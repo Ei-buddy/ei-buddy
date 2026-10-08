@@ -91,7 +91,7 @@ function traduzirErroDeEscrita(erro: unknown): never {
         throw AppError.conflict('Esta empresa ja tem uma candidatura de Parceiro.')
       }
       if (erro.constraint_name === 'coupons_code_unique') {
-        throw AppError.conflict('Este nome de cupom ja esta em uso. Escolha outro.')
+        throw AppError.conflict('Este nome de cupom já está em uso. Escolha outro.')
       }
     }
 

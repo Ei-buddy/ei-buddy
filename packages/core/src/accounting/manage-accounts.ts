@@ -27,7 +27,7 @@ export async function createAccount(
      linhas de aluguel, e o lojista conclui que pagou duas vezes. */
   const existente = await deps.accounts.findByName(ctx.companyId, input.name)
   if (existente !== undefined) {
-    throw AppError.conflict(`Ja existe uma conta chamada "${input.name}".`)
+    throw AppError.conflict(`Já existe uma conta chamada "${input.name}".`)
   }
 
   const conta = await deps.accounts.insert({
@@ -63,11 +63,11 @@ export async function renameAccount(
   assertCanWrite(ctx)
 
   const atual = await deps.accounts.findById(ctx.companyId, input.accountId)
-  if (atual === undefined) throw AppError.notFound('Conta nao encontrada.')
+  if (atual === undefined) throw AppError.notFound('Conta não encontrada.')
 
   const colisao = await deps.accounts.findByName(ctx.companyId, input.name)
   if (colisao !== undefined && colisao.id !== atual.id) {
-    throw AppError.conflict(`Ja existe uma conta chamada "${input.name}".`)
+    throw AppError.conflict(`Já existe uma conta chamada "${input.name}".`)
   }
 
   /*
@@ -108,11 +108,11 @@ export async function deleteAccount(
   assertCanWrite(ctx)
 
   const conta = await deps.accounts.findById(ctx.companyId, input.accountId)
-  if (conta === undefined) throw AppError.notFound('Conta nao encontrada.')
+  if (conta === undefined) throw AppError.notFound('Conta não encontrada.')
 
   if (conta.isDefault) {
     throw AppError.conflict(
-      'Conta do plano padrao nao pode ser apagada. Se nao usa, deixe-a sem lancamento.',
+      'Conta do plano padrão não pode ser apagada. Se não usa, deixe-a sem lançamento.',
     )
   }
 
@@ -121,7 +121,7 @@ export async function deleteAccount(
     /* O numero na mensagem: "esta conta tem 42 lancamentos" diz que ele vai
        mexer em coisa seria; "esta conta esta em uso" nao diz nada. */
     throw AppError.conflict(
-      `Esta conta tem ${lancamentos} lancamento(s) e nao pode ser apagada. ` +
+      `Esta conta tem ${lancamentos} lançamento(s) e não pode ser apagada. ` +
         'Reclassifique-os antes, ou renomeie a conta.',
     )
   }

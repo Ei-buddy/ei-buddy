@@ -124,7 +124,7 @@ describe('cancelSale — RF-043 / US-021', () => {
   it('recusa segunda passagem, para o estoque nao voltar duas vezes', async () => {
     const { uow, feito } = mundo(venda({ status: 'cancelled' }))
 
-    await expect(cancelSale({ uow }, ctx, pedido)).rejects.toThrow(/ja foi cancelada/i)
+    await expect(cancelSale({ uow }, ctx, pedido)).rejects.toThrow(/já foi cancelada/i)
     expect(feito.estoqueDevolvido).toEqual([])
   })
 

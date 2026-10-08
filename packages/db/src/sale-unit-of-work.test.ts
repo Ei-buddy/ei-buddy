@@ -311,7 +311,7 @@ describe.skipIf(!DATABASE_URL)('registerSale sobre o banco — NR-022, NR-027', 
         items: [{ productId: alheio, quantity: 1, unitPriceCents: 500 }],
         payments: [{ method: 'cash', amountCents: 500 }],
       }),
-    ).rejects.toThrow(/nao foi encontrado/i)
+    ).rejects.toThrow(/não foi encontrado/i)
   })
 
   async function saldo(): Promise<number> {

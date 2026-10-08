@@ -139,6 +139,7 @@ NR-176 — App: botões do cabeçalho compactos (título não corta) e comandos 
 "NR-178 — Assistente do app com os dados da loja (era mock-data), igual ao web; ações abrem a tela",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,2,Sprint 6,,,mobile,RF-108,docs/processo/task-ledger.md
 NR-179 — Assistente (web e app): respostas com acentuação correta,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,—,docs/processo/task-ledger.md
 "NR-180 — Acentuação dos textos de tela no web e no app (produto, PDV, financeiro, privacidade)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,—,docs/processo/task-ledger.md
+NR-181 — Mensagens de erro da api com acentuação correta (aparecem no web e no app),Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,core api,—,docs/processo/task-ledger.md
 NR-174 — Comentário da importação de clientes alinhado ao comportamento real,Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web,—,docs/processo/task-ledger.md
 "NR-173 — Testes de unidade do app: busca global, sino de avisos e gráfico da semana",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,mobile,—,docs/processo/task-ledger.md
 "NR-172 — Orçamento convertido mostra ""Ver venda #N"" no web e no app (número da venda na resposta do orçamento)",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,contracts core db web mobile,—,docs/processo/task-ledger.md

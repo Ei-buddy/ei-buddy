@@ -83,7 +83,7 @@ export async function registerSale(
    */
   if (input.surchargeRate !== undefined && input.surchargeRate > 0) {
     throw AppError.validation(
-      'Acrescimo na venda ainda nao esta disponivel. Registre a venda sem acrescimo.',
+      'Acréscimo na venda ainda não está disponível. Registre a venda sem acréscimo.',
       [{ path: 'surchargeRate', message: 'Acrescimo indisponivel nesta versao.' }],
     )
   }
@@ -129,8 +129,8 @@ export async function registerSale(
        */
       throw AppError.notFound(
         ausentes.length === 1
-          ? 'Um dos produtos da venda nao foi encontrado ou esta inativo. Refaca o carrinho.'
-          : `${ausentes.length} produtos da venda nao foram encontrados ou estao inativos. ` +
+          ? 'Um dos produtos da venda não foi encontrado ou está inativo. Refaça o carrinho.'
+          : `${ausentes.length} produtos da venda não foram encontrados ou estão inativos. ` +
               'Refaca o carrinho.',
       )
     }
@@ -268,7 +268,7 @@ export async function registerSale(
          transacao inteira: venda, itens e recebiveis somem com ela. */
       const fiado = await tx.chargeCustomerWallet(input.customerId, dividaNova)
       if (fiado.outcome === 'customer_not_found') {
-        throw AppError.notFound('Cliente da venda nao encontrado. Escolha o cliente de novo.')
+        throw AppError.notFound('Cliente da venda não encontrado. Escolha o cliente de novo.')
       }
       if (fiado.outcome === 'over_limit') {
         throw AppError.validation(

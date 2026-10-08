@@ -82,7 +82,7 @@ export async function loadProfile(deps: ProfileDeps, claims: SessionClaims): Pro
      * nao vale mais" — e a tela precisa mandar a pessoa para o login, nao
      * mostrar um erro que ela nao pode resolver.
      */
-    throw AppError.unauthorized('Sua sessao nao vale mais. Entre de novo.')
+    throw AppError.unauthorized('Sua sessão não vale mais. Entre de novo.')
   }
 
   const vinculos = await deps.users.listMemberships(usuario.id)

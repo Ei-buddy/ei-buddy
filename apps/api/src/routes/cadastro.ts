@@ -600,13 +600,13 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     if (produto === undefined) {
       /* O balcao precisa distinguir "nao existe" de "existe e esta zerado" —
          a segunda e cadastro feito, a primeira e cadastro a fazer. */
-      throw AppError.notFound('Produto nao encontrado para este codigo de barras.')
+      throw AppError.notFound('Produto não encontrado para este código de barras.')
     }
 
     /* Inativo existe, mas nao se vende — NR-151. Conflito, e nao 404: o
        balcao nao deve oferecer "cadastrar" para um codigo que ja e da loja. */
     if (!produto.isActive) {
-      throw AppError.conflict('Este produto esta inativo. Reative-o no cadastro para vender.')
+      throw AppError.conflict('Este produto está inativo. Reative-o no cadastro para vender.')
     }
 
     return reply.code(200).send(produto)

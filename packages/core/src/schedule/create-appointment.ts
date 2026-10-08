@@ -38,7 +38,7 @@ export async function createAppointment(
     const fireAt = reminderFireAt(startsAt, input.reminderMinutesBefore)
     if (fireAt.getTime() <= ctx.now.getTime()) {
       throw AppError.validation(
-        'O lembrete cairia no passado. Escolha uma antecedencia menor ou outro horario.',
+        'O lembrete cairia no passado. Escolha uma antecedência menor ou outro horário.',
         [{ path: 'reminderMinutesBefore', message: 'Antecedencia maior que o tempo restante.' }],
       )
     }

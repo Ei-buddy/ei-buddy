@@ -13,7 +13,7 @@ export async function classifyEntry(
   assertCanWrite(ctx)
 
   const conta = await deps.accounts.findById(ctx.companyId, input.accountId)
-  if (conta === undefined) throw AppError.notFound('Conta nao encontrada.')
+  if (conta === undefined) throw AppError.notFound('Conta não encontrada.')
 
   await deps.accounts.classify(ctx.companyId, input.entryKind, input.entryId, input.accountId)
 
