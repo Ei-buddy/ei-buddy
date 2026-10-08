@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -18,6 +18,7 @@ import {
 import { listarCatalogo, type ProdutoDoCatalogo } from '@/lib/produtos-api'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const reais = (cents: number) => formatMoney(cents / 100)
 
@@ -281,7 +282,7 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   form: { gap: espaco.md },
@@ -323,4 +324,4 @@ const estilos = StyleSheet.create({
   },
   parcelaAtiva: { borderColor: cores.acento, backgroundColor: cores.campo },
   parcelaTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
-})
+}))

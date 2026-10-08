@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import Botao from '@/components/ui/Botao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Confirmacao do proprio app, no lugar do `Alert.alert` com botoes.
@@ -60,12 +61,12 @@ export default function ConfirmarModal({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   fundo: {
     flex: 1,
     justifyContent: 'center',
     padding: espaco.xl,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: cores.veu,
   },
   caixa: {
     ...vidro.painel,
@@ -77,4 +78,4 @@ const estilos = StyleSheet.create({
   mensagem: { fontSize: fonte.corpo, lineHeight: 22, color: cores.textoFraco },
   acoes: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm },
   flex: { flex: 1 },
-})
+}))

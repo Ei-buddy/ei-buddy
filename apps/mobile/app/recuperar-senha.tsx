@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { recuperarSenha } from '@/lib/auth-api'
 import { validateEmail } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Esqueci a senha — a mesma rota do web. O link chega por e-mail e abre a
@@ -77,9 +78,9 @@ export default function RecuperarSenha() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { flexGrow: 1, justifyContent: 'center', padding: espaco.xl, gap: espaco.lg },
   titulo: { fontSize: fonte.display, fontWeight: peso.pesado, color: cores.texto },
   texto: { fontSize: fonte.corpo, color: cores.textoFraco, lineHeight: 22 },
-})
+}))

@@ -5,7 +5,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -18,6 +17,7 @@ import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * As folhas do PDV no celular: escolher cliente, achar produto pelo nome e
@@ -304,13 +304,13 @@ export function DescontoModal({
   )
 }
 
-const estilos = StyleSheet.create({
-  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
+const estilos = criarEstilos(() => ({
+  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: cores.veu },
   foraDaFolha: { flex: 1 },
   folha: {
     ...vidro.painel,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopColor: cores.borda,
     maxHeight: '88%',
     paddingTop: espaco.lg,
     borderTopLeftRadius: raio.lg,
@@ -363,4 +363,4 @@ const estilos = StyleSheet.create({
   opcaoTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
   opcaoTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
   acoes: { flexDirection: 'row', gap: espaco.md },
-})
+}))

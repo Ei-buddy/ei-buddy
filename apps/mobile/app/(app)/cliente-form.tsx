@@ -1,14 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -32,6 +24,7 @@ import {
   validateEmail,
 } from '@/lib/validation'
 import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const ENDERECO_VAZIO: EnderecoDoCliente = {
   cep: '',
@@ -350,7 +343,7 @@ export default function ClienteFormScreen() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
@@ -373,4 +366,4 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.atencaoFundo,
   },
   duplicadosTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.atencao },
-})
+}))

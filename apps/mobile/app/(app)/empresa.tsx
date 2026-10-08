@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text } from 'react-native'
+import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { buscarCep, carregarEmpresa, salvarEmpresa, type DadosEmpresa } from '@/lib/empresa-api'
 import { maskCelular, maskCEP, maskCNPJ } from '@/lib/validation'
@@ -11,6 +11,7 @@ import Sanfona from '@/components/ui/Sanfona'
 import Campo from '@/components/ui/Campo'
 import Botao from '@/components/ui/Botao'
 import { cores, espaco, fonte } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Dados da empresa.
@@ -210,9 +211,9 @@ export default function Empresa() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   carregando: { marginTop: espaco.xl },
   erroAoCarregar: { padding: espaco.lg, fontSize: fonte.corpo, color: cores.texto },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
-})
+}))

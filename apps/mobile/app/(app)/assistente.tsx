@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -22,6 +21,7 @@ import {
 import { COMANDOS_DESTAQUE } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const HOJE = '2026-08-24'
 
@@ -242,7 +242,7 @@ function Bloco({ bloco }: { bloco: BlocoResposta }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
 
@@ -371,4 +371,4 @@ const estilos = StyleSheet.create({
   },
   enviarInativo: { opacity: 0.4 },
   enviarTexto: { fontSize: 20, color: cores.textoSobreAtivo, fontWeight: peso.pesado },
-})
+}))

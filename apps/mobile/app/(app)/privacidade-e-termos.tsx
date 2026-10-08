@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -14,6 +14,7 @@ import {
   type TipoDeDocumento,
 } from '@/lib/legal-api'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Privacidade e Termos — RF-01, RF-03, RF-05.
@@ -134,7 +135,7 @@ export default function PrivacidadeETermos() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -178,4 +179,4 @@ const estilos = StyleSheet.create({
     color: cores.textoFraco,
     lineHeight: 20,
   },
-})
+}))

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AA_NORMAL_TEXT, contrastRatio, flatten } from '@na-regua/ui'
 import { describe, expect, it } from 'vitest'
-import { cores } from './tokens.js'
+import { paletas, type Tema } from './tokens.js'
 
 /**
  * RNF-055 no app mobile.
@@ -44,8 +44,8 @@ const RAIZ_DO_APP = join(AQUI, '..', '..')
  */
 const INSEGURAS_COMO_TEXTO = ['primaria', 'primariaEscura', 'destaque', 'borda'] as const
 
-/** As superficies sobre as quais texto aparece no app. */
-const SUPERFICIES: ReadonlyArray<readonly [string, string]> = [
+/** As superficies sobre as quais texto aparece no app, nos DOIS temas (NR-167). */
+const superficiesDe = (cores: (typeof paletas)[Tema]): ReadonlyArray<readonly [string, string]> => [
   ['tela', cores.fundo],
   /* Vidro desde a NR-160: translucido, entao mede-se ja pousado no fundo. */
   ['cartao', flatten(cores.superficie, cores.fundo)],
@@ -53,6 +53,8 @@ const SUPERFICIES: ReadonlyArray<readonly [string, string]> = [
   ['campo', flatten(cores.campo, flatten(cores.superficie, cores.fundo))],
   ['painel', cores.painel],
 ]
+
+const TEMAS = ['escuro', 'claro'] as const
 
 function arquivosDeTela(pasta: string, achados: string[] = []): string[] {
   for (const nome of readdirSync(pasta)) {
@@ -105,47 +107,57 @@ describe('nenhuma tela usa como texto uma cor que nao da contraste', () => {
   })
 })
 
-describe('as cores que o app usa como texto atendem ao AA', () => {
-  /*
-   * A outra ponta: as que SAO usadas como texto passam sobre toda superficie.
-   * Junto com a varredura acima, as duas fecham o cerco — uma proibe o que nao
-   * serve, a outra confirma o que serve.
-   */
-  const usadasComoTexto: ReadonlyArray<readonly [string, string]> = [
-    ['texto', cores.texto],
-    ['textoFraco', cores.textoFraco],
-    ['acento', cores.acento],
-    ['erro', cores.erro],
-    ['atencao', cores.atencao],
-    ['sucesso', cores.sucesso],
-  ]
+describe.each(TEMAS)('tema %s', (tema) => {
+  const cores = paletas[tema]
 
-  for (const [nome, cor] of usadasComoTexto) {
-    it.each(SUPERFICIES)(`${nome} sobre %s`, (_onde, fundo) => {
-      expect(contrastRatio(cor, fundo)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+  describe('as cores que o app usa como texto atendem ao AA', () => {
+    const usadasComoTexto: ReadonlyArray<readonly [string, string]> = [
+      ['texto', cores.texto],
+      ['textoFraco', cores.textoFraco],
+      ['acento', cores.acento],
+      ['erro', cores.erro],
+      ['atencao', cores.atencao],
+      ['sucesso', cores.sucesso],
+    ]
+
+    for (const [nome, cor] of usadasComoTexto) {
+      it.each(superficiesDe(cores))(`${nome} sobre %s`, (_onde, fundo) => {
+        expect(contrastRatio(cor, fundo)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+      })
+    }
+  })
+
+  describe('texto sobre fundo colorido', () => {
+    it('o texto sobre o acento serve sobre ele', () => {
+      expect(contrastRatio(cores.textoSobreAcento, cores.acento)).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
     })
-  }
+
+    it('o texto sobre o ativo azul serve sobre ele', () => {
+      expect(contrastRatio(cores.textoSobreAtivo, cores.ativo)).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
+    })
+  })
 })
 
-describe('texto sobre fundo colorido', () => {
+describe('a primaria nao e fundo para o texto quase preto do acento escuro', () => {
   /*
-   * `textoSobreAcento` e quase preto e existe para o `acento`, que e claro. Sob
-   * `primaria` ele da 1,12:1 — foi esse par que deixou o atalho principal e as
-   * abas ativas ilegiveis, em tres telas, porque elas divergiram do `Botao` do
-   * design system e escolheram o fundo errado.
+   * `textoSobreAcento` do escuro e quase preto e existe para o `acento`, que e
+   * claro. Sob `primaria` ele da 1,12:1 — foi esse par que deixou o atalho
+   * principal e as abas ativas ilegiveis, em tres telas.
    */
-  it('serve sobre o acento, que e onde ele e usado', () => {
-    expect(contrastRatio(cores.textoSobreAcento, cores.acento)).toBeGreaterThanOrEqual(
+  it('NAO serve sobre a primaria — o par que quebrou tres telas', () => {
+    expect(contrastRatio(paletas.escuro.textoSobreAcento, paletas.escuro.primaria)).toBeLessThan(
       AA_NORMAL_TEXT,
     )
   })
 
-  it('NAO serve sobre a primaria — o par que quebrou tres telas', () => {
-    expect(contrastRatio(cores.textoSobreAcento, cores.primaria)).toBeLessThan(AA_NORMAL_TEXT)
-  })
-
   /* `primaria` como fundo e legitima sob texto CLARO: e o avatar do cliente. */
   it('a primaria como fundo aceita texto claro', () => {
-    expect(contrastRatio(cores.texto, cores.primaria)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    expect(contrastRatio(paletas.escuro.texto, paletas.escuro.primaria)).toBeGreaterThanOrEqual(
+      AA_NORMAL_TEXT,
+    )
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import {
   type Baixa,
   estornarBaixa,
@@ -12,6 +12,7 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { Vazio } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O motivo e obrigatorio no servidor, e o minimo la sao 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -240,14 +241,14 @@ export default function EstornoModal({
   )
 }
 
-const estilos = StyleSheet.create({
-  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
+const estilos = criarEstilos(() => ({
+  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: cores.veu },
   foraDaFolha: { flex: 1 },
 
   folha: {
     ...vidro.painel,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopColor: cores.borda,
     maxHeight: '88%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
@@ -295,4 +296,4 @@ const estilos = StyleSheet.create({
   },
 
   acoes: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm },
-})
+}))

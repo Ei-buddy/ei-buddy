@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   apagarConta,
@@ -22,6 +22,7 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { CustosFixos, CustosVariaveis } from '@/components/CustosSecoes'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const TIPOS: TipoDeConta[] = ['expense', 'cost', 'revenue', 'deduction']
 
@@ -235,7 +236,7 @@ export default function PlanoDeContas() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -271,4 +272,4 @@ const estilos = StyleSheet.create({
   tipoAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   tipoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   tipoTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

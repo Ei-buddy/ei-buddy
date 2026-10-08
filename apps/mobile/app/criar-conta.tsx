@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -24,6 +23,7 @@ import {
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type TipoDeChave = 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP'
 
@@ -305,7 +305,7 @@ export default function CriarConta() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.xl, gap: espaco.md, paddingBottom: espaco.xxl },
   titulo: { fontSize: fonte.display, fontWeight: peso.pesado, color: cores.texto },
@@ -346,4 +346,4 @@ const estilos = StyleSheet.create({
   chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

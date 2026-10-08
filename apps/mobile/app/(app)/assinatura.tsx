@@ -1,9 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import { Vazio } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * O plano — o MESMO do site (`apps/web/src/content/site.ts`). Repetido aqui
@@ -76,7 +77,7 @@ export default function Assinatura() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -104,4 +105,4 @@ const estilos = StyleSheet.create({
   beneficio: { flexDirection: 'row', gap: espaco.sm, alignItems: 'flex-start' },
   beneficioMarca: { fontSize: fonte.pequeno, color: cores.acento, fontWeight: peso.pesado },
   beneficioTexto: { flex: 1, fontSize: fonte.micro, lineHeight: 19, color: cores.texto },
-})
+}))

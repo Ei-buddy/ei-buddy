@@ -1,7 +1,7 @@
 import { getDocumentAsync } from 'expo-document-picker'
 import { File } from 'expo-file-system'
 import { useEffect, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import {
   carregarSituacaoFiscal,
   celularDoCanal,
@@ -18,6 +18,7 @@ import Campo from '@/components/ui/Campo'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Certificado digital A1 — RF-004.
@@ -285,7 +286,7 @@ export function MeusDados() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   bloco: { gap: espaco.md },
   texto: { fontSize: fonte.micro, lineHeight: 19, color: cores.textoFraco },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
@@ -298,4 +299,4 @@ const estilos = StyleSheet.create({
   },
   resultadoTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   linha: { flexDirection: 'row', justifyContent: 'space-between' },
-})
+}))

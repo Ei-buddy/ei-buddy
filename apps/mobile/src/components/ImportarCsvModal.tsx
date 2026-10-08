@@ -1,10 +1,11 @@
 import { getDocumentAsync } from 'expo-document-picker'
 import { File } from 'expo-file-system'
 import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { lerCsv, type PlanilhaLida } from '@/lib/planilha'
 import Botao from '@/components/ui/Botao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 export type CampoDaImportacao = {
   key: string
@@ -199,13 +200,13 @@ export default function ImportarCsvModal({
   )
 }
 
-const estilos = StyleSheet.create({
-  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
+const estilos = criarEstilos(() => ({
+  fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: cores.veu },
   fora: { flex: 1 },
   folha: {
     ...vidro.painel,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.14)',
+    borderTopColor: cores.borda,
     maxHeight: '92%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
@@ -229,4 +230,4 @@ const estilos = StyleSheet.create({
   chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

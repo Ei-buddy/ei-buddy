@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { describeDueDate, formatMoney } from '@/lib/format'
@@ -35,6 +27,7 @@ import { checklistDispensado, definirMeta, dispensarChecklist, lerMeta } from '@
 import { iniciarTutorial, tutorialJaVisto } from '@/lib/tutorial'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Tela principal — NR-013.
@@ -694,7 +687,7 @@ function Indicador({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.md, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -842,4 +835,4 @@ const estilos = StyleSheet.create({
   },
   metaBarra: { height: '100%', borderRadius: raio.pill, backgroundColor: cores.ativo },
   metaBarraCompleta: { backgroundColor: cores.acento },
-})
+}))

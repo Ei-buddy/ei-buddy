@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   baixarTitulo,
@@ -32,6 +23,7 @@ import Botao from '@/components/ui/Botao'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Forma comum entre conta a pagar e a receber — vem pronta de `financeiro-api`.
@@ -489,7 +481,7 @@ function LinhaTitulo({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   ferramentas: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   busca: {
     flex: 1,
@@ -569,4 +561,4 @@ const estilos = StyleSheet.create({
     borderColor: cores.sucesso,
   },
   avisoTexto: { fontSize: fonte.pequeno, color: cores.texto },
-})
+}))

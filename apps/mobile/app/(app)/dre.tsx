@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -22,6 +14,7 @@ import {
 import { formatMoney } from '@/lib/format'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Resultado do periodo — NR-077, RF-085, RF-086. US-041.
@@ -298,7 +291,7 @@ function Detalhe({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: espaco.lg },
   conteudo: { padding: espaco.md, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -367,4 +360,4 @@ const estilos = StyleSheet.create({
   contaValor: { fontSize: fonte.pequeno, color: cores.texto },
 
   aviso: { fontSize: fonte.pequeno, color: cores.textoFraco },
-})
+}))

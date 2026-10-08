@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, Text, View } from 'react-native'
 import Botao from '@/components/ui/Botao'
 import { assinarTutorial, encerrarTutorial, tutorialAtivo } from '@/lib/tutorial'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Passo = { titulo: string; texto: string; onde?: string }
 
@@ -126,13 +127,13 @@ export default function Tutorial() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   fundo: {
     flex: 1,
     justifyContent: 'flex-end',
     padding: espaco.lg,
     paddingBottom: espaco.xxl,
-    backgroundColor: 'rgba(4, 6, 20, 0.6)',
+    backgroundColor: cores.veu,
   },
   cartao: { ...vidro.painel, borderRadius: raio.lg, padding: espaco.xl, gap: espaco.md },
   contador: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.acento },
@@ -152,4 +153,4 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },
   flex: { flex: 1 },
   pular: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.textoFraco },
-})
+}))

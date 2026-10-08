@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, Text, View } from 'react-native'
 import type { ContaContabil } from '@/lib/contabilidade-api'
 import {
   carregarCustosFixos,
@@ -19,6 +19,7 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import Sanfona from '@/components/ui/Sanfona'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Custos fixos — NR-110, como no web.
@@ -377,7 +378,7 @@ export function CustosVariaveis() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   editarTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.textoFraco },
   bloco: { gap: espaco.sm },
   form: {
@@ -407,4 +408,4 @@ const estilos = StyleSheet.create({
   chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
   chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
   chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
-})
+}))

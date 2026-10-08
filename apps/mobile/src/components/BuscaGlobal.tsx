@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router'
 import { useEffect, useMemo, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { buscarTudo, MINIMO_DA_BUSCA, type ResultadoDaBusca } from '@/lib/busca-api'
 import { ACAO_TUTORIAL, GRUPOS } from '@/lib/navegacao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Tira acento e caixa: "orcamento" acha "Orçamentos". */
 const normal = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -152,11 +153,11 @@ export default function BuscaGlobal({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   fundo: {
     flex: 1,
     paddingHorizontal: espaco.md,
-    backgroundColor: 'rgba(4, 6, 20, 0.7)',
+    backgroundColor: cores.veu,
   },
   painel: {
     ...vidro.painel,
@@ -195,4 +196,4 @@ const estilos = StyleSheet.create({
   itemTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   itemApoio: { fontSize: fonte.micro, color: cores.textoFraco },
   aviso: { fontSize: fonte.pequeno, color: cores.textoFraco, paddingVertical: espaco.md },
-})
+}))

@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native'
+import { ActivityIndicator, Pressable, Text } from 'react-native'
 import type { ReactNode } from 'react'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Variante = 'primario' | 'secundario' | 'fantasma' | 'perigo'
 
@@ -52,7 +53,7 @@ export default function Botao({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,4 +84,4 @@ const estilos = StyleSheet.create({
   texto_secundario: { color: cores.texto },
   texto_fantasma: { color: cores.textoFraco },
   texto_perigo: { color: cores.erro },
-})
+}))

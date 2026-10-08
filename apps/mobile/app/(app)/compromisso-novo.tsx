@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -24,6 +23,7 @@ import {
 } from '@/lib/agenda-api'
 import { dataDoTexto, formatDate, mascaraData } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Marcar compromisso — NR-078, US-043, RF-089 e RF-091.
@@ -228,7 +228,7 @@ function mascaraHora(texto: string): string {
   return d.length <= 2 ? d : `${d.slice(0, 2)}:${d.slice(2)}`
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   linha: { flexDirection: 'row', gap: espaco.md },
   rotulo: { fontSize: fonte.pequeno, fontWeight: peso.medio, color: cores.textoFraco },
@@ -244,4 +244,4 @@ const estilos = StyleSheet.create({
   flex: { flex: 1 },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   erro: { color: cores.erro, fontSize: fonte.pequeno, fontWeight: peso.forte },
-})
+}))

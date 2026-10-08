@@ -5,7 +5,6 @@ import {
   Linking,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -31,6 +30,7 @@ import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_CLIENTES, validarCliente } from '@/lib/campos-de-importacao'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Sem comprar ha mais que isto = cliente inativo. */
 const INATIVO_APOS_DIAS = 60
@@ -348,7 +348,7 @@ function LinhaCliente({ cliente, onAbrir }: { cliente: ClienteDaLista; onAbrir: 
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   acoesTopo: { flexDirection: 'row', gap: espaco.sm },
 
@@ -421,4 +421,4 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.sucessoFundo,
   },
   acaoTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.acento },
-})
+}))

@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   COLUNAS,
@@ -24,6 +16,7 @@ import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Sanfona from '@/components/ui/Sanfona'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * CRM — NR-109.
@@ -271,7 +264,7 @@ function CardLinha({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: espaco.lg },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -315,4 +308,4 @@ const estilos = StyleSheet.create({
     color: cores.texto,
   },
   erro: { fontSize: fonte.micro, color: cores.erro },
-})
+}))

@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -20,6 +19,7 @@ import { carregarCustosVariaveis } from '@/lib/custos-api'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const emTexto = (reais: number) => reais.toFixed(2).replace('.', ',')
 
@@ -339,7 +339,7 @@ function Sugestoes({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -366,4 +366,4 @@ const estilos = StyleSheet.create({
     fontWeight: peso.forte,
   },
   nota: { color: cores.textoFraco, fontSize: fonte.micro },
-})
+}))

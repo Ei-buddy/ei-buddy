@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import type { DrawerContentComponentProps } from 'expo-router/drawer'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -7,9 +7,11 @@ import { escolherLoja, sair as encerrarNoServidor } from '@/lib/auth-api'
 import { lerSessao, type Sessao } from '@/lib/session'
 import { carregarAvisos } from '@/lib/avisos-api'
 import { alternarSom, assinarSom, lerSom, type PreferenciaDeSom } from '@/lib/som'
+import { useTema } from '@/theme/tema'
 import { ACAO_TUTORIAL, GRUPOS } from '@/lib/navegacao'
 import { iniciarTutorial } from '@/lib/tutorial'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 export default function MenuLateral(props: DrawerContentComponentProps) {
   const router = useRouter()
@@ -60,6 +62,8 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
 
   /* O liga/desliga do som — o mesmo botao da barra do topo do web (NR-163). */
   const [som, setSom] = useState<PreferenciaDeSom>('ligado')
+  /* O tema claro/escuro — o botao de tema da barra do web (NR-167). */
+  const { tema, alternarTema } = useTema()
   useEffect(() => {
     void lerSom().then(setSom)
     return assinarSom(setSom)
@@ -219,6 +223,20 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
 
       <View style={estilos.som}>
         <View style={estilos.flex}>
+          <Text style={estilos.somTitulo}>Tema claro</Text>
+          <Text style={estilos.somApoio}>{tema === 'claro' ? 'Ligado' : 'Desligado'}</Text>
+        </View>
+        <Switch
+          value={tema === 'claro'}
+          onValueChange={alternarTema}
+          trackColor={{ true: cores.ativo, false: cores.borda }}
+          thumbColor={cores.texto}
+          accessibilityLabel={tema === 'claro' ? 'Usar o tema escuro' : 'Usar o tema claro'}
+        />
+      </View>
+
+      <View style={estilos.som}>
+        <View style={estilos.flex}>
           <Text style={estilos.somTitulo}>Som</Text>
           <Text style={estilos.somApoio}>Bipe do leitor e venda fechada</Text>
         </View>
@@ -242,7 +260,7 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   /* A barra lateral e um painel de vidro, como a do web — NR-160. */
   menu: { flex: 1, ...vidro.painel },
 
@@ -347,4 +365,4 @@ const estilos = StyleSheet.create({
     borderRadius: raio.pill,
   },
   sairTexto: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.textoFraco },
-})
+}))

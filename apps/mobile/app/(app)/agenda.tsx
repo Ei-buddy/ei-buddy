@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -23,6 +22,7 @@ import {
 } from '@/lib/agenda-api'
 import { formatDate } from '@/lib/format'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Agenda do dia — NR-078, US-045.
@@ -239,7 +239,7 @@ function LinhaCompromisso({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
 
   conteudo: { padding: espaco.lg, gap: espaco.xl },
@@ -266,4 +266,4 @@ const estilos = StyleSheet.create({
   compromissoInfo: { flex: 1, gap: 2 },
   compromissoTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   compromissoApoio: { fontSize: fonte.micro, color: cores.textoFraco },
-})
+}))
