@@ -4,6 +4,9 @@
  * Mora fora do `MenuLateral` porque a busca global (NR-162) tambem lista
  * telas: uma lista so, para a busca nunca achar tela que o menu nao tem.
  */
+/** Item do menu que dispara uma acao em vez de abrir tela. */
+export const ACAO_TUTORIAL = '#tutorial'
+
 export type Item = { rota: string; rotulo: string }
 export type Grupo = { grupo: string; itens: Item[] }
 
@@ -60,6 +63,8 @@ export const GRUPOS: Grupo[] = [
       { rota: '/suporte', rotulo: 'Suporte' },
       /* Ponto fixo de acesso aos documentos legais — RF-01. */
       { rota: '/privacidade-e-termos', rotulo: 'Privacidade e Termos' },
+      /* Nao e tela: reabre o tutorial guiado (NR-166), como a ajuda do web. */
+      { rota: ACAO_TUTORIAL, rotulo: 'Rever o tutorial' },
     ],
   },
 ]

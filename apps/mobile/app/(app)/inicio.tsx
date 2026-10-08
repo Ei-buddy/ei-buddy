@@ -32,6 +32,7 @@ import Sanfona from '@/components/ui/Sanfona'
 import Botao from '@/components/ui/Botao'
 import { Cartao, Etiqueta } from '@/components/ui/Cartao'
 import { checklistDispensado, definirMeta, dispensarChecklist, lerMeta } from '@/lib/preferencias'
+import { iniciarTutorial, tutorialJaVisto } from '@/lib/tutorial'
 import { centavosDoTexto } from '@/lib/valor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
@@ -134,6 +135,17 @@ export default function Inicio() {
       await buscar()
     })()
   }, [buscar])
+
+  /* Primeira abertura: o tutorial guiado comeca sozinho, como no web — NR-166. */
+  useEffect(() => {
+    let cancelado = false
+    void tutorialJaVisto().then((visto) => {
+      if (!visto && !cancelado) setTimeout(() => iniciarTutorial(), 700)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [])
 
   const recarregar = () => {
     setAtualizando(true)

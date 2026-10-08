@@ -1,5 +1,6 @@
 import { Drawer } from 'expo-router/drawer'
 import MenuLateral from '@/components/MenuLateral'
+import Tutorial from '@/components/Tutorial'
 import { cores } from '@/theme/tokens'
 
 /**
@@ -14,17 +15,21 @@ import { cores } from '@/theme/tokens'
  */
 export default function LayoutApp() {
   return (
-    <Drawer
-      drawerContent={(props) => <MenuLateral {...props} />}
-      screenOptions={{
-        headerShown: false,
-        drawerType: 'front',
-        drawerStyle: { backgroundColor: '#0b1029', width: 280 },
-        sceneStyle: { backgroundColor: cores.fundo },
-        /* Deslizar da borda para abrir — gesto esperado no celular. */
-        swipeEnabled: true,
-        swipeEdgeWidth: 40,
-      }}
-    />
+    <>
+      <Drawer
+        drawerContent={(props) => <MenuLateral {...props} />}
+        screenOptions={{
+          headerShown: false,
+          drawerType: 'front',
+          drawerStyle: { backgroundColor: '#0b1029', width: 280 },
+          sceneStyle: { backgroundColor: cores.fundo },
+          /* Deslizar da borda para abrir — gesto esperado no celular. */
+          swipeEnabled: true,
+          swipeEdgeWidth: 40,
+        }}
+      />
+      {/* Por cima de qualquer tela: o item do menu pode reabri-lo de onde for. */}
+      <Tutorial />
+    </>
   )
 }

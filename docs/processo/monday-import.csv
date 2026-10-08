@@ -129,3 +129,4 @@ NR-160 — Liquid glass no app: tokens de vidro compartilhados e telas do app co
 "NR-163 — Som no app: bipe do leitor e confirmação de venda fechada, com liga/desliga, iguais aos do web",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,mobile,—,docs/processo/task-ledger.md
 "NR-164 — PDV salva o carrinho como orçamento de verdade (web e app), no lugar da janela de impressão",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,web mobile,—,docs/processo/task-ledger.md
 "NR-165 — Bloco ""Via WhatsApp"" nas telas do app (produtos, vendas, clientes, contas, plano de contas, empresa), como no web",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,mobile,—,docs/processo/task-ledger.md
+"NR-166 — Tutorial guiado no app, com os mesmos passos do web, automático na primeira abertura e revisável pelo menu",Sprint 6 — Catálogo 0909,Trilha 3 — Clientes,Done,Medium,1,Sprint 6,,,mobile,—,docs/processo/task-ledger.md
