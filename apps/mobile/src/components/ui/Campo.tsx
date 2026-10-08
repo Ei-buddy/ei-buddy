@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Campo de texto com rotulo e erro inline.
@@ -89,10 +89,9 @@ const estilos = StyleSheet.create({
     gap: espaco.md,
     minHeight: 50,
     paddingHorizontal: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
+    /* Vidro REBAIXADO — afunda na superficie em vez de saltar dela. */
+    ...vidro.campo,
     borderRadius: raio.sm,
-    backgroundColor: cores.campo,
   },
   caixaErro: { borderColor: cores.erro },
   input: {

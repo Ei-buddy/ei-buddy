@@ -46,7 +46,7 @@ import { Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
 import ConfirmarModal from '@/components/ConfirmarModal'
 import { DescontoModal, SeletorCliente, SeletorProduto } from '@/components/SeletoresDoPdv'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
 type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
@@ -666,10 +666,10 @@ function Parcelas({ valor, onChange }: { valor: number; onChange: (n: number) =>
 const estilos = StyleSheet.create({
   /* Resumo da venda — US-020. */
   resumo: {
+    ...vidro.painel,
     margin: espaco.lg,
     padding: espaco.lg,
     borderRadius: raio.md,
-    backgroundColor: cores.superficieAlta,
     gap: espaco.sm,
   },
   resumoTitulo: { fontSize: fonte.corpo, fontWeight: peso.pesado, color: cores.texto },
@@ -710,14 +710,12 @@ const estilos = StyleSheet.create({
     paddingBottom: espaco.lg,
   },
   item: {
+    ...vidro.peca,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco.md,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   itemInfo: { flex: 1, gap: 2 },
   itemNome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
@@ -752,11 +750,11 @@ const estilos = StyleSheet.create({
   cabecalhoAcoes: { flexDirection: 'row', gap: espaco.sm },
 
   rodape: {
+    ...vidro.peca,
     flexGrow: 0,
     maxHeight: '62%',
     borderTopWidth: 1,
     borderTopColor: cores.borda,
-    backgroundColor: cores.superficie,
   },
   rodapeConteudo: { padding: espaco.lg, gap: espaco.md },
   ajuste: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },

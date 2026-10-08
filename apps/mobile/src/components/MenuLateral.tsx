@@ -5,7 +5,7 @@ import type { DrawerContentComponentProps } from 'expo-router/drawer'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { escolherLoja, sair as encerrarNoServidor } from '@/lib/auth-api'
 import { lerSessao, type Sessao } from '@/lib/session'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 type Item = { rota: string; rotulo: string }
 type Grupo = { grupo: string; itens: Item[] }
@@ -260,7 +260,8 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
 }
 
 const estilos = StyleSheet.create({
-  menu: { flex: 1, backgroundColor: '#0b1029' },
+  /* A barra lateral e um painel de vidro, como a do web — NR-160. */
+  menu: { flex: 1, ...vidro.painel },
 
   marca: {
     flexDirection: 'row',
@@ -271,6 +272,8 @@ const estilos = StyleSheet.create({
   },
   /* A loja ativa. Alvo de toque de 56 — a pessoa troca em pe, com uma mao. */
   loja: {
+    ...vidro.peca,
+    marginHorizontal: espaco.lg,
     minHeight: 56,
     justifyContent: 'center',
     gap: 1,
@@ -278,9 +281,6 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco.md,
     paddingVertical: espaco.sm,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
   lojaPressionada: { borderColor: cores.acento },
   lojaRotulo: { fontSize: fonte.micro, color: cores.textoFraco },
@@ -324,9 +324,10 @@ const estilos = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  itemAtivo: { backgroundColor: cores.sucessoFundo },
+  /* O item ativo e o azul de vidro do web, brilhando para fora. */
+  itemAtivo: { ...vidro.ativo },
   itemTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
-  itemTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+  itemTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   sair: {
     marginHorizontal: espaco.lg,

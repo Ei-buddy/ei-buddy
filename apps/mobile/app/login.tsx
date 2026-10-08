@@ -15,7 +15,7 @@ import type { LojaDaSessao } from '@/lib/session'
 import { validateCredential, validateLoginPassword } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** O papel na tela e em portugues, e nao o valor do contrato. */
 const PAPEL: Record<string, string> = {
@@ -242,15 +242,13 @@ const estilos = StyleSheet.create({
    */
   lojas: { gap: espaco.sm, marginTop: espaco.md },
   loja: {
+    ...vidro.peca,
     minHeight: 56,
     justifyContent: 'center',
     gap: 2,
     paddingHorizontal: espaco.lg,
     paddingVertical: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
   lojaPressionada: { borderColor: cores.acento },
   lojaNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },

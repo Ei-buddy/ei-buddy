@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native'
 import type { ReactNode } from 'react'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 type Variante = 'primario' | 'secundario' | 'fantasma' | 'perigo'
 
@@ -44,7 +44,7 @@ export default function Botao({
       {carregando ? (
         <ActivityIndicator
           size="small"
-          color={variante === 'primario' ? cores.textoSobreAcento : cores.acento}
+          color={variante === 'primario' ? cores.textoSobreAtivo : cores.acento}
         />
       ) : null}
       <Text style={[estilos.texto, estilos[`texto_${variante}`]]}>{children}</Text>
@@ -65,11 +65,13 @@ const estilos = StyleSheet.create({
     borderColor: 'transparent',
   },
   largura: { alignSelf: 'stretch' },
-  pressionado: { opacity: 0.85 },
+  /* O toque afunda a peca de leve, como no web. */
+  pressionado: { opacity: 0.88, transform: [{ scale: 0.975 }] },
   inativo: { opacity: 0.45 },
 
-  primario: { backgroundColor: cores.acento },
-  secundario: { backgroundColor: cores.campo, borderColor: cores.borda },
+  /* Acao primaria: o azul de vidro do web (NR-146), brilhando para fora. */
+  primario: { ...vidro.ativo },
+  secundario: { ...vidro.peca },
   fantasma: { backgroundColor: 'transparent' },
   perigo: { backgroundColor: cores.erroFundo, borderColor: cores.erro },
 
@@ -77,7 +79,7 @@ const estilos = StyleSheet.create({
     fontSize: fonte.corpo,
     fontWeight: peso.forte,
   },
-  texto_primario: { color: cores.textoSobreAcento },
+  texto_primario: { color: cores.textoSobreAtivo },
   texto_secundario: { color: cores.texto },
   texto_fantasma: { color: cores.textoFraco },
   texto_perigo: { color: cores.erro },

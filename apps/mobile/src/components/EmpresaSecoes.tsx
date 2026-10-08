@@ -17,7 +17,7 @@ import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Certificado digital A1 — RF-004.
@@ -291,10 +291,10 @@ const estilos = StyleSheet.create({
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   ok: { fontSize: fonte.pequeno, color: cores.sucesso },
   resultado: {
+    ...vidro.painel,
     gap: espaco.xs,
     padding: espaco.md,
     borderRadius: raio.sm,
-    backgroundColor: cores.superficieAlta,
   },
   resultadoTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   linha: { flexDirection: 'row', justifyContent: 'space-between' },

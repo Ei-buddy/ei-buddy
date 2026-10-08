@@ -20,7 +20,7 @@ import {
 } from '@/lib/assistente-api'
 import { COMANDOS_DESTAQUE } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 const HOJE = '2026-08-24'
 
@@ -260,19 +260,17 @@ const estilos = StyleSheet.create({
   doAssistente: { justifyContent: 'flex-start' },
   balao: { maxWidth: '86%', padding: espaco.md, gap: espaco.sm },
   balaoPessoa: {
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
     borderRadius: raio.md,
     borderBottomRightRadius: 4,
   },
   balaoAssistente: {
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
+    ...vidro.peca,
     borderRadius: raio.md,
     borderBottomLeftRadius: 4,
   },
   balaoTexto: { fontSize: fonte.pequeno, lineHeight: 21, color: cores.texto },
-  balaoTextoPessoa: { color: cores.textoSobreAcento },
+  balaoTextoPessoa: { color: cores.textoSobreAtivo },
   digitando: { fontSize: fonte.pequeno, color: cores.textoFraco },
 
   blocoTexto: { fontSize: fonte.micro, color: cores.textoFraco, lineHeight: 19 },
@@ -362,8 +360,8 @@ const estilos = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
   },
   enviarInativo: { opacity: 0.4 },
-  enviarTexto: { fontSize: 20, color: cores.textoSobreAcento, fontWeight: peso.pesado },
+  enviarTexto: { fontSize: 20, color: cores.textoSobreAtivo, fontWeight: peso.pesado },
 })

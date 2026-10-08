@@ -28,7 +28,7 @@ import Botao from '@/components/ui/Botao'
 import ImportarCsvModal from '@/components/ImportarCsvModal'
 import { CAMPOS_CLIENTES, validarCliente } from '@/lib/campos-de-importacao'
 import BotoesExportar from '@/components/BotoesExportar'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** Sem comprar ha mais que isto = cliente inativo. */
 const INATIVO_APOS_DIAS = 60
@@ -373,12 +373,10 @@ const estilos = StyleSheet.create({
   carregando: { marginTop: espaco.xl },
   lista: { padding: espaco.lg, gap: espaco.sm },
   cliente: {
+    ...vidro.peca,
     gap: espaco.md,
     padding: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   clienteTopo: { flexDirection: 'row', alignItems: 'center', gap: espaco.md },
   avatar: {

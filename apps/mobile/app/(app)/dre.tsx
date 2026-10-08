@@ -21,7 +21,7 @@ import {
 } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
 import BotoesExportar from '@/components/BotoesExportar'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Resultado do periodo — NR-077, RF-085, RF-086. US-041.
@@ -310,18 +310,16 @@ const estilos = StyleSheet.create({
     paddingBottom: espaco.sm,
   },
   aba: {
+    ...vidro.peca,
     paddingVertical: espaco.sm,
     paddingHorizontal: espaco.md,
     borderRadius: raio.pill,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
-  /* `acento`: com `primaria`, o rotulo da aba ativa (`textoSobreAcento`,
-     quase preto) ficava a 1,12:1 — a aba selecionada era a unica ilegivel. */
-  abaAtiva: { backgroundColor: cores.acento, borderColor: cores.acento },
+  /* Aba ativa no azul de vidro com texto branco (NR-160). Fundo e texto em
+     par: com `primaria` e texto quase preto, a aba ficava a 1,12:1. */
+  abaAtiva: { ...vidro.ativo },
   abaTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
-  abaTextoAtivo: { color: cores.textoSobreAcento, fontWeight: peso.forte },
+  abaTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   resultadoRotulo: { fontSize: fonte.pequeno, color: cores.textoFraco },
   resultadoValor: {

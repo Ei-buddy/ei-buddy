@@ -35,7 +35,7 @@ import {
 import { atualizarEmpresaAtiva } from '@/lib/session'
 import { formatDateTime } from '@/lib/format'
 import { maskCNPJ, maskPhone } from '@/lib/validation'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 type Aba = 'empresas' | 'usuarios' | 'lista' | 'parceiros'
 
@@ -691,12 +691,10 @@ const estilos = StyleSheet.create({
     fontSize: fonte.corpo,
   },
   cartao: {
+    ...vidro.peca,
     gap: espaco.xs,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   nome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   apoio: { fontSize: fonte.micro, color: cores.textoFraco },

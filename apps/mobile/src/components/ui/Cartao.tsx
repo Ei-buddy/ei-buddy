@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 export function Cartao({
   titulo,
@@ -57,12 +57,11 @@ export function Vazio({
 }
 
 const estilos = StyleSheet.create({
+  /* Cartao de vidro — NR-160, o mesmo do web. */
   cartao: {
+    ...vidro.cartao,
     padding: espaco.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.lg,
-    backgroundColor: cores.superficie,
     gap: espaco.md,
   },
   cabecalho: {
@@ -82,6 +81,10 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco.md,
     paddingVertical: espaco.xs,
     borderRadius: raio.pill,
+    /* Pilula de vidro tingida: a cor do estado bem suave, fio de luz no topo. */
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: 'rgba(255, 255, 255, 0.16)',
   },
   etiqueta_neutro: { backgroundColor: 'rgba(255,255,255,0.07)' },
   etiqueta_sucesso: { backgroundColor: cores.sucessoFundo },

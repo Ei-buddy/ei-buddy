@@ -17,7 +17,7 @@ import { centavosDoTexto } from '@/lib/valor'
 import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * As folhas do PDV no celular: escolher cliente, achar produto pelo nome e
@@ -308,11 +308,13 @@ const estilos = StyleSheet.create({
   fundo: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.55)' },
   foraDaFolha: { flex: 1 },
   folha: {
+    ...vidro.painel,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
     maxHeight: '88%',
     paddingTop: espaco.lg,
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
-    backgroundColor: cores.fundo,
   },
   titulo: {
     paddingHorizontal: espaco.lg,

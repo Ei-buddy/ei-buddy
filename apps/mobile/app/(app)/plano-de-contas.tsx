@@ -19,7 +19,7 @@ import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { CustosFixos, CustosVariaveis } from '@/components/CustosSecoes'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 const TIPOS: TipoDeConta[] = ['expense', 'cost', 'revenue', 'deduction']
 
@@ -249,12 +249,10 @@ const estilos = StyleSheet.create({
   apagar: { fontSize: 20, color: cores.textoFraco, paddingHorizontal: espaco.xs },
 
   formulario: {
+    ...vidro.peca,
     gap: espaco.md,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   flex: { flex: 1 },
   acoes: { flexDirection: 'row', gap: espaco.sm },

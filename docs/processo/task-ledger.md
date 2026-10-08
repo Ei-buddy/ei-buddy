@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     124 |  282 |
-| ✅ Concluídas                 |     118 |  261 |
+| Total                         |     125 |  283 |
+| ✅ Concluídas                 |     119 |  262 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -370,6 +370,7 @@ voltam a ⬜.
 | NR-157 | Abertura e fechamento de caixa: sangria, suprimento e conferencia (web e app)                                          |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-033                                             |   ✅   |
 | NR-158 | Entrada de mercadoria: compra de fornecedor soma estoque, atualiza custo médio e lança conta a pagar (web e app)       |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-022, RF-055                                     |   ✅   |
 | NR-159 | Orçamento: proposta sem baixar estoque, compartilhável (WhatsApp/impressão) e convertida em venda pelo PDV (web e app) |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | —                                                  |   ✅   |
+| NR-160 | Liquid glass no app: tokens de vidro compartilhados e telas do app com as mesmas peças do web                          |   🟢   | `ui` `mobile`                                                 |   1 | —                                      | —    | —                                                  |   ✅   |
 
 ---
 
@@ -482,10 +483,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      49 |   96 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      50 |   97 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **282 dias-desenvolvedor** em 124 tarefas. Com 3 pessoas, isso é cerca
+Somando: **283 dias-desenvolvedor** em 125 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

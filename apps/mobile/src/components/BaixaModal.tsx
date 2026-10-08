@@ -11,7 +11,7 @@ import {
 import { diaLocal, formatMoney, hoje } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { centavosDoTexto } from '@/lib/valor'
 
 /**
@@ -333,10 +333,12 @@ const estilos = StyleSheet.create({
   foraDaFolha: { flex: 1 },
 
   folha: {
+    ...vidro.painel,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.14)',
     maxHeight: '88%',
     borderTopLeftRadius: raio.lg,
     borderTopRightRadius: raio.lg,
-    backgroundColor: cores.fundo,
   },
   alcaWrap: { alignItems: 'center', paddingTop: espaco.sm },
   alca: { width: 40, height: 4, borderRadius: 2, backgroundColor: cores.borda },
@@ -349,13 +351,13 @@ const estilos = StyleSheet.create({
   alvoApoio: { fontSize: fonte.micro, color: cores.textoFraco },
 
   saldo: {
+    ...vidro.peca,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingVertical: espaco.md,
     paddingHorizontal: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   saldoRotulo: { fontSize: fonte.micro, color: cores.textoFraco },
   saldoValor: { fontSize: fonte.corpo, fontWeight: peso.pesado, color: cores.texto },
@@ -365,17 +367,15 @@ const estilos = StyleSheet.create({
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
   chip: {
+    ...vidro.peca,
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: espaco.md,
     borderRadius: raio.pill,
-    borderWidth: 1,
-    borderColor: cores.borda,
-    backgroundColor: cores.superficie,
   },
-  chipAtivo: { borderColor: cores.acento, backgroundColor: cores.acento },
+  chipAtivo: { ...vidro.ativo },
   chipTexto: { fontSize: fonte.micro, color: cores.texto },
-  chipTextoAtivo: { color: cores.textoSobreAcento, fontWeight: peso.forte },
+  chipTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   erro: {
     padding: espaco.md,

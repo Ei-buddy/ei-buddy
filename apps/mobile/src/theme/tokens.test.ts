@@ -47,9 +47,11 @@ const INSEGURAS_COMO_TEXTO = ['primaria', 'primariaEscura', 'destaque', 'borda']
 /** As superficies sobre as quais texto aparece no app. */
 const SUPERFICIES: ReadonlyArray<readonly [string, string]> = [
   ['tela', cores.fundo],
-  ['cartao', cores.superficie],
-  ['cartao elevado', cores.superficieAlta],
-  ['campo', flatten(cores.campo, cores.superficie)],
+  /* Vidro desde a NR-160: translucido, entao mede-se ja pousado no fundo. */
+  ['cartao', flatten(cores.superficie, cores.fundo)],
+  ['cartao elevado', flatten(cores.superficieAlta, cores.fundo)],
+  ['campo', flatten(cores.campo, flatten(cores.superficie, cores.fundo))],
+  ['painel', cores.painel],
 ]
 
 function arquivosDeTela(pasta: string, achados: string[] = []): string[] {
