@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   cancelarNota,
   devolverItens,
+  estadoDaNota,
   estornarVenda,
   FORMAS,
   type VendaDoHistorico,
@@ -21,6 +22,17 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
   const [processando, setProcessando] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+
+  /* O PDF da nota (DANFE) — NR-169. O link vem da consulta da nota, que e a
+     mesma do PDV; em contingencia ainda nao ha PDF. */
+  async function abrirPdfDaNota() {
+    const nota = await estadoDaNota(venda.id)
+    if (nota?.status === 'authorized' && nota.danfeUrl) {
+      window.open(nota.danfeUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+    setToast({ msg: 'O PDF desta nota ainda não está disponível.', tone: 'error' })
+  }
   const [itens, setItens] = useState(venda.itens)
   const [devolvidoValor, setDevolvidoValor] = useState(venda.devolvidoValor)
   const [devolvendo, setDevolvendo] = useState(false)
@@ -268,6 +280,9 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
               {venda.notaChave !== null ? (
                 <span className={styles.notaChave}>{venda.notaChave}</span>
               ) : null}
+              <Button variant="secondary" size="sm" onClick={() => void abrirPdfDaNota()}>
+                Baixar PDF
+              </Button>
               {!estornada ? (
                 <Button variant="secondary" size="sm" onClick={() => setCancelandoNota(true)}>
                   Cancelar nota

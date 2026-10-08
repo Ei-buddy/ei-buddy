@@ -1,6 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import {
+  Alert,
+  FlatList,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import {
@@ -1021,6 +1030,20 @@ function EmissaoFiscal({ vendaId, onConcluir }: { vendaId: string; onConcluir: (
       <View style={estilos.fiscalBloco}>
         <Text style={estilos.fiscalOk}>NFC-e {nota.numero} emitida</Text>
         <Text style={estilos.fiscalChave}>{nota.chave}</Text>
+        {/* O PDF da nota (DANFE), como o "Baixar PDF" do web — NR-169. */}
+        {nota.url ? (
+          <Botao
+            variante="secundario"
+            onPress={() =>
+              void Linking.openURL(nota.url).catch(() =>
+                Alert.alert('Nota fiscal', 'Não deu para abrir o PDF da nota.'),
+              )
+            }
+            largura
+          >
+            Abrir PDF da nota
+          </Botao>
+        ) : null}
         <Botao onPress={onConcluir} largura>
           Nova venda
         </Botao>
