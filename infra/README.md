@@ -219,7 +219,8 @@ daria RPO de 24 h.
 | [`backup.sh`](backup.sh)               | diário, por cron    | `pg_basebackup` comprimido, apara os antigos e o WAL já inútil |
 | [`restore-drill.sh`](restore-drill.sh) | mensal, pelo GitHub | restaura o mais recente num Postgres descartável e confere     |
 
-No cron da VM:
+No cron da VM, de um usuário que fale com o Docker, no diretório do repo
+(`VPS_DEPLOY_PATH`):
 
 ```cron
 10 3 * * *  cd /opt/na-regua && ./infra/backup.sh >> /var/log/na-regua-backup.log 2>&1
@@ -237,6 +238,10 @@ falha aparece sozinha.
 > — S3, R2, B2, SFTP, tanto faz, e é por isso que é rclone — para o envio
 > passar a acontecer no fim de cada backup. **Enquanto isso não existir, a
 > RNF-013 continua furada.**
+
+O script termina com erro se o Postgres estiver falhando em arquivar WAL —
+backup base sem WAL restaura só até a hora em que foi feito, e o Postgres só
+reclama no próprio log.
 
 Variáveis: `BACKUP_DIR` (onde), `MANTER` (quantos backups base, padrão `7`),
 `BACKUP_REMOTO` (destino do rclone).

@@ -27,6 +27,13 @@ services:
     image: postgres:17-alpine
     container_name: naregua-postgres
     restart: unless-stopped
+    # O volume `wal-archive` nasce de `root`, e o `archive_command` roda como
+    # `postgres`: sem o chown, todo arquivamento falha com `Permission denied`
+    # e nao ha PITR nenhum — a producao ficou assim por duas semanas sem que
+    # nada avisasse. O entrypoint da imagem comeca como root e so depois desce
+    # para `postgres`, entao este e o ultimo ponto onde o chown ainda pode rodar.
+    entrypoint:
+      ['sh', '-c', 'chown postgres:postgres /wal && exec docker-entrypoint.sh "$$@"', '--']
     env_file: ../.env.production
     volumes:
       - postgres-data:/var/lib/postgresql/data
