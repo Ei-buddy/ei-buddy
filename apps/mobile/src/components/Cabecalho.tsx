@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation } from 'expo-router'
 import type { DrawerActionType } from '@react-navigation/native'
 import Avisos from '@/components/Avisos'
 import BuscaGlobal from '@/components/BuscaGlobal'
+import { BotaoCompacto } from '@/components/ui/Botao'
 import {
   avisosNovos,
   carregarAvisos,
@@ -84,7 +85,8 @@ export default function Cabecalho({
       </Pressable>
 
       <View style={estilos.textos}>
-        <Text style={estilos.titulo} numberOfLines={1}>
+        {/* No celular estreito o titulo encolhe um pouco antes de cortar. */}
+        <Text style={estilos.titulo} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {titulo}
         </Text>
         {subtitulo ? (
@@ -94,7 +96,7 @@ export default function Cabecalho({
         ) : null}
       </View>
 
-      {acao}
+      <BotaoCompacto.Provider value={true}>{acao}</BotaoCompacto.Provider>
 
       {comAtalhos ? (
         <>
