@@ -440,10 +440,11 @@ export default function ClientesLista() {
           titulo="Importar clientes"
           campos={CAMPOS_PLANILHA}
           /*
-           * Vazio: a lista desta tela ainda vem de `mock-data`, e conferir
-           * duplicidade contra dados de exemplo diria "ja cadastrado" para
-           * quem nunca foi cadastrado. Repetido DENTRO da planilha continua
-           * sendo detectado, e o servidor recusa o que precisar recusar.
+           * Vazio: a lista desta tela e paginada no servidor, entao o
+           * navegador so conhece uma pagina — conferir contra ela deixaria
+           * passar quem esta na pagina seguinte. Repetido DENTRO da planilha
+           * continua sendo detectado; parecido com quem ja existe ENTRA, de
+           * proposito (`importCustomers`, NR-072), para juntar depois.
            */
           chavesExistentes={[]}
           chaveDuplicidade={(v) => (v.documento ?? '').replace(/\D/g, '')}
