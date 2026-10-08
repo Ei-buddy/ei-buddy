@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Botao from './ui/Botao'
 import Campo from './ui/Campo'
+import { tocarBipe } from '@/lib/som'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 
 /** Tempo travado apos uma leitura, para nao ler o mesmo codigo em rajada. */
@@ -39,6 +40,8 @@ export default function LeitorCodigo({
     if (agora < travadoAte.current) return
     travadoAte.current = agora + TRAVA_MS
 
+    /* O bipe da leitora, como no web — NR-163. Respeita o liga/desliga. */
+    tocarBipe()
     onLer(codigo)
   }
 
