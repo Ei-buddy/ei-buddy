@@ -278,166 +278,6 @@ export type VendaHistorico = {
   troco: number
 }
 
-/**
- * Dados de exemplo, ainda em uso — mas so pelo assistente.
- *
- * A tela de vendas passou a usar `listarHistoricoDeVendas`, real, logo abaixo.
- * Esta funcao continua aqui porque `assistente-api.ts` a consulta para
- * responder "quanto vendi hoje" e afins — e o assistente esta fora do escopo
- * atual (aguarda a DEC-007, modelo de LLM). Trocar a fonte dele agora
- * misturaria dois trabalhos independentes.
- */
-export function listarVendas(): VendaHistorico[] {
-  return [
-    {
-      id: 'ven-1',
-      numero: '1842',
-      data: '2026-08-24T14:32:00',
-      clienteNome: 'Joana Ribeiro',
-      itens: [
-        {
-          produtoId: null,
-          descricao: 'Cafe torrado e moido 500g',
-          quantidade: 2,
-          precoUnitario: 21.9,
-          devolvido: 0,
-        },
-        {
-          produtoId: null,
-          descricao: 'Filtro de papel n103',
-          quantidade: 1,
-          precoUnitario: 8.9,
-          devolvido: 0,
-        },
-        {
-          produtoId: null,
-          descricao: 'Acucar mascavo 1kg',
-          quantidade: 3,
-          precoUnitario: 12.9,
-          devolvido: 0,
-        },
-      ],
-      subtotal: 91.4,
-      desconto: 4.5,
-      total: 86.9,
-      pagamentos: [{ forma: 'pix', valor: 86.9 }],
-      valorLiquido: 86.04,
-      imposto: 3.12,
-      nota: { tipo: 'nfce', numero: '4187' },
-      status: 'concluida',
-      devolvidoValor: 0,
-      troco: 0,
-    },
-    {
-      id: 'ven-2',
-      numero: '1841',
-      data: '2026-08-24T13:58:00',
-      clienteNome: 'Venda sem cliente',
-      itens: [
-        {
-          produtoId: null,
-          descricao: 'Azeite extra virgem 500ml',
-          quantidade: 1,
-          precoUnitario: 39.9,
-          devolvido: 0,
-        },
-      ],
-      subtotal: 39.9,
-      desconto: 0,
-      total: 39.9,
-      pagamentos: [{ forma: 'credito', valor: 39.9 }],
-      valorLiquido: 38.51,
-      imposto: 1.44,
-      nota: { tipo: 'nfce', numero: '4186' },
-      status: 'concluida',
-      devolvidoValor: 0,
-      troco: 0,
-    },
-    {
-      id: 'ven-3',
-      numero: '1840',
-      data: '2026-08-24T11:20:00',
-      clienteNome: 'Marcos Dias',
-      itens: [
-        {
-          produtoId: null,
-          descricao: 'Leite integral 1L',
-          quantidade: 12,
-          precoUnitario: 5.99,
-          devolvido: 0,
-        },
-        {
-          produtoId: null,
-          descricao: 'Biscoito integral 200g',
-          quantidade: 6,
-          precoUnitario: 7.5,
-          devolvido: 0,
-        },
-      ],
-      subtotal: 116.88,
-      desconto: 0,
-      total: 116.88,
-      pagamentos: [{ forma: 'dinheiro', valor: 116.88 }],
-      valorLiquido: 116.88,
-      imposto: 4.21,
-      nota: { tipo: 'nfce', numero: '4185' },
-      status: 'concluida',
-      devolvidoValor: 0,
-      troco: 0,
-    },
-    {
-      id: 'ven-4',
-      numero: '1839',
-      data: '2026-08-23T17:05:00',
-      clienteNome: 'Padaria Sol LTDA',
-      itens: [
-        {
-          produtoId: null,
-          descricao: 'Cafe torrado e moido 500g',
-          quantidade: 8,
-          precoUnitario: 19.5,
-          devolvido: 0,
-        },
-      ],
-      subtotal: 156.0,
-      desconto: 0,
-      total: 156.0,
-      pagamentos: [{ forma: 'debito', valor: 156.0 }],
-      valorLiquido: 152.9,
-      imposto: 5.62,
-      nota: { tipo: 'nfce', numero: '4181' },
-      status: 'concluida',
-      devolvidoValor: 0,
-      troco: 0,
-    },
-    {
-      id: 'ven-5',
-      numero: '1838',
-      data: '2026-08-23T09:44:00',
-      clienteNome: 'Restaurante Boa Mesa',
-      itens: [
-        {
-          produtoId: null,
-          descricao: 'Azeite extra virgem 500ml',
-          quantidade: 2,
-          precoUnitario: 39.2,
-          devolvido: 0,
-        },
-      ],
-      subtotal: 78.4,
-      desconto: 0,
-      total: 78.4,
-      pagamentos: [{ forma: 'carteira', valor: 78.4 }],
-      valorLiquido: 0,
-      imposto: 0,
-      nota: null,
-      status: 'estornada',
-      devolvidoValor: 0,
-      troco: 0,
-    },
-  ]
-}
-
 /** A forma de pagamento como o servidor a chama, de volta ao vocabulario da tela. */
 const FORMA_DA_API: Record<string, FormaPagamento> = {
   cash: 'dinheiro',
@@ -477,6 +317,8 @@ export type FiltroDoHistorico = {
   de?: string
   ate?: string
   pagina?: number
+  /** Ausente = a pagina da tela. O assistente pede mais de uma vez so. */
+  porPagina?: number
 }
 
 export type ResumoDoHistorico = {
@@ -505,7 +347,7 @@ export async function listarHistoricoDeVendas(
 > {
   const query = new URLSearchParams({
     page: String(filtro.pagina ?? 1),
-    pageSize: String(VENDAS_POR_PAGINA),
+    pageSize: String(filtro.porPagina ?? VENDAS_POR_PAGINA),
   })
   const termo = filtro.termo?.trim() ?? ''
   if (termo !== '') query.set('q', termo)

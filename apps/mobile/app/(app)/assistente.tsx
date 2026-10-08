@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +20,7 @@ import {
 } from '@/lib/assistente-api'
 import { COMANDOS_DESTAQUE } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
+import Botao from '@/components/ui/Botao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -187,6 +188,9 @@ export default function Assistente() {
 
 /** Resposta rica: tabela, lista ou indicador dentro da conversa. */
 function Bloco({ bloco }: { bloco: BlocoResposta }) {
+  const router = useRouter()
+  const [dispensado, setDispensado] = useState(false)
+
   if (bloco.tipo === 'texto') {
     return <Text style={estilos.blocoTexto}>{bloco.texto}</Text>
   }
@@ -234,10 +238,28 @@ function Bloco({ bloco }: { bloco: BlocoResposta }) {
     )
   }
 
-  /* confirmacao — acao so acontece com aceite explicito */
+  /*
+   * confirmacao — acao so acontece com aceite explicito. A resposta aponta a
+   * tela que faz o que o assistente ainda nao faz, como no web (NR-178).
+   */
+  if (dispensado) return null
+  const destino: Href | null =
+    bloco.acao === 'abrir_cadastro_cliente'
+      ? '/cliente-form'
+      : bloco.acao.startsWith('/')
+        ? (bloco.acao as Href)
+        : null
   return (
     <View style={estilos.confirmacao}>
       <Text style={estilos.confirmacaoTexto}>{bloco.pergunta}</Text>
+      {destino !== null ? (
+        <View style={estilos.confirmacaoAcoes}>
+          <Botao onPress={() => router.push(destino)}>Abrir</Botao>
+          <Botao variante="fantasma" onPress={() => setDispensado(true)}>
+            Agora não
+          </Botao>
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -316,6 +338,7 @@ const estilos = criarEstilos(() => ({
   indicadorApoio: { fontSize: 11, color: cores.textoFraco },
 
   confirmacao: {
+    gap: espaco.xs,
     padding: espaco.md,
     borderWidth: 1,
     borderColor: cores.atencao,
@@ -323,6 +346,7 @@ const estilos = criarEstilos(() => ({
     backgroundColor: cores.atencaoFundo,
   },
   confirmacaoTexto: { fontSize: fonte.micro, color: cores.texto, lineHeight: 19 },
+  confirmacaoAcoes: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm },
 
   sugestoes: { flexGrow: 0, maxHeight: 56 },
   sugestoesConteudo: {
