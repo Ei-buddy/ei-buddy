@@ -1,8 +1,17 @@
-import type { ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { useNavigation } from 'expo-router'
+import { useFocusEffect, useNavigation } from 'expo-router'
 import type { DrawerActionType } from '@react-navigation/native'
-import { cores, espaco, fonte, peso } from '@/theme/tokens'
+import Avisos from '@/components/Avisos'
+import BuscaGlobal from '@/components/BuscaGlobal'
+import {
+  avisosNovos,
+  carregarAvisos,
+  lerAvisosVistos,
+  marcarAvisosVistos,
+  type Aviso,
+} from '@/lib/avisos-api'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /**
  * Cabecalho das telas do app.
@@ -20,6 +29,39 @@ export default function Cabecalho({
   acao?: ReactNode
 }) {
   const navigation = useNavigation()
+  const [buscando, setBuscando] = useState(false)
+  const [vendoAvisos, setVendoAvisos] = useState(false)
+  const [avisos, setAvisos] = useState<Aviso[] | null>(null)
+  const [novos, setNovos] = useState(0)
+
+  /*
+   * A busca e o sino moram no cabecalho, como na barra do topo do web
+   * (NR-162). Telas com acao propria (o PDV, com Buscar e Bipar) ficam sem
+   * eles para nao espremer o titulo; o menu continua a um toque.
+   */
+  const comAtalhos = acao === undefined
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!comAtalhos) return
+      let cancelado = false
+      void (async () => {
+        const [lista, vistos] = await Promise.all([carregarAvisos(), lerAvisosVistos()])
+        if (cancelado) return
+        setAvisos(lista)
+        setNovos(avisosNovos(lista, vistos).reduce((t, a) => t + a.contagem, 0))
+      })()
+      return () => {
+        cancelado = true
+      }
+    }, [comAtalhos]),
+  )
+
+  function abrirAvisos() {
+    setVendoAvisos(true)
+    setNovos(0)
+    if (avisos !== null) void marcarAvisosVistos(avisos)
+  }
 
   function abrirMenu() {
     navigation.dispatch({ type: 'OPEN_DRAWER' } as unknown as DrawerActionType)
@@ -52,6 +94,39 @@ export default function Cabecalho({
       </View>
 
       {acao}
+
+      {comAtalhos ? (
+        <>
+          <Pressable
+            onPress={() => setBuscando(true)}
+            style={estilos.atalho}
+            accessibilityRole="button"
+            accessibilityLabel="Buscar tela, cliente, produto ou venda"
+            hitSlop={4}
+          >
+            {/* Lupa desenhada com View, como o resto dos icones do app. */}
+            <View style={estilos.lupaAro} />
+            <View style={estilos.lupaCabo} />
+          </Pressable>
+          <Pressable
+            onPress={abrirAvisos}
+            style={estilos.atalho}
+            accessibilityRole="button"
+            accessibilityLabel={novos > 0 ? `Notificações: ${novos} nova(s)` : 'Notificações'}
+            hitSlop={4}
+          >
+            <View style={estilos.sinoCorpo} />
+            <View style={estilos.sinoBadalo} />
+            {novos > 0 ? (
+              <View style={estilos.badge}>
+                <Text style={estilos.badgeTexto}>{novos > 99 ? '99+' : novos}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+          <BuscaGlobal aberta={buscando} onFechar={() => setBuscando(false)} />
+          <Avisos avisos={avisos} aberto={vendoAvisos} onFechar={() => setVendoAvisos(false)} />
+        </>
+      ) : null}
     </View>
   )
 }
@@ -77,6 +152,65 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.texto,
   },
   textos: { flex: 1, gap: 1 },
+  atalho: {
+    ...vidro.peca,
+    width: 40,
+    height: 40,
+    borderRadius: raio.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lupaAro: {
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: cores.texto,
+    marginLeft: -3,
+    marginTop: -3,
+  },
+  lupaCabo: {
+    position: 'absolute',
+    width: 2,
+    height: 7,
+    borderRadius: 1,
+    backgroundColor: cores.texto,
+    left: 23,
+    top: 21,
+    transform: [{ rotate: '-45deg' }],
+  },
+  sinoCorpo: {
+    width: 14,
+    height: 13,
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
+    borderWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: cores.texto,
+    marginTop: -3,
+  },
+  sinoBadalo: {
+    position: 'absolute',
+    width: 5,
+    height: 3,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    backgroundColor: cores.texto,
+    top: 25,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: cores.erro,
+  },
+  badgeTexto: { fontSize: 10, fontWeight: peso.pesado, color: cores.fundo },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   subtitulo: { fontSize: fonte.micro, color: cores.textoFraco },
 })

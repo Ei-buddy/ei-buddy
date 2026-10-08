@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   FORMAS,
@@ -52,7 +52,9 @@ export default function Vendas() {
   const [total, setTotal] = useState(0)
   const [resumo, setResumo] = useState<ResumoDoHistorico | null>(null)
   const [pagina, setPagina] = useState(1)
-  const [termo, setTermo] = useState('')
+  /* `?q=`: a busca global (NR-162) abre o historico ja na venda achada. */
+  const { q } = useLocalSearchParams<{ q?: string }>()
+  const [termo, setTermo] = useState(q ?? '')
   const [periodo, setPeriodo] = useState<Periodo>('30d')
   const [carregando, setCarregando] = useState(true)
   const [carregandoMais, setCarregandoMais] = useState(false)
@@ -82,6 +84,13 @@ export default function Vendas() {
     setResumo(r.resumo)
     setVendas((atual) => (pag === 1 ? r.vendas : [...atual, ...r.vendas]))
   }, [])
+
+  useEffect(() => {
+    if (q !== undefined) {
+      setTermo(q)
+      setPeriodo('tudo')
+    }
+  }, [q])
 
   useEffect(() => {
     /* Espera a digitacao parar: a resposta de "Mar" nao pode chegar depois da
