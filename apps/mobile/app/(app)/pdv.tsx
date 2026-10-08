@@ -40,6 +40,7 @@ import { vencidoDoCliente } from '@/lib/clientes-api'
 import { carregarOrcamento, converterOrcamento, type Orcamento } from '@/lib/orcamentos-api'
 import type { FormaPagamento } from '@/lib/types'
 import { formatMoney } from '@/lib/format'
+import { tocarConfirmacao } from '@/lib/som'
 import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
 import { Vazio } from '@/components/ui/Cartao'
@@ -320,6 +321,8 @@ export default function Pdv() {
     }
 
     chaveDoFechamento.current = null
+    /* O "pronto" da venda fechada, como no web — NR-163. */
+    tocarConfirmacao()
     limparVenda()
     setResumo(r.venda)
   }

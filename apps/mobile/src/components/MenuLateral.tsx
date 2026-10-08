@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import type { DrawerContentComponentProps } from 'expo-router/drawer'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { escolherLoja, sair as encerrarNoServidor } from '@/lib/auth-api'
 import { lerSessao, type Sessao } from '@/lib/session'
 import { carregarAvisos } from '@/lib/avisos-api'
+import { alternarSom, assinarSom, lerSom, type PreferenciaDeSom } from '@/lib/som'
 import { GRUPOS } from '@/lib/navegacao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
@@ -54,6 +55,13 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
   useEffect(() => {
     void recarregarSessao()
   }, [recarregarSessao])
+
+  /* O liga/desliga do som — o mesmo botao da barra do topo do web (NR-163). */
+  const [som, setSom] = useState<PreferenciaDeSom>('ligado')
+  useEffect(() => {
+    void lerSom().then(setSom)
+    return assinarSom(setSom)
+  }, [])
 
   /* Respostas novas do suporte no item do menu, como o badge da barra do web
      (NR-162). Mesma fonte do sino, para os dois numeros nunca divergirem. */
@@ -207,6 +215,20 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
         })}
       </ScrollView>
 
+      <View style={estilos.som}>
+        <View style={estilos.flex}>
+          <Text style={estilos.somTitulo}>Som</Text>
+          <Text style={estilos.somApoio}>Bipe do leitor e venda fechada</Text>
+        </View>
+        <Switch
+          value={som === 'ligado'}
+          onValueChange={() => void alternarSom()}
+          trackColor={{ true: cores.ativo, false: cores.borda }}
+          thumbColor={cores.texto}
+          accessibilityLabel={som === 'ligado' ? 'Desligar o som' : 'Ligar o som'}
+        />
+      </View>
+
       <Pressable
         onPress={sair}
         style={[estilos.sair, { marginBottom: insets.bottom + espaco.md }]}
@@ -300,6 +322,20 @@ const estilos = StyleSheet.create({
   badgeTexto: { fontSize: 11, fontWeight: peso.pesado, color: cores.textoSobreAcento },
   itemTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
+  som: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.md,
+    marginHorizontal: espaco.lg,
+    marginBottom: espaco.md,
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.sm,
+    borderRadius: raio.md,
+    ...vidro.peca,
+  },
+  flex: { flex: 1 },
+  somTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
+  somApoio: { fontSize: fonte.micro, color: cores.textoFraco },
   sair: {
     marginHorizontal: espaco.lg,
     paddingVertical: espaco.md,
