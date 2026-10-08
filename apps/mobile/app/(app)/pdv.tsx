@@ -16,6 +16,7 @@ import {
   estadoDaNota,
   faltaPagarCentavos,
   fecharVenda,
+  listarHistoricoDeVendas,
   margemEmPontos,
   novaChaveDeVenda,
   pedirNota,
@@ -44,6 +45,7 @@ import {
   type Orcamento,
 } from '@/lib/orcamentos-api'
 import type { FormaPagamento } from '@/lib/types'
+import { compartilharComprovante } from '@/lib/comprovante-da-venda'
 import { diaLocal, formatMoney } from '@/lib/format'
 import { tocarConfirmacao } from '@/lib/som'
 import { centavosDoTexto } from '@/lib/valor'
@@ -920,9 +922,34 @@ function ResumoDaVenda({ venda, onFechar }: { venda: VendaRegistrada; onFechar: 
         <LinhaResumo rotulo="Troco" centavos={venda.trocoCentavos} destaque />
       ) : null}
 
+      {/* O recibo nao fiscal ja na saida do balcao, como no PDV do web — NR-171. */}
+      <Botao
+        variante="secundario"
+        onPress={() => void compartilharComprovanteDaVenda(venda.numero)}
+        largura
+      >
+        Comprovante não fiscal
+      </Botao>
+
       <EmissaoFiscal vendaId={venda.id} onConcluir={onFechar} />
     </View>
   )
+}
+
+/**
+ * Compartilha o comprovante da venda recem-fechada. O texto e o mesmo do
+ * historico (`compartilharComprovante`), que precisa da venda como o historico
+ * a devolve — por isso a busca pelo numero.
+ */
+async function compartilharComprovanteDaVenda(numero: number) {
+  const r = await listarHistoricoDeVendas({ termo: String(numero) })
+  const venda = r.ok ? r.vendas.find((v) => Number(v.numero) === numero) : undefined
+  if (venda === undefined) {
+    Alert.alert('Comprovante', 'Não deu para montar o comprovante agora. Tente pelo histórico.')
+    return
+  }
+  const enviado = await compartilharComprovante(venda)
+  if (!enviado.ok) Alert.alert('Comprovante', enviado.erro)
 }
 
 /**
