@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     129 |  287 |
-| ✅ Concluídas                 |     123 |  266 |
+| Total                         |     130 |  288 |
+| ✅ Concluídas                 |     124 |  267 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -375,6 +375,7 @@ voltam a ⬜.
 | NR-162 | Busca global (telas, produtos, clientes, vendas), sino de avisos e contador do suporte no app, como no web                           |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-163 | Som no app: bipe do leitor e confirmação de venda fechada, com liga/desliga, iguais aos do web                                       |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-164 | PDV salva o carrinho como orçamento de verdade (web e app), no lugar da janela de impressão                                          |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-165 | Bloco "Via WhatsApp" nas telas do app (produtos, vendas, clientes, contas, plano de contas, empresa), como no web                    |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 
 ---
 
@@ -487,10 +488,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      54 |  101 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      55 |  102 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **287 dias-desenvolvedor** em 129 tarefas. Com 3 pessoas, isso é cerca
+Somando: **288 dias-desenvolvedor** em 130 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

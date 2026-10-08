@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { buscarCep, carregarEmpresa, salvarEmpresa, type DadosEmpresa } from '@/lib/empresa-api'
 import { maskCelular, maskCEP, maskCNPJ } from '@/lib/validation'
 import { CelularDoCanal, CertificadoDigital, MeusDados } from '@/components/EmpresaSecoes'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_EMPRESA } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Campo from '@/components/ui/Campo'
@@ -201,6 +203,8 @@ export default function Empresa() {
         <CertificadoDigital />
         <CelularDoCanal />
         <MeusDados />
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={COMANDOS_EMPRESA} />
       </ScrollView>
     </SafeAreaView>
   )

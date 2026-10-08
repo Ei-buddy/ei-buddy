@@ -21,6 +21,8 @@ import {
   type Titulo,
 } from '@/lib/financeiro-api'
 import { daysUntil, describeDueDate, formatDate, formatMoney } from '@/lib/format'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_PAGAR, COMANDOS_RECEBER } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import BaixaModal from '@/components/BaixaModal'
 import CorrecaoTituloModal from '@/components/CorrecaoTituloModal'
@@ -329,6 +331,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             </Sanfona>
           </>
         )}
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={pagar ? COMANDOS_PAGAR : COMANDOS_RECEBER} />
       </ScrollView>
 
       {/* A faixa de resposta. Sai sozinha em 4s — no balcao ninguem toca em

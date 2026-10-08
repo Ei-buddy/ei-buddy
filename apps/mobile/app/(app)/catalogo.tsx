@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_PRODUTOS } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import {
   buscarEan,
@@ -235,6 +237,8 @@ export default function Catalogo() {
           data={lista}
           keyExtractor={(p) => p.id}
           contentContainerStyle={estilos.lista}
+          /* Via WhatsApp, como no web — NR-165. */
+          ListFooterComponent={<ComandosWhatsApp comandos={COMANDOS_PRODUTOS} />}
           renderItem={({ item }) => (
             <LinhaProduto
               produto={item}

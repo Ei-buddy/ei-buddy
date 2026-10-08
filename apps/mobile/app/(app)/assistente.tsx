@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocalSearchParams } from 'expo-router'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -35,7 +36,13 @@ const HOJE = '2026-08-24'
 export default function Assistente() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [contexto, setContexto] = useState<Contexto>(CONTEXTO_VAZIO)
-  const [entrada, setEntrada] = useState('')
+  /* `?pergunta=`: o bloco "Via WhatsApp" das telas (NR-165) abre o assistente
+     com a pergunta ja escrita, como no web — a pessoa so confirma. */
+  const { pergunta } = useLocalSearchParams<{ pergunta?: string }>()
+  const [entrada, setEntrada] = useState(pergunta ?? '')
+  useEffect(() => {
+    if (pergunta) setEntrada(pergunta)
+  }, [pergunta])
   const [pensando, setPensando] = useState(false)
 
   const rolagem = useRef<ScrollView>(null)
