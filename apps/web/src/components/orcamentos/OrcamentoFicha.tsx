@@ -138,7 +138,7 @@ export default function OrcamentoFicha({ id }: { id: string }) {
               </ButtonLink>
               {orcamento.saleId ? (
                 <ButtonLink href={`/app/vendas/${orcamento.saleId}`} variant="secondary">
-                  Ver venda
+                  {orcamento.saleNumber ? `Ver venda #${orcamento.saleNumber}` : 'Ver venda'}
                 </ButtonLink>
               ) : null}
               <Button

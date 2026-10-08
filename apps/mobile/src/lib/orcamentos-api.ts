@@ -29,6 +29,8 @@ export type Orcamento = {
   discountCents: number
   totalCents: number
   saleId: string | null
+  /** O numero da venda que nasceu dele — NR-172. */
+  saleNumber: number | null
   items: ItemDoOrcamento[]
   createdAt: string
 }

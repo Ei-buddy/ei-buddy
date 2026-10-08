@@ -71,6 +71,8 @@ export const quoteOutputSchema = z.object({
   discountCents: z.number().int(),
   totalCents: z.number().int(),
   saleId: idSchema.nullable(),
+  /** O numero da venda que nasceu dele — para "Ver venda #N" (NR-172). */
+  saleNumber: z.number().int().nullable(),
   items: z.array(quoteItemOutputSchema),
   createdAt: z.string(),
 })

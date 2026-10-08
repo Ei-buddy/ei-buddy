@@ -16,15 +16,15 @@ type Produto = {
 export class InMemoryQuotes implements QuoteRepository {
   private readonly produtos: Produto[] = []
   private readonly orcamentos: (QuoteOutput & { companyId: CompanyId })[] = []
-  private readonly vendas: { id: string; companyId: CompanyId }[] = []
+  private readonly vendas: { id: string; companyId: CompanyId; numero: number }[] = []
   private seq = 0
 
   cadastrar(p: Produto): void {
     this.produtos.push(p)
   }
 
-  registrarVenda(id: string, companyId: CompanyId): void {
-    this.vendas.push({ id, companyId })
+  registrarVenda(id: string, companyId: CompanyId, numero = this.vendas.length + 1): void {
+    this.vendas.push({ id, companyId, numero })
   }
 
   async findProducts(companyId: CompanyId, ids: readonly string[]) {
@@ -46,6 +46,7 @@ export class InMemoryQuotes implements QuoteRepository {
       discountCents: q.discountCents,
       totalCents: q.totalCents,
       saleId: null,
+      saleNumber: null,
       items: q.items.map((i) => {
         const p = this.produtos.find((x) => x.id === i.productId)!
         return {
@@ -86,7 +87,12 @@ export class InMemoryQuotes implements QuoteRepository {
       (o) => o.companyId === companyId && o.id === id && o.status === 'open',
     )
     if (i < 0) return null
-    this.orcamentos[i] = { ...this.orcamentos[i]!, status: d.status, saleId: d.saleId }
+    this.orcamentos[i] = {
+      ...this.orcamentos[i]!,
+      status: d.status,
+      saleId: d.saleId,
+      saleNumber: this.vendas.find((v) => v.id === d.saleId)?.numero ?? null,
+    }
     return this.orcamentos[i]!
   }
 }
