@@ -77,7 +77,7 @@ describe('assistente com os dados da loja', () => {
     expect(r.texto).toContain('10 vendas')
     /* Bruto e liquido, os dois, cada um com o nome que tem. */
     expect(r.texto).toContain('brutos')
-    expect(r.texto).toMatch(/Liquido: R\$\s1\.000,00/)
+    expect(r.texto).toMatch(/Líquido: R\$\s1\.000,00/)
     expect(texto(r)).toContain('out/2026')
     /* A tabela fixa de antes ("Agosto R$ 64.200") nao pode voltar. */
     expect(texto(r)).not.toContain('64.200')

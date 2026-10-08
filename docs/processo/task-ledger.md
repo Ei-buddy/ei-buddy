@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     143 |  303 |
-| ✅ Concluídas                 |     137 |  282 |
+| Total                         |     144 |  304 |
+| ✅ Concluídas                 |     138 |  283 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -384,6 +384,7 @@ voltam a ⬜.
 | NR-176 | App: botões do cabeçalho compactos (título não corta) e comandos de WhatsApp quebram linha                                           |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-177 | App: resumo vazio da empresa diz "não informado" (era "/" e "()"); campos em linha encolhem                                          |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-178 | Assistente do app com os dados da loja (era mock-data), igual ao web; ações abrem a tela                                             |   🟢   | `mobile`                                                      |   2 | —                                      | —    | RF-108                                             |   ✅   |
+| NR-179 | Assistente (web e app): respostas com acentuação correta                                                                             |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                  |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                           |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -501,10 +502,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      68 |  117 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      69 |  118 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **303 dias-desenvolvedor** em 143 tarefas. Com 3 pessoas, isso é cerca
+Somando: **304 dias-desenvolvedor** em 144 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

@@ -299,7 +299,7 @@ const emAberto = <T extends { amountCents: number; settledAmountCents: number; s
 const saldoDe = (t: { amountCents: number; settledAmountCents: number }): number =>
   t.amountCents - t.settledAmountCents
 
-const NAO_CONSEGUI = 'Nao consegui consultar os dados agora. Tente de novo em instantes.'
+const NAO_CONSEGUI = 'Não consegui consultar os dados agora. Tente de novo em instantes.'
 
 const abrir = (pergunta: string, rota: string): BlocoResposta => ({
   tipo: 'confirmacao',
@@ -337,7 +337,7 @@ export async function responder(
   if (t.includes('whatsapp') || t.includes('envie aviso') || t.includes('gerar link')) {
     return r(
       'acao_mensagem',
-      'Mandar mensagem ao cliente pelo assistente ainda nao esta ligado. Por enquanto, o contato sai da ficha do cliente.',
+      'Mandar mensagem ao cliente pelo assistente ainda não está ligado. Por enquanto, o contato sai da ficha do cliente.',
       [abrir('Abrir a lista de clientes?', '/app/clientes')],
     )
   }
@@ -345,7 +345,7 @@ export async function responder(
     const receber = t.includes('receber') || !t.includes('pagar')
     return r(
       'acao_baixa',
-      'A baixa de titulos ainda e feita pela tela de contas — la voce confere valor e data antes de confirmar.',
+      'A baixa de títulos ainda é feita pela tela de contas — lá você confere valor e data antes de confirmar.',
       [
         abrir(
           receber ? 'Abrir contas a receber?' : 'Abrir contas a pagar?',
@@ -355,21 +355,21 @@ export async function responder(
     )
   }
   if (t.includes('pendencia') || t.includes('lancar um contato') || t.includes('lancar contato')) {
-    return r('acao_crm', 'Pendencias e contatos ficam no quadro do CRM.', [
+    return r('acao_crm', 'Pendências e contatos ficam no quadro do CRM.', [
       abrir('Abrir o CRM?', '/app/crm'),
     ])
   }
   if (t.includes('gerar contas a pagar')) {
     return r(
       'acao_custos_fixos',
-      'As contas do mes saem dos custos fixos, em Plano de contas — o botao "Gerar contas do mes".',
+      'As contas do mês saem dos custos fixos, em Plano de contas — o botão "Gerar contas do mês".',
       [abrir('Abrir o plano de contas?', '/app/financeiro/plano-de-contas')],
     )
   }
   if (t.includes('cadastr') && !t.includes('esta cadastrad')) {
     return r(
       'cadastrar_cliente',
-      'O cadastro abre no formulario completo, com busca de CPF e CEP.',
+      'O cadastro abre no formulário completo, com busca de CPF e CEP.',
       [
         {
           tipo: 'confirmacao',
@@ -391,18 +391,18 @@ export async function responder(
     return r(
       'vendas_estornadas',
       desfeitas.length === 0
-        ? 'Nenhuma venda cancelada ou devolvida nos ultimos 30 dias.'
-        : `${desfeitas.length} venda(s) cancelada(s) ou com devolucao nos ultimos 30 dias:`,
+        ? 'Nenhuma venda cancelada ou devolvida nos últimos 30 dias.'
+        : `${desfeitas.length} venda(s) cancelada(s) ou com devolução nos últimos 30 dias:`,
       desfeitas.length === 0
         ? []
         : [
             {
               tipo: 'tabela',
               titulo: 'Canceladas e devolvidas',
-              colunas: ['Venda', 'Cliente', 'Situacao', 'Valor'],
+              colunas: ['Venda', 'Cliente', 'Situação', 'Valor'],
               linhas: desfeitas.map((v) => [
                 `#${v.numero}`,
-                v.clienteNome ?? 'Balcao',
+                v.clienteNome ?? 'Balcão',
                 v.status === 'cancelled'
                   ? 'Cancelada'
                   : `Devolvido ${formatMoney(v.devolvidoValor)}`,
@@ -421,14 +421,14 @@ export async function responder(
     return r(
       'ticket_medio',
       ticketMedio === null
-        ? 'Nenhuma venda nos ultimos 7 dias, entao nao ha ticket medio.'
-        : `Ticket medio dos ultimos 7 dias: ${formatMoney(ticketMedio)} (bruto, antes do desconto).`,
+        ? 'Nenhuma venda nos últimos 7 dias, então não há ticket médio.'
+        : `Ticket médio dos últimos 7 dias: ${formatMoney(ticketMedio)} (bruto, antes do desconto).`,
       ticketMedio === null
         ? []
         : [
             {
               tipo: 'indicador',
-              rotulo: 'Ticket medio bruto (7 dias)',
+              rotulo: 'Ticket médio bruto (7 dias)',
               valor: formatMoney(ticketMedio),
               apoio: `${quantidade} vendas · ${formatMoney(faturamento)}`,
             },
@@ -439,11 +439,11 @@ export async function responder(
   if (t.includes('mes a mes') && t.includes('faturamento')) {
     const f = await fontes.faturamento(mesesAntes(hoje, 5), fimDoMes(hoje))
     if (!f.ok) return r('faturamento_mensal', NAO_CONSEGUI)
-    return r('faturamento_mensal', 'Faturamento dos ultimos 6 meses:', [
+    return r('faturamento_mensal', 'Faturamento dos últimos 6 meses:', [
       {
         tipo: 'tabela',
-        titulo: 'Faturamento mes a mes',
-        colunas: ['Mes', 'Bruto', 'Liquido', 'Vendas'],
+        titulo: 'Faturamento mês a mês',
+        colunas: ['Mês', 'Bruto', 'Líquido', 'Vendas'],
         linhas: f.dados.months.map((m) => [
           rotuloDoMes(m.month),
           centavos(m.grossCents),
@@ -463,7 +463,7 @@ export async function responder(
     const { faturamento, liquido, quantidade } = h.dados.resumo
     return r(
       'faturamento',
-      `Hoje voce vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Liquido: ${formatMoney(liquido)}, ja sem desconto, imposto e taxa de cartao.`,
+      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, imposto e taxa de cartão.`,
       [
         {
           tipo: 'indicador',
@@ -473,16 +473,16 @@ export async function responder(
         },
         {
           tipo: 'indicador',
-          rotulo: 'Faturamento liquido hoje',
+          rotulo: 'Faturamento líquido hoje',
           valor: formatMoney(liquido),
-          apoio: 'sem desconto, imposto e taxa de cartao',
+          apoio: 'sem desconto, imposto e taxa de cartão',
         },
         ...(f.ok
           ? [
               {
                 tipo: 'tabela' as const,
-                titulo: 'Ultimos meses',
-                colunas: ['Mes', 'Bruto', 'Liquido', 'Vendas'],
+                titulo: 'Últimos meses',
+                colunas: ['Mês', 'Bruto', 'Líquido', 'Vendas'],
                 linhas: [...f.dados.months]
                   .reverse()
                   .map((m) => [
@@ -513,7 +513,7 @@ export async function responder(
           titulo: `DRE ${rotuloDoMes(hoje.slice(0, 7))}`,
           itens: [
             { rotulo: 'Receita bruta', valor: centavos(x.grossRevenueCents) },
-            { rotulo: 'Deducoes', valor: centavos(-x.deductionsCents) },
+            { rotulo: 'Deduções', valor: centavos(-x.deductionsCents) },
             { rotulo: 'Custo', valor: centavos(-x.costCents) },
             { rotulo: 'Despesas', valor: centavos(-x.expensesCents) },
             { rotulo: 'Resultado', valor: centavos(x.resultCents), destaque: true },
@@ -528,11 +528,11 @@ export async function responder(
     const meses = [2, 1, 0].map((n) => mesesAntes(hoje, n))
     const dres = await Promise.all(meses.map((m) => fontes.dre(m, fimDoMes(m))))
     if (dres.some((d) => !d.ok)) return r('gastos_mensais', NAO_CONSEGUI)
-    return r('gastos_mensais', 'Despesas e custos dos ultimos 3 meses:', [
+    return r('gastos_mensais', 'Despesas e custos dos últimos 3 meses:', [
       {
         tipo: 'tabela',
-        titulo: 'Gastos mes a mes',
-        colunas: ['Mes', 'Custos', 'Despesas', 'Total'],
+        titulo: 'Gastos mês a mês',
+        colunas: ['Mês', 'Custos', 'Despesas', 'Total'],
         linhas: dres.map((d, i) => {
           const x = (d as { ok: true; dados: Dre }).dados
           return [
@@ -556,15 +556,15 @@ export async function responder(
       for (const c of p.dados.filter(emAberto)) {
         const nome =
           c.accountId === null
-            ? 'Sem classificacao'
-            : (nomes.get(c.accountId) ?? 'Sem classificacao')
+            ? 'Sem classificação'
+            : (nomes.get(c.accountId) ?? 'Sem classificação')
         porConta.set(nome, (porConta.get(nome) ?? 0) + saldoDe(c))
       }
       const linhas = [...porConta.entries()].sort((a, b) => b[1] - a[1])
       return r(
         'pagar_por_plano',
         linhas.length === 0
-          ? 'Nao ha contas a pagar em aberto.'
+          ? 'Não há contas a pagar em aberto.'
           : 'Total a pagar em aberto, por plano de conta:',
         linhas.length === 0
           ? []
@@ -592,7 +592,7 @@ export async function responder(
       gastos.length === 0
         ? citado
           ? `Nenhum gasto no plano "${citado}" em ${rotuloDoMes(hoje.slice(0, 7))}.`
-          : `Nenhum gasto lancado em ${rotuloDoMes(hoje.slice(0, 7))}.`
+          : `Nenhum gasto lançado em ${rotuloDoMes(hoje.slice(0, 7))}.`
         : `Gastos de ${rotuloDoMes(hoje.slice(0, 7))} por plano de conta:`,
       gastos.length === 0
         ? []
@@ -600,7 +600,7 @@ export async function responder(
             {
               tipo: 'tabela',
               titulo: 'Gastos por plano de conta',
-              colunas: ['Plano de conta', 'Lancamentos', 'Total'],
+              colunas: ['Plano de conta', 'Lançamentos', 'Total'],
               linhas: gastos.map((l) => [
                 l.accountName,
                 String(l.entryCount),
@@ -643,8 +643,8 @@ export async function responder(
       lista.length === 0
         ? t.includes('vencido')
           ? 'Nada vencido a receber.'
-          : 'Nao ha nada a receber em aberto.'
-        : `${lista.length} titulo(s) ${t.includes('vencido') ? 'vencido(s)' : 'em aberto'}, somando ${centavos(total)}.`,
+          : 'Não há nada a receber em aberto.'
+        : `${lista.length} título(s) ${t.includes('vencido') ? 'vencido(s)' : 'em aberto'}, somando ${centavos(total)}.`,
       lista.length === 0
         ? []
         : [
@@ -674,8 +674,8 @@ export async function responder(
     return r(
       'ranking_clientes',
       top.length === 0
-        ? 'Nenhuma venda para cliente identificado nos ultimos 90 dias.'
-        : 'Seus maiores clientes nos ultimos 90 dias:',
+        ? 'Nenhuma venda para cliente identificado nos últimos 90 dias.'
+        : 'Seus maiores clientes nos últimos 90 dias:',
       top.length === 0
         ? []
         : [
@@ -695,20 +695,20 @@ export async function responder(
     return r(
       'clientes_inativos',
       c.dados.length === 0
-        ? 'Nenhum cliente sem comprar ha mais de 60 dias.'
-        : `${c.dados.length} cliente(s) sem comprar ha mais de 60 dias.`,
+        ? 'Nenhum cliente sem comprar há mais de 60 dias.'
+        : `${c.dados.length} cliente(s) sem comprar há mais de 60 dias.`,
       c.dados.length === 0
         ? []
         : [
             {
               tipo: 'lista',
-              titulo: 'Sem comprar ha 60 dias',
+              titulo: 'Sem comprar há 60 dias',
               itens: c.dados.slice(0, 15).map((x) => ({
                 rotulo: x.nome,
                 valor:
                   x.ultimaCompra === null
                     ? 'nunca comprou'
-                    : `ha ${Math.abs(daysUntil(x.ultimaCompra))} dias`,
+                    : `há ${Math.abs(daysUntil(x.ultimaCompra))} dias`,
               })),
             },
           ],
@@ -724,8 +724,8 @@ export async function responder(
     return r(
       'ranking_produtos',
       top.length === 0
-        ? 'Nenhum produto vendido nos ultimos 30 dias.'
-        : 'Mais vendidos nos ultimos 30 dias:',
+        ? 'Nenhum produto vendido nos últimos 30 dias.'
+        : 'Mais vendidos nos últimos 30 dias:',
       top.length === 0
         ? []
         : [
@@ -773,8 +773,8 @@ export async function responder(
     return r(
       'produtos_parados',
       parados.length === 0
-        ? 'Todo produto com estoque vendeu nos ultimos 60 dias.'
-        : `${parados.length} produto(s) com estoque e sem venda nos ultimos 60 dias.`,
+        ? 'Todo produto com estoque vendeu nos últimos 60 dias.'
+        : `${parados.length} produto(s) com estoque e sem venda nos últimos 60 dias.`,
       parados.length === 0
         ? []
         : [
@@ -796,8 +796,8 @@ export async function responder(
     return r(
       'reposicao',
       c.dados.length === 0
-        ? 'Nenhum produto abaixo do estoque minimo.'
-        : `${c.dados.length} produto(s) no minimo ou abaixo dele.`,
+        ? 'Nenhum produto abaixo do estoque mínimo.'
+        : `${c.dados.length} produto(s) no mínimo ou abaixo dele.`,
       c.dados.length === 0
         ? []
         : [
@@ -806,7 +806,7 @@ export async function responder(
               titulo: 'Precisa repor',
               itens: c.dados.map((p) => ({
                 rotulo: p.descricao,
-                valor: `${p.estoque} em estoque · minimo ${p.estoqueMinimo}`,
+                valor: `${p.estoque} em estoque · mínimo ${p.estoqueMinimo}`,
                 destaque: p.estoque <= 0,
               })),
             },
@@ -844,7 +844,7 @@ export async function responder(
     const ate = t.includes('sexta') ? proximaSexta(hoje) : hoje
     const noPeriodo = abertas.filter((c) => c.dueDate >= hoje && c.dueDate <= ate)
     const total = noPeriodo.reduce((s, c) => s + saldoDe(c), 0)
-    const periodo = t.includes('sexta') ? 'ate sexta' : 'hoje'
+    const periodo = t.includes('sexta') ? 'até sexta' : 'hoje'
     return r(
       'contas_pagar',
       noPeriodo.length === 0
@@ -878,7 +878,7 @@ export async function responder(
       if (!achados.ok) return r('cliente', NAO_CONSEGUI)
       const cliente = achados.dados[0]
       if (cliente === undefined) {
-        return r('cliente_nao_encontrado', `Nao achei nenhum cliente com "${nome}".`, [
+        return r('cliente_nao_encontrado', `Não achei nenhum cliente com "${nome}".`, [
           { tipo: 'confirmacao', pergunta: 'Quer cadastrar?', acao: 'abrir_cadastro_cliente' },
         ])
       }
@@ -887,7 +887,7 @@ export async function responder(
     }
 
     if (ctx.clienteId === null) {
-      return r('sem_contexto', 'De qual cliente voce esta falando? Diga o nome que eu busco.')
+      return r('sem_contexto', 'De qual cliente você está falando? Diga o nome que eu busco.')
     }
     const nomeDoCliente = ctx.clienteNome ?? 'o cliente'
 
@@ -898,7 +898,7 @@ export async function responder(
       return r(
         'divida_cliente',
         pend.dados.length === 0
-          ? `${nomeDoCliente} nao deve nada.`
+          ? `${nomeDoCliente} não deve nada.`
           : `${nomeDoCliente} deve ${formatMoney(total)}.`,
         pend.dados.length === 0
           ? []
@@ -922,7 +922,7 @@ export async function responder(
     if (t.includes('esta cadastrad')) {
       return r(
         'resumo_cliente',
-        `${nomeDoCliente} esta cadastrado, com ${compras.dados.length} compra(s).`,
+        `${nomeDoCliente} está cadastrado, com ${compras.dados.length} compra(s).`,
         [{ tipo: 'texto', texto: 'Pergunte, por exemplo: o que ele comprou?' }],
       )
     }
@@ -932,16 +932,16 @@ export async function responder(
       return r(
         'ultima_compra',
         ultima === undefined
-          ? `${nomeDoCliente} ainda nao comprou.`
-          : `A ultima compra de ${nomeDoCliente} foi em ${diaBr(ultima.data)}, de ${formatMoney(ultima.valor)}.`,
+          ? `${nomeDoCliente} ainda não comprou.`
+          : `A última compra de ${nomeDoCliente} foi em ${diaBr(ultima.data)}, de ${formatMoney(ultima.valor)}.`,
       )
     }
 
     return r(
       'compras_cliente',
       compras.dados.length === 0
-        ? `${nomeDoCliente} ainda nao comprou.`
-        : `As ultimas compras de ${nomeDoCliente}:`,
+        ? `${nomeDoCliente} ainda não comprou.`
+        : `As últimas compras de ${nomeDoCliente}:`,
       compras.dados.length === 0
         ? []
         : [
@@ -960,7 +960,7 @@ export async function responder(
   /* --- Nao entendeu --- */
   return r(
     'desconhecida',
-    'Ainda nao sei responder isso. Tente uma das sugestoes abaixo, ou pergunte sobre vendas, clientes, produtos ou contas.',
+    'Ainda não sei responder isso. Tente uma das sugestões abaixo, ou pergunte sobre vendas, clientes, produtos ou contas.',
   )
 }
 
