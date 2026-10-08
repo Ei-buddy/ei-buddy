@@ -7,7 +7,8 @@ import { escolherLoja, sair as encerrarNoServidor } from '@/lib/auth-api'
 import { lerSessao, type Sessao } from '@/lib/session'
 import { carregarAvisos } from '@/lib/avisos-api'
 import { alternarSom, assinarSom, lerSom, type PreferenciaDeSom } from '@/lib/som'
-import { GRUPOS } from '@/lib/navegacao'
+import { ACAO_TUTORIAL, GRUPOS } from '@/lib/navegacao'
+import { iniciarTutorial } from '@/lib/tutorial'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 export default function MenuLateral(props: DrawerContentComponentProps) {
@@ -35,6 +36,7 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
 
   function navegar(rota: string) {
     props.navigation.closeDrawer()
+    if (rota === ACAO_TUTORIAL) return iniciarTutorial()
     router.push(rota as never)
   }
 

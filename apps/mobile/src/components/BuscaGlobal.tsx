@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { buscarTudo, MINIMO_DA_BUSCA, type ResultadoDaBusca } from '@/lib/busca-api'
-import { GRUPOS } from '@/lib/navegacao'
+import { ACAO_TUTORIAL, GRUPOS } from '@/lib/navegacao'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 
 /** Tira acento e caixa: "orcamento" acha "Orçamentos". */
@@ -52,6 +52,7 @@ export default function BuscaGlobal({
     if (q === '') return []
     return GRUPOS.flatMap((g) =>
       g.itens
+        .filter((i) => i.rota !== ACAO_TUTORIAL)
         .filter((i) => normal(i.rotulo).includes(q) || normal(g.grupo).includes(q))
         .map((i) => ({ ...i, grupo: g.grupo })),
     ).slice(0, 6)
