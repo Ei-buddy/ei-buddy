@@ -37,9 +37,14 @@ import {
 } from '@/lib/vendas-api'
 import { buscarEan, type ProdutoLido } from '@/lib/produtos-api'
 import { vencidoDoCliente } from '@/lib/clientes-api'
-import { carregarOrcamento, converterOrcamento, type Orcamento } from '@/lib/orcamentos-api'
+import {
+  carregarOrcamento,
+  converterOrcamento,
+  criarOrcamento,
+  type Orcamento,
+} from '@/lib/orcamentos-api'
 import type { FormaPagamento } from '@/lib/types'
-import { formatMoney } from '@/lib/format'
+import { diaLocal, formatMoney } from '@/lib/format'
 import { tocarConfirmacao } from '@/lib/som'
 import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
@@ -71,6 +76,7 @@ export default function Pdv() {
   /* `?orcamento=<id>`: o carrinho chega montado com os precos prometidos — NR-159. */
   const { orcamento: orcamentoId } = useLocalSearchParams<{ orcamento?: string }>()
   const [orcamento, setOrcamento] = useState<Orcamento | null>(null)
+  const [salvandoOrcamento, setSalvandoOrcamento] = useState(false)
   const [itens, setItens] = useState<ItemCarrinho[]>([])
   const [lendo, setLendo] = useState(false)
   const [buscando, setBuscando] = useState(false)
@@ -240,6 +246,29 @@ export default function Pdv() {
     setPartes(null)
     setParcelas(1)
     setOrcamento(null)
+  }
+
+  /**
+   * O carrinho vira um orcamento numerado (NR-159) com os mesmos precos e
+   * desconto, e a lista de orcamentos abre para compartilhar — NR-164.
+   */
+  async function salvarComoOrcamento() {
+    setSalvandoOrcamento(true)
+    const r = await criarOrcamento({
+      ...(cliente === null ? {} : { customerName: cliente.nome }),
+      items: itens.map((i) => ({
+        productId: i.produtoId,
+        quantity: i.quantidade,
+        unitPriceCents: Math.round(i.precoUnitario * 100),
+      })),
+      validUntil: diaLocal(new Date(Date.now() + 7 * 86_400_000)),
+      ...(descontoCentavos > 0 ? { discountCents: descontoCentavos } : {}),
+    })
+    setSalvandoOrcamento(false)
+    if (!r.ok) return Alert.alert('Não deu para salvar o orçamento', r.erro)
+    limparVenda()
+    Alert.alert('Orçamento salvo', `Orçamento nº ${r.dados.number} — compartilhe pela lista.`)
+    router.push('/orcamentos')
   }
 
   function cancelar() {
@@ -542,6 +571,16 @@ export default function Pdv() {
             <Text style={estilos.totalRotulo}>Total</Text>
             <Text style={estilos.totalValor}>{formatMoney(total)}</Text>
           </View>
+
+          {/* Salvar o carrinho como orcamento, como no PDV do web — NR-164. */}
+          <Botao
+            variante="secundario"
+            onPress={() => void salvarComoOrcamento()}
+            carregando={salvandoOrcamento}
+            largura
+          >
+            Salvar como orçamento
+          </Botao>
 
           <View style={estilos.acoes}>
             <Botao variante="perigo" onPress={cancelar}>

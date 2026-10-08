@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import {
   carregarCatalogo,
@@ -13,7 +14,8 @@ import {
   type Desconto,
   type ItemCarrinho,
 } from '@/lib/vendas-api'
-import { formatMoney } from '@/lib/format'
+import { diaLocal, formatMoney } from '@/lib/format'
+import { criarOrcamento } from '@/lib/orcamentos-api'
 import { Badge, Card, EmptyState } from '@/components/ui/UI'
 import { SkeletonCartoes } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
@@ -48,6 +50,8 @@ export default function EtapaCatalogo({
   const [carrinhoAberto, setCarrinhoAberto] = useState(false)
   const [dandoDesconto, setDandoDesconto] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [salvandoOrcamento, setSalvandoOrcamento] = useState(false)
+  const router = useRouter()
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   /*
@@ -164,83 +168,32 @@ export default function EtapaCatalogo({
    * ---------------------------------------------------------------- */
 
   /**
-   * Escapa texto para entrar em HTML.
+   * Salva o carrinho como ORCAMENTO de verdade — NR-164.
    *
-   * O orcamento e montado com `document.write` numa janela aberta por
-   * `window.open('')`, e essa janela HERDA A ORIGEM do aplicativo. Descricao de
-   * produto e nome de cliente vem do banco, digitados pelo lojista: um produto
-   * chamado `<img src=x onerror=...>` executaria script com acesso a sessao de
-   * quem esta usando o sistema.
-   *
-   * A CI encontrou isto — CodeQL `js/xss-through-dom`, severidade alta.
-   *
-   * Nao e um problema de dado "malicioso" apenas: descricao com `<` ou `&` no
-   * nome — "Cabo HDMI 2m <novo>", "Pilha AA & AAA" — ja saia com a tabela
-   * quebrada, e ninguem tinha notado porque o orcamento sai em janela separada.
-   *
-   * A troca de ordem importa: `&` primeiro, senao as entidades geradas pelas
-   * outras substituicoes seriam escapadas de novo e apareceriam como `&amp;lt;`.
+   * Antes isto abria uma janela de impressao com o carrinho e nada ficava
+   * guardado: o lojista nao achava o orcamento depois, nem dava para
+   * converte-lo em venda. Agora vira um orcamento numerado (NR-159), com os
+   * mesmos precos e desconto, e a ficha dele abre para imprimir ou mandar
+   * pelo WhatsApp.
    */
-  function escaparHtml(texto: string): string {
-    return texto
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;')
-  }
-
-  /**
-   * Gera o orcamento usando a impressao do navegador (imprimir para PDF).
-   *
-   * Sem dependencia nova e funciona hoje. Para envio por WhatsApp o PDF
-   * precisa vir do servidor — SUBSTITUIR POR: GET /vendas/orcamento.pdf,
-   * que devolve o arquivo pronto para compartilhar.
-   */
-  function gerarOrcamento() {
-    const janela = window.open('', '_blank', 'width=800,height=900')
-    if (!janela) {
-      setToast({ msg: 'Libere as janelas pop-up para gerar o orçamento.', tone: 'error' })
+  async function salvarComoOrcamento() {
+    setSalvandoOrcamento(true)
+    const r = await criarOrcamento({
+      ...(clienteNome && clienteNome !== 'Venda sem cliente' ? { customerName: clienteNome } : {}),
+      items: itens.map((i) => ({
+        productId: i.produtoId,
+        quantity: i.quantidade,
+        unitPriceCents: Math.round(i.precoUnitario * 100),
+      })),
+      validUntil: diaLocal(new Date(Date.now() + 7 * 86_400_000)),
+      ...(abatimento > 0 ? { discountCents: Math.round(abatimento * 100) } : {}),
+    })
+    setSalvandoOrcamento(false)
+    if (!r.ok) {
+      setToast({ msg: r.erro, tone: 'error' })
       return
     }
-
-    const linhas = itens
-      .map(
-        (i) =>
-          `<tr><td>${escaparHtml(i.descricao)}</td>` +
-          `<td style="text-align:center">${i.quantidade}</td>` +
-          `<td style="text-align:right">${formatMoney(i.precoUnitario)}</td>` +
-          `<td style="text-align:right">${formatMoney(subtotalItem(i))}</td></tr>`,
-      )
-      .join('')
-
-    janela.document.write(
-      `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">` +
-        `<title>Orçamento</title><style>` +
-        `body{font-family:system-ui,sans-serif;padding:32px;color:#131734}` +
-        `h1{font-size:20px;margin:0 0 4px}` +
-        `p{margin:0 0 18px;color:#4b5171;font-size:14px}` +
-        `table{width:100%;border-collapse:collapse;font-size:14px}` +
-        `th{text-align:left;border-bottom:2px solid #e6e8ef;padding:8px 6px;font-size:12px;text-transform:uppercase;color:#767c9b}` +
-        `td{border-bottom:1px solid #e6e8ef;padding:8px 6px}` +
-        `tfoot td{border:none;padding-top:10px;font-weight:600}` +
-        `</style></head><body>` +
-        `<h1>Orçamento</h1><p>${escaparHtml(clienteNome)} · ${new Date().toLocaleDateString('pt-BR')}</p>` +
-        `<table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th>` +
-        `<th style="text-align:right">Unitario</th><th style="text-align:right">Subtotal</th></tr></thead>` +
-        `<tbody>${linhas}</tbody><tfoot>` +
-        `<tr><td colspan="3" style="text-align:right">Subtotal</td><td style="text-align:right">${formatMoney(subtotal)}</td></tr>` +
-        (abatimento > 0
-          ? `<tr><td colspan="3" style="text-align:right">Desconto</td><td style="text-align:right">- ${formatMoney(abatimento)}</td></tr>`
-          : '') +
-        `<tr><td colspan="3" style="text-align:right;font-size:16px">Total</td><td style="text-align:right;font-size:16px">${formatMoney(total)}</td></tr>` +
-        `</tfoot></table>` +
-        `<p style="margin-top:24px;font-size:12px">Este orçamento não é documento fiscal.</p>` +
-        `</body></html>`,
-    )
-    janela.document.close()
-    janela.focus()
-    janela.print()
+    router.push(`/app/orcamentos/${r.dados.id}`)
   }
 
   return (
@@ -458,10 +411,10 @@ export default function EtapaCatalogo({
             <Button
               variant="secondary"
               size="sm"
-              onClick={gerarOrcamento}
-              disabled={itens.length === 0}
+              onClick={() => void salvarComoOrcamento()}
+              disabled={itens.length === 0 || salvandoOrcamento}
             >
-              Enviar orçamento
+              {salvandoOrcamento ? 'Salvando...' : 'Salvar como orçamento'}
             </Button>
             <Button
               variant="danger"
