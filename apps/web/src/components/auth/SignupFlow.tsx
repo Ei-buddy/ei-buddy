@@ -199,15 +199,10 @@ export default function SignupFlow() {
   const aoConfirmarPagamento = useCallback(() => {
     saveSubscriptionStatus('active')
 
-    /* Abre a sessao para o proxy liberar /app/*. */
-    /* A criacao de conta ainda e simulada (POST /auth/signup nao existe — nao
-       ha tarefa no ledger para ela). Antes isto abria uma sessao FALSA, com um
-       cookie que o proxy aceitava: quem criava conta entrava no painel sem
-       nunca ter passado pela api. Agora manda para o login, que e verdade —
-       a conta so existe quando o cadastro existir. */
-
+    /* A sessao ja esta aberta: `createAccount` cria a conta de verdade na api
+       e o proprio handler grava o cookie (NR-014). Daqui e so entrar. */
     router.push('/app')
-  }, [router, nome, email])
+  }, [router])
 
   return (
     <>
