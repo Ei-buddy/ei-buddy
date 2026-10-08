@@ -46,25 +46,25 @@ import styles from './produtos.module.css'
 const CAMPOS_PLANILHA = [
   {
     key: 'codigo',
-    label: 'Codigo',
+    label: 'Código',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('codigo') || c === 'cod' || c.includes('sku'),
   },
   {
     key: 'descricao',
-    label: 'Descricao',
+    label: 'Descrição',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('descri') || c.includes('produto') || c.includes('nome'),
   },
   {
     key: 'precoVenda',
-    label: 'Preco de venda',
+    label: 'Preço de venda',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('venda') || c.includes('preco'),
   },
   {
     key: 'precoCusto',
-    label: 'Preco de custo',
+    label: 'Preço de custo',
     obrigatorio: false,
     reconhece: (c: string) => c.includes('custo'),
   },
@@ -423,23 +423,23 @@ export default function ProdutosLista() {
  * Nunca somados da pagina: "valor em estoque" calculado sobre 24 de 300
  * produtos erra por um fator de doze, e o lojista decide compra com ele.
  *
- * "Precisam de reposicao" usa `belowMinimum`, que JA inclui os zerados —
+ * "Precisam de reposição" usa `belowMinimum`, que JA inclui os zerados —
  * somar as duas contagens contaria o produto zerado duas vezes.
  */
 function Resumo({ resumo }: { resumo: ResumoDoCatalogo | null }) {
   if (resumo === null) {
     return (
       <div className="statRow">
-        <Stat label="Produtos no catalogo" value="—" />
-        <Stat label="Precisam de reposicao" value="—" />
-        <Stat label="Valor em estoque" value="—" hint="a preco de custo" />
+        <Stat label="Produtos no catálogo" value="—" />
+        <Stat label="Precisam de reposição" value="—" />
+        <Stat label="Valor em estoque" value="—" hint="a preço de custo" />
       </div>
     )
   }
 
   return (
     <div className="statRow">
-      <Stat label="Produtos no catalogo" value={String(resumo.total)} />
+      <Stat label="Produtos no catálogo" value={String(resumo.total)} />
       <Stat
         label="Precisam de reposição"
         value={String(resumo.belowMinimum)}
@@ -453,7 +453,7 @@ function Resumo({ resumo }: { resumo: ResumoDoCatalogo | null }) {
       <Stat
         label="Valor em estoque"
         value={formatMoney(resumo.stockValueCents / 100)}
-        hint="a preco de custo"
+        hint="a preço de custo"
       />
     </div>
   )

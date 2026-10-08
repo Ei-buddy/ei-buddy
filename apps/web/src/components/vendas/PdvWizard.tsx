@@ -456,7 +456,7 @@ function EtapaCliente({
 }
 
 /* ================================================================== *
- * Cadastro rapido de cliente, sem sair do fluxo
+ * Cadastro rápido de cliente, sem sair do fluxo
  * ================================================================== */
 
 function CadastroRapido({
@@ -611,7 +611,7 @@ function CadastroRapido({
         aria-labelledby="cadastro-rapido"
       >
         <h2 id="cadastro-rapido" className={styles.dialogTitulo}>
-          Cadastro rapido
+          Cadastro rápido
         </h2>
         <p className={styles.dialogTexto}>
           CPF, nome, celular e endereço. O CEP preenche o resto do endereço, e e-mail e limite do

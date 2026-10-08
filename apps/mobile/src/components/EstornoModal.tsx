@@ -197,7 +197,7 @@ export default function EstornoModal({
                 {estornaveis.length === 0 ? (
                   <Text style={estilos.aviso}>
                     Todas as baixas deste título já foram estornadas. Para baixar de novo, lance uma
-                    baixa — o estorno de um estorno nao existe.
+                    baixa — o estorno de um estorno não existe.
                   </Text>
                 ) : (
                   <Campo

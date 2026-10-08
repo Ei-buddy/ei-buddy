@@ -361,7 +361,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             </Button>
             <Button onClick={() => setLancando(true)}>
               <IconPlus size={17} />
-              Novo lancamento
+              Novo lançamento
             </Button>
           </>
         }
@@ -392,7 +392,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
 
       <Card>
         {/* --- Filtros --- */}
-        <div className={styles.filtrosLinha} role="group" aria-label="Filtro de situacao">
+        <div className={styles.filtrosLinha} role="group" aria-label="Filtro de situação">
           {(
             [
               ['todos', 'Todos'],
@@ -447,7 +447,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
           </label>
 
           <label className={styles.filtroCampo}>
-            <span>Vence ate</span>
+            <span>Vence até</span>
             <input
               type="date"
               className={styles.filtroSelect}
@@ -484,7 +484,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
               action={
                 <Button onClick={() => setLancando(true)}>
                   <IconPlus size={17} />
-                  Novo lancamento
+                  Novo lançamento
                 </Button>
               }
             />

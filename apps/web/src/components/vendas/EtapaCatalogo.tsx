@@ -216,7 +216,7 @@ export default function EtapaCatalogo({
             {/* Botao grande: no balcao, ler o codigo e o caminho mais usado */}
             <Button onClick={() => setLendoCodigo(true)}>
               <IconBarcode size={18} />
-              Ler codigo
+              Ler código
             </Button>
           </div>
 
@@ -224,7 +224,7 @@ export default function EtapaCatalogo({
             <SkeletonCartoes />
           ) : erroCatalogo !== null ? (
             <EmptyState
-              title="Nao deu para carregar o catalogo"
+              title="Não deu para carregar o catálogo"
               description={erroCatalogo}
               action={
                 <Button
@@ -470,7 +470,7 @@ export default function EtapaCatalogo({
       {cancelando ? (
         <ConfirmarDialog
           titulo="Cancelar a venda"
-          descricao="O carrinho sera esvaziado e o fluxo volta para a escolha do cliente. Nada e gravado."
+          descricao="O carrinho será esvaziado e o fluxo volta para a escolha do cliente. Nada é gravado."
           tom="perigo"
           rotuloConfirmar="Cancelar venda"
           detalhe={
@@ -586,12 +586,12 @@ function DialogoDesconto({
 
         {tipo === 'percentual' && numero > 100 ? (
           <p className={styles.erro} role="alert">
-            O desconto nao pode passar de 100%.
+            O desconto não pode passar de 100%.
           </p>
         ) : null}
         {tipo === 'valor' && numero > subtotal ? (
           <p className={styles.erro} role="alert">
-            O desconto nao pode passar do subtotal.
+            O desconto não pode passar do subtotal.
           </p>
         ) : null}
 

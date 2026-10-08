@@ -108,7 +108,7 @@ export default function ImportarPlanilha({
       const lida: PlanilhaLida = lerCsv(await arquivo.text())
 
       if (lida.colunas.length === 0 || lida.linhas.length === 0) {
-        setErro('A planilha parece vazia. Confira se ha cabecalho e ao menos uma linha.')
+        setErro('A planilha parece vazia. Confira se há cabeçalho e ao menos uma linha.')
         setLendo(false)
         return
       }
@@ -125,7 +125,7 @@ export default function ImportarPlanilha({
       setMapa(automatico)
       setEtapa('mapear')
     } catch {
-      setErro('Nao foi possivel ler o arquivo.')
+      setErro('Não foi possível ler o arquivo.')
     } finally {
       setLendo(false)
     }

@@ -121,7 +121,7 @@ export default function DreView() {
           <Field label="De">
             <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
           </Field>
-          <Field label="Ate">
+          <Field label="Até">
             <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
           </Field>
           <Button onClick={aplicarPeriodo} disabled={periodoInvalido || carregando}>
@@ -223,7 +223,7 @@ function Detalhe({
   const comMovimento = ORDEM.filter((t) => linhas.some((l) => l.type === t))
 
   if (comMovimento.length === 0) {
-    return <p className={styles.aviso}>Nenhum lancamento neste periodo.</p>
+    return <p className={styles.aviso}>Nenhum lançamento neste período.</p>
   }
 
   return (

@@ -80,7 +80,7 @@ export default function AnonimizarCliente({
       <Card title="Pedido de exclusão atendido">
         <p className={styles.privacidadeTexto}>
           Anonimizado em {formatDateTime(comprovante.anonymizedAt)}. Guarde este comprovante: e com
-          ele que voce responde ao titular.
+          ele que você responde ao titular.
         </p>
 
         <h4 className={styles.privacidadeSubtitulo}>Removido</h4>
