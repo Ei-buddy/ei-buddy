@@ -50,7 +50,11 @@ function paraDia(v: Date | string): string {
   return `${v.getUTCFullYear()}-${mes}-${dia}`
 }
 
-const paraSaida = (o: LinhaOrcamento, itens: readonly LinhaItem[]): QuoteOutput => ({
+const paraSaida = (
+  o: LinhaOrcamento,
+  itens: readonly LinhaItem[],
+  saleNumber: number | null,
+): QuoteOutput => ({
   id: o.id,
   number: o.number,
   customerName: o.customer_name,
@@ -60,6 +64,7 @@ const paraSaida = (o: LinhaOrcamento, itens: readonly LinhaItem[]): QuoteOutput 
   discountCents: numero(o.discount_cents),
   totalCents: numero(o.total_cents),
   saleId: o.sale_id,
+  saleNumber,
   items: itens.map((i) => ({
     productId: i.product_id,
     description: i.description,
@@ -88,10 +93,21 @@ async function comItens(
        AND qi.quote_id = ANY(${orcamentos.map((o) => o.id)})
      ORDER BY qi.position
   `
+  /* O numero da venda, para a tela dizer "Venda #N" — NR-172. */
+  const vendaIds = orcamentos.map((o) => o.sale_id).filter((id): id is string => id !== null)
+  const numeros =
+    vendaIds.length === 0
+      ? []
+      : await tx<{ id: string; number: string | number }[]>`
+          SELECT id, number FROM sales WHERE company_id = ${companyId} AND id = ANY(${vendaIds})
+        `
+  /* `sales.number` e bigint: chega como string, e vira numero aqui, na borda. */
+  const numeroDa = new Map(numeros.map((v) => [v.id, numero(v.number)]))
   return orcamentos.map((o) =>
     paraSaida(
       o,
       itens.filter((i) => i.quote_id === o.id),
+      o.sale_id === null ? null : (numeroDa.get(o.sale_id) ?? null),
     ),
   )
 }

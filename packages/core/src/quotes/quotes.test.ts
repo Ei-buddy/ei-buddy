@@ -86,7 +86,7 @@ describe('orcamento — NR-159', () => {
     quotes.registrarVenda('venda-1', 'emp-1')
 
     const convertido = await convertQuote(deps, ctx(), q.id, { saleId: 'venda-1' })
-    expect(convertido).toMatchObject({ status: 'converted', saleId: 'venda-1' })
+    expect(convertido).toMatchObject({ status: 'converted', saleId: 'venda-1', saleNumber: 1 })
 
     const de_novo = await erroDe(convertQuote(deps, ctx(), q.id, { saleId: 'venda-1' }))
     expect(isAppError(de_novo) && de_novo.code).toBe('CONFLICT')

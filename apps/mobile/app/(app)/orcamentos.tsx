@@ -141,6 +141,22 @@ export default function OrcamentosScreen() {
                           WhatsApp
                         </Botao>
                       </View>
+                      {/* A venda que nasceu do orcamento, como o "Ver venda" do web — NR-172. */}
+                      {o.saleNumber !== null ? (
+                        <View style={estilos.acoes}>
+                          <Botao
+                            variante="secundario"
+                            onPress={() =>
+                              router.push({
+                                pathname: '/vendas',
+                                params: { q: String(o.saleNumber) },
+                              })
+                            }
+                          >
+                            {`Ver venda #${o.saleNumber}`}
+                          </Botao>
+                        </View>
+                      ) : null}
                       {o.status === 'open' ? (
                         <View style={estilos.acoes}>
                           <Botao variante="secundario" onPress={() => void cancelar(o)}>

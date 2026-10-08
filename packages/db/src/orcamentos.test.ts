@@ -122,6 +122,27 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
     ).rejects.toThrow(/quotes_desfecho_completo/)
   })
 
+  it('convertido traz o numero da venda — NR-172', async () => {
+    const venda = randomUUID()
+    await withTenant(
+      sql,
+      empresa,
+      (tx) => tx`
+        INSERT INTO sales (id, company_id, number, status, gross_amount_cents, net_amount_cents,
+                           created_at, created_by)
+        VALUES (${venda}, ${empresa}, 77, 'settled', 4000, 4000, now(), ${usuario})
+      `,
+    )
+    const q = await repo.create(novo([produtoA]))
+    const fechado = await repo.close(empresa, q.id, {
+      status: 'converted',
+      saleId: venda,
+      closedAt: new Date(),
+    })
+    expect(fechado).toMatchObject({ status: 'converted', saleId: venda, saleNumber: 77 })
+    expect((await repo.findById(empresa, q.id))?.saleNumber).toBe(77)
+  })
+
   it('venda inexistente ou de outra loja nao existe', async () => {
     expect(await repo.saleExists(empresa, randomUUID())).toBe(false)
     expect(await repo.saleExists(empresa, 'x')).toBe(false)
