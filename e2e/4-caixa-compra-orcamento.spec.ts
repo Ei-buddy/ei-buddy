@@ -115,5 +115,7 @@ test('caixa abre com troco, soma a venda em dinheiro e fecha batendo', async ({ 
 
   await page.locator('#caixa-contado').fill('130,00')
   await page.getByRole('button', { name: 'Fechar caixa' }).click()
-  await expect(page.getByText('bateu')).toBeVisible()
+  /* Exato: o toast "Caixa fechado. Bateu certinho." tambem casa com 'bateu', e
+     enquanto ele esta na tela o modo estrito recusa dois elementos. */
+  await expect(page.getByText('bateu', { exact: true })).toBeVisible()
 })

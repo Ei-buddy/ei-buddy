@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     135 |  294 |
-| ✅ Concluídas                 |     129 |  273 |
+| Total                         |     136 |  295 |
+| ✅ Concluídas                 |     130 |  274 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -380,6 +380,7 @@ voltam a ⬜.
 | NR-168 | Zerar os avisos de lint do web (token fora da resposta sem variável morta; comentário do cadastro atualizado)                        |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-169 | PDF da nota (DANFE): o "Baixar PDF" do web não fazia nada; agora abre o DANFE no PDV e no detalhe da venda, no web e no app          |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-045                                             |   ✅   |
 | NR-170 | E2E no navegador da operação do dia: entrada de mercadoria, orçamento até a venda e caixa do troco ao fechamento                     |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-175 | E2E do caixa: seletor exato para o "bateu" (instável com o toast na tela)                                                            |   🟢   | `e2e`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-167 | Tema claro no app, com os mesmos tokens do web, trocado pelo menu e guardado no aparelho                                             |   🟢   | `ui` `mobile`                                                 |   2 | —                                      | —    | RNF-055                                            |   ✅   |
 
 ---
@@ -493,10 +494,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      37 |   92 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      60 |  108 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      61 |  109 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **294 dias-desenvolvedor** em 135 tarefas. Com 3 pessoas, isso é cerca
+Somando: **295 dias-desenvolvedor** em 136 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
