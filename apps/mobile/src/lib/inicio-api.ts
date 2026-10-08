@@ -1,4 +1,5 @@
 import { chamarApi } from './api'
+import { diaLocal } from './format'
 import { dataPorExtenso, hojeLocal, primeiroNome, saudacaoDaHora } from './periodo'
 
 /**
@@ -156,4 +157,83 @@ export async function carregarParaRepor(): Promise<readonly ProdutoParaRepor[] |
 export async function carregarVendasRecentes(): Promise<readonly VendaRecente[] | null> {
   const r = await chamarApi<{ sales: VendaRecente[] }>('/sales?pageSize=5')
   return r.ok ? r.dados.sales : null
+}
+
+/* -------------------------------------------------------------------------- */
+/* O que o painel do web tambem mostra — NR-161                               */
+/* -------------------------------------------------------------------------- */
+
+type ResumoDeVendas = {
+  salesCount: number
+  grossCents: number
+  netCents: number
+  averageTicketCents: number | null
+}
+
+export type DiaDaSemana = {
+  readonly dia: string
+  /** Rotulo curto: "seg", "ter". */
+  readonly rotulo: string
+  /** Faturamento do dia: o bruto, como no web. */
+  readonly grossCents: number
+  readonly salesCount: number
+}
+
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const
+
+/**
+ * Os sete dias ate hoje, com o resumo de cada um — o grafico "Vendas na
+ * semana" e o ticket medio do dia, iguais aos do painel do web.
+ *
+ * Uma chamada por DIA, como no web: o `summary` do `/sales` e do periodo
+ * filtrado (calculado antes do LIMIT), e um pedido so para a semana
+ * truncaria numa loja com muitas vendas. Tudo ou nada: uma barra faltando
+ * pareceria um dia sem venda.
+ */
+export async function carregarSemana(
+  agora: Date = new Date(),
+): Promise<{ dias: readonly DiaDaSemana[]; hoje: ResumoDeVendas } | null> {
+  const dias = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(agora)
+    d.setDate(d.getDate() - (6 - i))
+    return d
+  })
+  const respostas = await Promise.all(
+    dias.map((d) => {
+      const dia = diaLocal(d)
+      return chamarApi<{ summary: ResumoDeVendas }>(`/sales?from=${dia}&to=${dia}&pageSize=1`)
+    }),
+  )
+  if (!respostas.every((r) => r.ok)) return null
+  const resumos = respostas.map((r) => (r.ok ? r.dados.summary : null)!)
+  return {
+    dias: resumos.map((s, i) => ({
+      dia: diaLocal(dias[i]!),
+      rotulo: DIAS_CURTOS[dias[i]!.getDay()]!,
+      grossCents: s.grossCents,
+      salesCount: s.salesCount,
+    })),
+    hoje: resumos[6]!,
+  }
+}
+
+/** Total em aberto a receber — o indicador "A receber" do web. */
+export async function carregarAReceber(): Promise<number | null> {
+  const r = await chamarApi<{ totalCents: number }>('/contas-a-receber')
+  return r.ok ? r.dados.totalCents : null
+}
+
+/** Quantos produtos e clientes a loja tem — alimenta os "Primeiros passos". */
+export async function carregarTotaisDoCadastro(): Promise<{
+  produtos: number | null
+  clientes: number | null
+}> {
+  const [produtos, clientes] = await Promise.all([
+    chamarApi<{ total: number }>('/produtos/resumo'),
+    chamarApi<{ total: number }>('/clientes?pageSize=1'),
+  ])
+  return {
+    produtos: produtos.ok ? produtos.dados.total : null,
+    clientes: clientes.ok ? clientes.dados.total : null,
+  }
 }
