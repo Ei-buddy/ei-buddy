@@ -143,7 +143,7 @@ export default function Empresa() {
           />
         </Sanfona>
 
-        <Sanfona titulo="Endereço" resumo={`${campos.cidade}/${campos.uf}`}>
+        <Sanfona titulo="Endereço" resumo={resumoDoEndereco(campos.cidade, campos.uf)}>
           <Campo
             rotulo="CEP"
             valor={campos.cep}
@@ -181,7 +181,7 @@ export default function Empresa() {
           />
         </Sanfona>
 
-        <Sanfona titulo="Contato" resumo={`(${campos.ddd}) ${campos.celular}`}>
+        <Sanfona titulo="Contato" resumo={resumoDoContato(campos.ddd, campos.celular)}>
           <Campo
             rotulo="DDD"
             valor={campos.ddd}
@@ -217,3 +217,14 @@ const estilos = criarEstilos(() => ({
   erroAoCarregar: { padding: espaco.lg, fontSize: fonte.corpo, color: cores.texto },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 }))
+
+/* Campo vazio vira "não informado" — antes o resumo mostrava "/" e "()". */
+function resumoDoEndereco(cidade: string, uf: string): string {
+  const partes = [cidade.trim(), uf.trim()].filter((p) => p !== '')
+  return partes.length > 0 ? partes.join('/') : 'não informado'
+}
+
+function resumoDoContato(ddd: string, celular: string): string {
+  if (celular.trim() === '') return 'não informado'
+  return ddd.trim() === '' ? celular : `(${ddd}) ${celular}`
+}
