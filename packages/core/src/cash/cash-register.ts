@@ -76,7 +76,7 @@ export async function openCash(
     openedBy: ctx.userId,
     openedAt: ctx.now,
   })
-  if (s === 'ja_aberto') throw AppError.conflict('Ja existe um caixa aberto. Feche-o antes.')
+  if (s === 'ja_aberto') throw AppError.conflict('Já existe um caixa aberto. Feche-o antes.')
 
   await deps.audit.record({
     companyId: ctx.companyId,

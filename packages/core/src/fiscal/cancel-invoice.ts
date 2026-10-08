@@ -45,12 +45,12 @@ export async function cancelSaleInvoice(
 
   const nota = await deps.store.findBySale(ctx.companyId, input.saleId)
   if (nota === undefined || nota.resultado.status === 'rejected') {
-    throw AppError.notFound('Esta venda nao tem nota fiscal valida para cancelar.')
+    throw AppError.notFound('Esta venda não tem nota fiscal válida para cancelar.')
   }
 
   if (nota.resultado.status === 'contingency') {
     throw AppError.conflict(
-      'A nota ainda esta em contingencia, sem autorizacao da SEFAZ. Espere a autorizacao ' +
+      'A nota ainda está em contingência, sem autorização da SEFAZ. Espere a autorização ' +
         'para cancelar. Nada foi alterado.',
     )
   }
@@ -59,7 +59,7 @@ export async function cancelSaleInvoice(
   if (autorizadaHa > PRAZO_DE_CANCELAMENTO_MINUTOS * 60_000) {
     throw AppError.conflict(
       `Passou o prazo de ${PRAZO_DE_CANCELAMENTO_MINUTOS} minutos para cancelar a NFC-e. ` +
-        'Fora do prazo, o caminho e uma nota de devolucao — fale com o seu contador. ' +
+        'Fora do prazo, o caminho é uma nota de devolução — fale com o seu contador. ' +
         'Nada foi alterado.',
     )
   }

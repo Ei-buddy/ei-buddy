@@ -50,10 +50,10 @@ export async function requestInvoice(
 
   /* Venda de outra empresa responde como inexistente, nunca como proibida: 403
      confirmaria que ela existe. */
-  if (venda === undefined) throw AppError.notFound('Venda nao encontrada.')
+  if (venda === undefined) throw AppError.notFound('Venda não encontrada.')
 
   if (venda.items.length === 0) {
-    throw AppError.validation('Esta venda nao tem itens, e nota sem item nao existe.')
+    throw AppError.validation('Esta venda não tem itens, e nota sem item não existe.')
   }
 
   const semClassificacao = venda.items.filter(naoClassificado)

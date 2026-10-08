@@ -68,7 +68,7 @@ export async function deleteVariableCost(
   assertCanWrite(ctx)
 
   const custo = await deps.variableCosts.findById(ctx.companyId, id)
-  if (custo === undefined) throw AppError.notFound('Custo variavel nao encontrado.')
+  if (custo === undefined) throw AppError.notFound('Custo variável não encontrado.')
 
   await deps.variableCosts.remove(ctx.companyId, id)
 
@@ -95,13 +95,13 @@ export async function updateVariableCost(
   assertCanWrite(ctx)
 
   const antes = await deps.variableCosts.findById(ctx.companyId, id)
-  if (antes === undefined) throw AppError.notFound('Custo variavel nao encontrado.')
+  if (antes === undefined) throw AppError.notFound('Custo variável não encontrado.')
 
   const depois = await deps.variableCosts.update(ctx.companyId, id, {
     name: input.name,
     rateBps: Math.round(input.ratePercent * 100),
   })
-  if (depois === undefined) throw AppError.notFound('Custo variavel nao encontrado.')
+  if (depois === undefined) throw AppError.notFound('Custo variável não encontrado.')
 
   await deps.audit.record({
     companyId: ctx.companyId,

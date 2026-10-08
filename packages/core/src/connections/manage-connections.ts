@@ -38,14 +38,14 @@ export async function requestConnection(
   assertCanWrite(ctx)
 
   if (targetCompanyId === ctx.companyId) {
-    throw AppError.validation('Nao e possivel pedir conexao com a propria empresa.', [
+    throw AppError.validation('Não é possível pedir conexão com a própria empresa.', [
       { path: 'targetCompanyId', message: 'Escolha outra empresa.' },
     ])
   }
 
   const minhaEmpresa = await deps.companies.findById(ctx.companyId)
   if (minhaEmpresa === undefined) {
-    throw AppError.notFound('Empresa nao encontrada.')
+    throw AppError.notFound('Empresa não encontrada.')
   }
 
   try {
@@ -118,7 +118,7 @@ async function chamarComTraducaoDeErro(fn: () => Promise<void>): Promise<void> {
     await fn()
   } catch (erro) {
     if (erro instanceof ConnectionNotFoundError) {
-      throw AppError.notFound('Pedido de conexao nao encontrado.')
+      throw AppError.notFound('Pedido de conexão não encontrado.')
     }
     if (erro instanceof ConnectionActionRefusedError) {
       throw AppError.conflict(erro.message)

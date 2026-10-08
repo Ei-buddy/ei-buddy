@@ -192,7 +192,7 @@ describe('sendCustomerCharge — US-052 / RF-107', () => {
       expect.fail('deveria ter recusado')
     } catch (erro) {
       expect(isAppError(erro) && erro.code).toBe('FORBIDDEN')
-      expect((erro as Error).message).toMatch(/nao receber mensagens/i)
+      expect((erro as Error).message).toMatch(/não receber mensagens/i)
     }
     expect(d.messages.enviadas).toHaveLength(0)
   })

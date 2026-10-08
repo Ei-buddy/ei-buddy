@@ -32,9 +32,9 @@ export async function updateAppointment(
   assertCanWrite(ctx)
 
   const antes = await deps.appointments.findById(ctx.companyId, id)
-  if (antes === undefined) throw AppError.notFound('Compromisso nao encontrado.')
+  if (antes === undefined) throw AppError.notFound('Compromisso não encontrado.')
   if (antes.status === 'cancelled') {
-    throw AppError.conflict('Compromisso cancelado nao se edita. Marque um novo.')
+    throw AppError.conflict('Compromisso cancelado não se edita. Marque um novo.')
   }
 
   const startsAt = new Date(input.startsAt)
@@ -45,7 +45,7 @@ export async function updateAppointment(
     const fireAt = reminderFireAt(startsAt, input.reminderMinutesBefore)
     if (fireAt.getTime() <= ctx.now.getTime()) {
       throw AppError.validation(
-        'O lembrete cairia no passado. Escolha uma antecedencia menor ou outro horario.',
+        'O lembrete cairia no passado. Escolha uma antecedência menor ou outro horário.',
         [{ path: 'reminderMinutesBefore', message: 'Antecedencia maior que o tempo restante.' }],
       )
     }

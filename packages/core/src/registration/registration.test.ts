@@ -135,7 +135,7 @@ describe('registerCompany — RF-001, RF-002', () => {
 
     await expect(
       registerCompany({ companies, accounts, cepLookup }, contexto(), empresaValida),
-    ).rejects.toThrow(/ja tem cadastro/i)
+    ).rejects.toThrow(/já tem cadastro/i)
   })
 
   it('nao revela nada da empresa existente na recusa — RF-002', async () => {
@@ -1313,7 +1313,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     })
 
     expect(r.imported).toBe(1)
-    expect(r.rejected[0]?.reason).toMatch(/codigo de barras/i)
+    expect(r.rejected[0]?.reason).toMatch(/código de barras/i)
   })
 
   it('saldo inicial vira MOVIMENTO, e nao coluna escrita direto', async () => {

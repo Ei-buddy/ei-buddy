@@ -50,7 +50,7 @@ export async function endRecurrence(
     /* Recorrencia de outra empresa cai aqui como inexistente — a lista volta
        vazia porque o repositorio filtra por empresa, e o 404 sai igual. */
     if (daSerie.length === 0) {
-      throw AppError.notFound('Recorrencia nao encontrada.')
+      throw AppError.notFound('Recorrência não encontrada.')
     }
 
     const cancelled = await tx.cancelFutureOccurrences(
@@ -65,7 +65,7 @@ export async function endRecurrence(
       /* Distinguir de "encerrei tres" importa: a serie ja acabou, e dizer
          "pronto" faria o lojista achar que evitou uma cobranca futura que na
          verdade ja tinha acontecido. */
-      throw AppError.conflict('Esta recorrencia nao tem ocorrencias futuras para encerrar.')
+      throw AppError.conflict('Esta recorrência não tem ocorrências futuras para encerrar.')
     }
 
     await tx.record({

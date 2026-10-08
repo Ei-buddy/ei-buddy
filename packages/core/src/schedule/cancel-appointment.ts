@@ -34,11 +34,11 @@ export async function cancelAppointment(
    * informacao demais. Ver apps/api/README.md#seguranca
    */
   if (!existente) {
-    throw AppError.notFound('Compromisso nao encontrado.')
+    throw AppError.notFound('Compromisso não encontrado.')
   }
 
   if (existente.status === 'cancelled') {
-    throw AppError.conflict('Este compromisso ja foi cancelado.')
+    throw AppError.conflict('Este compromisso já foi cancelado.')
   }
 
   const cancelado = await deps.appointments.cancel(

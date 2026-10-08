@@ -56,7 +56,7 @@ export async function registerPurchase(
   const totalCents = input.items.reduce((soma, i) => soma + i.quantity * i.unitCostCents, 0)
 
   if (totalCents > 0 && totalCents < input.installments) {
-    throw AppError.conflict('O total da compra e pequeno demais para esse numero de parcelas.')
+    throw AppError.conflict('O total da compra é pequeno demais para esse número de parcelas.')
   }
 
   const parcelado = input.installments > 1
@@ -66,10 +66,10 @@ export async function registerPurchase(
     const produtos: PurchaseProductSnapshot[] = []
     for (const item of input.items) {
       const produto = await tx.findProduct(ctx.companyId, item.productId)
-      if (produto === undefined) throw AppError.notFound('Produto nao encontrado.')
+      if (produto === undefined) throw AppError.notFound('Produto não encontrado.')
       if (!produto.isActive) {
         throw AppError.conflict(
-          `O produto "${produto.description}" esta inativo. Reative-o antes de dar entrada.`,
+          `O produto "${produto.description}" está inativo. Reative-o antes de dar entrada.`,
         )
       }
       produtos.push(produto)

@@ -119,10 +119,10 @@ export async function registerProduct(
     const existente = await deps.products.findByBarcode(ctx.companyId, input.barcode)
     if (existente) {
       throw AppError.conflict(
-        `Este codigo de barras ja esta em "${existente.description}". ` +
+        `Este código de barras já está em "${existente.description}". ` +
           (existente.isActive
             ? 'Edite o produto existente em vez de criar outro.'
-            : 'Ele esta inativo: reative-o em vez de criar outro.'),
+            : 'Ele está inativo: reative-o em vez de criar outro.'),
       )
     }
   }
@@ -135,7 +135,7 @@ export async function registerProduct(
   if (input.ncm !== undefined && deps.ncmLookup !== undefined) {
     const consulta = await deps.ncmLookup.consultar(input.ncm)
     if (consulta.status === 'inexistente') {
-      throw AppError.validation('NCM nao encontrado na tabela oficial.', [
+      throw AppError.validation('NCM não encontrado na tabela oficial.', [
         { path: 'ncm', message: 'Este NCM nao existe na tabela oficial. Confira os numeros.' },
       ])
     }
@@ -233,7 +233,7 @@ export async function updateProduct(
      confirmaria que aquele id existe em alguma outra loja. */
   const atual = await deps.products.findById(ctx.companyId, productId)
   if (atual === undefined) {
-    throw AppError.notFound('Produto nao encontrado.')
+    throw AppError.notFound('Produto não encontrado.')
   }
 
   /* A regra do cadastro, sobre o produto DEPOIS da edicao: mudar so o custo
@@ -248,7 +248,7 @@ export async function updateProduct(
 
   const atualizado = await deps.products.update(ctx.companyId, productId, input, ctx.userId)
   if (atualizado === undefined) {
-    throw AppError.notFound('Produto nao encontrado.')
+    throw AppError.notFound('Produto não encontrado.')
   }
 
   /* Trilha — RF-123: quais campos mudaram, e o preco antes e depois, que e a
@@ -293,13 +293,13 @@ export async function setProductActive(
   assertCanWrite(ctx)
 
   const atual = await deps.products.findById(ctx.companyId, productId)
-  if (atual === undefined) throw AppError.notFound('Produto nao encontrado.')
+  if (atual === undefined) throw AppError.notFound('Produto não encontrado.')
   if (atual.isActive === ativo) {
-    throw AppError.conflict(ativo ? 'Este produto ja esta ativo.' : 'Este produto ja esta inativo.')
+    throw AppError.conflict(ativo ? 'Este produto já está ativo.' : 'Este produto já está inativo.')
   }
 
   const novo = await deps.products.setActive(ctx.companyId, productId, ativo, ctx.userId)
-  if (novo === undefined) throw AppError.notFound('Produto nao encontrado.')
+  if (novo === undefined) throw AppError.notFound('Produto não encontrado.')
 
   await deps.audit?.record({
     companyId: ctx.companyId,
@@ -326,7 +326,7 @@ export async function getProduct(
   const produto = await deps.products.findById(ctx.companyId, productId)
 
   if (produto === undefined) {
-    throw AppError.notFound('Produto nao encontrado.')
+    throw AppError.notFound('Produto não encontrado.')
   }
 
   return produto

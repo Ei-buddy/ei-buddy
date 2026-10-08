@@ -61,7 +61,7 @@ export async function exportCompanyData(
   ctx: ExecutionContext,
 ): Promise<ExportResult> {
   if (ctx.role !== 'owner' && ctx.role !== 'accountant') {
-    throw AppError.forbidden('Somente o responsavel pela loja e o contador podem exportar a base.')
+    throw AppError.forbidden('Somente o responsável pela loja e o contador podem exportar a base.')
   }
 
   assertSegundoCanal(ctx, 'Exportar os dados da empresa')

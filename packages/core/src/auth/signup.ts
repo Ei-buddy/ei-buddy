@@ -78,7 +78,7 @@ export async function signup(
    */
   if (await deps.companies.cnpjTaken(input.cnpj)) {
     throw AppError.conflict(
-      'Este CNPJ ja tem cadastro. Se a empresa e sua, peca acesso a quem administra a conta.',
+      'Este CNPJ já tem cadastro. Se a empresa é sua, peça acesso a quem administra a conta.',
     )
   }
 
@@ -95,7 +95,7 @@ export async function signup(
    */
   if (input.phone !== undefined && (await deps.users.findByPhone(input.phone)) !== undefined) {
     throw AppError.conflict(
-      'Nao foi possivel usar este telefone. Se a conta e sua, entre por "Acessar minha conta".',
+      'Não foi possível usar este telefone. Se a conta é sua, entre por "Acessar minha conta".',
     )
   }
 
@@ -104,7 +104,7 @@ export async function signup(
     input.account.couponCode !== undefined &&
     (await deps.partners.couponCodeTaken(input.account.couponCode))
   ) {
-    throw AppError.conflict('Este nome de cupom ja esta em uso. Escolha outro.')
+    throw AppError.conflict('Este nome de cupom já está em uso. Escolha outro.')
   }
 
   /*
@@ -133,7 +133,7 @@ export async function signup(
    */
   if (identidade === undefined) {
     throw AppError.conflict(
-      'Nao foi possivel usar este e-mail. Se a conta e sua, entre por "Acessar minha conta".',
+      'Não foi possível usar este e-mail. Se a conta é sua, entre por "Acessar minha conta".',
     )
   }
 

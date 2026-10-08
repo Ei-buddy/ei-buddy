@@ -31,7 +31,7 @@ export async function myAccount(
   quem: Pick<QuemTroca, 'userId'>,
 ): Promise<MyAccountOutput> {
   const contato = await deps.contacts.contactOf(quem.userId)
-  if (contato === undefined) throw AppError.unauthorized('Sua sessao nao vale mais. Entre de novo.')
+  if (contato === undefined) throw AppError.unauthorized('Sua sessão não vale mais. Entre de novo.')
   return { name: contato.name, email: contato.email, phone: contato.phone }
 }
 
@@ -41,7 +41,7 @@ export async function changeName(
   input: ChangeNameInput,
 ): Promise<MyAccountOutput> {
   const contato = await deps.contacts.contactOf(quem.userId)
-  if (contato === undefined) throw AppError.unauthorized('Sua sessao nao vale mais. Entre de novo.')
+  if (contato === undefined) throw AppError.unauthorized('Sua sessão não vale mais. Entre de novo.')
 
   if (contato.name !== input.name) {
     await deps.contacts.changeName(quem.userId, input.name)
@@ -67,11 +67,11 @@ export async function changeEmail(
   if (dono !== undefined && dono.id !== quem.userId) {
     /* A pessoa esta logada e escolheu o endereco: dizer que ele esta em uso
        nao revela nada que o cadastro ja nao revelasse. */
-    throw AppError.conflict('Este e-mail ja esta em uso por outra conta.')
+    throw AppError.conflict('Este e-mail já está em uso por outra conta.')
   }
 
   if (!(await deps.editor.setEmail(subject, novo))) {
-    throw AppError.conflict('Nao foi possivel trocar o e-mail desta conta agora.')
+    throw AppError.conflict('Não foi possível trocar o e-mail desta conta agora.')
   }
 
   try {
@@ -96,7 +96,7 @@ export async function changePassword(
   const { subject } = await conferirSenha(deps, quem, input.secret)
 
   if (!(await deps.editor.setSecretFor(subject, input.newSecret))) {
-    throw AppError.conflict('Nao foi possivel trocar a senha desta conta agora.')
+    throw AppError.conflict('Não foi possível trocar a senha desta conta agora.')
   }
 
   /* A senha nunca entra na trilha — so o fato de ter mudado. */
@@ -105,7 +105,7 @@ export async function changePassword(
 
 async function conferirSenha(deps: MyAccountDeps, quem: QuemTroca, secret: string) {
   const contato = await deps.contacts.contactOf(quem.userId)
-  if (contato === undefined) throw AppError.unauthorized('Sua sessao nao vale mais. Entre de novo.')
+  if (contato === undefined) throw AppError.unauthorized('Sua sessão não vale mais. Entre de novo.')
 
   const identificador = contato.email ?? contato.phone
   const conferida =

@@ -51,7 +51,7 @@ export async function changePhone(
 ): Promise<{ phone: string }> {
   const contato = await deps.contacts.contactOf(quem.userId)
   if (contato === undefined) {
-    throw AppError.conflict('Nao foi possivel trocar o celular desta conta agora.')
+    throw AppError.conflict('Não foi possível trocar o celular desta conta agora.')
   }
 
   const identificador = contato.email ?? contato.phone
@@ -76,11 +76,11 @@ export async function changePhone(
   if ((await deps.users.findByPhone(input.phone)) !== undefined) {
     /* A pessoa esta logada e sabe o proprio numero: dizer que o NOVO esta em
        uso nao revela conta de ninguem que ela ja nao pudesse testar no cadastro. */
-    throw AppError.conflict('Este celular ja esta em uso por outra conta.')
+    throw AppError.conflict('Este celular já está em uso por outra conta.')
   }
 
   if (!(await deps.phoneChanger.setPhone(subject, input.phone))) {
-    throw AppError.conflict('Nao foi possivel trocar o celular desta conta agora.')
+    throw AppError.conflict('Não foi possível trocar o celular desta conta agora.')
   }
 
   try {

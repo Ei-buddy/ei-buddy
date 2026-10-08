@@ -13,7 +13,7 @@ function buildApp(): FastifyInstance {
   registerErrorHandler(app)
 
   app.get('/nao-encontrado', async () => {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   })
   app.get('/sem-permissao', async () => {
     throw AppError.forbidden()
@@ -73,7 +73,7 @@ describe('erro esperado', () => {
     app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/nao-encontrado' })
 
-    expect(res.json().error.message).toBe('Cliente nao encontrado.')
+    expect(res.json().error.message).toBe('Cliente não encontrado.')
   })
 })
 

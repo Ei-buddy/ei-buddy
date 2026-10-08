@@ -369,7 +369,7 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
       },
       formatReply: (out) => {
         const primeira = out[0]
-        if (primeira === undefined) return 'Nenhuma conta foi lancada.'
+        if (primeira === undefined) return 'Nenhuma conta foi lançada.'
         // Recorrencia vira N titulos de verdade (ver `createPayable`), entao a
         // resposta precisa dizer quantos — senao o lojista confirma "aluguel" e
         // nao sabe que nasceram doze.

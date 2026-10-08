@@ -38,7 +38,7 @@ export async function lookupAddressByCep(deps: LookupCepDeps, cep: string): Prom
   const encontrado = await deps.cepLookup.lookup(digitos)
 
   if (encontrado === undefined) {
-    throw AppError.notFound('Nao encontramos esse CEP. Confira os numeros.')
+    throw AppError.notFound('Não encontramos esse CEP. Confira os números.')
   }
 
   return encontrado
@@ -63,7 +63,7 @@ export async function lookupCompanyByCnpj(
   const encontrado = await deps.cnpjLookup.lookup(digitos)
 
   if (encontrado === undefined) {
-    throw AppError.notFound('Nao encontramos esse CNPJ na Receita. Confira os numeros.')
+    throw AppError.notFound('Não encontramos esse CNPJ na Receita. Confira os números.')
   }
 
   return encontrado

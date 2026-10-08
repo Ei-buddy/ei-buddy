@@ -38,9 +38,9 @@ export async function settlePayable(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findPayable(ctx.companyId, input.payableId)
-    if (titulo === undefined) throw AppError.notFound('Conta nao encontrada.')
+    if (titulo === undefined) throw AppError.notFound('Conta não encontrada.')
     if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Esta conta foi cancelada e nao pode receber baixa.')
+      throw AppError.conflict('Esta conta foi cancelada e não pode receber baixa.')
     }
 
     /* A aritmetica e de `domain`, e a mesma para os dois tipos de titulo. */
@@ -95,9 +95,9 @@ export async function settleReceivable(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findReceivable(ctx.companyId, input.receivableId)
-    if (titulo === undefined) throw AppError.notFound('Recebivel nao encontrado.')
+    if (titulo === undefined) throw AppError.notFound('Recebível não encontrado.')
     if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Este recebivel foi cancelado e nao pode receber baixa.')
+      throw AppError.conflict('Este recebível foi cancelado e não pode receber baixa.')
     }
 
     const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, input.amountCents)

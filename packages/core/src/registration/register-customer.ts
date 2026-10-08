@@ -134,7 +134,7 @@ export async function registerCustomer(
 export function assertIdentifiable(customer: CustomerOutput): void {
   if (customer.phone === null && customer.document === null) {
     throw AppError.validation(
-      'Este cliente nao tem telefone nem documento. Complete o cadastro para continuar.',
+      'Este cliente não tem telefone nem documento. Complete o cadastro para continuar.',
       [{ path: 'phone', message: 'Informe telefone ou documento.' }],
     )
   }
@@ -216,7 +216,7 @@ export async function getCustomer(
   const cliente = await deps.customers.findById(ctx.companyId, customerId)
 
   if (cliente === undefined) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   return cliente
@@ -256,7 +256,7 @@ export async function updateCustomer(
   /* De outra empresa cai no MESMO 404 de "nao existe" — um erro diferente
      confirmaria que aquele id existe em alguma outra loja. */
   if (atualizado === undefined) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   await auditarCliente(deps, ctx, customerId, 'updated', { campos: Object.keys(input).sort() })
@@ -296,7 +296,7 @@ export async function deleteCustomer(
   const cliente = await deps.customers.findById(ctx.companyId, customerId)
 
   if (cliente === undefined) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   /* Ja excluido responde sucesso, e nao conflito: o estado pedido e o estado
@@ -333,7 +333,7 @@ export async function restoreCustomer(
   const cliente = await deps.customers.findById(ctx.companyId, customerId)
 
   if (cliente === undefined) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   if (cliente.deletedAt === null) return

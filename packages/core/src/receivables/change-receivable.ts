@@ -25,17 +25,17 @@ async function recebivelMutavel(
   id: string,
 ): Promise<ReceivableForChange> {
   const achado = await tx.findForChange(ctx.companyId, id)
-  if (achado === null) throw AppError.notFound('Conta a receber nao encontrada.')
+  if (achado === null) throw AppError.notFound('Conta a receber não encontrada.')
   const r = achado.receivable
   if (r.saleId !== null) {
     throw AppError.conflict(
-      'Este recebivel veio de uma venda. Para mudar, cancele ou devolva a venda.',
+      'Este recebível veio de uma venda. Para mudar, cancele ou devolva a venda.',
     )
   }
-  if (r.status === 'cancelled') throw AppError.conflict('Esta conta ja foi cancelada.')
+  if (r.status === 'cancelled') throw AppError.conflict('Esta conta já foi cancelada.')
   if (r.settledAmountCents > 0) {
     throw AppError.conflict(
-      'Esta conta ja tem recebimento registrado. Estorne a baixa antes de corrigir ou cancelar.',
+      'Esta conta já tem recebimento registrado. Estorne a baixa antes de corrigir ou cancelar.',
     )
   }
   return achado

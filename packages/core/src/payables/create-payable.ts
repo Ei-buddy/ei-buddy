@@ -74,7 +74,7 @@ export async function createPayable(
     const gravadas = await tx.insertMany(contas)
 
     if (gravadas.length === 0) {
-      throw AppError.conflict('Nenhuma conta foi lancada.')
+      throw AppError.conflict('Nenhuma conta foi lançada.')
     }
 
     /* Uma entrada para o lancamento inteiro, e nao uma por ocorrencia: doze

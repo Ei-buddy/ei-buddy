@@ -45,7 +45,7 @@ const REGISTRO_INEXISTENTE = new Set(['22P02', '23503'])
 function erroDoPedidoNoBanco(error: unknown): AppError | undefined {
   const codigo = (error as { code?: unknown } | null)?.code
   if (typeof codigo === 'string' && REGISTRO_INEXISTENTE.has(codigo)) {
-    return AppError.notFound('Um dos registros informados nao existe. Confira e tente de novo.')
+    return AppError.notFound('Um dos registros informados não existe. Confira e tente de novo.')
   }
   return undefined
 }
@@ -66,7 +66,7 @@ function erroDoPedidoNoFastify(error: unknown): AppError | undefined {
     e.statusCode < 500
   ) {
     return AppError.validation(
-      'O pedido nao veio no formato esperado. Atualize o app e tente de novo.',
+      'O pedido não veio no formato esperado. Atualize o app e tente de novo.',
     )
   }
   return undefined
@@ -110,7 +110,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
   /* 404 tambem no formato unico — senao o cliente teria dois formatos. */
   app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) => {
-    const error = AppError.notFound('Este endereco nao existe.')
+    const error = AppError.notFound('Este endereço não existe.')
 
     return reply.code(404).send({
       error: { code: error.code, message: error.message, fields: [] },

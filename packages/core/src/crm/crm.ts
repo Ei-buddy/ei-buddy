@@ -100,7 +100,7 @@ export async function moveCrmCard(
   if (existe === undefined) {
     /* 404, nunca 403: um erro diferente de "nao existe" confirmaria, para
        quem varre ids, que aquele card existe em alguma outra loja. */
-    throw AppError.notFound('Card nao encontrado.')
+    throw AppError.notFound('Card não encontrado.')
   }
 
   const movido = await deps.crm.move(ctx.companyId, cardId, column)
@@ -124,7 +124,7 @@ export async function commentOnCrmCard(
 ): Promise<CrmCommentOutput> {
   const existe = await deps.crm.findById(ctx.companyId, cardId)
   if (existe === undefined) {
-    throw AppError.notFound('Card nao encontrado.')
+    throw AppError.notFound('Card não encontrado.')
   }
 
   const comentario = await deps.crm.addComment({

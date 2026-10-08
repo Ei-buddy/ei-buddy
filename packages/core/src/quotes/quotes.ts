@@ -33,16 +33,16 @@ export async function createQuote(
 
   for (const item of input.items) {
     const p = porId.get(item.productId)
-    if (p === undefined) throw AppError.notFound('Produto nao encontrado.')
+    if (p === undefined) throw AppError.notFound('Produto não encontrado.')
     if (!p.isActive) {
-      throw AppError.conflict(`O produto "${p.description}" esta inativo e nao pode ser orcado.`)
+      throw AppError.conflict(`O produto "${p.description}" está inativo e não pode ser orçado.`)
     }
   }
 
   const subtotal = input.items.reduce((s, i) => s + i.quantity * i.unitPriceCents, 0)
   const desconto = input.discountCents ?? 0
   if (desconto > subtotal) {
-    throw AppError.validation('O desconto nao pode passar do valor dos produtos.', [
+    throw AppError.validation('O desconto não pode passar do valor dos produtos.', [
       { path: 'discountCents', message: 'Desconto maior que o total.' },
     ])
   }
@@ -93,7 +93,7 @@ export async function getQuote(
   id: string,
 ): Promise<QuoteOutput> {
   const q = await deps.quotes.findById(ctx.companyId, id)
-  if (q === null) throw AppError.notFound('Orcamento nao encontrado.')
+  if (q === null) throw AppError.notFound('Orçamento não encontrado.')
   return q
 }
 
@@ -109,15 +109,15 @@ async function fechar(
   if (antes.status !== 'open') {
     throw AppError.conflict(
       antes.status === 'converted'
-        ? 'Este orcamento ja virou venda.'
-        : 'Este orcamento foi cancelado.',
+        ? 'Este orçamento já virou venda.'
+        : 'Este orçamento foi cancelado.',
     )
   }
 
   const depois = await deps.quotes.close(ctx.companyId, id, { status, saleId, closedAt: ctx.now })
   /* Entre ler e fechar, outra pessoa fechou: o banco so fecha o que esta aberto. */
   if (depois === null)
-    throw AppError.conflict('Este orcamento acabou de ser fechado por outra pessoa.')
+    throw AppError.conflict('Este orçamento acabou de ser fechado por outra pessoa.')
 
   await deps.audit.record({
     companyId: ctx.companyId,
@@ -151,7 +151,7 @@ export async function convertQuote(
 ): Promise<QuoteOutput> {
   assertCanWrite(ctx)
   if (!(await deps.quotes.saleExists(ctx.companyId, input.saleId))) {
-    throw AppError.notFound('Venda nao encontrada.')
+    throw AppError.notFound('Venda não encontrada.')
   }
   return fechar(deps, ctx, id, 'converted', input.saleId)
 }
