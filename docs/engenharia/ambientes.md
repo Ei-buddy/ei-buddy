@@ -138,7 +138,7 @@ do sistema — ver [`seguranca.md`](../arquitetura/seguranca.md#certificado-digi
 | Variável                     | Obr. | Seg. | local                                | Descrição                                                                                        |
 | ---------------------------- | :--: | :--: | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `OPENAI_API_KEY`             |      |  🔒  | vazio                                | opcional no parse; obrigatória só para o assistente montar                                       |
-| `AGENT_MODEL`                |      |      | `openai/gpt-5.4-mini`                | formato Mastra `provedor/modelo`; trocar só com a avaliação `pnpm --filter @na-regua/agent eval` |
+| `AGENT_MODEL`                |      |      | `openai/gpt-6-luna`                  | formato Mastra `provedor/modelo`; trocar só com a avaliação `pnpm --filter @na-regua/agent eval` |
 | `AGENT_HARNESS`              |      |      | ausente                              | `1` libera HTTP (`/agent/messages`) **e** Studio (`/api/agents`) em produção (staging)           |
 | `AGENT_STUDIO_PRESETS`       |      |      | `packages/agent/studio/presets.json` | path do JSON de presets do Studio (NR-121). Ausente/vazio = esse default. IDs reais fora do git  |
 | `AGENT_MONTHLY_BUDGET_CENTS` |      |      | —                                    | teto por empresa ([RNF-073](../produto/requisitos-nao-funcionais.md))                            |
