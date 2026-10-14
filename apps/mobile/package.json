@@ -9,7 +9,7 @@
     "@na-regua/ui": "workspace:*",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@react-navigation/drawer": "^7.14.3",
-    "@react-navigation/native": "^7.4.1",
+    "@react-navigation/native": "^7.5.0",
     "expo": "~57.0.16",
     "expo-audio": "~57.0.5",
     "expo-camera": "~57.0.4",
