@@ -16,7 +16,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@mastra/core": "^1.70.0",
+    "@mastra/core": "^1.76.0",
     "@na-regua/contracts": "workspace:*",
     "@na-regua/core": "workspace:*",
     "@na-regua/money": "workspace:*",
