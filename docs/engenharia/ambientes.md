@@ -84,15 +84,16 @@ Subconta por lojista: [ADR-0005](../decisoes/adr/0005-subconta-asaas-nao-baas.md
 Split nas vendas: [DEC-018](../decisoes/README.md#dec-018) (aberta — não enviar
 `split[]` até fechar).
 
-| Variável                   | Obr. | Seg. | local                              | Descrição                                        |
-| -------------------------- | :--: | :--: | ---------------------------------- | ------------------------------------------------ |
-| `PAYMENTS_PROVIDER`        |  ✅  |      | `fake`                             | `fake` \| `asaas`                                |
-| `BILLING_PROVIDER`         |      |      | `fake`                             | `fake` \| `asaas` — mensalidade na conta-pai     |
-| `ASAAS_BASE_URL`           |      |      | `https://api-sandbox.asaas.com/v3` | sandbox ou produção                              |
-| `ASAAS_API_KEY`            |      |  🔒  | vazio                              | chave da **conta-pai**                           |
-| `ASAAS_USER_AGENT`         |      |      | vazio                              | identificar a aplicação                          |
-| `ASAAS_WEBHOOK_AUTH_TOKEN` |      |  🔒  | vazio                              | `authToken` dos webhooks da conta-pai            |
-| `ASAAS_WALLET_ID`          |      |      | vazio                              | `walletId` da pai — só se DEC-018 escolher Split |
+| Variável                   | Obr. | Seg. | local                              | Descrição                                                                                     |
+| -------------------------- | :--: | :--: | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `PAYMENTS_PROVIDER`        |  ✅  |      | `fake`                             | `fake` \| `asaas`                                                                             |
+| `BILLING_PROVIDER`         |      |      | `fake`                             | `fake` \| `asaas` — mensalidade na conta-pai                                                  |
+| `ASAAS_BASE_URL`           |      |      | `https://api-sandbox.asaas.com/v3` | sandbox ou produção                                                                           |
+| `ASAAS_API_KEY`            |      |  🔒  | vazio                              | chave da **conta-pai**                                                                        |
+| `ASAAS_AMBIENTE`           |      |      | vazio (`NODE_ENV` decide)          | `sandbox` ou `producao`; no deploy vem da variable do Environment do GitHub, padrão `sandbox` |
+| `ASAAS_USER_AGENT`         |      |      | vazio                              | identificar a aplicação                                                                       |
+| `ASAAS_WEBHOOK_AUTH_TOKEN` |      |  🔒  | vazio                              | `authToken` dos webhooks da conta-pai                                                         |
+| `ASAAS_WALLET_ID`          |      |      | vazio                              | `walletId` da pai — só se DEC-018 escolher Split                                              |
 
 Chave da subconta e `authToken` do webhook por lojista **não** são env global:
 vão ao cofre, referenciados pelo satélite de integração da empresa.

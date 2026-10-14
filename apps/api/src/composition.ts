@@ -1146,12 +1146,17 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
  * verificado antes de saber de qual empresa ele fala, entao nao da para
  * resolver uma chave por empresa nesse ponto.
  */
+/** Sandbox ou producao do Asaas — `ASAAS_AMBIENTE` manda; sem ela, o `NODE_ENV`. */
+function ambienteDoAsaas(): 'sandbox' | 'producao' {
+  return env.ASAAS_AMBIENTE ?? (env.NODE_ENV === 'production' ? 'producao' : 'sandbox')
+}
+
 export function montarGatewayDePagamento() {
   if (env.SECRETS_KEY === undefined) return undefined
 
   const sql = getClient(env.DATABASE_URL)
   return criarGatewayAsaas({
-    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    ambiente: ambienteDoAsaas(),
     credenciais: createPaymentCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY)),
     ...(env.ASAAS_WEBHOOK_AUTH_TOKEN === undefined
       ? {}
@@ -1260,7 +1265,7 @@ export function buildWebhookDeps(): WebhookRouteDeps {
   }
 
   const provedor = criarProvedorDeAssinaturaAsaas({
-    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    ambiente: ambienteDoAsaas(),
     apiKey: env.ASAAS_API_KEY,
     webhookAuthToken: env.ASAAS_WEBHOOK_AUTH_TOKEN,
   })
