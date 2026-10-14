@@ -65,6 +65,29 @@ describe('IdentidadeEmArquivo — escrita concorrente', () => {
     expect(verificado?.subject).toBe(registrado?.subject)
   })
 
+  /* Meu perfil — NR-153. */
+  it('trocar o e-mail move o login para o novo; trocar a senha vale para os dois caminhos', async () => {
+    const identidade = new IdentidadeEmArquivo(caminho)
+    const r = await identidade.register(
+      { identifier: 'ana@loja.local', secret: 'senha-123' },
+      { email: 'ana@loja.local', phone: '41999990000' },
+    )
+
+    expect(await identidade.setEmail(r!.subject, 'ana.paula@loja.local')).toBe(true)
+    expect(await identidade.setSecretFor(r!.subject, 'senha-nova-456')).toBe(true)
+
+    expect(
+      await identidade.verify({ identifier: 'ana@loja.local', secret: 'senha-nova-456' }),
+    ).toBeUndefined()
+    expect(
+      (await identidade.verify({ identifier: 'ana.paula@loja.local', secret: 'senha-nova-456' }))
+        ?.subject,
+    ).toBe(r!.subject)
+    expect(
+      await identidade.verify({ identifier: 'ana.paula@loja.local', secret: 'senha-123' }),
+    ).toBeUndefined()
+  })
+
   it('duas instancias gravando o MESMO arquivo, uma apos a outra, nao se apagam', async () => {
     /*
      * Simula dois processos: cada `IdentidadeEmArquivo` so conhece o que

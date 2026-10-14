@@ -165,6 +165,8 @@ export const saleHistoryEntrySchema = z.object({
   cardFeeAmountCents: z.number().int(),
   /** Quanto ja foi devolvido ao cliente — RF-044. O bruto nao muda. */
   returnedAmountCents: z.number().int(),
+  /** Troco devolvido em dinheiro — NR-156. Os pagamentos ja vem sem ele. */
+  changeCents: z.number().int(),
   items: z.array(saleHistoryItemSchema),
   payments: z.array(saleHistoryPaymentSchema),
   invoiceNumber: z.number().int().nullable(),

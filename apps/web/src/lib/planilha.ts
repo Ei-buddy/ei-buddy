@@ -1,16 +1,14 @@
 /**
  * Leitura de planilhas para os assistentes de importacao.
  *
- * CSV e lido no proprio navegador: a previa precisa ser instantanea, e
- * mandar o arquivo ao servidor so para mostrar as primeiras linhas seria
- * uma ida e volta desnecessaria.
+ * So CSV, lido no proprio navegador: a previa precisa ser instantanea.
  *
- * .xlsx NAO e lido no cliente — abrir esse formato exigiria uma biblioteca
- * pesada no bundle. O arquivo vai para o backend, que devolve exatamente o
- * mesmo formato `PlanilhaLida`, entao a tela nao muda.
+ * O .xlsx saiu. A "leitura" dele devolvia uma linha de exemplo com '—' em
+ * todo campo, e a tela seguia como se tivesse lido o arquivo — o lojista
+ * importaria um produto chamado "—". Abrir .xlsx de verdade pede biblioteca
+ * pesada no bundle ou rota no servidor; enquanto nao houver, a tela pede CSV,
+ * que o Excel e o Google Planilhas salvam em dois cliques.
  */
-
-import type { CampoImportacao } from '@/components/app/ImportarPlanilha'
 
 export type PlanilhaLida = {
   colunas: string[]
@@ -30,46 +28,54 @@ export type RelatorioImportacao = {
   erros: ErroImportacao[]
 }
 
-/** Le um CSV, detectando o separador usado. */
+/**
+ * Le um CSV, detectando o separador usado.
+ *
+ * Respeita aspas: `"Silva, Maria"` e UM campo, e `""` dentro de aspas e uma
+ * aspa literal. O `split` simples que havia aqui partia o nome em dois e
+ * deslocava todas as colunas seguintes da linha. Tira tambem o BOM que o
+ * Excel poe no comeco do arquivo, que grudava no nome da primeira coluna.
+ */
 export function lerCsv(texto: string): PlanilhaLida {
-  const linhas = texto
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
+  const limpo = texto.replace(/^\uFEFF/, '')
+  const primeira = limpo.split(/\r?\n/, 1)[0] ?? ''
+  /* Planilha exportada em pt-BR costuma sair com ponto e virgula. */
+  const sep = primeira.split(';').length > primeira.split(',').length ? ';' : ','
+
+  const linhas: string[][] = []
+  let linha: string[] = []
+  let campo = ''
+  let aspas = false
+
+  for (let i = 0; i < limpo.length; i++) {
+    const c = limpo[i]
+    if (aspas) {
+      if (c === '"' && limpo[i + 1] === '"') {
+        campo += '"'
+        i++
+      } else if (c === '"') {
+        aspas = false
+      } else {
+        campo += c
+      }
+    } else if (c === '"') {
+      aspas = true
+    } else if (c === sep) {
+      linha.push(campo.trim())
+      campo = ''
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && limpo[i + 1] === '\n') i++
+      linha.push(campo.trim())
+      if (linha.some((v) => v !== '')) linhas.push(linha)
+      linha = []
+      campo = ''
+    } else {
+      campo += c
+    }
+  }
+  linha.push(campo.trim())
+  if (linha.some((v) => v !== '')) linhas.push(linha)
 
   if (linhas.length === 0) return { colunas: [], linhas: [] }
-
-  /* Planilha exportada em pt-BR costuma sair com ponto e virgula. */
-  const cabecalho = linhas[0]
-  const sep = cabecalho.split(';').length > cabecalho.split(',').length ? ';' : ','
-
-  const partir = (linha: string) => linha.split(sep).map((c) => c.trim().replace(/^"|"$/g, ''))
-
-  return {
-    colunas: partir(cabecalho),
-    linhas: linhas.slice(1).map(partir),
-  }
-}
-
-/**
- * SUBSTITUIR POR: POST /importar/previa
- *
- * O backend abre o .xlsx e devolve o mesmo formato do CSV. Enquanto isso
- * nao existe, devolvemos um cabecalho coerente com os campos pedidos para
- * a tela poder ser exercitada.
- */
-export async function analisarPlanilhaXlsx(
-  arquivo: File,
-  campos: CampoImportacao[],
-): Promise<{ ok: true; planilha: PlanilhaLida } | { ok: false; error: string }> {
-  await new Promise((r) => setTimeout(r, 1200))
-  void arquivo
-
-  return {
-    ok: true,
-    planilha: {
-      colunas: campos.map((c) => c.label),
-      linhas: [campos.map(() => '—')],
-    },
-  }
+  return { colunas: linhas[0]!, linhas: linhas.slice(1) }
 }

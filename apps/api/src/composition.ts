@@ -50,7 +50,11 @@ import {
   type ToolDescriptor,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
+import type { OrcamentosDeps } from './routes/orcamentos.js'
+import type { CaixaDeps } from './routes/caixa.js'
+import type { ComprasDeps } from './routes/compras.js'
 import type {
+  IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
@@ -76,11 +80,16 @@ import {
   createFixedCostRepository,
   createVariableCostRepository,
   createBankAccountRepository,
+  createCashRegister,
+  createDelinquencyQueries,
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
   createInventoryQueries,
   createInventoryUnitOfWork,
+  createPurchaseQueries,
+  createPurchaseUnitOfWork,
+  createQuoteRepository,
   createReportRepository,
   createAuditQueries,
   createAuditTrail,
@@ -90,6 +99,7 @@ import {
   createPlatformAdminAccess,
   createSessionIssuer,
   createSettlementQueries,
+  createSettlementTotals,
   createSettlementUnitOfWork,
   createSupportRepository,
   createTeamRepository,
@@ -158,6 +168,7 @@ import type { CrmRouteDeps } from './routes/crm.js'
 import { createInvoiceQueue } from './invoice-queue.js'
 import { createConnectionNotifier } from './connection-notifier.js'
 import { createBrasilApiCepLookup } from './cep-lookup.js'
+import { createNominatimGeocoder } from './geocoder-nominatim.js'
 import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
 import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
@@ -399,6 +410,8 @@ export function buildAuthDeps(): AuthRouteDeps {
     /* Trocar o celular — RF-132: o contato no banco e o mesmo provedor do login. */
     contacts: createUserContacts(sql),
     phoneChanger: identidade,
+    /* Meu perfil — NR-153: e-mail e senha no mesmo provedor do login. */
+    editor: identidade,
   }
 }
 
@@ -428,7 +441,8 @@ const MINIMO_DE_SENHA = 8
 export function criarIdentidade(): IdentityProvider &
   IdentityRegistrar &
   PasswordSetter &
-  IdentityPhoneChanger {
+  IdentityPhoneChanger &
+  IdentityAccountEditor {
   if (env.AUTH_PROVIDER === 'better-auth') {
     if (env.BETTER_AUTH_SECRET === undefined) {
       /*
@@ -496,6 +510,8 @@ export function buildCadastroDeps(): CadastroDeps {
   return {
     companies: createCompanyRepository(sql),
     customers: createCustomerRepository(sql),
+    /* Inadimplentes — RF-071. "Hoje" no fuso da loja, como os relatorios. */
+    delinquency: createDelinquencyQueries(sql, env.TZ),
     /* O diario de contatos da ficha — RF-011, NR-072. Porta propria: a de
        clientes responde "quem e este", esta responde "o que ja falamos". */
     contacts: createCustomerContactRepository(sql),
@@ -521,6 +537,9 @@ export function buildCadastroDeps(): CadastroDeps {
     /* Geocodifica o endereco ao salvar — ADR-0008. A mesma porta atende
        `GET /enderecos/cep/:cep`, em `buildConsultasDeps`. */
     cepLookup: createBrasilApiCepLookup(),
+    /* A posicao pela rua e numero; o CEP vira so o reserva (achado do QA:
+       lojas vizinhas apareciam a 0 km). */
+    geocoder: createNominatimGeocoder(),
     /* Periodo de teste junto com a empresa — RF-110. `undefined` sem os
        prazos configurados, e o cadastro segue funcionando. */
     assinatura: montarInicioDoTeste(),
@@ -666,9 +685,12 @@ export function buildConnectionsDeps(): ConnectionsRouteDeps {
  * mas nao e RF-091 fechada.
  */
 export function buildAgendaDeps(): AgendaDeps {
+  const sql = getClient(env.DATABASE_URL)
   return {
-    appointments: createAppointmentRepository(getClient(env.DATABASE_URL)),
+    appointments: createAppointmentRepository(sql),
     reminders: createReminderScheduler(getRedis()),
+    /* Marcar e cancelar entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -874,6 +896,34 @@ export function buildContasBancariasDeps(): ContasBancariasDeps {
   }
 }
 
+/** Abertura e fechamento de caixa — NR-157. */
+export function buildCaixaDeps(): CaixaDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    cash: createCashRegister(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Entrada de mercadoria — NR-158. */
+export function buildComprasDeps(): ComprasDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    uow: createPurchaseUnitOfWork(sql),
+    queries: createPurchaseQueries(sql),
+    ids: { next: () => randomUUID() },
+  }
+}
+
+/** Orcamento — NR-159. */
+export function buildOrcamentosDeps(): OrcamentosDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    quotes: createQuoteRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
 /** Lista de espera do pre-lancamento — NR-111. */
 export function buildWaitlistDeps(): WaitlistRouteDeps {
   const sql = getClient(env.DATABASE_URL)
@@ -895,6 +945,8 @@ export function buildCrmDeps(): CrmRouteDeps {
   return {
     crm: createCrmRepository(sql),
     team: createTeamRepository(sql),
+    /* Criar, mover e comentar card entram na trilha — RF-123. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -938,6 +990,8 @@ export function buildEmissaoDeps(): EmissaoDeps {
      * nao inventa nota: ele devolve o que a guarda tem.
      */
     invoices: montarEmissorDaApi(sql, store),
+    /* O cancelamento da nota (RF-050) entra na trilha. */
+    audit: createAuditTrail(sql),
   }
 }
 
@@ -973,6 +1027,8 @@ export function buildContasDeps(): ContasDeps {
     receivables: createReceivableRepository(sql),
     receivablesUow: createManualReceivableUnitOfWork(sql),
     accounts: createChartOfAccountsRepository(sql, env.TZ),
+    settlementTotals: createSettlementTotals(sql, env.TZ),
+    timeZone: env.TZ,
     ids: { next: () => randomUUID() },
     /* Mesma pendencia da autenticacao: `db` nao expoe repositorio de
        auditoria, entao a trilha do lancamento fica em memoria. */
@@ -1090,12 +1146,17 @@ function tentarDiretorioStudio(): FixturePeerDirectory | undefined {
  * verificado antes de saber de qual empresa ele fala, entao nao da para
  * resolver uma chave por empresa nesse ponto.
  */
+/** Sandbox ou producao do Asaas — `ASAAS_AMBIENTE` manda; sem ela, o `NODE_ENV`. */
+function ambienteDoAsaas(): 'sandbox' | 'producao' {
+  return env.ASAAS_AMBIENTE ?? (env.NODE_ENV === 'production' ? 'producao' : 'sandbox')
+}
+
 export function montarGatewayDePagamento() {
   if (env.SECRETS_KEY === undefined) return undefined
 
   const sql = getClient(env.DATABASE_URL)
   return criarGatewayAsaas({
-    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    ambiente: ambienteDoAsaas(),
     credenciais: createPaymentCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY)),
     ...(env.ASAAS_WEBHOOK_AUTH_TOKEN === undefined
       ? {}
@@ -1204,7 +1265,7 @@ export function buildWebhookDeps(): WebhookRouteDeps {
   }
 
   const provedor = criarProvedorDeAssinaturaAsaas({
-    ambiente: env.NODE_ENV === 'production' ? 'producao' : 'sandbox',
+    ambiente: ambienteDoAsaas(),
     apiKey: env.ASAAS_API_KEY,
     webhookAuthToken: env.ASAAS_WEBHOOK_AUTH_TOKEN,
   })

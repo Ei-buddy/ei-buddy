@@ -15,5 +15,11 @@ export type VariableCostRepository = {
   list(companyId: CompanyId): Promise<readonly VariableCostOutput[]>
   findById(companyId: CompanyId, id: string): Promise<VariableCostOutput | undefined>
   insert(novo: NewVariableCost): Promise<VariableCostOutput>
+  /** Editar — NR-152. `undefined` quando nao existe ou e de outra empresa. */
+  update(
+    companyId: CompanyId,
+    id: string,
+    changes: { readonly name: string; readonly rateBps: number },
+  ): Promise<VariableCostOutput | undefined>
   remove(companyId: CompanyId, id: string): Promise<void>
 }

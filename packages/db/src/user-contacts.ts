@@ -11,17 +11,31 @@ export function createUserContacts(sql: Sql): UserContacts {
   return {
     contactOf: async (userId) => {
       const [l] = await sql<
-        { email: string | null; phone: string | null; auth_subject: string | null }[]
+        {
+          email: string | null
+          phone: string | null
+          auth_subject: string | null
+          name: string
+        }[]
       >`
         SELECT * FROM auth_user_contact(${userId})
       `
       return l === undefined
         ? undefined
-        : { email: l.email, phone: l.phone, subject: l.auth_subject }
+        : { email: l.email, phone: l.phone, subject: l.auth_subject, name: l.name }
     },
 
     changePhone: async (userId, phone) => {
       await sql`SELECT auth_user_change_phone(${userId}, ${phone})`
+    },
+
+    /* Meu perfil — NR-153 (migration 0038). */
+    changeEmail: async (userId, email) => {
+      await sql`SELECT auth_user_change_email(${userId}, ${email})`
+    },
+
+    changeName: async (userId, name) => {
+      await sql`SELECT auth_user_change_name(${userId}, ${name})`
     },
   }
 }

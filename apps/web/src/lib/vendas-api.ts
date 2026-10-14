@@ -503,6 +503,8 @@ export type VendaDoHistorico = {
   taxaCartao: number
   /** Ja devolvido ao cliente, somando as devolucoes — RF-044. */
   devolvidoValor: number
+  /** Troco devolvido em dinheiro — NR-156. */
+  troco: number
   itens: ItemDaVenda[]
   pagamentos: PagamentoDaVenda[]
   notaNumero: number | null
@@ -538,6 +540,7 @@ type VendaDaApi = {
   taxAmountCents: number
   cardFeeAmountCents: number
   returnedAmountCents: number
+  changeCents?: number
   items: {
     productId: string | null
     description: string
@@ -569,6 +572,7 @@ const vendaParaTela = (v: VendaDaApi): VendaDoHistorico => ({
   imposto: reais(v.taxAmountCents),
   taxaCartao: reais(v.cardFeeAmountCents),
   devolvidoValor: reais(v.returnedAmountCents),
+  troco: reais(v.changeCents ?? 0),
   itens: v.items.map((i) => ({
     produtoId: i.productId,
     descricao: i.description,
@@ -676,6 +680,24 @@ export async function estornarVenda(
   const r = await pedir(`/api/vendas/${encodeURIComponent(id)}/cancelar`, {
     method: 'POST',
     body: JSON.stringify({ reason: motivo.trim() }),
+  })
+  return r.ok ? { ok: true } : { ok: false, error: r.erro }
+}
+
+/**
+ * Cancela a NFC-e da venda — RF-050, RF-051.
+ *
+ * O passo que libera o estorno e a devolucao de uma venda com nota. Dentro de
+ * 30 minutos da autorizacao; fora disso o servidor recusa e orienta a nota de
+ * devolucao.
+ */
+export async function cancelarNota(
+  vendaId: string,
+  justificativa: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await pedir(`/api/vendas/${encodeURIComponent(vendaId)}/nota/cancelamento`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: justificativa.trim() }),
   })
   return r.ok ? { ok: true } : { ok: false, error: r.erro }
 }

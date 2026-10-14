@@ -40,7 +40,8 @@ export async function POST(request: Request) {
 
   /* O token NAO volta no corpo: ele ja esta no cookie, e devolve-lo o
      entregaria ao JavaScript da pagina — onde um XSS o levaria. */
-  const { token: _token, ...semSegredo } = r.dados as Record<string, unknown> & { token: string }
+  const semSegredo: Record<string, unknown> = { ...r.dados }
+  delete semSegredo.token
 
   return NextResponse.json(semSegredo, { status: 201 })
 }

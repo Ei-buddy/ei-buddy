@@ -143,6 +143,40 @@ function escopo(tx: TransactionSql): PayableTransaction {
       return linhas.length
     },
 
+    /* `FOR UPDATE`: entre ler "sem baixa" e gravar a correcao, uma baixa
+       concorrente nao pode entrar — NR-150. A RLS ja prende a empresa. */
+    findById: async (_empresa, id) => {
+      const [linha] = await tx<Linha[]>`SELECT * FROM payables WHERE id = ${id} FOR UPDATE`
+      return linha === undefined ? null : paraSaida(linha)
+    },
+
+    update: async (_empresa, id, mudancas) => {
+      const [linha] = await tx<Linha[]>`
+        UPDATE payables
+        SET supplier = COALESCE(${mudancas.supplier ?? null}, supplier),
+            description = COALESCE(${mudancas.description ?? null}, description),
+            amount_cents = COALESCE(${mudancas.amountCents ?? null}::bigint, amount_cents),
+            due_date = COALESCE(${mudancas.dueDate ?? null}::date, due_date),
+            updated_at = now()
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return paraSaida(linha!)
+    },
+
+    cancel: async (_empresa, id, cancelledBy, cancelledAt) => {
+      const [linha] = await tx<Linha[]>`
+        UPDATE payables
+        SET status = 'cancelled',
+            cancelled_at = ${cancelledAt},
+            cancelled_by = ${cancelledBy},
+            updated_at = now()
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return paraSaida(linha!)
+    },
+
     findByRecurrence: async (_empresa, recurrenceId) => {
       const linhas = await tx<Linha[]>`
         SELECT * FROM payables WHERE recurrence_id = ${recurrenceId} ORDER BY due_date

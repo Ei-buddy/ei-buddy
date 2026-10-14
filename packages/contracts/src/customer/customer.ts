@@ -1,10 +1,5 @@
 import { z } from 'zod'
-import {
-  addressOutputSchema,
-  addressSchema,
-  documentSchema,
-  tipoDePessoa,
-} from '../common/document.js'
+import { addressOutputSchema, documentSchema, tipoDePessoa, ufSchema } from '../common/document.js'
 import {
   emailSchema,
   idSchema,
@@ -39,6 +34,67 @@ const EXIGE_FANTASIA = {
 }
 
 /**
+ * O endereco do cliente, completo — decisao de produto de 2026-10-06.
+ *
+ * Diferente do `addressSchema` da empresa, que chega pela busca de CNPJ e pode
+ * faltar: o cliente e cadastrado pela loja, que tem a pessoa na frente, e um
+ * cadastro sem como achar nem como chamar o cliente nao serve para cobrar o
+ * fiado nem para entregar. So o complemento continua opcional, porque muita
+ * casa nao tem.
+ *
+ * `number` e TEXTO: existe "s/n", "120-A" e "KM 42".
+ */
+export const customerAddressSchema = z
+  .object({
+    zipCode: z
+      .string()
+      .trim()
+      .regex(/^\d{8}$/, 'CEP invalido. Use 8 digitos.'),
+    street: z.string().trim().min(1, 'Informe a rua.').max(160),
+    number: z.string().trim().min(1, 'Informe o numero (ou s/n).').max(20),
+    complement: z.string().trim().max(80).optional(),
+    district: z.string().trim().min(1, 'Informe o bairro.').max(80),
+    city: z.string().trim().min(1, 'Informe a cidade.').max(80),
+    state: ufSchema,
+  })
+  .strict()
+
+export type CustomerAddress = z.infer<typeof customerAddressSchema>
+
+/**
+ * O que falta para o cadastro ficar completo — DEC-025.
+ *
+ * Cliente cadastrado antes da regra pode nao ter celular nem endereco. Ele
+ * continua valendo, e as telas usam esta lista para avisar o que completar.
+ * Vazia = cadastro completo. Os nomes ja vem prontos para a tela.
+ */
+export function camposFaltandoNoCliente(c: {
+  readonly document: string | null
+  readonly phone: string | null
+  readonly address: {
+    readonly zipCode: string | null
+    readonly street: string | null
+    readonly number: string | null
+    readonly district: string | null
+    readonly city: string | null
+    readonly state: string | null
+  }
+}): string[] {
+  const vazio = (v: string | null) => v === null || v.trim() === ''
+  const faltando: string[] = []
+  if (vazio(c.document)) faltando.push('CPF/CNPJ')
+  if (vazio(c.phone)) faltando.push('celular')
+  const e = c.address
+  if (vazio(e.zipCode)) faltando.push('CEP')
+  if (vazio(e.street)) faltando.push('rua')
+  if (vazio(e.number)) faltando.push('número')
+  if (vazio(e.district)) faltando.push('bairro')
+  if (vazio(e.city)) faltando.push('cidade')
+  if (vazio(e.state)) faltando.push('UF')
+  return faltando
+}
+
+/**
  * Os campos, sem regra composta.
  *
  * Existe separado porque `.partial()` do zod recusa qualquer schema que
@@ -49,11 +105,12 @@ const camposDoCliente = z
   .object({
     name: nameSchema,
     /**
-     * Documento e telefone sao opcionais de proposito: no balcao a venda
-     * acontece antes do cadastro completo, e exigir CPF para vender empurra
-     * o lojista de volta para o caderno.
+     * CPF ou CNPJ, obrigatorio — DEC-025 (revisada em 2026-10-07): o cadastro
+     * de cliente e um so no web e no app, com as mesmas regras. Quem nao quer
+     * se identificar continua comprando como "venda sem cliente", que nao cria
+     * cadastro nenhum.
      */
-    document: documentSchema.optional(),
+    document: documentSchema,
     /**
      * Nome fantasia — obrigatorio quando o cliente e PJ (regra logo abaixo).
      *
@@ -62,20 +119,19 @@ const camposDoCliente = z
      * "a padaria do Ze", nao "ZE SILVA COMERCIO DE ALIMENTOS LTDA".
      */
     tradeName: nameSchema.optional(),
-    phone: phoneSchema.optional(),
+    /** Obrigatorio: e por ele que a loja cobra o fiado e manda o WhatsApp. */
+    phone: phoneSchema,
     email: emailSchema.optional(),
     notes: z.string().trim().max(500, 'Observacao muito longa.').optional(),
     /** Teto do fiado. Ausente = sem fiado liberado. */
     walletLimitCents: moneyCentsSchema.optional(),
     /**
-     * O endereco, inteiro opcional — RF-009.
+     * O endereco, obrigatorio e completo — ver `customerAddressSchema`.
      *
-     * Aninhado e nao achatado: os sete campos so fazem sentido juntos, e um
-     * `city` sem `state` e um endereco que ninguem acha. Agrupar tambem deixa a
-     * ausencia explicita — `address` ausente e "nao informou", em vez de sete
-     * campos vazios espalhados pelo corpo.
+     * Aninhado e nao achatado: os campos so fazem sentido juntos, e um `city`
+     * sem `state` e um endereco que ninguem acha.
      */
-    address: addressSchema.optional(),
+    address: customerAddressSchema,
   })
   .strict()
 
@@ -89,8 +145,8 @@ const camposDoCliente = z
  * reimplementa-la em SQL criaria duas respostas para a mesma pergunta, e a
  * primeira mudanca deixaria uma das duas para tras.
  *
- * Sem documento nao ha PJ conhecida, e a regra nao se aplica: o balcao cadastra
- * com nome e telefone e completa depois (RF-009).
+ * O documento e obrigatorio no cadastro; na edicao parcial, sem documento no
+ * corpo nao ha PJ conhecida, e a regra nao se aplica.
  */
 export const createCustomerInputSchema = camposDoCliente.refine(pjTemFantasia, EXIGE_FANTASIA)
 
@@ -98,6 +154,9 @@ export type CreateCustomerInput = z.infer<typeof createCustomerInputSchema>
 
 /**
  * Edicao — os mesmos campos, todos opcionais, e a MESMA regra de PJ.
+ *
+ * Opcional quer dizer "nao mexe": quem manda o endereco manda ele inteiro, e
+ * celular nao se apaga, so se troca.
  *
  * Ela vale aqui pelo payload que chega: quem manda um CNPJ nesta atualizacao
  * precisa mandar o fantasia junto. O que ela NAO alcanca e a atualizacao que
@@ -345,3 +404,21 @@ export const customerListOutputSchema = z.object({
 })
 
 export type CustomerListOutput = z.infer<typeof customerListOutputSchema>
+
+/**
+ * Cliente inadimplente — RF-071, US-034.
+ *
+ * So divida do CLIENTE: parcela de cartao fica de fora, porque quem deve ali e
+ * a adquirente. `daysOverdue` conta a partir do titulo mais antigo vencido.
+ */
+export const delinquentCustomerSchema = z.object({
+  customerId: idSchema,
+  name: z.string(),
+  phone: z.string().nullable(),
+  overdueCents: z.number().int(),
+  oldestDueOn: z.string(),
+  daysOverdue: z.number().int(),
+  receivablesCount: z.number().int(),
+})
+
+export type DelinquentCustomer = z.infer<typeof delinquentCustomerSchema>

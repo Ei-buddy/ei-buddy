@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -20,7 +20,9 @@ import {
 } from '@/lib/assistente-api'
 import { COMANDOS_DESTAQUE } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import Botao from '@/components/ui/Botao'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const HOJE = '2026-08-24'
 
@@ -35,7 +37,13 @@ const HOJE = '2026-08-24'
 export default function Assistente() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [contexto, setContexto] = useState<Contexto>(CONTEXTO_VAZIO)
-  const [entrada, setEntrada] = useState('')
+  /* `?pergunta=`: o bloco "Via WhatsApp" das telas (NR-165) abre o assistente
+     com a pergunta ja escrita, como no web — a pessoa so confirma. */
+  const { pergunta } = useLocalSearchParams<{ pergunta?: string }>()
+  const [entrada, setEntrada] = useState(pergunta ?? '')
+  useEffect(() => {
+    if (pergunta) setEntrada(pergunta)
+  }, [pergunta])
   const [pensando, setPensando] = useState(false)
 
   const rolagem = useRef<ScrollView>(null)
@@ -180,6 +188,9 @@ export default function Assistente() {
 
 /** Resposta rica: tabela, lista ou indicador dentro da conversa. */
 function Bloco({ bloco }: { bloco: BlocoResposta }) {
+  const router = useRouter()
+  const [dispensado, setDispensado] = useState(false)
+
   if (bloco.tipo === 'texto') {
     return <Text style={estilos.blocoTexto}>{bloco.texto}</Text>
   }
@@ -227,15 +238,33 @@ function Bloco({ bloco }: { bloco: BlocoResposta }) {
     )
   }
 
-  /* confirmacao — acao so acontece com aceite explicito */
+  /*
+   * confirmacao — acao so acontece com aceite explicito. A resposta aponta a
+   * tela que faz o que o assistente ainda nao faz, como no web (NR-178).
+   */
+  if (dispensado) return null
+  const destino: Href | null =
+    bloco.acao === 'abrir_cadastro_cliente'
+      ? '/cliente-form'
+      : bloco.acao.startsWith('/')
+        ? (bloco.acao as Href)
+        : null
   return (
     <View style={estilos.confirmacao}>
       <Text style={estilos.confirmacaoTexto}>{bloco.pergunta}</Text>
+      {destino !== null ? (
+        <View style={estilos.confirmacaoAcoes}>
+          <Botao onPress={() => router.push(destino)}>Abrir</Botao>
+          <Botao variante="fantasma" onPress={() => setDispensado(true)}>
+            Agora não
+          </Botao>
+        </View>
+      ) : null}
     </View>
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
 
@@ -260,19 +289,17 @@ const estilos = StyleSheet.create({
   doAssistente: { justifyContent: 'flex-start' },
   balao: { maxWidth: '86%', padding: espaco.md, gap: espaco.sm },
   balaoPessoa: {
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
     borderRadius: raio.md,
     borderBottomRightRadius: 4,
   },
   balaoAssistente: {
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
+    ...vidro.peca,
     borderRadius: raio.md,
     borderBottomLeftRadius: 4,
   },
   balaoTexto: { fontSize: fonte.pequeno, lineHeight: 21, color: cores.texto },
-  balaoTextoPessoa: { color: cores.textoSobreAcento },
+  balaoTextoPessoa: { color: cores.textoSobreAtivo },
   digitando: { fontSize: fonte.pequeno, color: cores.textoFraco },
 
   blocoTexto: { fontSize: fonte.micro, color: cores.textoFraco, lineHeight: 19 },
@@ -311,6 +338,7 @@ const estilos = StyleSheet.create({
   indicadorApoio: { fontSize: 11, color: cores.textoFraco },
 
   confirmacao: {
+    gap: espaco.xs,
     padding: espaco.md,
     borderWidth: 1,
     borderColor: cores.atencao,
@@ -318,6 +346,7 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.atencaoFundo,
   },
   confirmacaoTexto: { fontSize: fonte.micro, color: cores.texto, lineHeight: 19 },
+  confirmacaoAcoes: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm },
 
   sugestoes: { flexGrow: 0, maxHeight: 56 },
   sugestoesConteudo: {
@@ -344,6 +373,9 @@ const estilos = StyleSheet.create({
   },
   entradaCampo: {
     flex: 1,
+    /* Sem isto o campo nao encolhe abaixo da largura propria e empurra o
+       botao de enviar para fora da tela (NR-177). */
+    minWidth: 0,
     maxHeight: 110,
     minHeight: 46,
     paddingHorizontal: espaco.lg,
@@ -362,8 +394,8 @@ const estilos = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
   },
   enviarInativo: { opacity: 0.4 },
-  enviarTexto: { fontSize: 20, color: cores.textoSobreAcento, fontWeight: peso.pesado },
-})
+  enviarTexto: { fontSize: 20, color: cores.textoSobreAtivo, fontWeight: peso.pesado },
+}))

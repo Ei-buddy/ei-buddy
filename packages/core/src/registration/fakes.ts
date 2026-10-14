@@ -14,6 +14,7 @@ import type {
   CompanyChanges,
   CompanyRepository,
   CustomerPatch,
+  ProductPatch,
   CustomerRepository,
   NewCompany,
   NewCustomer,
@@ -398,6 +399,7 @@ export class InMemoryProductRepository implements ProductRepository {
       minStock: product.minStock,
       category: product.category ?? null,
       supplier: product.supplier ?? null,
+      isActive: true,
     }
     this.registros.set(gravado.id, gravado)
     return this.semTenant(gravado)
@@ -433,7 +435,7 @@ export class InMemoryProductRepository implements ProductRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((p) => p.companyId === companyId)
+      .filter((p) => p.companyId === companyId && p.isActive)
       .filter(
         (p) =>
           termo === '' ||
@@ -459,6 +461,7 @@ export class InMemoryProductRepository implements ProductRepository {
     criterio: {
       readonly termo?: string
       readonly stock: 'todos' | 'baixo' | 'esgotado'
+      readonly situacao: 'ativos' | 'inativos'
       readonly offset: number
       readonly limite: number
     },
@@ -467,6 +470,7 @@ export class InMemoryProductRepository implements ProductRepository {
 
     const casam = [...this.registros.values()]
       .filter((p) => p.companyId === companyId)
+      .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
       .filter(
         (p) =>
           termo === '' ||
@@ -495,7 +499,7 @@ export class InMemoryProductRepository implements ProductRepository {
     readonly outOfStock: number
     readonly stockValueCents: number
   }> {
-    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId)
+    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId && p.isActive)
 
     return {
       total: meus.length,
@@ -506,6 +510,19 @@ export class InMemoryProductRepository implements ProductRepository {
       outOfStock: meus.filter((p) => p.stock <= 0).length,
       stockValueCents: meus.reduce((acc, p) => acc + p.stock * p.costPriceCents, 0),
     }
+  }
+
+  async setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+    const novo = { ...atual, isActive: ativo }
+    this.registros.set(productId, novo)
+    return this.semTenant(novo)
   }
 
   /**
@@ -520,6 +537,44 @@ export class InMemoryProductRepository implements ProductRepository {
     const registro = this.registros.get(id)
     if (registro === undefined) throw new Error(`produto ${id} nao existe no falso`)
     this.registros.set(id, { ...registro, stock: quantidade })
+  }
+
+  /**
+   * Edita so o que veio — RF-017.
+   *
+   * `?? atual` campo a campo, que e o `COALESCE` do SQL escrito em JavaScript.
+   * Espalhar o patch com `{ ...atual, ...patch }` daria o mesmo resultado hoje
+   * e mentiria no dia em que o contrato aceitasse `null`.
+   */
+  async update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId) return undefined
+
+    const atualizado = {
+      ...atual,
+      description: patch.description ?? atual.description,
+      barcode: patch.barcode ?? atual.barcode,
+      unitOfMeasure: patch.unitOfMeasure ?? atual.unitOfMeasure,
+      salePriceCents: patch.salePriceCents ?? atual.salePriceCents,
+      costPriceCents: patch.costPriceCents ?? atual.costPriceCents,
+      taxRate: patch.taxRate ?? atual.taxRate,
+      minStock: patch.minStock ?? atual.minStock,
+      category: patch.category ?? atual.category,
+      supplier: patch.supplier ?? atual.supplier,
+      ncm: patch.ncm ?? atual.ncm,
+      cfop: patch.cfop ?? atual.cfop,
+      taxSituationCode: patch.taxSituationCode ?? atual.taxSituationCode,
+    }
+
+    this.registros.set(productId, atualizado)
+
+    const { companyId: _fora, ...semTenant } = atualizado
+    return semTenant
   }
 
   async countAll(companyId: CompanyId): Promise<number> {

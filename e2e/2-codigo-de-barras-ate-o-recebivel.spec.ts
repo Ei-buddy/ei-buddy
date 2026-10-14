@@ -23,7 +23,7 @@ test('bipa o produto, paga em 3x no credito e ve as parcelas a receber', async (
   await aceitarCookies(page)
   await page.getByRole('button', { name: /Seguir sem identificar/ }).click()
 
-  await page.getByRole('button', { name: 'Ler codigo' }).click()
+  await page.getByRole('button', { name: 'Ler código' }).click()
   await page.getByLabel('Digitar o código').fill(ean)
   await page.getByLabel('Digitar o código').press('Enter')
   await page.getByRole('button', { name: /^Finalizar · R\$ 30,00/ }).click()

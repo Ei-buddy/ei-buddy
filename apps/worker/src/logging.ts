@@ -6,6 +6,8 @@
  * tentativa e indistinguivel de tres falhas diferentes.
  */
 
+import { ehErroDeIntegracao } from '@na-regua/contracts'
+
 export type Level = 'debug' | 'info' | 'warn' | 'error'
 
 /**
@@ -40,4 +42,26 @@ export function log(level: Level, msg: string, extra: Record<string, unknown> = 
     return
   }
   console.log(linha)
+}
+
+/**
+ * O que a falha de um job leva para o log — RF-129, US-064.
+ *
+ * A mensagem sozinha nao resolve chamado: "o Asaas nao devolveu id da
+ * cobranca" sem o que o Asaas respondeu manda alguem pedir print ao cliente.
+ * Erro de integracao leva provedor, operacao, status e o trecho da resposta.
+ *
+ * `ref` e a venda (ou a mensagem) do job: e o mesmo id que aparece na URL da
+ * requisicao que pediu a emissao, e e por ele que o log da api encontra o do
+ * worker.
+ */
+export function camposDaFalha(erro: Error, dados: unknown): Record<string, unknown> {
+  const d = (dados ?? {}) as Record<string, unknown>
+  const ref = typeof d.saleId === 'string' ? d.saleId : typeof d.id === 'string' ? d.id : undefined
+  return {
+    /* Mensagem, nunca a stack: log agregado nao ganha nada com ela. */
+    error: erro.message,
+    ...(ref === undefined ? {} : { ref }),
+    ...(ehErroDeIntegracao(erro) ? { integracao: erro.detalhes() } : {}),
+  }
 }

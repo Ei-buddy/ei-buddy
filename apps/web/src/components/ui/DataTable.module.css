@@ -63,8 +63,15 @@
     padding: 0;
   }
 
+  /*
+   * Cabecalho em vidro — NR-146: o tom mais fundo da barra, com o fio de luz
+   * no topo. As LINHAS ficam sem vidro nem desfoque: sao muitas, e o efeito
+   * repetido pesa na rolagem e briga com a leitura dos dados.
+   */
   .table th {
-    padding: 0 14px 11px;
+    padding: 11px 14px;
+    background: var(--glass-surface-deep);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
     text-align: left;
     font-family: var(--font-display);
     font-size: 12px;
@@ -76,11 +83,19 @@
     white-space: nowrap;
   }
 
+  .table th:first-child {
+    border-top-left-radius: var(--glass-radius-sm);
+  }
+
+  .table th:last-child {
+    border-top-right-radius: var(--glass-radius-sm);
+  }
+
   .table td {
     display: table-cell;
     padding: 14px;
     vertical-align: middle;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid color-mix(in srgb, var(--app-border) 65%, transparent);
   }
 
   .table td::before {
@@ -92,7 +107,7 @@
   }
 
   .table tbody tr:hover {
-    background: var(--app-field);
+    background: var(--glass-surface-deep);
   }
 
   .hideMobile {

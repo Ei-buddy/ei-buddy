@@ -69,44 +69,27 @@
 .sidebar {
   --menu-borda-painel: rgba(255, 255, 255, 0.06);
   --menu-sombra-flutuante: 0 30px 60px rgba(0, 0, 0, 0.55), 0 8px 20px rgba(0, 0, 0, 0.3);
-  /* Vidro de verdade: quase todo o tom vem do painel por tras. */
-  --menu-item: rgba(255, 255, 255, 0.06);
-  --menu-item-hover: rgba(255, 255, 255, 0.1);
+  /*
+   * O material vem dos tokens `--glass-*` (globals.css, NR-146), que nasceram
+   * DESTES valores: a barra e a fonte do vidro do painel inteiro, e os dois
+   * temas ja se resolvem la. Aqui fica so o que e exclusivo da barra.
+   */
+  --menu-item: var(--glass-surface);
+  --menu-item-hover: var(--glass-surface-hover);
   --menu-desfoque: blur(18px) saturate(160%);
-  --menu-borda-luz: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0.06) 45%,
-    transparent 70%
-  );
-  --menu-reflexo: radial-gradient(
-    closest-side,
-    rgba(255, 255, 255, 0.4),
-    rgba(255, 255, 255, 0.12) 55%,
-    transparent 100%
-  );
-  --menu-sombra:
-    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
-    0 6px 14px rgba(0, 0, 0, 0.22);
-  --menu-ativo: linear-gradient(180deg, rgba(96, 165, 250, 0.55), rgba(37, 99, 235, 0.35));
-  --menu-sombra-ativa:
-    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
-    0 8px 24px rgba(59, 130, 246, 0.45);
+  --menu-borda-luz: var(--glass-border);
+  --menu-reflexo: var(--glass-highlight);
+  --menu-sombra: var(--glass-shadow);
+  --menu-ativo: var(--glass-active);
+  --menu-sombra-ativa: var(--glass-shadow-active);
   /* Azul chapado nos subitens, que nao tem peca propria para tingir. */
   --menu-ativo-texto-simples: #90caf9;
 
   /* O grupo aberto (Financeiro + subitens): a mesma familia dos botoes, um
      tom mais fundo, para ler como moldura e nao como mais um botao. */
-  --menu-grupo: rgba(255, 255, 255, 0.04);
-  --menu-grupo-borda: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0.06) 45%,
-    transparent 70%
-  );
-  --menu-sombra-grupo:
-    0 1px 1px rgba(255, 255, 255, 0.06) inset, 0 -6px 10px rgba(0, 0, 0, 0.2) inset,
-    0 6px 14px rgba(0, 0, 0, 0.22);
+  --menu-grupo: var(--glass-surface-deep);
+  --menu-grupo-borda: var(--glass-border);
+  --menu-sombra-grupo: var(--glass-shadow);
   --menu-guia: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
   --menu-sub-texto: #9fb4e8;
   --menu-sub-hover: rgba(255, 255, 255, 0.06);
@@ -117,47 +100,18 @@
   /* Sobre fundo claro a sombra do escuro vira um borrao cinza; mesma forma,
      bem mais fraca. */
   --menu-sombra-flutuante: 0 30px 60px rgba(15, 42, 58, 0.16), 0 8px 20px rgba(15, 42, 58, 0.1);
-  /*
-   * No claro o vidro nao pode ser quase transparente: o painel atras e claro,
-   * e `rgba(255,255,255,0.06)` sobre claro nao desenha botao nenhum. A peca
-   * aqui e branca, e quem da o volume sao as mesmas sombras, invertidas.
-   */
-  --menu-item: linear-gradient(180deg, #ffffff, #eef1f8);
-  --menu-item-hover: linear-gradient(180deg, #ffffff, #e6ebf5);
+  /* No claro a peca e branca e opaca: nao ha o que desfocar atras dela. */
   --menu-desfoque: none;
-  --menu-borda-luz: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95),
-    rgba(15, 42, 58, 0.1) 45%,
-    rgba(15, 42, 58, 0.04) 70%
-  );
-  --menu-reflexo: radial-gradient(
-    closest-side,
-    rgba(255, 255, 255, 0.95),
-    rgba(255, 255, 255, 0.35) 55%,
-    transparent 100%
-  );
-  --menu-sombra:
-    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset,
-    0 6px 14px rgba(15, 42, 58, 0.1);
-  /* Azul chapado, e nao o translucido do escuro: sobre superficie clara o
-     translucido desbota e o texto branco por cima reprova no AA. */
-  --menu-ativo: linear-gradient(180deg, #2f74e0, #1f5bc4);
-  --menu-sombra-ativa:
-    0 1px 1px rgba(255, 255, 255, 0.35) inset, 0 -6px 10px rgba(0, 0, 0, 0.12) inset,
-    0 8px 24px rgba(59, 130, 246, 0.35);
   --menu-ativo-texto-simples: #1565c0;
 
-  --menu-grupo: linear-gradient(180deg, #f4f6fb, #eaeef7);
+  /* A moldura do grupo morre em transparente, e nao no azul-escuro fraco dos
+     botoes: em volta da lista inteira, o fio na base pesaria. */
   --menu-grupo-borda: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.95),
     rgba(15, 42, 58, 0.08) 45%,
     transparent 70%
   );
-  --menu-sombra-grupo:
-    0 1px 1px rgba(255, 255, 255, 0.9) inset, 0 -6px 10px rgba(15, 42, 58, 0.05) inset,
-    0 6px 14px rgba(15, 42, 58, 0.1);
   --menu-guia: linear-gradient(180deg, rgba(15, 42, 58, 0.18), rgba(15, 42, 58, 0.04));
   /* Nem o #9fb4e8 do tema escuro (2,1:1 sobre o grupo claro) nem o apagado
      padrao do painel (4,44:1, raspando no AA): o secundario, que passa
@@ -405,12 +359,7 @@
 }
 
 .navActive::before {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.75),
-    rgba(255, 255, 255, 0.12) 45%,
-    transparent 70%
-  );
+  background: var(--glass-border-active);
 }
 
 .navActive::after {
@@ -514,7 +463,9 @@
   height: 40px;
   flex: none;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-text);
   transition: border-color var(--transition);
 }
@@ -531,14 +482,22 @@
   min-width: 0;
   max-width: 420px;
   padding: 9px 14px;
-  border: 1px solid var(--app-border);
+  /* Busca e campo: vidro rebaixado, como os inputs do painel (NR-146). */
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-full);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-muted);
-  transition: border-color var(--transition);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
 }
 
 .search:focus-within {
   border-color: var(--app-accent);
+  box-shadow:
+    var(--glass-shadow-inset),
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 30%, transparent);
 }
 
 .search input {
@@ -581,16 +540,20 @@
   height: 38px;
   flex: none;
   border-radius: 50%;
-  border: 1px solid var(--app-border);
+  /* Peca de vidro redonda, a mesma superficie dos itens da barra. */
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-muted);
   transition:
+    background var(--transition),
     border-color var(--transition),
     color var(--transition);
 }
 
 .iconButton:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
+  background: var(--glass-surface-hover);
+  color: var(--app-text);
 }
 
 .badgeDot {
@@ -850,10 +813,12 @@
   z-index: 40;
   min-width: 240px;
   padding: 6px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius);
-  background: var(--app-surface);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-panel);
 }
 
 .avisosLista {
@@ -971,7 +936,9 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   color: var(--app-muted);
   transition:
     color var(--transition),
@@ -1341,12 +1308,12 @@
   z-index: 40;
   min-width: 232px;
   padding: 6px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  backdrop-filter: blur(16px) saturate(140%);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 22%);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-panel);
   /* Nasce do canto onde esta o botao, e nao do proprio centro. */
   transform-origin: top right;
   animation: abrirMenuDaConta 160ms var(--ease);

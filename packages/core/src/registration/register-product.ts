@@ -8,6 +8,7 @@ import type {
   ImportRejection,
   ProductOutput,
   ProductSuggestionsOutput,
+  UpdateProductInput,
 } from '@na-regua/contracts'
 import { AppError, isAppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
@@ -118,8 +119,10 @@ export async function registerProduct(
     const existente = await deps.products.findByBarcode(ctx.companyId, input.barcode)
     if (existente) {
       throw AppError.conflict(
-        `Este codigo de barras ja esta em "${existente.description}". ` +
-          'Edite o produto existente em vez de criar outro.',
+        `Este código de barras já está em "${existente.description}". ` +
+          (existente.isActive
+            ? 'Edite o produto existente em vez de criar outro.'
+            : 'Ele está inativo: reative-o em vez de criar outro.'),
       )
     }
   }
@@ -132,7 +135,7 @@ export async function registerProduct(
   if (input.ncm !== undefined && deps.ncmLookup !== undefined) {
     const consulta = await deps.ncmLookup.consultar(input.ncm)
     if (consulta.status === 'inexistente') {
-      throw AppError.validation('NCM nao encontrado na tabela oficial.', [
+      throw AppError.validation('NCM não encontrado na tabela oficial.', [
         { path: 'ncm', message: 'Este NCM nao existe na tabela oficial. Confira os numeros.' },
       ])
     }
@@ -181,7 +184,10 @@ export async function findProductByBarcode(
   ctx: ExecutionContext,
   barcode: string,
 ): Promise<ProductOutput | undefined> {
-  return deps.products.findByBarcode(ctx.companyId, barcode)
+  const produto = await deps.products.findByBarcode(ctx.companyId, barcode)
+  /* Inativo nao se vende (NR-151): para o balcao e o assistente, e como se o
+     codigo nao estivesse no catalogo. */
+  return produto?.isActive === false ? undefined : produto
 }
 
 /**
@@ -196,6 +202,122 @@ export async function findProductByBarcode(
  * existe" de "nao e seu" confirmaria, para quem varre ids, que aquele produto
  * existe em alguma outra loja.
  */
+/**
+ * Edita o cadastro do produto — RF-017.
+ *
+ * O contrato ja tinha `updateProductInputSchema` desde o inicio, e NINGUEM o
+ * usava: nem caso de uso, nem rota, nem botao. Preco errado nao tinha conserto
+ * — e preco errado no cadastro vira preco errado em toda venda dali em diante.
+ *
+ * ## O estoque nao entra
+ *
+ * Saldo so muda por MOVIMENTO (RF-124), e ja existe caminho proprio para
+ * corrigir contagem (`POST /produtos/:id/estoque`), que exige motivo e deixa
+ * rastro na trilha. Deixar o saldo editavel aqui abriria uma porta sem nenhum
+ * dos dois.
+ *
+ * ## Campo ausente nao e campo vazio
+ *
+ * A tela manda o que mudou; ausente fica como esta. Sem isso, salvar a
+ * correcao do preco apagaria o NCM que ninguem tocou.
+ */
+export async function updateProduct(
+  deps: { readonly products: ProductRepository; readonly audit?: AuditTrail },
+  ctx: ExecutionContext,
+  productId: string,
+  input: UpdateProductInput,
+): Promise<ProductOutput> {
+  assertCanWrite(ctx)
+
+  /* De outra empresa cai no MESMO 404 de "nao existe" — um erro diferente
+     confirmaria que aquele id existe em alguma outra loja. */
+  const atual = await deps.products.findById(ctx.companyId, productId)
+  if (atual === undefined) {
+    throw AppError.notFound('Produto não encontrado.')
+  }
+
+  /* A regra do cadastro, sobre o produto DEPOIS da edicao: mudar so o custo
+     tambem pode deixar a venda abaixo dele (o contrato nao enxerga isso). */
+  const venda = input.salePriceCents ?? atual.salePriceCents
+  const custo = input.costPriceCents ?? atual.costPriceCents
+  if (venda < custo) {
+    throw AppError.validation('Preco de venda menor que o custo. Confira os valores.', [
+      { path: 'salePriceCents', message: 'Preco de venda menor que o custo.' },
+    ])
+  }
+
+  const atualizado = await deps.products.update(ctx.companyId, productId, input, ctx.userId)
+  if (atualizado === undefined) {
+    throw AppError.notFound('Produto não encontrado.')
+  }
+
+  /* Trilha — RF-123: quais campos mudaram, e o preco antes e depois, que e a
+     pergunta de quem abre a auditoria ("quem mexeu no preco?"). */
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Product',
+    entityId: productId,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { salePriceCents: atual.salePriceCents, costPriceCents: atual.costPriceCents },
+    after: {
+      /* So o que MUDOU: a tela manda o formulario inteiro, e listar os nove
+         campos enviados esconderia que so o preco foi alterado. */
+      campos: (Object.keys(input) as (keyof UpdateProductInput)[])
+        .filter((k) => input[k] !== (atual as Record<string, unknown>)[k])
+        .sort(),
+      salePriceCents: atualizado.salePriceCents,
+      costPriceCents: atualizado.costPriceCents,
+    },
+  })
+
+  return atualizado
+}
+
+/**
+ * Inativar ou reativar um produto — NR-151.
+ *
+ * E o "excluir" que o lojista pede, sem apagar: o produto sai do PDV, do leitor
+ * de codigo de barras, da venda e do catalogo do balcao, mas a linha fica — as
+ * vendas, devolucoes e relatorios passados continuam apontando para ela.
+ * Reativar devolve tudo como estava, inclusive o saldo de estoque.
+ */
+export async function setProductActive(
+  deps: { readonly products: ProductRepository; readonly audit?: AuditTrail },
+  ctx: ExecutionContext,
+  productId: string,
+  ativo: boolean,
+): Promise<ProductOutput> {
+  assertCanWrite(ctx)
+
+  const atual = await deps.products.findById(ctx.companyId, productId)
+  if (atual === undefined) throw AppError.notFound('Produto não encontrado.')
+  if (atual.isActive === ativo) {
+    throw AppError.conflict(ativo ? 'Este produto já está ativo.' : 'Este produto já está inativo.')
+  }
+
+  const novo = await deps.products.setActive(ctx.companyId, productId, ativo, ctx.userId)
+  if (novo === undefined) throw AppError.notFound('Produto não encontrado.')
+
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Product',
+    entityId: productId,
+    /* `updated`, e nao uma acao nova: a trilha ja diz o que mudou no
+       antes/depois, e acao nova exigiria migrar o CHECK de `audit_logs`. */
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { isActive: atual.isActive },
+    after: { isActive: ativo },
+  })
+
+  return novo
+}
+
 export async function getProduct(
   deps: RegisterProductDeps,
   ctx: ExecutionContext,
@@ -204,7 +326,7 @@ export async function getProduct(
   const produto = await deps.products.findById(ctx.companyId, productId)
 
   if (produto === undefined) {
-    throw AppError.notFound('Produto nao encontrado.')
+    throw AppError.notFound('Produto não encontrado.')
   }
 
   return produto
@@ -302,8 +424,9 @@ async function recuperarCandidatos(
 
   /* Um trecho pode apontar para produto apagado entre a indexacao e agora.
      Some da lista em vez de virar erro: o lojista perguntou por um produto, e
-     a resposta certa e o que ainda existe. */
-  return carregados.filter((p): p is ProductOutput => p !== undefined)
+     a resposta certa e o que ainda existe. Inativo tambem some: o indice nao
+     sabe que ele saiu do balcao (NR-151). */
+  return carregados.filter((p): p is ProductOutput => p !== undefined && p.isActive)
 }
 
 /**
@@ -324,6 +447,7 @@ export async function listCatalog(
   const { produtos, total } = await deps.products.listCatalog(ctx.companyId, {
     ...(input.q === undefined || input.q === '' ? {} : { termo: input.q }),
     stock: input.stock,
+    situacao: input.situacao,
     offset: (input.page - 1) * input.pageSize,
     limite: input.pageSize,
   })

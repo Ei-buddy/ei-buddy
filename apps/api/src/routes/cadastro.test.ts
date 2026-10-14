@@ -222,7 +222,7 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return produtos
-        .filter((p) => p.companyId === companyId)
+        .filter((p) => p.companyId === companyId && p.isActive)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .sort((a, b) => a.description.localeCompare(b.description))
         .slice(0, criterio.limite)
@@ -235,6 +235,7 @@ function cadastroEmMemoria() {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = produtos
         .filter((p) => p.companyId === companyId)
+        .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .filter((p) => {
           if (criterio.stock === 'esgotado') return p.stock <= 0
@@ -278,6 +279,7 @@ function cadastroEmMemoria() {
         minStock: p.minStock,
         category: p.category ?? null,
         supplier: p.supplier ?? null,
+        isActive: true,
       }
       produtos.push(pr)
 
@@ -312,6 +314,34 @@ function cadastroEmMemoria() {
         categories: distintosEmOrdem(meus.map((p) => p.category)),
         suppliers: distintosEmOrdem(meus.map((p) => p.supplier)),
       }
+    },
+
+    /* Edita so o que veio, como o COALESCE do SQL. */
+    update: async (companyId, productId, patch) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return undefined
+
+      alvo.description = patch.description ?? alvo.description
+      alvo.barcode = patch.barcode ?? alvo.barcode
+      alvo.unitOfMeasure = patch.unitOfMeasure ?? alvo.unitOfMeasure
+      alvo.salePriceCents = patch.salePriceCents ?? alvo.salePriceCents
+      alvo.costPriceCents = patch.costPriceCents ?? alvo.costPriceCents
+      alvo.taxRate = patch.taxRate ?? alvo.taxRate
+      alvo.minStock = patch.minStock ?? alvo.minStock
+      alvo.category = patch.category ?? alvo.category
+      alvo.supplier = patch.supplier ?? alvo.supplier
+      alvo.ncm = patch.ncm ?? alvo.ncm
+      alvo.cfop = patch.cfop ?? alvo.cfop
+      alvo.taxSituationCode = patch.taxSituationCode ?? alvo.taxSituationCode
+
+      return alvo
+    },
+
+    setActive: async (companyId, productId, ativo) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return undefined
+      alvo.isActive = ativo
+      return alvo
     },
   }
 
@@ -494,16 +524,54 @@ describe('cadastrar empresa — RF-001, RF-002', () => {
  * frente — recusar automaticamente travaria o cadastro de dois irmaos com o
  * telefone de casa, que acontece.
  */
-describe('cadastrar cliente — RF-009, RF-010', () => {
-  const CLIENTE = { name: 'Dona Marta', phone: '41988887777' }
+/* Celular e endereco completo sao obrigatorios no cadastro de cliente (NR-142). */
+const ENDERECO = {
+  zipCode: '80010000',
+  street: 'Rua XV',
+  number: '100',
+  district: 'Centro',
+  city: 'Curitiba',
+  state: 'PR',
+}
 
-  it('cria com apenas nome — RF-009', async () => {
+describe('cadastrar cliente — RF-009, RF-010', () => {
+  const CLIENTE = {
+    name: 'Dona Marta',
+    document: '52998224725',
+    phone: '41988887777',
+    address: ENDERECO,
+  }
+
+  it('cria com nome, celular e endereco — RF-009', async () => {
     const c = await buildApp()
     app = c.app
 
-    const r = await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Marta' } })
+    const r = await app.inject({ method: 'POST', url: '/clientes', payload: CLIENTE })
 
     expect(r.statusCode).toBe(201)
+  })
+
+  it('sem celular ou sem endereco responde 400 no campo — NR-142', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const semNada = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { name: 'Marta' },
+    })
+    const semRua = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { ...CLIENTE, address: { ...ENDERECO, street: '' } },
+    })
+
+    expect(semNada.statusCode).toBe(400)
+    expect(semNada.json().error.fields.map((f: { path: string }) => f.path)).toEqual(
+      expect.arrayContaining(['document', 'phone', 'address']),
+    )
+    expect(semRua.statusCode).toBe(400)
+    expect(semRua.json().error.fields[0].path).toBe('address.street')
   })
 
   it('telefone repetido responde 409 COM os candidatos', async () => {
@@ -514,7 +582,12 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Marta Souza', phone: '41988887777' },
+      payload: {
+        name: 'Marta Souza',
+        document: '11144477735',
+        phone: '41988887777',
+        address: ENDERECO,
+      },
     })
 
     expect(r.statusCode).toBe(409)
@@ -543,21 +616,16 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes?duplicado=permitir',
-      payload: { name: 'Marta Souza', phone: '41988887777' },
+      payload: {
+        name: 'Marta Souza',
+        document: '11144477735',
+        phone: '41988887777',
+        address: ENDERECO,
+      },
     })
 
     expect(r.statusCode).toBe(201)
     expect(c.memoria.clientes).toHaveLength(2)
-  })
-
-  it('cliente sem telefone nem documento nao dispara busca de duplicado', async () => {
-    const c = await buildApp()
-    app = c.app
-    await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Joao' } })
-
-    const r = await app.inject({ method: 'POST', url: '/clientes', payload: { name: 'Joao' } })
-
-    expect(r.statusCode).toBe(201)
   })
 
   it('accountant recebe 403', async () => {
@@ -576,10 +644,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const criado = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: {
-        ...CLIENTE,
-        address: { zipCode: '80010000', street: 'Rua XV', number: '100', state: 'PR' },
-      },
+      payload: CLIENTE,
     })
 
     const r = await app.inject({ method: 'GET', url: `/clientes/${criado.json().id}` })
@@ -587,9 +652,8 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     expect(r.statusCode).toBe(200)
     expect(r.json().address.street).toBe('Rua XV')
     expect(r.json().address.state).toBe('PR')
-    /* O que nao veio volta `null`. Antes da migration 0019 nao havia coluna, e
-       a tela pedia os sete campos so para descarta-los. */
-    expect(r.json().address.district).toBeNull()
+    /* O que nao veio volta `null` — aqui, o complemento, o unico opcional. */
+    expect(r.json().address.complement).toBeNull()
   })
 
   it('cliente de outra empresa responde 404, e nao 403', async () => {
@@ -626,7 +690,11 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     const r = await app.inject({
       method: 'POST',
       url: '/clientes/importacao',
-      payload: { customers: [{ name: 'Do lote' }] },
+      payload: {
+        customers: [
+          { name: 'Do lote', document: '39053344705', phone: '41966665555', address: ENDERECO },
+        ],
+      },
     })
 
     expect(r.statusCode).toBe(200)
@@ -642,7 +710,12 @@ describe('contatos da ficha — RF-011', () => {
     const criado = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { name: 'Seu Antonio', phone: '41977776666' },
+      payload: {
+        name: 'Seu Antonio',
+        document: '87748248800',
+        phone: '41977776666',
+        address: ENDERECO,
+      },
     })
 
     return { id: criado.json().id as string }
@@ -678,7 +751,12 @@ describe('contatos da ficha — RF-011', () => {
 
 describe('excluir e reativar cliente — RF-009', () => {
   /* Fixture propria: a `CLIENTE` la de cima vive no describe do cadastro. */
-  const CLIENTE_A_EXCLUIR = { name: 'Dona Marta', phone: '41988887777' }
+  const CLIENTE_A_EXCLUIR = {
+    name: 'Dona Marta',
+    document: '52998224725',
+    phone: '41988887777',
+    address: ENDERECO,
+  }
 
   async function comCliente() {
     const c = await buildApp()
@@ -1468,5 +1546,143 @@ describe('o cadastro da propria loja — RF-003', () => {
     const r = await app.inject({ method: 'POST', url: '/empresas', payload: EMPRESA })
 
     expect(r.statusCode).toBe(201)
+  })
+})
+
+describe('inativar e reativar produto — NR-151', () => {
+  const COM_CODIGO = {
+    description: 'Arroz 5kg',
+    barcode: '7891234567895',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 2890,
+    costPriceCents: 2100,
+  }
+
+  async function comProduto(principal: AuthenticatedPrincipal = PRINCIPAL) {
+    const dono = await buildApp()
+    const criado = await dono.app.inject({ method: 'POST', url: '/produtos', payload: COM_CODIGO })
+    await dono.app.close()
+    const c = await buildApp(principal, dono.memoria)
+    app = c.app
+    return criado.json().id as string
+  }
+
+  it('inativa: some do balcao, e o leitor responde 409 em vez de oferecer cadastro', async () => {
+    const id = await comProduto()
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+    const balcao = await app.inject({ method: 'GET', url: '/produtos?q=arroz' })
+    const leitor = await app.inject({
+      method: 'GET',
+      url: '/produtos/codigo-de-barras/7891234567895',
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().isActive).toBe(false)
+    expect(balcao.json().products).toHaveLength(0)
+    expect(leitor.statusCode).toBe(409)
+  })
+
+  it('o catalogo mostra o inativo so no filtro de inativos', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const ativos = await app.inject({ method: 'GET', url: '/produtos/catalogo' })
+    const inativos = await app.inject({
+      method: 'GET',
+      url: '/produtos/catalogo?situacao=inativos',
+    })
+
+    expect(ativos.json().total).toBe(0)
+    expect(inativos.json().products.map((p: { id: string }) => p.id)).toEqual([id])
+  })
+
+  it('reativa e volta ao balcao', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/reativar` })
+
+    expect(r.statusCode).toBe(200)
+    expect(
+      (await app.inject({ method: 'GET', url: '/produtos?q=arroz' })).json().products,
+    ).toHaveLength(1)
+  })
+
+  it('inativar duas vezes e 409', async () => {
+    const id = await comProduto()
+    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    expect(r.statusCode).toBe(409)
+  })
+
+  it('accountant nao inativa', async () => {
+    const id = await comProduto({ ...PRINCIPAL, role: 'accountant' })
+
+    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
+
+    expect(r.statusCode).toBe(403)
+  })
+})
+
+describe('exportar listas — NR-155', () => {
+  it('clientes em CSV, com os mesmos filtros da tela', async () => {
+    const c = await buildApp()
+    app = c.app
+    await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: {
+        name: 'Maria Exportada',
+        document: '52998224725',
+        phone: '41999990001',
+        address: {
+          zipCode: '80000000',
+          street: 'Rua A',
+          number: '10',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
+
+    const r = await app.inject({ method: 'GET', url: '/clientes/exportar?formato=csv' })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('text/csv')
+    expect(r.headers['content-disposition']).toContain('clientes.csv')
+    expect(r.body).toContain('Maria Exportada')
+  })
+
+  it('produtos em PDF de verdade', async () => {
+    const c = await buildApp()
+    app = c.app
+    await app.inject({
+      method: 'POST',
+      url: '/produtos',
+      payload: {
+        description: 'Arroz',
+        unitOfMeasure: 'un',
+        salePriceCents: 2890,
+        costPriceCents: 2100,
+      },
+    })
+
+    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=pdf' })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.rawPayload.subarray(0, 5).toString()).toBe('%PDF-')
+  })
+
+  it('formato desconhecido e 400', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=xls' })
+
+    expect(r.statusCode).toBe(400)
   })
 })

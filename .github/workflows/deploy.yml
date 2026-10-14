@@ -57,6 +57,12 @@ on:
       # fica como esta. Ver o passo "Configurar o e-mail".
       SMTP_PASSWORD:
         required: false
+      # Chave da conta-pai do Asaas e o token dos webhooks. Opcionais: sem a
+      # chave, o `.env.production` fica como esta. Ver "Configurar o Asaas".
+      ASAAS_API_KEY:
+        required: false
+      ASAAS_WEBHOOK_AUTH_TOKEN:
+        required: false
 
 concurrency:
   # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
@@ -207,6 +213,50 @@ jobs:
           chmod 600 .env.production
           rm -f .email.env.novo
           echo "e-mail configurado: $(echo "$chaves" | tr '|' ' ')"
+          TROCA
+          } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
+
+      # Mesmo desenho do e-mail: so as linhas do Asaas sao trocadas, o resto do
+      # `.env.production` e do servidor. Secrets por Environment do GitHub — o
+      # `dev` leva a chave de SANDBOX, o `production` a de producao — e o
+      # `ASAAS_AMBIENTE` vem da variable do Environment, com sandbox como
+      # padrao: chave de producao so entra quando alguem disser que e producao.
+      - name: Configurar o Asaas
+        env:
+          ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
+          ASAAS_WEBHOOK_AUTH_TOKEN: ${{ secrets.ASAAS_WEBHOOK_AUTH_TOKEN }}
+          ASAAS_AMBIENTE: ${{ vars.ASAAS_AMBIENTE || 'sandbox' }}
+        run: |
+          if [ -z "$ASAAS_API_KEY" ]; then
+            echo "::notice::Secret ASAAS_API_KEY ausente — Asaas do servidor nao foi alterado."
+            exit 0
+          fi
+          case "$ASAAS_AMBIENTE" in
+            sandbox|producao) ;;
+            *) echo "::error::ASAAS_AMBIENTE deve ser sandbox ou producao (veio '$ASAAS_AMBIENTE')."; exit 1 ;;
+          esac
+
+          {
+            echo "set -eu"
+            echo "cd '$CAMINHO'"
+            echo "umask 077"
+            echo "cat > .asaas.env.novo <<'FIM_DO_ASAAS'"
+            printf '%s\n' \
+              "ASAAS_API_KEY=$ASAAS_API_KEY" \
+              "ASAAS_AMBIENTE=$ASAAS_AMBIENTE"
+            if [ -n "$ASAAS_WEBHOOK_AUTH_TOKEN" ]; then
+              printf '%s\n' "ASAAS_WEBHOOK_AUTH_TOKEN=$ASAAS_WEBHOOK_AUTH_TOKEN"
+            fi
+            echo "FIM_DO_ASAAS"
+            cat <<'TROCA'
+          touch .env.production
+          chaves=$(cut -d= -f1 .asaas.env.novo | paste -sd'|')
+          grep -Ev "^(${chaves})=" .env.production > .env.production.novo || true
+          cat .asaas.env.novo >> .env.production.novo
+          mv .env.production.novo .env.production
+          chmod 600 .env.production
+          rm -f .asaas.env.novo
+          echo "asaas configurado: $(echo "$chaves" | tr '|' ' ')"
           TROCA
           } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
 

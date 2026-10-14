@@ -1,8 +1,17 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native'
-import type { ReactNode } from 'react'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { ActivityIndicator, Pressable, Text } from 'react-native'
+import { createContext, useContext, type ReactNode } from 'react'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 type Variante = 'primario' | 'secundario' | 'fantasma' | 'perigo'
+
+/**
+ * Botao no cabecalho fica compacto — NR-176. Duas acoes de 48 de altura e
+ * folga larga espremiam o titulo ate "Catálo..." num celular de 390 de
+ * largura. O `Cabecalho` liga isto em volta da `acao`; nenhuma tela precisa
+ * saber.
+ */
+export const BotaoCompacto = createContext(false)
 
 /**
  * Botao do app.
@@ -27,6 +36,7 @@ export default function Botao({
   largura?: boolean
 }) {
   const inativo = desabilitado || carregando
+  const compacto = useContext(BotaoCompacto)
 
   return (
     <Pressable
@@ -36,6 +46,7 @@ export default function Botao({
       style={({ pressed }) => [
         estilos.base,
         estilos[variante],
+        compacto && estilos.compacto,
         largura && estilos.largura,
         pressed && !inativo && estilos.pressionado,
         inativo && estilos.inativo,
@@ -44,15 +55,19 @@ export default function Botao({
       {carregando ? (
         <ActivityIndicator
           size="small"
-          color={variante === 'primario' ? cores.textoSobreAcento : cores.acento}
+          color={variante === 'primario' ? cores.textoSobreAtivo : cores.acento}
         />
       ) : null}
-      <Text style={[estilos.texto, estilos[`texto_${variante}`]]}>{children}</Text>
+      <Text
+        style={[estilos.texto, compacto && estilos.textoCompacto, estilos[`texto_${variante}`]]}
+      >
+        {children}
+      </Text>
     </Pressable>
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -65,11 +80,15 @@ const estilos = StyleSheet.create({
     borderColor: 'transparent',
   },
   largura: { alignSelf: 'stretch' },
-  pressionado: { opacity: 0.85 },
+  /* 40 de altura continua acima do alvo minimo de toque (NR-176). */
+  compacto: { minHeight: 40, paddingHorizontal: espaco.md },
+  /* O toque afunda a peca de leve, como no web. */
+  pressionado: { opacity: 0.88, transform: [{ scale: 0.975 }] },
   inativo: { opacity: 0.45 },
 
-  primario: { backgroundColor: cores.acento },
-  secundario: { backgroundColor: cores.campo, borderColor: cores.borda },
+  /* Acao primaria: o azul de vidro do web (NR-146), brilhando para fora. */
+  primario: { ...vidro.ativo },
+  secundario: { ...vidro.peca },
   fantasma: { backgroundColor: 'transparent' },
   perigo: { backgroundColor: cores.erroFundo, borderColor: cores.erro },
 
@@ -77,8 +96,9 @@ const estilos = StyleSheet.create({
     fontSize: fonte.corpo,
     fontWeight: peso.forte,
   },
-  texto_primario: { color: cores.textoSobreAcento },
+  textoCompacto: { fontSize: fonte.pequeno },
+  texto_primario: { color: cores.textoSobreAtivo },
   texto_secundario: { color: cores.texto },
   texto_fantasma: { color: cores.textoFraco },
   texto_perigo: { color: cores.erro },
-})
+}))

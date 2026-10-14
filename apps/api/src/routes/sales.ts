@@ -1,6 +1,8 @@
 import {
   cancelSaleInputSchema,
   createSaleInputSchema,
+  exportSalesInputSchema,
+  LIMITE_DA_EXPORTACAO,
   returnSaleItemsInputSchema,
   saleHistoryInputSchema,
 } from '@na-regua/contracts'
@@ -20,6 +22,7 @@ import type { FastifyInstance } from 'fastify'
 import { IDEMPOTENCY_HEADER, requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
+import { enviarTabela, reais, todasAsPaginas } from './exportar-tabela.js'
 
 /**
  * Rota de venda — NR-027, RF-036, RNF-043.
@@ -61,6 +64,77 @@ export function registerSaleRoutes(app: FastifyInstance, deps: SaleRouteDeps): v
    * Venda de outra empresa cai em 404, e nao 403: um 403 confirmaria que ela
    * existe em algum lugar, e o numero e sequencial por empresa.
    */
+  /** Exportar o historico — NR-155. O mesmo periodo e busca da tela. */
+  app.get('/sales/exportar', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { formato, ...filtro } = validate(exportSalesInputSchema, request.query ?? {})
+
+    const { itens, cortou } = await todasAsPaginas(async (page) => {
+      const p = await listSales(deps, ctx, { ...filtro, page, pageSize: 100 })
+      return { itens: p.sales, total: p.total }
+    }, LIMITE_DA_EXPORTACAO)
+
+    const SITUACAO: Record<string, string> = {
+      open: 'Aberta',
+      settled: 'Concluída',
+      cancelled: 'Estornada',
+      returned: 'Devolvida',
+    }
+    const total = itens
+      .filter((v) => v.status !== 'cancelled')
+      .reduce((s, v) => s + v.grossAmountCents - v.discountCents, 0)
+
+    return enviarTabela(
+      reply,
+      formato,
+      'vendas',
+      {
+        titulo: cortou ? `Vendas (primeiras ${LIMITE_DA_EXPORTACAO})` : 'Vendas',
+        colunas: [
+          { titulo: 'Nº', valor: (v) => String(v.number), largura: 40 },
+          {
+            titulo: 'Data',
+            valor: (v) =>
+              new Date(v.soldAt)
+                .toLocaleString('pt-BR', {
+                  timeZone: 'America/Sao_Paulo',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+                .replace(', ', ' '),
+            largura: 85,
+          },
+          { titulo: 'Cliente', valor: (v) => v.customerName ?? 'Balcão', largura: 130 },
+          {
+            titulo: 'Total',
+            valor: (v) => reais(v.grossAmountCents - v.discountCents),
+            largura: 75,
+            alinhar: 'direita',
+          },
+          {
+            titulo: 'Líquido',
+            valor: (v) => reais(v.netAmountCents),
+            largura: 75,
+            alinhar: 'direita',
+          },
+          { titulo: 'Situação', valor: (v) => SITUACAO[v.status] ?? v.status, largura: 60 },
+          {
+            titulo: 'Nota',
+            valor: (v) => (v.invoiceNumber === null ? '' : String(v.invoiceNumber)),
+            largura: 50,
+          },
+        ],
+        linhas: itens,
+        rodape: ['', '', 'Total (sem estornadas)', reais(total), '', '', ''],
+        vazio: 'Nenhuma venda neste periodo.',
+      },
+      ctx.now,
+    )
+  })
+
   app.get('/sales/:id', async (request, reply) => {
     const ctx = requireContext(request)
     const { id } = request.params as { id: string }

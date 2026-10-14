@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createCustomerInputSchema, updateCustomerInputSchema } from '../customer/customer.js'
+import {
+  camposFaltandoNoCliente,
+  createCustomerInputSchema,
+  updateCustomerInputSchema,
+} from '../customer/customer.js'
 import {
   createCompanyInputSchema,
   createUserInputSchema,
@@ -53,17 +57,62 @@ describe('cadastro de usuario', () => {
 })
 
 describe('cadastro de cliente', () => {
-  it('aceita so o nome — o balcao vende antes de cadastrar tudo', () => {
-    expect(createCustomerInputSchema.safeParse({ name: 'Joana Ribeiro' }).success).toBe(true)
+  /* O minimo que o cadastro aceita: nome, celular e endereco completo. */
+  const BASE = {
+    name: 'Joana Ribeiro',
+    document: '529.982.247-25',
+    phone: '(41) 99876-5432',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV de Novembro',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  } as const
+
+  it('aceita documento, nome, celular e endereco', () => {
+    expect(createCustomerInputSchema.safeParse(BASE).success).toBe(true)
+  })
+
+  it.each([
+    ['document', 'CPF ou CNPJ'],
+    ['phone', 'celular'],
+    ['address', 'endereco'],
+  ] as const)('recusa sem %s (%s), apontando o campo', (campo, _rotulo) => {
+    const { [campo]: _fora, ...resto } = BASE
+    const r = createCustomerInputSchema.safeParse(resto)
+    expect(r.success === false && r.error.issues[0]?.path).toEqual([campo])
+  })
+
+  it.each(['zipCode', 'street', 'number', 'district', 'city', 'state'] as const)(
+    'recusa endereco sem %s',
+    (campo) => {
+      const { [campo]: _fora, ...endereco } = BASE.address
+      const r = createCustomerInputSchema.safeParse({ ...BASE, address: endereco })
+      expect(r.success === false && r.error.issues[0]?.path).toEqual(['address', campo])
+    },
+  )
+
+  it('complemento continua opcional', () => {
+    expect(
+      createCustomerInputSchema.safeParse({
+        ...BASE,
+        address: { ...BASE.address, complement: 'fundos' },
+      }).success,
+    ).toBe(true)
   })
 
   it('aceita CPF e CNPJ no mesmo campo', () => {
     expect(
-      createCustomerInputSchema.parse({ name: 'Joana R', document: '529.982.247-25' }).document,
+      createCustomerInputSchema.parse({ ...BASE, name: 'Joana R', document: '529.982.247-25' })
+        .document,
     ).toBe('52998224725')
     expect(
       /* PJ leva o fantasia junto — regra logo abaixo. */
       createCustomerInputSchema.parse({
+        ...BASE,
         name: 'Padaria Sol LTDA',
         tradeName: 'Padaria Sol',
         document: '11222333000181',
@@ -74,6 +123,7 @@ describe('cadastro de cliente', () => {
   describe('nome fantasia — RF-009', () => {
     it('PJ sem fantasia e recusada, no campo certo', () => {
       const r = createCustomerInputSchema.safeParse({
+        ...BASE,
         name: 'Padaria Sol LTDA',
         document: '11222333000181',
       })
@@ -90,14 +140,14 @@ describe('cadastro de cliente', () => {
       /* Pessoa fisica nao tem nome fantasia. Exigir seria pedir um dado que
          nao existe. */
       expect(
-        createCustomerInputSchema.safeParse({ name: 'Joana R', document: '52998224725' }).success,
+        createCustomerInputSchema.safeParse({ ...BASE, name: 'Joana R', document: '52998224725' })
+          .success,
       ).toBe(true)
     })
 
-    it('sem documento a regra nao se aplica', () => {
-      /* O balcao cadastra com nome e telefone e completa depois (RF-009).
-         Sem documento nao ha PJ conhecida. */
-      expect(createCustomerInputSchema.safeParse({ name: 'Padaria Sol' }).success).toBe(true)
+    it('na edicao sem documento a regra nao se aplica', () => {
+      /* Sem documento no corpo nao ha PJ conhecida. */
+      expect(updateCustomerInputSchema.safeParse({ name: 'Padaria Sol' }).success).toBe(true)
     })
 
     it('a edicao que introduz um CNPJ tambem exige o fantasia', () => {
@@ -117,13 +167,19 @@ describe('cadastro de cliente', () => {
          como saber se o cliente guardado e PJ. */
       expect(updateCustomerInputSchema.safeParse({ email: 'novo@email.com' }).success).toBe(true)
     })
+
+    it('a edicao que manda endereco manda ele inteiro', () => {
+      expect(updateCustomerInputSchema.safeParse({ address: { city: 'Curitiba' } }).success).toBe(
+        false,
+      )
+    })
   })
 
   it.each([
-    [{ name: 'J' }, 'nome curto'],
-    [{ name: 'Joana R', document: '12345678900' }, 'CPF com digito errado'],
-    [{ name: 'Joana R', walletLimitCents: 99.9 }, 'limite decimal'],
-    [{ name: 'Joana R', companyId: 'outra' }, 'companyId no corpo'],
+    [{ ...BASE, name: 'J' }, 'nome curto'],
+    [{ ...BASE, document: '12345678900' }, 'CPF com digito errado'],
+    [{ ...BASE, walletLimitCents: 99.9 }, 'limite decimal'],
+    [{ ...BASE, companyId: 'outra' }, 'companyId no corpo'],
   ])('recusa %o (%s)', (entrada, _motivo) => {
     expect(createCustomerInputSchema.safeParse(entrada).success).toBe(false)
   })
@@ -193,5 +249,51 @@ describe('atualizacao do cadastro da empresa — RF-003', () => {
 
   it('recusa campo desconhecido — o schema e strict', () => {
     expect(updateCompanyInputSchema.safeParse({ cor: 'azul' }).success).toBe(false)
+  })
+})
+
+describe('camposFaltandoNoCliente — DEC-025', () => {
+  const COMPLETO = {
+    document: '52998224725',
+    phone: '41988887777',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  }
+
+  it('cadastro completo nao falta nada', () => {
+    expect(camposFaltandoNoCliente(COMPLETO)).toEqual([])
+  })
+
+  it('cliente antigo, so com nome, lista tudo o que falta', () => {
+    const vazio = {
+      zipCode: null,
+      street: null,
+      number: null,
+      district: null,
+      city: null,
+      state: null,
+    }
+    expect(camposFaltandoNoCliente({ document: null, phone: null, address: vazio })).toEqual([
+      'CPF/CNPJ',
+      'celular',
+      'CEP',
+      'rua',
+      'número',
+      'bairro',
+      'cidade',
+      'UF',
+    ])
+  })
+
+  it('aponta so o campo que falta', () => {
+    expect(
+      camposFaltandoNoCliente({ ...COMPLETO, address: { ...COMPLETO.address, district: ' ' } }),
+    ).toEqual(['bairro'])
   })
 })

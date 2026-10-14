@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   cadastrarContaBancaria,
+  editarContaBancaria,
   excluirContaBancaria,
   listarContasBancarias,
   type ContaBancaria,
@@ -33,6 +34,8 @@ export default function ContasBancariasView() {
   const [saldo, setSaldo] = useState('')
   const [data, setData] = useState(hoje)
   const [salvando, setSalvando] = useState(false)
+  /* Editar usa o mesmo formulario do cadastro — NR-152. */
+  const [editando, setEditando] = useState<ContaBancaria | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   const carregar = useCallback(async () => {
@@ -67,27 +70,51 @@ export default function ContasBancariasView() {
     }
 
     setSalvando(true)
-    const r = await cadastrarContaBancaria({
+    const dados = {
       name: nome.trim(),
       ...(banco.trim() ? { bank: banco.trim() } : {}),
       ...(agencia.trim() ? { agency: agencia.trim() } : {}),
       ...(numero.trim() ? { accountNumber: numero.trim() } : {}),
       openingBalanceCents: negativo ? -cents : cents,
       openingDate: data,
-    })
+    }
+    const r =
+      editando === null
+        ? await cadastrarContaBancaria(dados)
+        : await editarContaBancaria(editando.id, dados)
     setSalvando(false)
 
     if (!r.ok) {
       setToast({ msg: r.erro, tone: 'error' })
       return
     }
+    limparFormulario()
+    setToast({
+      msg: editando === null ? `Conta ${r.dados.name} cadastrada.` : `Conta ${r.dados.name} salva.`,
+      tone: 'success',
+    })
+    void carregar()
+  }
+
+  function limparFormulario() {
+    setEditando(null)
     setNome('')
     setBanco('')
     setAgencia('')
     setNumero('')
     setSaldo('')
-    setToast({ msg: `Conta ${r.dados.name} cadastrada.`, tone: 'success' })
-    void carregar()
+    setData(hoje())
+  }
+
+  function editar(conta: ContaBancaria) {
+    setEditando(conta)
+    setNome(conta.name)
+    setBanco(conta.bank ?? '')
+    setAgencia(conta.agency ?? '')
+    setNumero(conta.accountNumber ?? '')
+    setSaldo((conta.openingBalanceCents / 100).toFixed(2).replace('.', ','))
+    setData(conta.openingDate)
+    document.getElementById('conta-nome')?.focus()
   }
 
   async function excluir(conta: ContaBancaria) {
@@ -146,16 +173,21 @@ export default function ContasBancariasView() {
                   </small>
                 </span>
                 <strong>{formatMoney(c.balanceCents / 100)}</strong>
-                <Button variant="secondary" size="sm" onClick={() => void excluir(c)}>
-                  Excluir
-                </Button>
+                <span className={styles.contaBancariaAcoes}>
+                  <Button variant="ghost" size="sm" onClick={() => editar(c)}>
+                    Editar
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => void excluir(c)}>
+                    Excluir
+                  </Button>
+                </span>
               </li>
             ))}
           </ul>
         )}
       </Card>
 
-      <Card title="Cadastrar conta">
+      <Card title={editando === null ? 'Cadastrar conta' : `Editar ${editando.name}`}>
         <form onSubmit={cadastrar} noValidate>
           <FormGrid>
             <Field label="Nome da conta" span={4} htmlFor="conta-nome">
@@ -212,8 +244,17 @@ export default function ContasBancariasView() {
             </Field>
           </FormGrid>
           <div className={styles.contaAcoes}>
+            {editando !== null ? (
+              <Button variant="ghost" onClick={limparFormulario} disabled={salvando}>
+                Cancelar
+              </Button>
+            ) : null}
             <Button type="submit" disabled={salvando}>
-              {salvando ? 'Cadastrando...' : 'Cadastrar conta'}
+              {salvando
+                ? 'Salvando...'
+                : editando === null
+                  ? 'Cadastrar conta'
+                  : 'Salvar alterações'}
             </Button>
           </div>
         </form>

@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -22,7 +14,9 @@ import {
 } from '@/lib/relatorios-api'
 import { ultimosMeses } from '@/lib/periodo'
 import { formatMoney } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import BotoesExportar from '@/components/BotoesExportar'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Faturamento e rankings — NR-077, US-041.
@@ -133,7 +127,18 @@ export default function Relatorios() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Relatórios" subtitulo="Quanto entrou, e por conta de quem" />
+      <Cabecalho
+        titulo="Relatórios"
+        subtitulo="Quanto entrou, e por conta de quem"
+        acao={
+          dados === null ? undefined : (
+            <BotoesExportar
+              lista="faturamento"
+              filtros={{ from: dados.faturamento.from, to: dados.faturamento.to }}
+            />
+          )
+        }
+      />
 
       <View style={estilos.abas}>
         {([6, 12] as const).map((meses) => (
@@ -186,9 +191,19 @@ export default function Relatorios() {
           }
         >
           <Cartao>
-            <Text style={estilos.totalRotulo}>Faturamento do período</Text>
+            <Text style={estilos.totalRotulo}>Faturamento líquido do período</Text>
             <Text style={estilos.totalValor}>
               {formatMoney(emReais(dados.faturamento.totalNetCents))}
+            </Text>
+            <Text style={estilos.totalBruto}>
+              Bruto{' '}
+              {formatMoney(
+                emReais(dados.faturamento.months.reduce((acc, m) => acc + m.grossCents, 0)),
+              )}
+            </Text>
+            <Text style={estilos.legenda}>
+              Bruto é o valor das vendas antes do desconto. Líquido é o que sobra depois do
+              desconto, do imposto e da taxa de cartão.
             </Text>
           </Cartao>
 
@@ -245,9 +260,9 @@ function MesAMes({ meses }: { meses: readonly Faturamento['months'][number][] })
           <Text style={estilos.mesDetalhe}>
             {m.salesCount === 0
               ? 'Sem venda neste mês'
-              : `${m.salesCount} ${m.salesCount === 1 ? 'venda' : 'vendas'} · ticket médio ${formatMoney(
-                  emReais(m.averageTicketCents ?? 0),
-                )}`}
+              : `${m.salesCount} ${m.salesCount === 1 ? 'venda' : 'vendas'} · bruto ${formatMoney(
+                  emReais(m.grossCents),
+                )} · ticket líquido ${formatMoney(emReais(m.averageTicketCents ?? 0))}`}
           </Text>
         </View>
       ))}
@@ -326,7 +341,7 @@ function Produtos({ dados }: { dados: RankingDeProdutos }) {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: espaco.lg },
   conteudo: { padding: espaco.md, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -338,18 +353,16 @@ const estilos = StyleSheet.create({
     paddingBottom: espaco.sm,
   },
   aba: {
+    ...vidro.peca,
     paddingVertical: espaco.sm,
     paddingHorizontal: espaco.md,
     borderRadius: raio.pill,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
-  /* `acento`: com `primaria`, o rotulo da aba ativa (`textoSobreAcento`,
-     quase preto) ficava a 1,12:1 — a aba selecionada era a unica ilegivel. */
-  abaAtiva: { backgroundColor: cores.acento, borderColor: cores.acento },
+  /* Aba ativa no azul de vidro com texto branco (NR-160). Fundo e texto em
+     par: com `primaria` e texto quase preto, a aba ficava a 1,12:1. */
+  abaAtiva: { ...vidro.ativo },
   abaTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
-  abaTextoAtivo: { color: cores.textoSobreAcento, fontWeight: peso.forte },
+  abaTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   totalRotulo: { fontSize: fonte.pequeno, color: cores.textoFraco },
   totalValor: {
@@ -358,6 +371,8 @@ const estilos = StyleSheet.create({
     color: cores.texto,
     marginTop: espaco.xs,
   },
+  totalBruto: { fontSize: fonte.corpo, color: cores.texto, marginTop: espaco.xs },
+  legenda: { fontSize: fonte.micro, color: cores.textoFraco, marginTop: espaco.sm },
 
   mes: { paddingVertical: espaco.sm },
   mesTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
@@ -413,4 +428,4 @@ const estilos = StyleSheet.create({
   },
 
   aviso: { fontSize: fonte.pequeno, color: cores.textoFraco },
-})
+}))

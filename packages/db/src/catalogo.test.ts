@@ -81,7 +81,7 @@ describe.skipIf(!DATABASE_URL)('catalogo do backoffice — NR-072', () => {
     return id
   }
 
-  const pedido = { stock: 'todos' as const, offset: 0, limite: 24 }
+  const pedido = { stock: 'todos' as const, situacao: 'ativos' as const, offset: 0, limite: 24 }
 
   beforeAll(async () => {
     const r = await migrate(MIGRATION_URL!)

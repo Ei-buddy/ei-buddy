@@ -1,9 +1,10 @@
-import { createBankAccountInputSchema } from '@na-regua/contracts'
+import { createBankAccountInputSchema, updateBankAccountInputSchema } from '@na-regua/contracts'
 import {
   type BankAccountDeps,
   createBankAccount,
   deleteBankAccount,
   listBankAccounts,
+  updateBankAccount,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -34,6 +35,19 @@ export function registerContasBancariasRoutes(
       const ctx = requireContext(request)
       const input = validate(createBankAccountInputSchema, request.body)
       return reply.code(201).send(await createBankAccount(deps, ctx, input))
+    },
+  )
+
+  /* Editar — NR-152. Renomear leva o nome junto nas baixas (ver o repositorio). */
+  app.patch(
+    '/contas-bancarias/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateBankAccountInputSchema, request.body)
+
+      return reply.code(200).send(await updateBankAccount(deps, ctx, id, input))
     },
   )
 

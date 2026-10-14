@@ -23,3 +23,20 @@ export type CepLookup = {
   /** `undefined` quando o CEP nao existe no provedor. So digitos, 8 caracteres. */
   lookup(cep: string): Promise<CepAddress | undefined>
 }
+
+/**
+ * Coordenada pelo ENDERECO completo (rua, numero, cidade) — ADR-0008.
+ *
+ * O CEP sozinho e grosso: para muitos CEPs o provedor devolve o centro da
+ * cidade, e duas lojas a 1,6 km apareciam a "0 km" na busca por proximidade
+ * (achado do QA). Com rua e numero, a posicao e a da quadra.
+ */
+export type AddressGeocoder = {
+  /** `undefined` quando nao achou — quem chama cai no CEP. */
+  geocode(endereco: {
+    readonly street: string
+    readonly number?: string | undefined
+    readonly city: string
+    readonly state: string
+  }): Promise<{ readonly latitude: number; readonly longitude: number } | undefined>
+}

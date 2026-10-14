@@ -1,13 +1,5 @@
 import { useState } from 'react'
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { entrar, escolherLoja } from '@/lib/auth-api'
@@ -15,7 +7,8 @@ import type { LojaDaSessao } from '@/lib/session'
 import { validateCredential, validateLoginPassword } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** O papel na tela e em portugues, e nao o valor do contrato. */
 const PAPEL: Record<string, string> = {
@@ -67,6 +60,11 @@ export default function Login() {
     if (r.estado === 'falhou') {
       setErroGeral(r.erro)
       setCarregando(false)
+      return
+    }
+
+    if (r.estado === 'plataforma') {
+      router.replace('/plataforma')
       return
     }
 
@@ -164,9 +162,13 @@ export default function Login() {
                 {carregando ? 'Entrando...' : 'Entrar'}
               </Botao>
 
-              <Text style={estilos.rodape}>
-                Criar conta e gerenciar assinatura ficam no site — este app é o balcão.
-              </Text>
+              <Botao variante="fantasma" onPress={() => router.push('/recuperar-senha')} largura>
+                Esqueci a senha
+              </Botao>
+
+              <Botao variante="secundario" onPress={() => router.push('/criar-conta')} largura>
+                Criar conta
+              </Botao>
             </>
           ) : (
             <View style={estilos.lojas}>
@@ -191,7 +193,7 @@ export default function Login() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   flex: { flex: 1 },
   conteudo: {
@@ -233,24 +235,15 @@ const estilos = StyleSheet.create({
    */
   lojas: { gap: espaco.sm, marginTop: espaco.md },
   loja: {
+    ...vidro.peca,
     minHeight: 56,
     justifyContent: 'center',
     gap: 2,
     paddingHorizontal: espaco.lg,
     paddingVertical: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
   lojaPressionada: { borderColor: cores.acento },
   lojaNome: { fontSize: fonte.corpo, fontWeight: peso.forte, color: cores.texto },
   lojaPapel: { fontSize: fonte.micro, color: cores.textoFraco },
-
-  rodape: {
-    fontSize: fonte.micro,
-    color: cores.textoFraco,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-})
+}))

@@ -51,7 +51,7 @@ export async function recordWhatsappConsent(
   /* Cliente de outra empresa cai no MESMO 404 de "nao existe" — um erro
      diferente confirmaria que aquele id existe em alguma outra loja. */
   if (!gravou) {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   }
 
   return deps.consents.of(ctx.companyId, customerId)

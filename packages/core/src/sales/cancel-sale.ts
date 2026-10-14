@@ -53,11 +53,11 @@ export async function cancelSale(
     /* Venda de outra empresa cai aqui como inexistente, e responde 404 — nunca
        403, que confirmaria que o id existe em algum lugar. */
     if (venda === undefined) {
-      throw AppError.notFound('Venda nao encontrada.')
+      throw AppError.notFound('Venda não encontrada.')
     }
 
     if (venda.status === 'cancelled' || venda.status === 'returned') {
-      throw AppError.conflict('Esta venda ja foi cancelada ou devolvida. Nada foi alterado.')
+      throw AppError.conflict('Esta venda já foi cancelada ou devolvida. Nada foi alterado.')
     }
 
     if (venda.hasIssuedInvoice) {

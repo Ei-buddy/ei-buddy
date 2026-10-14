@@ -88,6 +88,47 @@ export function createBankAccountRepository(sql: Sql): BankAccountRepository {
       return inserida === undefined ? undefined : paraSaida(inserida)
     },
 
+    /**
+     * Editar — NR-152.
+     *
+     * A baixa grava o NOME da conta (`settlements.bank_account`), e o saldo e
+     * calculado por ele. Renomear sem levar o nome junto zeraria o saldo e
+     * deixaria as baixas antigas apontando para uma conta que nao existe mais.
+     * Por isso as duas escritas vao na mesma transacao.
+     */
+    update: async (companyId, id, m) => {
+      const r = await withTenant(sql, companyId, async (tx) => {
+        const [antes] = await tx<{ name: string }[]>`
+          SELECT name FROM bank_accounts WHERE id = ${id} FOR UPDATE
+        `
+        if (antes === undefined) return undefined
+
+        const [emUso] = await tx<{ id: string }[]>`
+          SELECT id FROM bank_accounts WHERE lower(name) = lower(${m.name}) AND id <> ${id}
+        `
+        if (emUso !== undefined) return 'nome_em_uso' as const
+
+        await tx`
+          UPDATE bank_accounts
+             SET name = ${m.name}, bank = ${m.bank}, agency = ${m.agency},
+                 account_number = ${m.accountNumber},
+                 opening_balance_cents = ${m.openingBalanceCents},
+                 opening_date = ${m.openingDate}
+           WHERE id = ${id}
+        `
+        if (antes.name !== m.name) {
+          await tx`
+            UPDATE settlements SET bank_account = ${m.name}
+             WHERE lower(bank_account) = lower(${antes.name})
+          `
+        }
+        const [l] = await tx<Linha[]>`${selecionar(tx)} WHERE b.id = ${id}`
+        return l
+      })
+      if (r === undefined) throw new Error(`conta ${id} nao encontrada para editar`)
+      return r === 'nome_em_uso' ? r : paraSaida(r)
+    },
+
     remove: async (companyId, id) => {
       await withTenant(sql, companyId, (tx) => tx`DELETE FROM bank_accounts WHERE id = ${id}`)
     },

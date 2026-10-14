@@ -195,6 +195,22 @@ describe('check_stock — US1 / NR-115', () => {
     expect(texto).toContain('Corredor 3')
   })
 
+  it('faturamento responde bruto e liquido do periodo', () => {
+    const tool = createToolCatalog(casos).find((t) => t.id === 'revenue_by_month')!
+    const mes = { discountsCents: 300, salesCount: 4, averageTicketCents: 2100 }
+    const texto = tool.formatReply({
+      from: '2026-09-01',
+      to: '2026-10-31',
+      months: [
+        { month: '2026-09', grossCents: 5_000, netCents: 4_500, ...mes },
+        { month: '2026-10', grossCents: 8_400, netCents: 7_614, ...mes },
+      ],
+      totalNetCents: 12_114,
+    })
+    expect(texto).toContain(`bruto ${formatarCentavos(13_400)}`)
+    expect(texto).toContain(`liquido ${formatarCentavos(12_114)}`)
+  })
+
   it('sem controle de estoque nao usa zero', () => {
     const tool = createToolCatalog(casos).find((t) => t.id === 'check_stock')!
     const texto = tool.formatReply({
@@ -561,7 +577,7 @@ describe('create_customer — US3 / US-048', () => {
     expect(tool!.inputSchema).toBe(createCustomerInputSchema)
   })
 
-  it('resume nome e telefone na proposta e cadastra pelo registerCustomer', async () => {
+  it('resume nome, telefone e endereco na proposta e cadastra pelo registerCustomer', async () => {
     const created = cliente()
     const registerCustomer = vi.fn(async () => ({
       status: 'created' as const,
@@ -569,13 +585,27 @@ describe('create_customer — US3 / US-048', () => {
     }))
     const tools = createToolCatalog({ ...casos, registerCustomer })
     const tool = tools.find((t) => t.id === 'create_customer')!
-    const input = { name: 'Joao', phone: '11988887777' }
+    const input = {
+      name: 'Joao',
+      document: '52998224725',
+      phone: '11988887777',
+      address: {
+        zipCode: '80010000',
+        street: 'Rua XV de Novembro',
+        number: '100',
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+      },
+    } as const
 
     const out = await tool.execute(input, ctx)
 
     expect(registerCustomer).toHaveBeenCalledOnce()
     expect(registerCustomer).toHaveBeenCalledWith(ctx, input)
-    expect(tool.formatProposal(input)).toBe('Cadastrar cliente Joao, telefone 11988887777')
+    expect(tool.formatProposal(input)).toBe(
+      'Cadastrar cliente Joao, telefone 11988887777, Rua XV de Novembro, 100 — Curitiba/PR',
+    )
     expect(tool.formatReply(out)).toBe('Cliente Joao cadastrado.')
   })
 
@@ -641,6 +671,7 @@ function produto(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }

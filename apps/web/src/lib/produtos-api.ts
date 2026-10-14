@@ -104,44 +104,53 @@ export async function salvarProduto(
   | { ok: true; id: string }
   | { ok: false; error: string; campos: Partial<Record<keyof DadosProduto, string>> }
 > {
+  /*
+   * Com `id`, e EDICAO — RF-017: `PATCH` so com o cadastro. O saldo nao vai:
+   * ele so muda por movimento (RF-124), pelo "Ajustar estoque" da ficha, que
+   * exige motivo. A unidade tambem fica como esta (a tela nao a oferece).
+   */
+  const editando = dados.id !== undefined
   let resposta: Response
   try {
-    resposta = await fetch('/api/produtos', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        description: dados.descricao,
-        ...(dados.ean ? { barcode: dados.ean } : {}),
-        unitOfMeasure: 'un',
-        /* A tela trabalha em reais; o contrato exige centavos inteiros
+    resposta = await fetch(
+      editando ? `/api/produtos/${encodeURIComponent(dados.id!)}` : '/api/produtos',
+      {
+        method: editando ? 'PATCH' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          description: dados.descricao,
+          ...(dados.ean ? { barcode: dados.ean } : {}),
+          ...(editando ? {} : { unitOfMeasure: 'un' }),
+          /* A tela trabalha em reais; o contrato exige centavos inteiros
            (RNF-044). A conversao acontece AQUI, na borda, e nao no meio. */
-        salePriceCents: Math.round(dados.precoVenda * 100),
-        costPriceCents: Math.round(dados.precoCusto * 100),
-        /* Saldo inicial — vira movimento de estoque no servidor (RF-124). Ate
+          salePriceCents: Math.round(dados.precoVenda * 100),
+          costPriceCents: Math.round(dados.precoCusto * 100),
+          /* Saldo inicial — vira movimento de estoque no servidor (RF-124). Ate
            aqui a tela pedia a quantidade e nao a enviava: o produto nascia
            zerado. */
-        stock: Math.round(dados.estoque),
-        minStock: Math.round(dados.estoqueMinimo),
-        ...(dados.categoria.trim() === '' ? {} : { category: dados.categoria.trim() }),
-        ...(dados.fornecedor.trim() === '' ? {} : { supplier: dados.fornecedor.trim() }),
+          ...(editando ? {} : { stock: Math.round(dados.estoque) }),
+          minStock: Math.round(dados.estoqueMinimo),
+          ...(dados.categoria.trim() === '' ? {} : { category: dados.categoria.trim() }),
+          ...(dados.fornecedor.trim() === '' ? {} : { supplier: dados.fornecedor.trim() }),
 
-        /*
-         * Fiscais — RF-046.
-         *
-         * O NCM ja era digitado nesta tela e NAO era enviado: o lojista
-         * preenchia e o sistema descartava em silencio, e a nota nao sairia por
-         * falta de um dado que ele achava ter informado. Os tres vao juntos
-         * agora, e so quando preenchidos — o cadastro continua rapido, e quem
-         * cobra a falta e a emissao, que sabe dizer qual produto travou.
-         */
-        ...(dados.ncm.trim() === '' ? {} : { ncm: dados.ncm.trim() }),
-        ...(dados.cfop.trim() === '' ? {} : { cfop: dados.cfop.trim() }),
-        ...(dados.situacaoTributaria.trim() === ''
-          ? {}
-          : { taxSituationCode: dados.situacaoTributaria.trim() }),
-      }),
-    })
+          /*
+           * Fiscais — RF-046.
+           *
+           * O NCM ja era digitado nesta tela e NAO era enviado: o lojista
+           * preenchia e o sistema descartava em silencio, e a nota nao sairia por
+           * falta de um dado que ele achava ter informado. Os tres vao juntos
+           * agora, e so quando preenchidos — o cadastro continua rapido, e quem
+           * cobra a falta e a emissao, que sabe dizer qual produto travou.
+           */
+          ...(dados.ncm.trim() === '' ? {} : { ncm: dados.ncm.trim() }),
+          ...(dados.cfop.trim() === '' ? {} : { cfop: dados.cfop.trim() }),
+          ...(dados.situacaoTributaria.trim() === ''
+            ? {}
+            : { taxSituationCode: dados.situacaoTributaria.trim() }),
+        }),
+      },
+    )
   } catch {
     return { ok: false, error: 'Sem conexao. Verifique sua internet.', campos: {} }
   }
@@ -170,7 +179,7 @@ export async function salvarProduto(
     }
   }
 
-  return { ok: true, id: corpo.id! }
+  return { ok: true, id: editando ? dados.id! : corpo.id! }
 }
 
 /** O que o servidor recusou, linha a linha. */

@@ -45,20 +45,20 @@ export async function returnSaleItems(
 
   return deps.returns.transaction(ctx.companyId, async (tx) => {
     const venda = await tx.findSale(input.saleId)
-    if (venda === undefined) throw AppError.notFound('Venda nao encontrada.')
+    if (venda === undefined) throw AppError.notFound('Venda não encontrada.')
 
     if (venda.status === 'cancelled' || venda.status === 'returned') {
-      throw AppError.conflict('Esta venda ja foi cancelada ou devolvida. Nada foi alterado.')
+      throw AppError.conflict('Esta venda já foi cancelada ou devolvida. Nada foi alterado.')
     }
     if (venda.hasIssuedInvoice) {
       throw AppError.conflict(
-        'Esta venda tem nota emitida. A devolucao com nota ainda nao existe — cancele a nota ' +
+        'Esta venda tem nota emitida. A devolução com nota ainda não existe — cancele a nota ' +
           'primeiro. Nada foi alterado.',
       )
     }
     if (venda.settledCents > 0) {
       throw AppError.conflict(
-        'Esta venda ja tem recebimento baixado. Estorne a baixa antes de devolver. Nada foi alterado.',
+        'Esta venda já tem recebimento baixado. Estorne a baixa antes de devolver. Nada foi alterado.',
       )
     }
 
@@ -77,11 +77,11 @@ export async function returnSaleItems(
       const disponivel = linhas.reduce((s, l) => s + l.quantity - l.returnedQuantity, 0)
 
       if (linhas.length === 0) {
-        throw AppError.validation('Um dos itens nao faz parte desta venda. Nada foi alterado.')
+        throw AppError.validation('Um dos itens não faz parte desta venda. Nada foi alterado.')
       }
       if (quantidade > disponivel) {
         throw AppError.validation(
-          `Devolucao maior que o que resta da venda: pediu ${quantidade}, restam ${disponivel}. ` +
+          `Devolução maior que o que resta da venda: pediu ${quantidade}, restam ${disponivel}. ` +
             'Nada foi alterado.',
         )
       }

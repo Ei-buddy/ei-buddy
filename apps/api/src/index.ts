@@ -12,6 +12,7 @@ import {
   buildContabilidadeDeps,
   buildCustosFixosDeps,
   buildCustosVariaveisDeps,
+  buildCaixaDeps,
   buildContasBancariasDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
@@ -22,6 +23,8 @@ import {
   buildCrmDeps,
   buildBaixasDeps,
   buildEstoqueDeps,
+  buildComprasDeps,
+  buildOrcamentosDeps,
   buildPrivacidadeDeps,
   buildSuporteDeps,
   buildAuditoriaDeps,
@@ -51,11 +54,14 @@ import { registerConsultasRoutes } from './routes/consultas.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
 import { registerCustosVariaveisRoutes } from './routes/custos-variaveis.js'
 import { registerContasBancariasRoutes } from './routes/contas-bancarias.js'
+import { registerCaixaRoutes } from './routes/caixa.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
 import { registerWhatsAppWebhookRoutes } from './routes/whatsapp-webhook.js'
 import { registerBaixasRoutes } from './routes/baixas.js'
 import { registerContasRoutes } from './routes/contas.js'
+import { registerComprasRoutes } from './routes/compras.js'
+import { registerOrcamentosRoutes } from './routes/orcamentos.js'
 import { registerCrmRoutes } from './routes/crm.js'
 import { registerEmissaoRoutes, registerFiscalRoutes } from './routes/fiscal.js'
 import { registerEstoqueRoutes } from './routes/estoque.js'
@@ -138,6 +144,7 @@ async function registrarRotas(): Promise<void> {
   registerCustosFixosRoutes(app, buildCustosFixosDeps())
   registerCustosVariaveisRoutes(app, buildCustosVariaveisDeps())
   registerContasBancariasRoutes(app, buildContasBancariasDeps())
+  registerCaixaRoutes(app, buildCaixaDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
      ele pausar a fila de avisos — e fila pausada e loja que nao destrava. */
@@ -145,6 +152,8 @@ async function registrarRotas(): Promise<void> {
   registerRelatoriosRoutes(app, buildRelatoriosDeps())
   registerAuditoriaRoutes(app, buildAuditoriaDeps())
   registerEstoqueRoutes(app, buildEstoqueDeps())
+  registerComprasRoutes(app, buildComprasDeps())
+  registerOrcamentosRoutes(app, buildOrcamentosDeps())
   registerSuporteRoutes(app, buildSuporteDeps())
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())

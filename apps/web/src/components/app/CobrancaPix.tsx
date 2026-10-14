@@ -294,7 +294,7 @@ export default function CobrancaPix({
       {estado === 'aguardando' ? (
         <div className={styles.waiting} aria-live="polite">
           <Spinner size={15} />
-          Aguardando confirmacao do pagamento...
+          Aguardando confirmação do pagamento...
         </div>
       ) : null}
 

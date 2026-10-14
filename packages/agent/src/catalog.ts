@@ -282,24 +282,26 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
     defineTool({
       id: 'revenue_by_month',
       description:
-        'Faturamento liquido por mes no periodo. Nao e o DRE — para custo, despesas e resultado use period_summary.',
+        'Faturamento bruto e liquido por mes no periodo. Nao e o DRE — para custo, despesas e resultado use period_summary.',
       inputSchema: revenueByMonthInputSchema,
       mutatesValue: false,
       execute: (input, ctx) => casos.revenueByMonth(ctx, input),
       formatProposal: (input) => `Faturamento de ${input.from} a ${input.to}`,
       formatReply: (out) =>
-        `Faturamento liquido ${formatarCentavos(out.totalNetCents)} de ${out.from} a ${out.to}.`,
+        `Faturamento de ${out.from} a ${out.to}: bruto ${formatarCentavos(
+          out.months.reduce((acc, m) => acc + m.grossCents, 0),
+        )}, liquido ${formatarCentavos(out.totalNetCents)}.`,
     }),
     defineTool({
       id: 'create_customer',
       description:
-        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem.',
+        'Cadastra um cliente. Exige confirmacao. Use quando o lojista pedir para cadastrar alguem. Nome, CPF ou CNPJ, celular com DDD e endereco completo (CEP, rua, numero, bairro, cidade e UF) sao obrigatorios: se faltar algum, pergunte antes de chamar.',
       inputSchema: createCustomerInputSchema,
       mutatesValue: true,
       execute: (input, ctx) => casos.registerCustomer(ctx, input),
       formatProposal: (input) => {
-        const tel = input.phone === undefined ? '' : `, telefone ${input.phone}`
-        return `Cadastrar cliente ${input.name}${tel}`
+        const e = input.address
+        return `Cadastrar cliente ${input.name}, telefone ${input.phone}, ${e.street}, ${e.number} — ${e.city}/${e.state}`
       },
       formatReply: (out) => {
         if (out.status === 'duplicate_found') {
@@ -367,7 +369,7 @@ export function createToolCatalog(casos: AgentUseCases): readonly AgentTool[] {
       },
       formatReply: (out) => {
         const primeira = out[0]
-        if (primeira === undefined) return 'Nenhuma conta foi lancada.'
+        if (primeira === undefined) return 'Nenhuma conta foi lançada.'
         // Recorrencia vira N titulos de verdade (ver `createPayable`), entao a
         // resposta precisa dizer quantos — senao o lojista confirma "aluguel" e
         // nao sabe que nasceram doze.

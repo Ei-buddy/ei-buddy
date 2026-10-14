@@ -193,6 +193,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
         {
           id: 'p-branca',
@@ -210,6 +211,7 @@ function casos(over: Partial<AgentUseCases> = {}): AgentUseCases {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
       ]
     },
@@ -377,6 +379,7 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
         {
           id: 'p-branca',
@@ -394,6 +397,7 @@ describe('processMessage — consultar estoque (US1 / NR-115)', () => {
           minStock: 0,
           category: null,
           supplier: null,
+          isActive: true,
         },
       ],
     }))
@@ -712,7 +716,19 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao', phone: '11988887777' },
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -749,7 +765,19 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao', phone: '11988887777' },
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -780,7 +808,19 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
     llm.script('cadastra o joao', {
       type: 'tool',
       name: 'create_customer',
-      args: { name: 'Joao' },
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
     })
     const runtime = createAgentRuntime({
       useCases: casos({
@@ -813,7 +853,19 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
       llm.script('cadastra o joao', {
         type: 'tool',
         name: 'create_customer',
-        args: { name: 'Joao' },
+        args: {
+          name: 'Joao',
+          document: '52998224725',
+          phone: '11988887777',
+          address: {
+            zipCode: '80010000',
+            street: 'Rua XV de Novembro',
+            number: '100',
+            district: 'Centro',
+            city: 'Curitiba',
+            state: 'PR',
+          },
+        },
       })
       const runtime = createAgentRuntime({
         useCases: casos({
@@ -842,7 +894,19 @@ describe('processMessage — confirmacao (RF-103, RF-104)', () => {
 
 describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
   const pedidoCadastro = 'cadastra o Joao, 11 98888-7777'
-  const argsCadastro = { name: 'Joao', phone: '11 98888-7777' }
+  const argsCadastro = {
+    name: 'Joao',
+    document: '52998224725',
+    phone: '11 98888-7777',
+    address: {
+      zipCode: '80010000',
+      street: 'Rua XV de Novembro',
+      number: '100',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
+  }
 
   it('script create_customer pede confirmacao e so grava no sim', async () => {
     let chamadas = 0
@@ -862,14 +926,16 @@ describe('processMessage — cadastrar cliente (US3 / US-048)', () => {
 
     const proposta = await processMessage(runtime, msg({ text: pedidoCadastro }))
     expect(proposta.kind).toBe('confirmation')
-    expect(proposta.text).toBe('Cadastrar cliente Joao, telefone 11988887777. Confirma?')
+    expect(proposta.text).toBe(
+      'Cadastrar cliente Joao, telefone 11988887777, Rua XV de Novembro, 100 — Curitiba/PR. Confirma?',
+    )
     expect(chamadas).toBe(0)
 
     const feito = await processMessage(runtime, msg({ text: 'sim' }))
     expect(feito.kind).toBe('answer')
     expect(feito.text).toBe('Cliente Joao cadastrado.')
     expect(chamadas).toBe(1)
-    expect(recebido).toEqual({ name: 'Joao', phone: '11988887777' })
+    expect(recebido).toEqual({ ...argsCadastro, phone: '11988887777' })
   })
 
   it('talvez / resposta ambigua nao grava — FR-010', async () => {
@@ -942,6 +1008,7 @@ function produtoSaida(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }
@@ -1804,7 +1871,7 @@ describe('processMessage — resumo do periodo (US6 / RF-108)', () => {
     expect(r.text).toContain(formatarCentavos(12_345))
     expect(r.text).toContain('2026-09-01')
     expect(r.text).toContain('2026-09-30')
-    expect(r.text).not.toContain('Faturamento liquido')
+    expect(r.text).not.toContain(': bruto ')
     expect(r.text).not.toContain(formatarCentavos(35_000))
     expect(buildDre).toHaveBeenCalledOnce()
     expect(buildDre).toHaveBeenCalledWith(ctx, { from: '2026-09-01', to: '2026-09-30' })
@@ -1903,7 +1970,23 @@ describe('processMessage — desfechos restantes', () => {
   it('cancela com nao e nao grava', async () => {
     let chamadas = 0
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     const runtime = createAgentRuntime({
       useCases: casos({
         registerCustomer: async (c, i) => {
@@ -1928,7 +2011,23 @@ describe('processMessage — desfechos restantes', () => {
       casos().listSales(c, i),
     )
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     const runtime = createAgentRuntime({
       useCases: casos({
         listSales,
@@ -1961,7 +2060,23 @@ describe('processMessage — desfechos restantes', () => {
     let cadastros = 0
     let vendas = 0
     const llm = new FakeLlm()
-    llm.script('cadastra o joao', { type: 'tool', name: 'create_customer', args: { name: 'Joao' } })
+    llm.script('cadastra o joao', {
+      type: 'tool',
+      name: 'create_customer',
+      args: {
+        name: 'Joao',
+        document: '52998224725',
+        phone: '11988887777',
+        address: {
+          zipCode: '80010000',
+          street: 'Rua XV de Novembro',
+          number: '100',
+          district: 'Centro',
+          city: 'Curitiba',
+          state: 'PR',
+        },
+      },
+    })
     llm.script('vende duas camisetas azuis agora', {
       type: 'tool',
       name: 'create_sale',
@@ -3322,6 +3437,7 @@ function produtoEan(): ProductOutput {
     minStock: 0,
     category: null,
     supplier: null,
+    isActive: true,
   }
 }
 

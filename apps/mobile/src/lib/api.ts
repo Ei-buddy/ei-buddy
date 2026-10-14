@@ -17,7 +17,7 @@ import { lerToken } from './session'
  * "variavel de servidor" aqui, e fingir que existe seria pior: alguem guardaria
  * um segredo achando que ele nao vaza.
  */
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3333'
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3333'
 
 type EnvelopeDeErro = {
   error?: { code?: string; message?: string }
@@ -66,7 +66,10 @@ export async function chamarApi<T>(
     resposta = await fetch(`${API_URL}${caminho}`, {
       method: opcoes.method ?? 'GET',
       headers: {
-        'content-type': 'application/json',
+        /* So com corpo: o Fastify recusa content-type JSON com corpo vazio, e
+           todo POST/DELETE sem corpo (sair do modo admin, aceitar conexao,
+           excluir) falhava. */
+        ...(opcoes.body === undefined ? {} : { 'content-type': 'application/json' }),
         ...(token === null ? {} : { authorization: `Bearer ${token}` }),
         ...(opcoes.idempotencyKey === undefined
           ? {}

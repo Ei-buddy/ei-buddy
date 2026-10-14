@@ -4,12 +4,16 @@ import {
   customerListInputSchema,
   createCustomerInputSchema,
   createProductInputSchema,
+  exportCustomersInputSchema,
+  exportProductsInputSchema,
+  LIMITE_DA_EXPORTACAO,
   importCustomersInputSchema,
   importProductsInputSchema,
   updateCompanyInputSchema,
   createCustomerContactInputSchema,
   recordWhatsappConsentInputSchema,
   updateCustomerInputSchema,
+  updateProductInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
@@ -34,6 +38,8 @@ import {
   type RegisterCompanyDeps,
   restoreCustomer,
   updateCustomer,
+  setProductActive,
+  updateProduct,
   updateCompany,
   registerCustomer,
   type RegisterCustomerDeps,
@@ -41,11 +47,14 @@ import {
   type RegisterProductDeps,
   type WhatsappConsentDeps,
   searchProducts,
+  listDelinquentCustomers,
+  type ListDelinquentsDeps,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
+import { dataBr, enviarTabela, reais, todasAsPaginas } from './exportar-tabela.js'
 
 /**
  * Rotas de cadastro — NR-026, RF-001 a RF-019.
@@ -57,6 +66,7 @@ import { validate } from '../plugins/validate.js'
  */
 
 export type CadastroDeps = CustomerContactDeps &
+  ListDelinquentsDeps &
   WhatsappConsentDeps &
   ImportProductsDeps &
   ManageCompanyDeps &
@@ -179,6 +189,59 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
    * linha, e busca-lo por cliente daria vinte e cinco idas ao banco para uma
    * pagina.
    */
+  /**
+   * Clientes inadimplentes, do maior valor vencido para o menor — RF-071.
+   * Registrada antes de `/clientes/:id`: o Fastify prefere a rota estatica.
+   */
+  app.get('/clientes/inadimplentes', async (request, reply) => {
+    const ctx = requireContext(request)
+    return reply.code(200).send({ customers: await listDelinquentCustomers(deps, ctx) })
+  })
+
+  /**
+   * Exportar a lista de clientes — NR-155. Os mesmos filtros da tela, todas
+   * as paginas. Leitura, como a lista: o contador tambem exporta.
+   */
+  app.get('/clientes/exportar', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { formato, ...filtro } = validate(exportCustomersInputSchema, request.query ?? {})
+
+    const { itens, cortou } = await todasAsPaginas(async (page) => {
+      const p = await listCustomers(deps, ctx, { ...filtro, page, pageSize: 100 })
+      return { itens: p.customers, total: p.total }
+    }, LIMITE_DA_EXPORTACAO)
+
+    return enviarTabela(
+      reply,
+      formato,
+      'clientes',
+      {
+        titulo: cortou ? `Clientes (primeiros ${LIMITE_DA_EXPORTACAO})` : 'Clientes',
+        colunas: [
+          { titulo: 'Nome', valor: (c) => c.name, largura: 150 },
+          { titulo: 'CPF/CNPJ', valor: (c) => c.document ?? '', largura: 85 },
+          { titulo: 'Celular', valor: (c) => c.phone ?? '', largura: 75 },
+          { titulo: 'Última compra', valor: (c) => dataBr(c.lastSaleOn), largura: 60 },
+          {
+            titulo: 'Total gasto',
+            valor: (c) => reais(c.totalSpentCents),
+            largura: 70,
+            alinhar: 'direita',
+          },
+          {
+            titulo: 'Fiado',
+            valor: (c) => reais(c.walletBalanceCents),
+            largura: 75,
+            alinhar: 'direita',
+          },
+        ],
+        linhas: itens,
+        vazio: 'Nenhum cliente para este filtro.',
+      },
+      ctx.now,
+    )
+  })
+
   app.get('/clientes', async (request, reply) => {
     const ctx = requireContext(request)
 
@@ -336,6 +399,55 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     },
   )
 
+  /**
+   * Editar o cadastro do produto — RF-017.
+   *
+   * `PATCH` e nao `PUT`, como em clientes: a tela manda o que mudou, e o que
+   * nao veio fica como esta.
+   *
+   * O ESTOQUE nao entra por aqui — `POST /produtos/:id/estoque` e o caminho, e
+   * ele exige motivo e deixa rastro. Saldo so muda por movimento (RF-124).
+   */
+  app.patch(
+    '/produtos/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(updateProductInputSchema, request.body)
+
+      return reply.code(200).send(await updateProduct(deps, ctx, id, input))
+    },
+  )
+
+  /**
+   * Inativar e reativar produto — NR-151.
+   *
+   * `POST`, e nao `DELETE`: o produto nao some. Sai do PDV, do leitor e da
+   * venda, mas as vendas passadas continuam apontando para ele.
+   */
+  app.post(
+    '/produtos/:id/inativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      return reply.code(200).send(await setProductActive(deps, ctx, id, false))
+    },
+  )
+
+  app.post(
+    '/produtos/:id/reativar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      return reply.code(200).send(await setProductActive(deps, ctx, id, true))
+    },
+  )
+
   app.post('/produtos', { config: { rateLimit: LIMITE_DE_ESCRITA } }, async (request, reply) => {
     const ctx = requireContext(request)
     const input = validate(createProductInputSchema, request.body)
@@ -380,6 +492,48 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
    * que ja depende do teto; e ler o catalogo por ela mostraria 50 produtos ao
    * lojista que tem 300, sem nenhum aviso de que faltam 250.
    */
+  /** Exportar o catalogo — NR-155. Os mesmos filtros da tela, todas as paginas. */
+  app.get('/produtos/exportar', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { formato, ...filtro } = validate(exportProductsInputSchema, request.query ?? {})
+
+    const { itens, cortou } = await todasAsPaginas(async (page) => {
+      const p = await listCatalog(deps, ctx, { ...filtro, page, pageSize: 100 })
+      return { itens: p.products, total: p.total }
+    }, LIMITE_DA_EXPORTACAO)
+
+    return enviarTabela(
+      reply,
+      formato,
+      'produtos',
+      {
+        titulo: cortou ? `Produtos (primeiros ${LIMITE_DA_EXPORTACAO})` : 'Produtos',
+        colunas: [
+          { titulo: 'Código', valor: (p) => p.internalCode, largura: 60 },
+          { titulo: 'Descrição', valor: (p) => p.description, largura: 150 },
+          { titulo: 'Cód. barras', valor: (p) => p.barcode ?? '', largura: 80 },
+          {
+            titulo: 'Preço',
+            valor: (p) => reais(p.salePriceCents),
+            largura: 60,
+            alinhar: 'direita',
+          },
+          {
+            titulo: 'Custo',
+            valor: (p) => reais(p.costPriceCents),
+            largura: 60,
+            alinhar: 'direita',
+          },
+          { titulo: 'Estoque', valor: (p) => String(p.stock), largura: 45, alinhar: 'direita' },
+          { titulo: 'Situação', valor: (p) => (p.isActive ? 'Ativo' : 'Inativo'), largura: 60 },
+        ],
+        linhas: itens,
+        vazio: 'Nenhum produto para este filtro.',
+      },
+      ctx.now,
+    )
+  })
+
   app.get('/produtos/catalogo', async (request, reply) => {
     const ctx = requireContext(request)
 
@@ -446,7 +600,13 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
     if (produto === undefined) {
       /* O balcao precisa distinguir "nao existe" de "existe e esta zerado" —
          a segunda e cadastro feito, a primeira e cadastro a fazer. */
-      throw AppError.notFound('Produto nao encontrado para este codigo de barras.')
+      throw AppError.notFound('Produto não encontrado para este código de barras.')
+    }
+
+    /* Inativo existe, mas nao se vende — NR-151. Conflito, e nao 404: o
+       balcao nao deve oferecer "cadastrar" para um codigo que ja e da loja. */
+    if (!produto.isActive) {
+      throw AppError.conflict('Este produto está inativo. Reative-o no cadastro para vender.')
     }
 
     return reply.code(200).send(produto)

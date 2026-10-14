@@ -50,6 +50,53 @@ export async function buscarCep(cep: string): Promise<Resultado<EnderecoCep>> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* CNPJ                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export type DadosDoCnpj = {
+  razaoSocial: string
+  nomeFantasia: string
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+/** Preenche cadastro pelo CNPJ — Receita via BrasilAPI, pelo nosso backend. */
+export async function buscarCnpj(cnpj: string): Promise<Resultado<DadosDoCnpj>> {
+  const digitos = cnpj.replace(/\D/g, '')
+  if (digitos.length !== 14) return { ok: false, erro: 'Informe o CNPJ completo antes de buscar.' }
+
+  const r = await chamarApi<{
+    legalName: string
+    tradeName: string | null
+    zipCode: string | null
+    street: string | null
+    streetNumber: string | null
+    district: string | null
+    city: string | null
+    state: string | null
+  }>(`/empresas/cnpj/${digitos}`)
+  if (!r.ok) return { ok: false, erro: r.message }
+
+  return {
+    ok: true,
+    dados: {
+      razaoSocial: r.dados.legalName,
+      nomeFantasia: r.dados.tradeName ?? '',
+      cep: r.dados.zipCode ?? '',
+      logradouro: r.dados.street ?? '',
+      numero: r.dados.streetNumber ?? '',
+      bairro: r.dados.district ?? '',
+      cidade: r.dados.city ?? '',
+      uf: r.dados.state ?? '',
+    },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Cadastro da loja                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -204,3 +251,90 @@ export const UFS = [
   'SP',
   'TO',
 ]
+
+/* -------------------------------------------------------------------------- */
+/* Certificado digital — RF-004                                               */
+/* -------------------------------------------------------------------------- */
+
+export type SituacaoFiscal = { temCertificado: boolean; validoAte: string | null }
+
+export async function carregarSituacaoFiscal(): Promise<Resultado<SituacaoFiscal>> {
+  const r = await chamarApi<{ hasCertificate: boolean; certificateExpiresAt: string | null }>(
+    '/empresa/credenciais-fiscais',
+  )
+  if (!r.ok) return { ok: false, erro: r.message }
+  return {
+    ok: true,
+    dados: { temCertificado: r.dados.hasCertificate, validoAte: r.dados.certificateExpiresAt },
+  }
+}
+
+/**
+ * Envia o certificado A1 — o mesmo `PUT` do web.
+ *
+ * O arquivo vai em base64 dentro do JSON; o servidor guarda cifrado e nunca
+ * devolve nem o arquivo nem a senha.
+ */
+export async function enviarCertificado(
+  base64: string,
+  senha: string,
+  validoAte: string,
+): Promise<Resultado<SituacaoFiscal>> {
+  const r = await chamarApi<{ hasCertificate: boolean; certificateExpiresAt: string | null }>(
+    '/empresa/credenciais-fiscais',
+    {
+      method: 'PUT',
+      body: {
+        certificateBase64: base64,
+        certificatePassword: senha,
+        certificateExpiresAt: validoAte,
+      },
+    },
+  )
+  if (!r.ok) return { ok: false, erro: r.message }
+  return {
+    ok: true,
+    dados: { temCertificado: r.dados.hasCertificate, validoAte: r.dados.certificateExpiresAt },
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Celular do canal — RF-132                                                  */
+/* -------------------------------------------------------------------------- */
+
+export async function celularDoCanal(): Promise<string | null> {
+  const r = await chamarApi<{ phone: string | null }>('/auth/telefone')
+  return r.ok ? r.dados.phone : null
+}
+
+/**
+ * Troca o celular que opera a loja pelo WhatsApp. Pede a senha atual: quem
+ * pega o celular destravado de alguem nao deve conseguir sequestrar o canal.
+ */
+export async function trocarCelularDoCanal(
+  celular: string,
+  senha: string,
+): Promise<Resultado<string>> {
+  const r = await chamarApi<{ phone: string }>('/auth/telefone', {
+    method: 'PUT',
+    body: { phone: celular.replace(/\D/g, ''), secret: senha },
+  })
+  return r.ok ? { ok: true, dados: r.dados.phone } : { ok: false, erro: r.message }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exportacao dos dados — LGPD art. 18                                        */
+/* -------------------------------------------------------------------------- */
+
+export type ResultadoDaExportacao = {
+  manifest: { collections: { name: string; rows: number }[] }
+  location: string
+}
+
+export async function exportarDados(): Promise<Resultado<ResultadoDaExportacao>> {
+  const r = await chamarApi<ResultadoDaExportacao>('/privacidade/exportacoes', {
+    method: 'POST',
+    body: {},
+  })
+  return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}

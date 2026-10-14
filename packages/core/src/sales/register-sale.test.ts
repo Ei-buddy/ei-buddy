@@ -501,7 +501,7 @@ describe('o que ainda nao existe, recusado em vez de calculado errado', () => {
   it('recusa acrescimo', async () => {
     const erro = await registerSale(deps(), contexto(), venda({ surchargeRate: 5 })).catch((e) => e)
 
-    expect(isAppError(erro) && erro.message).toMatch(/acrescimo/i)
+    expect(isAppError(erro) && erro.message).toMatch(/acréscimo/i)
   })
 })
 

@@ -1,4 +1,5 @@
 import {
+  ErroDeIntegracao,
   type CancelInvoiceRequest,
   type InvoiceCancellation,
   type InvoiceIssueResult,
@@ -186,7 +187,15 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
       try {
         corpo = texto === '' ? {} : (JSON.parse(texto) as Record<string, unknown>)
       } catch {
-        throw new Error(`Focus NFe respondeu ${resposta.status} com corpo ilegivel em ${caminho}.`)
+        throw new ErroDeIntegracao(
+          `Focus NFe respondeu ${resposta.status} com corpo ilegivel em ${caminho}.`,
+          {
+            provedor: 'focusnfe',
+            operacao: `${init.method} ${caminho}`,
+            status: resposta.status,
+            resposta: texto,
+          },
+        )
       }
 
       return { status: resposta.status, corpo }

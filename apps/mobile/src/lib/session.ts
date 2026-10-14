@@ -57,6 +57,11 @@ export type Sessao = {
    */
   empresaId: string | null
   readonly lojas: readonly LojaDaSessao[]
+  /**
+   * Super Admin da plataforma — ADR-0007. Opcional porque sessoes gravadas
+   * antes deste campo nao o tem, e ausente vale como nao-admin.
+   */
+  readonly admin?: boolean
 }
 
 export async function abrirSessao(sessao: Sessao, token: string): Promise<void> {
@@ -64,6 +69,21 @@ export async function abrirSessao(sessao: Sessao, token: string): Promise<void> 
     AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(sessao)).catch(() => undefined),
     guardarToken(token),
   ])
+}
+
+/**
+ * Troca a empresa ativa sem mexer no token — o Super Admin entrando numa loja
+ * (ou saindo dela) muda o estado da sessao no servidor, e o mesmo token segue.
+ */
+export async function atualizarEmpresaAtiva(
+  empresaId: string | null,
+  empresa: string,
+): Promise<void> {
+  const atual = await lerSessao()
+  if (atual === null) return
+  await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify({ ...atual, empresaId, empresa })).catch(
+    () => undefined,
+  )
 }
 
 export async function lerSessao(): Promise<Sessao | null> {

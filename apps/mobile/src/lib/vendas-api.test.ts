@@ -152,6 +152,15 @@ describe('reconciliarContingencia — RF-053', () => {
 })
 
 describe('listarHistoricoDeVendas — RF-036, US-021', () => {
+  const PAGINA = {
+    total: 1,
+    summary: {
+      salesCount: 1,
+      grossCents: 10000,
+      netAfterFeesCents: 9200,
+      averageTicketCents: 9500,
+    },
+  }
   const vendaDaApi = (over: Record<string, unknown> = {}) => ({
     id: 'ven-1',
     number: 1842,
@@ -162,7 +171,16 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
     discountCents: 500,
     netAmountCents: 9200,
     taxAmountCents: 300,
-    items: [{ description: 'Cafe 500g', quantity: 2, unitPriceCents: 5000 }],
+    returnedAmountCents: 0,
+    items: [
+      {
+        productId: 'p-1',
+        description: 'Cafe 500g',
+        quantity: 2,
+        unitPriceCents: 5000,
+        returnedQuantity: 0,
+      },
+    ],
     payments: [{ method: 'pix', amountCents: 9500 }],
     invoiceNumber: null,
     invoiceAccessKey: null,
@@ -170,7 +188,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
   })
 
   it('converte centavos para reais e monta o total como bruto menos desconto', async () => {
-    resposta = { ok: true, dados: { sales: [vendaDaApi()] } }
+    resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi()] } }
 
     const r = await listarHistoricoDeVendas()
 
@@ -185,10 +203,40 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
     })
   })
 
+  it('traz a devolucao parcial por item e o resumo do servidor', async () => {
+    resposta = {
+      ok: true,
+      dados: {
+        ...PAGINA,
+        sales: [
+          vendaDaApi({
+            returnedAmountCents: 4750,
+            items: [
+              {
+                productId: 'p-1',
+                description: 'Cafe 500g',
+                quantity: 2,
+                unitPriceCents: 5000,
+                returnedQuantity: 1,
+              },
+            ],
+          }),
+        ],
+      },
+    }
+
+    const r = await listarHistoricoDeVendas()
+
+    if (!r.ok) throw new Error(r.erro)
+    expect(r.vendas[0]).toMatchObject({ devolvidoValor: 47.5, status: 'concluida' })
+    expect(r.vendas[0]?.itens[0]).toMatchObject({ produtoId: 'p-1', devolvido: 1 })
+    expect(r.resumo).toEqual({ quantidade: 1, faturamento: 100, liquido: 92, ticketMedio: 95 })
+  })
+
   /* Venda sem cliente identificado e caminho normal no balcao (RF-009): o
      rotulo tem de dizer isso, e nao deixar a linha sem contraparte. */
   it('cliente nulo vira "Venda sem cliente"', async () => {
-    resposta = { ok: true, dados: { sales: [vendaDaApi({ customerName: null })] } }
+    resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi({ customerName: null })] } }
 
     const r = await listarHistoricoDeVendas()
 
@@ -198,7 +246,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
   it.each(['returned', 'cancelled'] as const)(
     'status "%s" da api vira "estornada" na tela',
     async (status) => {
-      resposta = { ok: true, dados: { sales: [vendaDaApi({ status })] } }
+      resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi({ status })] } }
 
       const r = await listarHistoricoDeVendas()
 
@@ -207,7 +255,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
   )
 
   it('status "open" e "settled" viram "concluida"', async () => {
-    resposta = { ok: true, dados: { sales: [vendaDaApi({ status: 'open' })] } }
+    resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi({ status: 'open' })] } }
 
     const r = await listarHistoricoDeVendas()
 
@@ -215,7 +263,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
   })
 
   it('sem nota fiscal, o campo nota fica nulo', async () => {
-    resposta = { ok: true, dados: { sales: [vendaDaApi({ invoiceNumber: null })] } }
+    resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi({ invoiceNumber: null })] } }
 
     const r = await listarHistoricoDeVendas()
 
@@ -225,7 +273,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
   /* `nfse` nunca deve aparecer aqui: o emissor da loja so faz NFC-e (DEC-004),
      e mostrar "NFS-e" para uma nota que e sempre NFC-e enganaria a leitura. */
   it('com nota emitida, o tipo e sempre nfce', async () => {
-    resposta = { ok: true, dados: { sales: [vendaDaApi({ invoiceNumber: 4187 })] } }
+    resposta = { ok: true, dados: { ...PAGINA, sales: [vendaDaApi({ invoiceNumber: 4187 })] } }
 
     const r = await listarHistoricoDeVendas()
 
@@ -236,6 +284,7 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
     resposta = {
       ok: true,
       dados: {
+        ...PAGINA,
         sales: [
           vendaDaApi({
             payments: [

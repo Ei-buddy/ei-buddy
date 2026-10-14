@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -13,7 +13,8 @@ import {
   ROTULO_DO_DOCUMENTO,
   type TipoDeDocumento,
 } from '@/lib/legal-api'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Privacidade e Termos — RF-01, RF-03, RF-05.
@@ -99,7 +100,7 @@ export default function PrivacidadeETermos() {
               <Text style={estilos.meta}>
                 {carregando
                   ? ' '
-                  : `${versoes[tipo] === undefined ? '' : `Versao ${versoes[tipo]} · `}${
+                  : `${versoes[tipo] === undefined ? '' : `Versão ${versoes[tipo]} · `}${
                       estaPendente(tipo) ? 'Aceite pendente' : 'Aceito'
                     }`}
               </Text>
@@ -110,23 +111,23 @@ export default function PrivacidadeETermos() {
             style={estilos.item}
             onPress={() => void Linking.openURL(`${WEB_URL}/politica-de-cookies`)}
           >
-            <Text style={estilos.documento}>Politica de Cookies</Text>
-            <Text style={estilos.meta}>Inventario gerado do codigo</Text>
+            <Text style={estilos.documento}>Política de Cookies</Text>
+            <Text style={estilos.meta}>Inventário gerado do código</Text>
           </Pressable>
         </View>
 
         <View style={estilos.cartao}>
           <Text style={estilos.secao}>Seus direitos (LGPD art. 18)</Text>
           <Text style={estilos.texto}>
-            Voce pode pedir acesso, correcao, portabilidade e exclusao dos seus dados, alem de
-            revogar consentimentos. A exportacao completa esta no painel web, em Empresa; pedidos de
-            exclusao e revogacao passam pelo Suporte.
+            Você pode pedir acesso, correção, portabilidade e exclusão dos seus dados, além de
+            revogar consentimentos. A exportação completa está no painel web, em Empresa; pedidos de
+            exclusão e revogação passam pelo Suporte.
           </Text>
           {/* O contato do encarregado ainda nao existe (DEC-016/QST-004). Dizer
               isso em voz alta e melhor que inventar um e-mail que nao responde. */}
           <Text style={estilos.pendenteNota}>
-            Pendente: o contato do encarregado (DPO) sera publicado aqui e na Politica de
-            Privacidade assim que a revisao juridica for concluida.
+            Pendente: o contato do encarregado (DPO) será publicado aqui e na Política de
+            Privacidade assim que a revisão jurídica for concluída.
           </Text>
         </View>
       </ScrollView>
@@ -134,29 +135,26 @@ export default function PrivacidadeETermos() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
   aviso: {
+    ...vidro.peca,
     gap: espaco.sm,
     padding: espaco.lg,
     borderRadius: raio.lg,
-    borderWidth: 1,
     borderColor: cores.atencao,
-    backgroundColor: cores.superficie,
   },
   avisoTitulo: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.texto },
   avisoTexto: { fontSize: fonte.corpo, color: cores.textoFraco, lineHeight: 20 },
   erro: { fontSize: fonte.corpo, color: cores.erro },
 
   cartao: {
+    ...vidro.peca,
     gap: espaco.sm,
     padding: espaco.lg,
     borderRadius: raio.lg,
-    borderWidth: 1,
-    borderColor: cores.borda,
-    backgroundColor: cores.superficie,
   },
   secao: { fontSize: fonte.medio, fontWeight: peso.forte, color: cores.texto },
 
@@ -181,4 +179,4 @@ const estilos = StyleSheet.create({
     color: cores.textoFraco,
     lineHeight: 20,
   },
-})
+}))

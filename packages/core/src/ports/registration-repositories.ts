@@ -263,6 +263,31 @@ export type NewProduct = {
   readonly taxSituationCode: string | null
 }
 
+/**
+ * O que a edicao de produto pode mudar — RF-017.
+ *
+ * Espelha `updateProductInputSchema` de `contracts`: tudo opcional, nada
+ * anulavel — o contrato aceita omitir ou mandar valor, nunca `null`.
+ *
+ * Sem `stock`: saldo so muda por movimento (RF-124). Sem `internalCode`: ele
+ * e gerado uma vez e e por ele que o lojista chama o produto quando o leitor
+ * nao le.
+ */
+export type ProductPatch = {
+  readonly description?: string | undefined
+  readonly barcode?: string | undefined
+  readonly unitOfMeasure?: ProductOutput['unitOfMeasure'] | undefined
+  readonly salePriceCents?: number | undefined
+  readonly costPriceCents?: number | undefined
+  readonly taxRate?: number | undefined
+  readonly minStock?: number | undefined
+  readonly category?: string | undefined
+  readonly supplier?: string | undefined
+  readonly ncm?: string | undefined
+  readonly cfop?: string | undefined
+  readonly taxSituationCode?: string | undefined
+}
+
 export type ProductRepository = {
   create(product: NewProduct): Promise<ProductOutput>
 
@@ -288,7 +313,7 @@ export type ProductRepository = {
    * significaria carregar o catalogo inteiro a cada tecla digitada. Uma loja de
    * mercearia tem milhares de itens.
    *
-   * Sem `deleted_at`: produto apagado nao se vende. O `limite` existe porque
+   * Sem `deleted_at` e so ativos: produto apagado ou inativo nao se vende. O `limite` existe porque
    * a tela mostra uma lista, nao um banco de dados — quem nao achou refina a
    * busca, e devolver dez mil linhas so trava o navegador.
    */
@@ -314,6 +339,8 @@ export type ProductRepository = {
     criterio: {
       readonly termo?: string
       readonly stock: 'todos' | 'baixo' | 'esgotado'
+      /** Ativos por padrao; o inativo so aparece quando pedido — NR-151. */
+      readonly situacao: 'ativos' | 'inativos'
       readonly offset: number
       readonly limite: number
     },
@@ -332,6 +359,38 @@ export type ProductRepository = {
     readonly outOfStock: number
     readonly stockValueCents: number
   }>
+
+  /**
+   * Edita o que veio, e so o que veio — RF-017.
+   *
+   * Mesma forma de `CustomerRepository.update`: ausente nao mexe. O estoque
+   * NAO esta aqui de proposito — saldo so muda por MOVIMENTO (RF-124), e
+   * deixar editar o numero abriria um caminho para corrigir contagem sem
+   * deixar rastro de quem corrigiu e por que.
+   *
+   * `undefined` quando nao ha o que atualizar: inexistente ou de outra
+   * empresa, indistinguiveis daqui por causa da RLS.
+   */
+  update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
+
+  /**
+   * Inativa ou reativa — NR-151.
+   *
+   * Inativo sai do balcao (busca, leitor, venda) e do resumo do catalogo, mas a
+   * linha fica: as vendas passadas continuam apontando para ela. `undefined`
+   * quando nao existe ou e de outra empresa.
+   */
+  setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
 
   /**
    * Quantos produtos a empresa tem, para gerar o proximo codigo interno.

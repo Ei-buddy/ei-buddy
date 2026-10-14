@@ -39,6 +39,7 @@ type LinhaVenda = {
   tax_amount_cents: string
   card_fee_amount_cents: string
   returned_amount_cents: string
+  change_cents: string
   itens: {
     product_id: string | null
     description: string
@@ -70,6 +71,8 @@ const paraVenda = (l: LinhaVenda): VendaDoHistorico => ({
   taxAmountCents: numero(l.tax_amount_cents),
   cardFeeAmountCents: numero(l.card_fee_amount_cents),
   returnedAmountCents: numero(l.returned_amount_cents),
+  /* Troco devolvido em dinheiro — o comprovante mostra (NR-156). */
+  changeCents: numero(l.change_cents),
   /* `json_agg` sobre conjunto vazio devolve NULL, e nao `[]`. Com o `LATERAL`
      em `LEFT JOIN`, a venda sem item chega aqui com `itens` nulo — o `?? []` e
      o que impede um `.map` de undefined na venda cancelada sem filhos. */
@@ -95,7 +98,7 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
   const colunas = (tx: TransactionSql) => tx`
     s.id, s.number, s.created_at, s.customer_id, c.name AS customer_name, s.status,
     s.gross_amount_cents, s.discount_cents, s.net_amount_cents,
-    s.tax_amount_cents, s.card_fee_amount_cents, s.returned_amount_cents,
+    s.tax_amount_cents, s.card_fee_amount_cents, s.returned_amount_cents, s.change_cents,
     i.itens, p.pagamentos,
     nf.number AS invoice_number, nf.access_key AS invoice_access_key
   `

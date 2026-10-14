@@ -3,7 +3,7 @@ import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { montarDeps } from './composition.js'
 import { consumidorDe, filasSemConsumidor } from './consumers/index.js'
-import { log, safeUrl } from './logging.js'
+import { camposDaFalha, log, safeUrl } from './logging.js'
 import { DEFAULT_JOB_OPTIONS, QUEUES, type QueueName } from './queues.js'
 import { ehPermanente, nivelDaFalha } from './retry.js'
 
@@ -73,8 +73,7 @@ for (const name of Object.values(QUEUES)) {
       /* O descarte precisa ser encontravel no log agregado — RNF-062. */
       descartado: permanente || tentativa >= DEFAULT_JOB_OPTIONS.attempts,
       permanente,
-      /* Mensagem, nunca a stack: log agregado nao ganha nada com ela. */
-      error: erro.message,
+      ...camposDaFalha(erro, job?.data),
     })
   })
 

@@ -56,6 +56,19 @@ export function createVariableCostRepository(sql: Sql): VariableCostRepository {
       return paraSaida(linha!)
     },
 
+    update: async (companyId, id, m) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<Linha[]>`
+          UPDATE variable_costs SET name = ${m.name}, rate_bps = ${m.rateBps}
+          WHERE id = ${id}
+          RETURNING id, name, rate_bps, created_at
+        `,
+      )
+      return linha === undefined ? undefined : paraSaida(linha)
+    },
+
     remove: async (companyId, id) => {
       await withTenant(sql, companyId, (tx) => tx`DELETE FROM variable_costs WHERE id = ${id}`)
     },

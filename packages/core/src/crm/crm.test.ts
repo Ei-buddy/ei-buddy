@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { isAppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
 import { commentOnCrmCard, createCrmCard, listCrmBoard, listTeam, moveCrmCard } from './crm.js'
+import { InMemoryAuditTrail } from '../audit/fakes.js'
 import { InMemoryCrm, InMemoryTeam } from './fakes.js'
 
 /**
@@ -32,6 +33,23 @@ const cardValido = {
   kind: 'contact' as const,
   dueOn: '2026-09-15',
 }
+
+describe('trilha do CRM — RF-123', () => {
+  it('criar e mover o card entram na trilha', async () => {
+    const crm = new InMemoryCrm()
+    const audit = new InMemoryAuditTrail()
+
+    const card = await createCrmCard({ crm, audit }, contexto(), cardValido)
+    await moveCrmCard({ crm, audit }, contexto(), card.id, 'done')
+
+    expect(audit.daEmpresa(contexto().companyId).map((e) => [e.entity, e.action, e.after])).toEqual(
+      [
+        ['CrmCard', 'created', { title: card.title, column: 'todo' }],
+        ['CrmCard', 'updated', { column: 'done', from: 'todo' }],
+      ],
+    )
+  })
+})
 
 describe('createCrmCard', () => {
   it('cria com o minimo e nasce na coluna todo', async () => {

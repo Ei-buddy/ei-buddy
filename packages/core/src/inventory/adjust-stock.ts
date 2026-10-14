@@ -46,7 +46,7 @@ export async function adjustStock(
     const produto = await tx.products.findById(ctx.companyId, input.productId)
 
     if (produto === undefined) {
-      throw AppError.notFound('Produto nao encontrado.')
+      throw AppError.notFound('Produto não encontrado.')
     }
 
     /*
@@ -57,7 +57,7 @@ export async function adjustStock(
      */
     if (produto.stockQuantity === null) {
       throw AppError.conflict(
-        'Este produto nao tem controle de estoque, entao nao ha saldo para ajustar.',
+        'Este produto não tem controle de estoque, então não há saldo para ajustar.',
       )
     }
 

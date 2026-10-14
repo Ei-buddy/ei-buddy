@@ -17,6 +17,7 @@
  */
 
 import { pedir, type Resultado } from './http'
+import { centavosDoTexto } from './valor'
 import type { LinhaRecusada, ResultadoDaImportacao } from './produtos-api'
 import type { Cliente } from './types'
 
@@ -60,6 +61,8 @@ export type DadosCliente = {
   ddd: string
   celular: string
   email: string
+  /** Teto do fiado em reais, como digitado; vazio = sem fiado. */
+  limiteFiado: string
   cep: string
   logradouro: string
   numero: string
@@ -122,6 +125,16 @@ function enderecoParaApi(dados: DadosCliente): Record<string, string> | undefine
  * e UF, e os sete campos eram descartados no caminho — o lojista digitava o
  * endereco e ele sumia sem nenhum aviso.
  */
+/**
+ * O limite do fiado como a api o quer. No cadastro, vazio nao vai (sem fiado);
+ * na edicao, vazio vai como zero — e assim que se TIRA o fiado de alguem.
+ */
+function limiteParaApi(texto: string, editando: boolean): { walletLimitCents?: number } {
+  const centavos = centavosDoTexto(texto)
+  if (centavos !== null) return { walletLimitCents: centavos }
+  return editando && texto.trim() === '' ? { walletLimitCents: 0 } : {}
+}
+
 export async function salvarCliente(
   dados: DadosCliente,
   /**
@@ -151,6 +164,7 @@ export async function salvarCliente(
         ...(dados.documento ? { document: dados.documento } : {}),
         ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
         ...(dados.email ? { email: dados.email } : {}),
+        ...limiteParaApi(dados.limiteFiado, false),
         ...(address === undefined ? {} : { address }),
       }),
     })
@@ -203,6 +217,7 @@ export async function atualizarCliente(
       ...(dados.documento ? { document: dados.documento } : {}),
       ...(dados.celular ? { phone: `${dados.ddd}${dados.celular}`.replace(/\D/g, '') } : {}),
       ...(dados.email ? { email: dados.email } : {}),
+      ...limiteParaApi(dados.limiteFiado, true),
       ...(address === undefined ? {} : { address }),
     }),
   })
@@ -377,6 +392,44 @@ export type EnderecoDoCliente = {
  * obrigaria a tela a inventar `''` para quem nao tem — e `''` desenha como se
  * o campo estivesse la e vazio, quando na verdade nunca foi preenchido.
  */
+/**
+ * O que falta para o cadastro do cliente ficar completo — DEC-025.
+ *
+ * Copia de `camposFaltandoNoCliente` do contrato: o web so importa TIPOS de
+ * `@na-regua/contracts`, porque o bundler nao resolve os imports `.js` do
+ * pacote em tempo de execucao. `clientes-api.test.ts` compara as duas contra
+ * o contrato de verdade, e acusa no dia em que divergirem.
+ */
+export function camposFaltandoNoCliente(c: {
+  readonly document: string | null
+  readonly phone: string | null
+  readonly address: {
+    readonly zipCode: string | null
+    readonly street: string | null
+    readonly number: string | null
+    readonly district: string | null
+    readonly city: string | null
+    readonly state: string | null
+  }
+}): string[] {
+  const vazio = (v: string | null) => v === null || v.trim() === ''
+  const e = c.address
+  return (
+    [
+      [c.document, 'CPF/CNPJ'],
+      [c.phone, 'celular'],
+      [e.zipCode, 'CEP'],
+      [e.street, 'rua'],
+      [e.number, 'número'],
+      [e.district, 'bairro'],
+      [e.city, 'cidade'],
+      [e.state, 'UF'],
+    ] as const
+  )
+    .filter(([valor]) => vazio(valor))
+    .map(([, nome]) => nome)
+}
+
 export type ClienteDaFicha = {
   id: string
   nome: string
@@ -395,6 +448,8 @@ export type ClienteDaFicha = {
   limiteFiado: number
   saldoFiado: number
   endereco: EnderecoDoCliente
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
   /**
    * Quando o pedido de exclusao do titular foi atendido — RF-127.
    *
@@ -488,6 +543,7 @@ export async function buscarCliente(id: string): Promise<Resultado<ClienteDaFich
         cidade: c.address.city,
         uf: c.address.state,
       },
+      faltando: camposFaltandoNoCliente(c),
       anonimizadoEm: c.anonymizedAt,
       excluidoEm: c.deletedAt,
     },
@@ -650,8 +706,19 @@ export async function confirmarImportacaoClientes(
     enviar.push({
       name: nome,
       ...(documento !== '' ? { document: documento } : {}),
-      ...(celular !== '' ? { phone: celular } : {}),
+      phone: celular,
       ...(email !== '' ? { email } : {}),
+      address: {
+        zipCode: digitos(r.cep),
+        street: (r.rua ?? '').trim(),
+        number: (r.numero ?? '').trim(),
+        ...((r.complemento ?? '').trim() !== ''
+          ? { complement: (r.complemento ?? '').trim() }
+          : {}),
+        district: (r.bairro ?? '').trim(),
+        city: (r.cidade ?? '').trim(),
+        state: (r.uf ?? '').trim().toUpperCase(),
+      },
     })
   })
 
@@ -708,6 +775,8 @@ export type ClienteDaLista = {
   ultimaCompra: string | null
   totalCompras: number
   valorTotal: number
+  /** O que falta para o cadastro ficar completo (DEC-025). Vazio = completo. */
+  faltando: string[]
 }
 
 export type FiltroDeCliente = 'todos' | 'inativos' | 'fiado'
@@ -730,6 +799,14 @@ type ClienteDaApi = {
   lastSaleOn: string | null
   salesCount: number
   totalSpentCents: number
+  address: {
+    zipCode: string | null
+    street: string | null
+    number: string | null
+    district: string | null
+    city: string | null
+    state: string | null
+  }
 }
 
 export async function listarClientes(opcoes: {
@@ -765,6 +842,7 @@ export async function listarClientes(opcoes: {
         ultimaCompra: c.lastSaleOn,
         totalCompras: c.salesCount,
         valorTotal: c.totalSpentCents / 100,
+        faltando: camposFaltandoNoCliente(c),
       })),
       total: r.dados.total,
       pagina: r.dados.page,
@@ -803,3 +881,46 @@ export const anonimizarCliente = (
     method: 'POST',
     body: JSON.stringify({ reason: motivo }),
   })
+
+/* -------------------------------------------------------------------------- */
+/* Inadimplentes — RF-071                                                     */
+/* -------------------------------------------------------------------------- */
+
+export type ClienteInadimplente = {
+  id: string
+  nome: string
+  celular: string | null
+  /** Vencido e nao pago, em reais. Parcela de cartao nao entra. */
+  vencido: number
+  venceuEm: string
+  diasDeAtraso: number
+  titulos: number
+}
+
+/** Do maior valor vencido para o menor — e por onde a cobranca comeca. */
+export async function listarInadimplentes(): Promise<Resultado<ClienteInadimplente[]>> {
+  const r = await pedir<{
+    customers: {
+      customerId: string
+      name: string
+      phone: string | null
+      overdueCents: number
+      oldestDueOn: string
+      daysOverdue: number
+      receivablesCount: number
+    }[]
+  }>('/api/clientes/inadimplentes')
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: r.dados.customers.map((c) => ({
+      id: c.customerId,
+      nome: c.name,
+      celular: c.phone,
+      vencido: c.overdueCents / 100,
+      venceuEm: c.oldestDueOn,
+      diasDeAtraso: c.daysOverdue,
+      titulos: c.receivablesCount,
+    })),
+  }
+}

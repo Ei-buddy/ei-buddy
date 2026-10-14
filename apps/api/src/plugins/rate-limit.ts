@@ -66,7 +66,7 @@ export async function registerRateLimit(app: FastifyInstance, redis?: Redis): Pr
      */
     errorResponseBuilder: (_request, contexto) =>
       AppError.rateLimited(
-        `Muitas requisicoes. Tente de novo em ${Math.ceil(contexto.ttl / 1000)} segundos.`,
+        `Muitas requisições. Tente de novo em ${Math.ceil(contexto.ttl / 1000)} segundos.`,
       ),
   })
 }

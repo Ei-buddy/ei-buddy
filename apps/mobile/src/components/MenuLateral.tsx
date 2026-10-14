@@ -1,62 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import type { DrawerContentComponentProps } from 'expo-router/drawer'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { escolherLoja, sair as encerrarNoServidor } from '@/lib/auth-api'
 import { lerSessao, type Sessao } from '@/lib/session'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
-
-type Item = { rota: string; rotulo: string }
-type Grupo = { grupo: string; itens: Item[] }
-
-/**
- * Modulos do app, agrupados como na sidebar do web.
- *
- * Sao doze destinos — nao cabem numa barra de abas, e uma lista corrida
- * de doze itens tambem nao ajuda ninguem. Por isso os grupos abrem e
- * fecham: quem vai ao financeiro nao precisa ver cadastro no caminho.
- */
-const GRUPOS: Grupo[] = [
-  {
-    grupo: 'Operação',
-    itens: [
-      { rota: '/inicio', rotulo: 'Tela principal' },
-      { rota: '/pdv', rotulo: 'Nova venda' },
-      { rota: '/vendas', rotulo: 'Vendas' },
-      { rota: '/agenda', rotulo: 'Agenda' },
-    ],
-  },
-  {
-    grupo: 'Cadastros',
-    itens: [
-      { rota: '/clientes', rotulo: 'Clientes' },
-      { rota: '/catalogo', rotulo: 'Produtos' },
-      { rota: '/empresa', rotulo: 'Empresa' },
-    ],
-  },
-  {
-    grupo: 'Financeiro',
-    itens: [
-      { rota: '/contas-a-pagar', rotulo: 'Contas a pagar' },
-      { rota: '/contas-a-receber', rotulo: 'Contas a receber' },
-      { rota: '/plano-de-contas', rotulo: 'Plano de contas' },
-      { rota: '/dre', rotulo: 'Resultado' },
-      { rota: '/relatorios', rotulo: 'Relatórios' },
-    ],
-  },
-  {
-    grupo: 'Mais',
-    itens: [
-      { rota: '/crm', rotulo: 'CRM' },
-      { rota: '/assistente', rotulo: 'Assistente' },
-      { rota: '/assinatura', rotulo: 'Assinatura' },
-      { rota: '/suporte', rotulo: 'Suporte' },
-      /* Ponto fixo de acesso aos documentos legais — RF-01. */
-      { rota: '/privacidade-e-termos', rotulo: 'Privacidade e Termos' },
-    ],
-  },
-]
+import { carregarAvisos } from '@/lib/avisos-api'
+import { alternarSom, assinarSom, lerSom, type PreferenciaDeSom } from '@/lib/som'
+import { useTema } from '@/theme/tema'
+import { ACAO_TUTORIAL, GRUPOS } from '@/lib/navegacao'
+import { iniciarTutorial } from '@/lib/tutorial'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 export default function MenuLateral(props: DrawerContentComponentProps) {
   const router = useRouter()
@@ -83,6 +38,7 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
 
   function navegar(rota: string) {
     props.navigation.closeDrawer()
+    if (rota === ACAO_TUTORIAL) return iniciarTutorial()
     router.push(rota as never)
   }
 
@@ -103,6 +59,24 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
   useEffect(() => {
     void recarregarSessao()
   }, [recarregarSessao])
+
+  /* O liga/desliga do som — o mesmo botao da barra do topo do web (NR-163). */
+  const [som, setSom] = useState<PreferenciaDeSom>('ligado')
+  /* O tema claro/escuro — o botao de tema da barra do web (NR-167). */
+  const { tema, alternarTema } = useTema()
+  useEffect(() => {
+    void lerSom().then(setSom)
+    return assinarSom(setSom)
+  }, [])
+
+  /* Respostas novas do suporte no item do menu, como o badge da barra do web
+     (NR-162). Mesma fonte do sino, para os dois numeros nunca divergirem. */
+  const [respostasDoSuporte, setRespostasDoSuporte] = useState(0)
+  useEffect(() => {
+    void carregarAvisos().then((avisos) =>
+      setRespostasDoSuporte(avisos.find((a) => a.rota.pathname === '/suporte')?.contagem ?? 0),
+    )
+  }, [caminho])
 
   /**
    * Troca de loja sem sair — US-059.
@@ -195,7 +169,13 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
       ) : null}
 
       <ScrollView contentContainerStyle={estilos.lista}>
-        {GRUPOS.map((g) => {
+        {(sessao?.admin === true
+          ? [
+              ...GRUPOS,
+              { grupo: 'Plataforma', itens: [{ rota: '/plataforma', rotulo: 'Plataforma' }] },
+            ]
+          : GRUPOS
+        ).map((g) => {
           const aberto = abertos.has(g.grupo)
 
           return (
@@ -224,6 +204,14 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
                         <Text style={[estilos.itemTexto, ativo && estilos.itemTextoAtivo]}>
                           {i.rotulo}
                         </Text>
+                        {i.rota === '/suporte' && respostasDoSuporte > 0 ? (
+                          <View
+                            style={estilos.badge}
+                            accessibilityLabel={`${respostasDoSuporte} resposta(s) nova(s)`}
+                          >
+                            <Text style={estilos.badgeTexto}>{respostasDoSuporte}</Text>
+                          </View>
+                        ) : null}
                       </Pressable>
                     )
                   })
@@ -232,6 +220,34 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
           )
         })}
       </ScrollView>
+
+      <View style={estilos.som}>
+        <View style={estilos.flex}>
+          <Text style={estilos.somTitulo}>Tema claro</Text>
+          <Text style={estilos.somApoio}>{tema === 'claro' ? 'Ligado' : 'Desligado'}</Text>
+        </View>
+        <Switch
+          value={tema === 'claro'}
+          onValueChange={alternarTema}
+          trackColor={{ true: cores.ativo, false: cores.borda }}
+          thumbColor={cores.texto}
+          accessibilityLabel={tema === 'claro' ? 'Usar o tema escuro' : 'Usar o tema claro'}
+        />
+      </View>
+
+      <View style={estilos.som}>
+        <View style={estilos.flex}>
+          <Text style={estilos.somTitulo}>Som</Text>
+          <Text style={estilos.somApoio}>Bipe do leitor e venda fechada</Text>
+        </View>
+        <Switch
+          value={som === 'ligado'}
+          onValueChange={() => void alternarSom()}
+          trackColor={{ true: cores.ativo, false: cores.borda }}
+          thumbColor={cores.texto}
+          accessibilityLabel={som === 'ligado' ? 'Desligar o som' : 'Ligar o som'}
+        />
+      </View>
 
       <Pressable
         onPress={sair}
@@ -244,8 +260,9 @@ export default function MenuLateral(props: DrawerContentComponentProps) {
   )
 }
 
-const estilos = StyleSheet.create({
-  menu: { flex: 1, backgroundColor: '#0b1029' },
+const estilos = criarEstilos(() => ({
+  /* A barra lateral e um painel de vidro, como a do web — NR-160. */
+  menu: { flex: 1, ...vidro.painel },
 
   marca: {
     flexDirection: 'row',
@@ -256,6 +273,8 @@ const estilos = StyleSheet.create({
   },
   /* A loja ativa. Alvo de toque de 56 — a pessoa troca em pe, com uma mao. */
   loja: {
+    ...vidro.peca,
+    marginHorizontal: espaco.lg,
     minHeight: 56,
     justifyContent: 'center',
     gap: 1,
@@ -263,9 +282,6 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco.md,
     paddingVertical: espaco.sm,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
   lojaPressionada: { borderColor: cores.acento },
   lojaRotulo: { fontSize: fonte.micro, color: cores.textoFraco },
@@ -307,12 +323,39 @@ const estilos = StyleSheet.create({
     paddingVertical: espaco.md,
     borderRadius: raio.sm,
     minHeight: 44,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.sm,
   },
-  itemAtivo: { backgroundColor: cores.sucessoFundo },
-  itemTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
-  itemTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+  /* O item ativo e o azul de vidro do web, brilhando para fora. */
+  itemAtivo: { ...vidro.ativo },
+  itemTexto: { flex: 1, fontSize: fonte.pequeno, color: cores.textoFraco },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: cores.acento,
+  },
+  badgeTexto: { fontSize: 11, fontWeight: peso.pesado, color: cores.textoSobreAcento },
+  itemTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
+  som: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.md,
+    marginHorizontal: espaco.lg,
+    marginBottom: espaco.md,
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.sm,
+    borderRadius: raio.md,
+    ...vidro.peca,
+  },
+  flex: { flex: 1 },
+  somTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
+  somApoio: { fontSize: fonte.micro, color: cores.textoFraco },
   sair: {
     marginHorizontal: espaco.lg,
     paddingVertical: espaco.md,
@@ -322,4 +365,4 @@ const estilos = StyleSheet.create({
     borderRadius: raio.pill,
   },
   sairTexto: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.textoFraco },
-})
+}))

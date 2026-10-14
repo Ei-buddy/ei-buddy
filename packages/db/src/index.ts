@@ -33,6 +33,8 @@ export {
   createProductRepository,
 } from './registration-repositories.js'
 export { createPayableQueries, createPayableUnitOfWork } from './payable-repository.js'
+export { createPurchaseQueries, createPurchaseUnitOfWork } from './purchase-repository.js'
+export { createQuoteRepository } from './quote-repository.js'
 export {
   createManualReceivableUnitOfWork,
   createReceivableRepository,
@@ -44,6 +46,8 @@ export {
 } from './fixed-cost-repository.js'
 export { createVariableCostRepository } from './variable-cost-repository.js'
 export { createBankAccountRepository } from './bank-account-repository.js'
+export { createCashRegister } from './cash-register-repository.js'
+export { createDelinquencyQueries } from './delinquency-queries.js'
 export { createWaitlistRepository } from './waitlist-repository.js'
 export { createInvoiceStore } from './invoice-repository.js'
 export {
@@ -124,7 +128,11 @@ export { createPartnerApplicationRepository } from './partner-application-reposi
 export { createLegalConsentRepository } from './legal-consent-repository.js'
 
 /* Baixa e estorno de titulo — NR-029, RF-063 a RF-067. */
-export { createSettlementQueries, createSettlementUnitOfWork } from './settlement-repository.js'
+export {
+  createSettlementQueries,
+  createSettlementTotals,
+  createSettlementUnitOfWork,
+} from './settlement-repository.js'
 
 /* Quadro de CRM e equipe — NR-109. */
 export { createCrmRepository } from './crm-repository.js'

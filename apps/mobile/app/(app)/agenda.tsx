@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -22,7 +21,8 @@ import {
   horaLocal,
 } from '@/lib/agenda-api'
 import { formatDate } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Agenda do dia — NR-078, US-045.
@@ -81,6 +81,11 @@ export default function Agenda() {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  /* Editar abre o mesmo formulario do cadastro, ja preenchido — NR-152. */
+  function editar(c: CompromissoDaApi) {
+    router.push({ pathname: '/compromisso-novo', params: { compromisso: JSON.stringify(c) } })
+  }
 
   function cancelar(c: CompromissoDaApi) {
     Alert.alert(
@@ -148,7 +153,12 @@ export default function Agenda() {
                 />
               ) : (
                 hoje.map((c) => (
-                  <LinhaCompromisso key={c.id} item={c} onCancelar={() => cancelar(c)} />
+                  <LinhaCompromisso
+                    key={c.id}
+                    item={c}
+                    onEditar={() => editar(c)}
+                    onCancelar={() => cancelar(c)}
+                  />
                 ))
               )}
             </Secao>
@@ -160,6 +170,7 @@ export default function Agenda() {
                     key={c.id}
                     item={c}
                     mostrarData
+                    onEditar={() => editar(c)}
                     onCancelar={() => cancelar(c)}
                   />
                 ))}
@@ -196,19 +207,22 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 function LinhaCompromisso({
   item,
   mostrarData = false,
+  onEditar,
   onCancelar,
 }: {
   item: CompromissoDaApi
   mostrarData?: boolean
+  onEditar: () => void
   onCancelar: () => void
 }) {
   return (
     <Pressable
+      onPress={onEditar}
       onLongPress={onCancelar}
       style={estilos.compromisso}
       accessibilityRole="button"
       accessibilityLabel={item.title}
-      accessibilityHint="Toque e segure para cancelar"
+      accessibilityHint="Toque para editar; toque e segure para cancelar"
     >
       <View style={estilos.compromissoInfo}>
         <Text style={estilos.compromissoTitulo} numberOfLines={2}>
@@ -225,7 +239,7 @@ function LinhaCompromisso({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
 
   conteudo: { padding: espaco.lg, gap: espaco.xl },
@@ -242,14 +256,14 @@ const estilos = StyleSheet.create({
   secaoItens: { gap: espaco.sm },
 
   compromisso: {
+    ...vidro.peca,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco.md,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
   },
   compromissoInfo: { flex: 1, gap: 2 },
   compromissoTitulo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   compromissoApoio: { fontSize: fonte.micro, color: cores.textoFraco },
-})
+}))

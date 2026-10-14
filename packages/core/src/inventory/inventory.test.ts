@@ -82,6 +82,7 @@ function produtoBusca(over: Partial<ProductOutput> = {}): ProductOutput {
     minStock: 5,
     category: null,
     supplier: null,
+    isActive: true,
     ...over,
   }
 }
@@ -108,6 +109,13 @@ function repositorioBusca(
         stockValueCents: 0,
       }),
       listSuggestions: async () => ({ categories: [], suppliers: [] }),
+      /* Esta suite e sobre CONSULTA de estoque; editar produto nao entra nela. */
+      update: async () => {
+        throw new Error('nao deveria editar')
+      },
+      setActive: async () => {
+        throw new Error('nao deveria inativar')
+      },
     } satisfies ProductRepository,
     inventory: inv,
   }

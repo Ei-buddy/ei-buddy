@@ -126,7 +126,7 @@ export default function ChatAssistente() {
       router.push(acao)
       return
     }
-    setToast('Esta acao entra quando o assistente estiver ligado ao backend.')
+    setToast('Esta ação entra quando o assistente estiver ligado ao backend.')
   }
 
   const sugeridos = comandosMaisUsados(3)

@@ -13,7 +13,7 @@ function buildApp(): FastifyInstance {
   registerErrorHandler(app)
 
   app.get('/nao-encontrado', async () => {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   })
   app.get('/sem-permissao', async () => {
     throw AppError.forbidden()
@@ -35,6 +35,8 @@ function buildApp(): FastifyInstance {
       code: '23503',
     })
   })
+
+  app.post('/corpo', async () => ({ ok: true }))
 
   return app
 }
@@ -71,11 +73,23 @@ describe('erro esperado', () => {
     app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/nao-encontrado' })
 
-    expect(res.json().error.message).toBe('Cliente nao encontrado.')
+    expect(res.json().error.message).toBe('Cliente não encontrado.')
   })
 })
 
 describe('registro citado que nao existe', () => {
+  it('corpo JSON vazio e erro do pedido (400), nao do servidor (500)', async () => {
+    app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/corpo',
+      headers: { 'content-type': 'application/json' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_FAILED')
+  })
+
   it('id malformado vira 404, nao 500', async () => {
     app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/id-malformado' })
