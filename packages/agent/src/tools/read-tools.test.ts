@@ -103,7 +103,7 @@ describe('tools de leitura', () => {
       status: 'ok',
       produto: 'café em grãos',
       ref: 'p-cafe',
-      quantidade: 'zerado',
+      quantidade: '0 un. (zerado)',
     })
     expect(JSON.stringify(saida)).toMatch(/R\$\s?25,00/)
     expect(turno.coletor.snapshot().entidades).toContainEqual({
@@ -192,7 +192,7 @@ describe('tools de leitura', () => {
       status: 'ok',
       ref: 'p-cafe',
       rotulo: 'café em grãos',
-      quantidade: 'zerado',
+      quantidade: '0 un. (zerado)',
     })
     expect(JSON.stringify(saida)).toMatch(/25,00/)
   })

@@ -23,7 +23,7 @@ function entrada<T extends z.ZodType>(schema: T) {
 
 function quantidadeEmEstoque(unidades: number | null): string {
   if (unidades === null) return 'sem controle de estoque'
-  return unidades === 0 ? 'zerado' : `${unidades} un.`
+  return unidades === 0 ? '0 un. (zerado)' : `${unidades} un.`
 }
 
 const FAIXA: Record<string, string> = {

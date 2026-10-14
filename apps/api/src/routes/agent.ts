@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
+import type { RotulosDoOperador } from '../rotulos-do-operador.js'
 
 /**
  * Canal HTTP do assistente — NR-060, FR-001b, sem WhatsApp.
@@ -17,6 +18,10 @@ import { validate } from '../plugins/validate.js'
 
 export type AgentRouteDeps = {
   readonly runtime: AgentRuntime
+  readonly rotulosDoOperador?: (ids: {
+    readonly userId: string
+    readonly companyId: string
+  }) => Promise<RotulosDoOperador>
 }
 
 const MENSAGEM_HARNESS_DESLIGADO =
@@ -56,6 +61,10 @@ export function registerAgentRoutes(
     async (request, reply) => {
       const ctx = requireContext(request)
       const input = validate(agentMessageInputSchema, request.body)
+      const rotulos =
+        deps.rotulosDoOperador === undefined
+          ? {}
+          : await deps.rotulosDoOperador({ userId: ctx.userId, companyId: ctx.companyId })
 
       const mensagem: IncomingMessage = {
         text: input.text ?? '',
@@ -63,6 +72,7 @@ export function registerAgentRoutes(
         now: ctx.now,
         channel: 'app',
         ctx,
+        ...rotulos,
         ...(input.image === undefined
           ? {}
           : {

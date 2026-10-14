@@ -43,7 +43,15 @@ export function novaConversa(loja: LojaDeTeste = criarLojaDeTeste()): Conversa {
     useCases: loja.useCases,
     confirmations: new InMemoryConfirmations(),
     conversations: new InMemoryConversationStore(),
-    peers: { resolve: async () => ({ companyId: 'emp-A', userId: 'user-A', role: 'owner' }) },
+    peers: {
+      resolve: async () => ({
+        companyId: 'emp-A',
+        userId: 'user-A',
+        role: 'owner',
+        userName: 'Ana Silva',
+        companyName: 'Mercearia Sol',
+      }),
+    },
   })
   const turnos: Turno[] = []
   let minuto = 0

@@ -27,6 +27,8 @@ export class FixturePeerDirectory implements PeerDirectory {
         companyId: preset.companyId,
         userId: preset.userId,
         role: preset.role,
+        ...(preset.userName === undefined ? {} : { userName: preset.userName }),
+        ...(preset.companyName === undefined ? {} : { companyName: preset.companyName }),
       })
       porId.set(preset.id, { ...preset, peer })
       lista.push({ id: preset.id, peer })

@@ -13,6 +13,8 @@ const studioPresetSchema = z
     companyId: z.uuid('companyId do preset precisa ser UUID.'),
     userId: z.uuid('userId do preset precisa ser UUID.'),
     role: z.literal('owner'),
+    userName: z.string().min(1).optional(),
+    companyName: z.string().min(1).optional(),
   })
   .strict()
 
@@ -28,6 +30,8 @@ export type StudioPreset = {
   readonly companyId: string
   readonly userId: string
   readonly role: 'owner'
+  readonly userName?: string
+  readonly companyName?: string
 }
 
 export type StudioPresetsFile = {
@@ -105,6 +109,8 @@ export function loadStudioPresets(caminho: string): StudioPresetsFile {
       companyId: brutoPreset.companyId,
       userId: brutoPreset.userId,
       role: 'owner',
+      ...(brutoPreset.userName === undefined ? {} : { userName: brutoPreset.userName }),
+      ...(brutoPreset.companyName === undefined ? {} : { companyName: brutoPreset.companyName }),
     })
   }
 

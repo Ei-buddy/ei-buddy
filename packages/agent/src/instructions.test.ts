@@ -124,8 +124,15 @@ describe('instruções — nada técnico e tom (US1)', () => {
     expect(texto).toMatch(/no máximo 1 emoji/i)
   })
 
-  it('não descreve o funcionamento interno e só cumprimenta quando a dona cumprimentar', () => {
+  it('não descreve o funcionamento interno e só cumprimenta quando quem fala cumprimentar', () => {
     expect(texto).toMatch(/não explique como você funciona/i)
-    expect(texto).toMatch(/cumprimente só quando ela cumprimentar/i)
+    expect(texto).toMatch(/cumprimente só quando quem fala cumprimentar/i)
+  })
+
+  it('não ancora a persona em “dona/ela” e separa quem fala de cliente', () => {
+    expect(texto).not.toMatch(/assistente da dona/i)
+    expect(texto).toMatch(/quem opera a loja|quem fala/i)
+    expect(texto).toMatch(/não de cliente|como cliente/i)
+    expect(texto).toMatch(/primeiro nome/i)
   })
 })

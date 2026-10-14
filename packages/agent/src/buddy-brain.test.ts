@@ -396,4 +396,30 @@ describe('createBuddyBrain — laço de várias etapas', () => {
     expect(prompt.filter((m) => m.role === 'user')).toHaveLength(2)
     expect(prompt.filter((m) => m.role === 'assistant')).toHaveLength(1)
   })
+
+  it('com nome e fantasia, o sistema traz primeiro nome, empresa e a regra de quem fala', async () => {
+    const { brain, chamadas } = montar([{ texto: 'Certo.' }])
+    await brain.conversar(entrada({ userName: 'Ana Silva', companyName: 'Mercearia Sol' }))
+    const prompt = chamadas[0]?.prompt as { role: string; content: unknown }[]
+    const sistema = prompt
+      .filter((m) => m.role === 'system')
+      .map((m) => JSON.stringify(m.content))
+      .join(' ')
+    expect(sistema).toContain('Quem fala com você: Ana.')
+    expect(sistema).not.toContain('Ana Silva')
+    expect(sistema).toContain('Empresa: Mercearia Sol.')
+    expect(sistema).toMatch(/não é cliente/i)
+  })
+
+  it('sem nome nem fantasia, o sistema não inventa identidade', async () => {
+    const { brain, chamadas } = montar([{ texto: 'Certo.' }])
+    await brain.conversar(entrada())
+    const prompt = chamadas[0]?.prompt as { role: string; content: unknown }[]
+    const sistema = prompt
+      .filter((m) => m.role === 'system')
+      .map((m) => JSON.stringify(m.content))
+      .join(' ')
+    expect(sistema).not.toContain('Quem fala com você')
+    expect(sistema).not.toContain('Empresa:')
+  })
 })

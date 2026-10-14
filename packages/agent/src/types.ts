@@ -24,6 +24,8 @@ export type LinkedPeer = {
   readonly companyId: string
   readonly userId: string
   readonly role: Role
+  readonly userName?: string
+  readonly companyName?: string
 }
 
 export type PeerDirectory = {
@@ -44,6 +46,9 @@ export type IncomingMessage = {
   readonly ctx?: ExecutionContext
   /** Numero de origem — canal `whatsapp`. */
   readonly peer?: string
+  /** Nome de quem opera a loja — canal `app`. WhatsApp vem do `LinkedPeer`. */
+  readonly userName?: string
+  readonly companyName?: string
 }
 
 export type AgentRuntime = {

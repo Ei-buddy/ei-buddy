@@ -62,6 +62,7 @@ import type {
   PasswordSetter,
 } from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
+import { buscarRotulosDoOperador, type RotulosDoOperador } from './rotulos-do-operador.js'
 import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
 import { IdentidadeBetterAuth } from './identidade-better-auth.js'
@@ -1005,6 +1006,10 @@ function modeloDoAgente(): CreateBuddyBrainOptions['model'] {
 export type AgentComposition = {
   readonly runtime: AgentRuntime
   readonly studioDirectory?: FixturePeerDirectory
+  readonly rotulosDoOperador?: (ids: {
+    readonly userId: string
+    readonly companyId: string
+  }) => Promise<RotulosDoOperador>
 }
 
 /**
@@ -1108,6 +1113,8 @@ export function buildWhatsAppWebhookDeps(
 
   const sql = getClient(env.DATABASE_URL)
   const vinculos = createPeerDirectory(sql)
+  const users = createUserDirectory(sql)
+  const companies = createCompanyRepository(sql)
 
   const peers: AgentPeerDirectory = {
     resolve: async (peer) => {
@@ -1117,7 +1124,8 @@ export function buildWhatsAppWebhookDeps(
       )
       if (resultado.status === 'silencio') return null
       const { companyId, userId } = resultado.ctx
-      return { companyId, userId, role: 'owner' }
+      const rotulos = await buscarRotulosDoOperador(users, companies, { userId, companyId })
+      return { companyId, userId, role: 'owner', ...rotulos }
     },
   }
 
@@ -1270,6 +1278,8 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
   const useCases = buildAgentUseCases()
   const studioDirectory = tentarDiretorioStudio()
   const sql = getClient(env.DATABASE_URL)
+  const users = createUserDirectory(sql)
+  const companies = createCompanyRepository(sql)
 
   return {
     runtime: createAgentRuntime({
@@ -1287,6 +1297,7 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
       /* HTTP app e Studio wa seguem identidades distintas (`app:` vs `wa:`). */
       conversations: createConversationStore(sql),
     }),
+    rotulosDoOperador: (ids) => buscarRotulosDoOperador(users, companies, ids),
     ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }
 }

@@ -38,6 +38,8 @@ export type ConversarInput = {
   readonly avisos?: readonly string[]
   /** AAAA-MM-DD no fuso da loja. */
   readonly hoje: string
+  readonly userName?: string
+  readonly companyName?: string
 }
 
 export type ConversarSaida = {
@@ -68,11 +70,11 @@ const PEDE_CONFIRMACAO =
 
 const FEEDBACK_SEM_PROPOSTA =
   'Você pediu confirmação sem chamar a ferramenta da proposta, e nada foi proposto. ' +
-  'Chame agora a ferramenta do pedido (por exemplo, create_sale) com o que a dona disse; ' +
+  'Chame agora a ferramenta do pedido (por exemplo, create_sale) com o que foi dito; ' +
   'ela devolve a proposta ou o que falta.'
 
 const FEEDBACK_SEM_TEXTO =
-  'Você terminou sem responder nada. Responda à dona agora ou chame a ferramenta do pedido.'
+  'Você terminou sem responder nada. Responda agora ou chame a ferramenta do pedido.'
 
 /**
  * Etapa final que não serve à dona: vazia, ou "pode confirmar?" sem proposta
@@ -107,11 +109,30 @@ function semRepeticao(texto: string): string {
   return primeira === texto.slice(metade) ? primeira.trim() : texto
 }
 
+function primeiroNome(nomeCompleto: string): string | undefined {
+  const token = nomeCompleto.trim().split(/\s+/)[0]
+  return token === undefined || token === '' ? undefined : token
+}
+
+function linhasDeIdentidade(input: ConversarInput): readonly string[] {
+  const nome = input.userName === undefined ? undefined : primeiroNome(input.userName)
+  const empresa = input.companyName?.trim()
+  const linhas = [
+    ...(nome === undefined ? [] : [`Quem fala com você: ${nome}.`]),
+    ...(empresa === undefined || empresa === '' ? [] : [`Empresa: ${empresa}.`]),
+  ]
+  if (linhas.length === 0) return []
+  return [
+    ...linhas,
+    'Quem fala não é cliente: use clientes e produtos só do contexto e das ferramentas.',
+  ]
+}
+
 function textoDaPendente(fatos: string): string {
   return (
-    `Há uma proposta aguardando a confirmação da dona: ${fatos}. ` +
-    'Se ela concordar, chame accept_proposal. Se ela corrigir algum dado, chame de novo a ferramenta da proposta com o dado corrigido. ' +
-    'Se ela recusar, chame cancel_proposal. Se ela mudar de assunto, responda o novo assunto.'
+    `Há uma proposta aguardando confirmação: ${fatos}. ` +
+    'Se concordar, chame accept_proposal. Se corrigir algum dado, chame de novo a ferramenta da proposta com o dado corrigido. ' +
+    'Se recusar, chame cancel_proposal. Se mudar de assunto, responda o novo assunto.'
   )
 }
 
@@ -163,6 +184,7 @@ export function createBuddyBrain(opcoes: CreateBuddyBrainOptions): BuddyBrain {
       ]
       const sistema = [
         `Hoje é ${input.hoje}.`,
+        ...linhasDeIdentidade(input),
         resumoComoTexto(input.resumo),
         ...(input.pendente === undefined ? [] : [textoDaPendente(input.pendente.summary)]),
         ...(input.avisos ?? []),

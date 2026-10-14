@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import type { AuthenticatedPrincipal } from '../plugins/execution-context.js'
-import { registerAgentRoutes } from './agent.js'
+import { registerAgentRoutes, type AgentRouteDeps } from './agent.js'
 
 const PRINCIPAL: AuthenticatedPrincipal = {
   companyId: 'emp-A',
@@ -27,13 +27,17 @@ function runtimeCom(etapas: readonly EtapaRoteirizada[]) {
 function buildApp(
   principal: AuthenticatedPrincipal | null = PRINCIPAL,
   runtime = runtimeCom([{ texto: 'Oi!' }]).runtime,
+  rotulosDoOperador?: AgentRouteDeps['rotulosDoOperador'],
 ): FastifyInstance {
   const app = Fastify({ logger: false })
   registerErrorHandler(app)
   app.addHook('onRequest', async (request) => {
     if (principal !== null) request.principal = principal
   })
-  registerAgentRoutes(app, { runtime })
+  registerAgentRoutes(app, {
+    runtime,
+    ...(rotulosDoOperador === undefined ? {} : { rotulosDoOperador }),
+  })
   return app
 }
 
@@ -54,6 +58,20 @@ describe('POST /agent/messages', () => {
     const corpo = agentReplySchema.parse(JSON.parse(res.body))
     expect(corpo).toEqual({ kind: 'answer', text: 'Tem café em grãos a R$ 25,00.' })
     expect(JSON.stringify(chamadas[1]?.prompt)).toMatch(/R\$\s?25,00/)
+    await app.close()
+  })
+
+  it('injeta primeiro nome e fantasia no sistema a partir de rotulosDoOperador', async () => {
+    const { runtime, chamadas } = runtimeCom([{ texto: 'Oi!' }])
+    const app = buildApp(PRINCIPAL, runtime, async () => ({
+      userName: 'Ana Silva',
+      companyName: 'Mercearia Sol',
+    }))
+    const res = await enviar(app, { text: 'oi' })
+    expect(res.statusCode).toBe(200)
+    const sistema = JSON.stringify(chamadas[0]?.prompt)
+    expect(sistema).toContain('Quem fala com você: Ana.')
+    expect(sistema).toContain('Empresa: Mercearia Sol.')
     await app.close()
   })
 

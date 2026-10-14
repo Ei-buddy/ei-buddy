@@ -348,4 +348,56 @@ describe('processMessage — borda do laço novo', () => {
       expect.objectContaining({ toolCalls: snapshotVazio }),
     )
   })
+
+  it('WhatsApp encaminha nome e fantasia do peer, sem colocar no ExecutionContext', async () => {
+    const brain = brainQueResponde(saida())
+    const peersComRotulo: PeerDirectory = {
+      resolve: async (peer) =>
+        peer === PEER
+          ? {
+              companyId: 'emp-A',
+              userId: 'user-A',
+              role: 'owner',
+              userName: 'Ana Silva',
+              companyName: 'Mercearia Sol',
+            }
+          : null,
+    }
+    await processMessage(runtimeCom(brain, { peers: peersComRotulo }), msg())
+    const entrada = brain.entradas[0]!
+    expect(entrada.userName).toBe('Ana Silva')
+    expect(entrada.companyName).toBe('Mercearia Sol')
+    expect(entrada.execucao).not.toHaveProperty('userName')
+    expect(entrada.execucao).not.toHaveProperty('companyName')
+  })
+
+  it('canal app encaminha nome e fantasia da mensagem', async () => {
+    const brain = brainQueResponde(saida())
+    const ctx: ExecutionContext = {
+      companyId: 'emp-A',
+      userId: 'user-A',
+      role: 'owner',
+      channel: 'app',
+      requestId: 'req-1',
+      now: AGORA,
+    }
+    await processMessage(runtimeCom(brain), {
+      text: 'oi',
+      requestId: 'req-2',
+      now: AGORA,
+      channel: 'app',
+      ctx,
+      userName: 'Ana Silva',
+      companyName: 'Mercearia Sol',
+    })
+    expect(brain.entradas[0]!.userName).toBe('Ana Silva')
+    expect(brain.entradas[0]!.companyName).toBe('Mercearia Sol')
+  })
+
+  it('sem rótulos, ConversarInput não ganha nome nem empresa', async () => {
+    const brain = brainQueResponde(saida())
+    await processMessage(runtimeCom(brain), msg())
+    expect(brain.entradas[0]!.userName).toBeUndefined()
+    expect(brain.entradas[0]!.companyName).toBeUndefined()
+  })
 })

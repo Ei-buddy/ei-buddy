@@ -23,10 +23,11 @@ export async function processMessage(
   runtime: AgentRuntime,
   input: IncomingMessage,
 ): Promise<AgentReply> {
-  const ctx = await resolverContexto(runtime, input)
-  if (ctx === undefined) {
+  const identidade = await resolverContexto(runtime, input)
+  if (identidade === undefined) {
     return { kind: 'ignored', text: '' }
   }
+  const { ctx, ...rotulos } = identidade
 
   if (input.image !== undefined) {
     return { kind: 'answer', text: FRASE_PEDIDO_DE_TEXTO }
@@ -54,6 +55,7 @@ export async function processMessage(
     hoje: diaIso(ctx.now, runtime.timeZone),
     ...(pendente === undefined ? {} : { pendente }),
     ...(avisos.length === 0 ? {} : { avisos }),
+    ...rotulos,
   }
 
   let saida: Awaited<ReturnType<AgentRuntime['brain']['conversar']>>
@@ -102,7 +104,7 @@ async function pendenteDaConversa(
   return {
     avisos: [
       `A proposta anterior (${aberta.summary}) venceu sem confirmação e nada foi gravado. ` +
-        'Se a dona responder a ela agora, diga que venceu e ofereça refazer.',
+        'Se responderem a ela agora, diga que venceu e ofereça refazer.',
     ],
   }
 }
@@ -145,10 +147,28 @@ async function gravarTurno(
   }
 }
 
+type IdentidadeResolvida = {
+  readonly ctx: ExecutionContext
+  readonly userName?: string
+  readonly companyName?: string
+}
+
+function rotulosDe(fonte: { readonly userName?: string; readonly companyName?: string }): {
+  readonly userName?: string
+  readonly companyName?: string
+} {
+  const userName = fonte.userName?.trim()
+  const companyName = fonte.companyName?.trim()
+  return {
+    ...(userName === undefined || userName === '' ? {} : { userName }),
+    ...(companyName === undefined || companyName === '' ? {} : { companyName }),
+  }
+}
+
 async function resolverContexto(
   runtime: AgentRuntime,
   input: IncomingMessage,
-): Promise<ExecutionContext | undefined> {
+): Promise<IdentidadeResolvida | undefined> {
   if (input.channel === 'whatsapp') {
     const peer = input.peer
     if (peer === undefined || peer === '' || runtime.peers === undefined) {
@@ -156,15 +176,18 @@ async function resolverContexto(
     }
     const ligado = await runtime.peers.resolve(peer)
     if (ligado === null) return undefined
-    return contextoDoPeer(ligado, input)
+    return { ctx: contextoDoPeer(ligado, input), ...rotulosDe(ligado) }
   }
 
   if (input.ctx === undefined) return undefined
   return {
-    ...input.ctx,
-    now: input.now,
-    requestId: input.requestId,
-    channel: input.channel,
+    ctx: {
+      ...input.ctx,
+      now: input.now,
+      requestId: input.requestId,
+      channel: input.channel,
+    },
+    ...rotulosDe(input),
   }
 }
 
