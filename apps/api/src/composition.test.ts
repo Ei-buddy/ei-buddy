@@ -32,6 +32,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       createWhatsappConsentRepository: vi.fn(vazio),
       createCustomerContactRepository: vi.fn(vazio),
       createCustomerRepository: vi.fn(vazio),
+      createDelinquencyQueries: vi.fn(vazio),
       createProductRepository: vi.fn(vazio),
       createChartOfAccountsRepository: vi.fn(vazio),
       createInventoryUnitOfWork: vi.fn(vazio),
@@ -41,6 +42,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSaleReturnUnitOfWork: vi.fn(vazio),
       createSettlementUnitOfWork: vi.fn(vazio),
       createSettlementQueries: vi.fn(vazio),
+      createSettlementTotals: vi.fn(vazio),
       /* NR-119: e a agenda, pelo mesmo motivo. */
       createAppointmentRepository: vi.fn(vazio),
       createCustomerChargeRepository: vi.fn(vazio),
@@ -358,7 +360,7 @@ describe('buildAgentDeps — modelo do Buddy quando a chave existe', () => {
     expect(typeof deps.runtime.brain.conversar).toBe('function')
     expect(agente.createAgentRuntime).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: { id: 'openai/gpt-5.4-mini', apiKey: 'sk-de-teste' },
+        model: { id: 'openai/gpt-6-luna', apiKey: 'sk-de-teste' },
       }),
     )
   })

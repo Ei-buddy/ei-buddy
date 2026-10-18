@@ -1,6 +1,7 @@
 import { agentReplySchema } from '@na-regua/contracts'
 import { createAgentRuntime, FRASE_PEDIDO_DE_TEXTO } from '@na-regua/agent'
 import {
+  CADASTRO_CLIENTE,
   criarLojaDeTeste,
   roteiroDoModelo,
   type EtapaRoteirizada,
@@ -136,7 +137,7 @@ describe('POST /agent/messages', () => {
 describe('POST /agent/messages — proposta e aceite (US3 da spec 013)', () => {
   it('create_customer vira proposta com confirmationId e so grava no aceite', async () => {
     const { runtime, loja } = runtimeCom([
-      { tool: 'create_customer', args: { name: 'João' } },
+      { tool: 'create_customer', args: { ...CADASTRO_CLIENTE } },
       { texto: 'Vou cadastrar o João. Posso?' },
       { tool: 'accept_proposal', args: {} },
       { texto: 'Pronto, João cadastrado.' },
