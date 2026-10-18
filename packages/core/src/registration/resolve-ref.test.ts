@@ -9,6 +9,26 @@ import { resolveCustomerRef, resolveProductRef } from './resolve-ref.js'
 
 const AGORA = new Date('2026-09-02T13:00:00.000Z')
 
+let celularDoTeste = 0
+const ENDERECO_DO_TESTE = {
+  zipCode: '80010000',
+  street: 'Rua XV de Novembro',
+  number: '100',
+  district: 'Centro',
+  city: 'Curitiba',
+  state: 'PR',
+} as const
+
+function cliente<T extends object>(campos: T) {
+  celularDoTeste += 1
+  return {
+    document: `529982247${String(celularDoTeste).padStart(2, '0')}`.slice(0, 11),
+    phone: `4198${String(celularDoTeste).padStart(7, '0')}`,
+    address: ENDERECO_DO_TESTE,
+    ...campos,
+  }
+}
+
 function contexto(sobrescreve: Partial<ExecutionContext> = {}): ExecutionContext {
   return {
     companyId: 'emp-1',
@@ -81,7 +101,7 @@ describe('resolveProductRef', () => {
 describe('resolveCustomerRef', () => {
   it('id existente devolve o mesmo id', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Joao' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
     expect(await resolveCustomerRef({ customers }, contexto(), r.customer.id)).toBe(r.customer.id)
@@ -89,7 +109,7 @@ describe('resolveCustomerRef', () => {
 
   it('nome unico resolve para o id', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), { name: 'Joao' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
     expect(await resolveCustomerRef({ customers }, contexto(), 'Joao')).toBe(r.customer.id)
@@ -97,7 +117,7 @@ describe('resolveCustomerRef', () => {
 
   it('nome que o postgres rejeitaria como uuid resolve pela busca — roteiro #6', async () => {
     const customers = new InMemoryCustomerRepository()
-    const r = await registerCustomer({ customers }, contexto(), { name: 'teste' })
+    const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'teste' }))
     if (r.status !== 'created') throw new Error('esperava created')
 
     customers.findById = async () => {
@@ -117,8 +137,8 @@ describe('resolveCustomerRef', () => {
 
   it('varios candidatos lanca VALIDATION com as alternativas', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer({ customers }, contexto(), { name: 'Joao Silva' })
-    await registerCustomer({ customers }, contexto(), { name: 'Joao Souza' })
+    await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao Silva' }))
+    await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao Souza' }))
 
     const erro = await resolveCustomerRef({ customers }, contexto(), 'Joao').catch(
       (e: unknown) => e,

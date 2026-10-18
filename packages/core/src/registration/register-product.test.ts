@@ -98,6 +98,7 @@ describe('deleteProduct', () => {
 
     const catalogo = await listCatalog({ products }, contexto(), {
       stock: 'todos',
+      situacao: 'ativos',
       page: 1,
       pageSize: 24,
     })

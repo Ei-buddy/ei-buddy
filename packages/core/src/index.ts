@@ -64,7 +64,8 @@ export type {
 } from './ports/registration-repositories.js'
 export type { AddressGeocoder, CepAddress, CepLookup } from './ports/cep-lookup.js'
 export type { CnpjCompany, CnpjLookup } from './ports/cnpj-lookup.js'
-export type { CustomerPatch, ProductPatch } from './ports/registration-repositories.js'
+export type { CustomerPatch } from './ports/registration-repositories.js'
+export type { ProductPatch } from './ports/registration-repositories.js'
 export type { NcmConsulta, NcmLookup } from './ports/ncm-lookup.js'
 export type { CustomerContactRepository, NewCustomerContact } from './ports/customer-contacts.js'
 export type {
@@ -207,6 +208,10 @@ export type {
 export { createPayable } from './payables/create-payable.js'
 export type { CreatePayableDeps } from './payables/create-payable.js'
 export { endRecurrence } from './payables/end-recurrence.js'
+export { cancelPayable, updatePayable } from './payables/change-payable.js'
+export type { ChangePayableDeps } from './payables/change-payable.js'
+export { cancelReceivable, updateReceivable } from './receivables/change-receivable.js'
+export type { ChangeReceivableDeps } from './receivables/change-receivable.js'
 export type { EndRecurrenceDeps, EndRecurrenceResult } from './payables/end-recurrence.js'
 export { listPayables } from './payables/list-payables.js'
 export type {
@@ -217,6 +222,7 @@ export type {
 export type {
   IdGenerator,
   NewPayable,
+  PayableChanges,
   PayableFilter,
   PayableQueries,
   PayableTransaction,
@@ -243,12 +249,16 @@ export type {
   ManualReceivableTransaction,
   ManualReceivableUnitOfWork,
   NewManualReceivable,
+  ReceivableChanges,
+  ReceivableForChange,
   ReceivableQueries,
 } from './ports/receivable-repository.js'
 export { listSettlements } from './settlements/list-settlements.js'
 export type { ListSettlementsDeps } from './settlements/list-settlements.js'
 export { reverseSettlement } from './settlements/reverse-settlement.js'
 export { settlePayable, settleReceivable } from './settlements/settle.js'
+export { settledInMonth } from './settlements/settled-in-month.js'
+export type { SettlementTotals, TotalQuitado } from './settlements/settled-in-month.js'
 export { empresaDaReferencia, referenciaDaCobranca } from './receivables/referencia-da-cobranca.js'
 export { ATOR_DO_SISTEMA, usuarioReal } from './system-actor.js'
 export { settleCustomerCharge } from './receivables/settle-customer-charge.js'
@@ -259,6 +269,7 @@ export type {
 export {
   createBankAccount,
   deleteBankAccount,
+  updateBankAccount,
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
@@ -266,6 +277,9 @@ export type { BankAccountRepository, NewBankAccount } from './ports/bank-account
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export { returnSaleItems } from './sales/return-sale-items.js'
+export { listDelinquentCustomers } from './receivables/list-delinquents.js'
+export type { ListDelinquentsDeps } from './receivables/list-delinquents.js'
+export type { DelinquencyQueries } from './ports/delinquency-queries.js'
 export type { ReturnSaleItemsDeps } from './sales/return-sale-items.js'
 export type {
   LinhaDevolvivel,
@@ -322,18 +336,18 @@ export {
   listCatalog,
   productSuggestions,
   registerProduct,
+  setProductActive,
+  updateProduct,
   registerProductWithStock,
   searchProducts,
-  setProductActive,
   TETO_DO_CATALOGO,
-  updateProduct,
 } from './registration/register-product.js'
-export { resolveCustomerRef, resolveProductRef } from './registration/resolve-ref.js'
 export type {
   ImportProductsDeps,
   RegisterProductDeps,
   SearchProductsDeps,
 } from './registration/register-product.js'
+export { resolveCustomerRef, resolveProductRef } from './registration/resolve-ref.js'
 
 /* --- LGPD: exportacao e anonimizacao — NR-031 --- */
 export { anonymizeCustomer, NOME_ANONIMIZADO } from './privacy/anonymize-customer.js'
@@ -441,6 +455,8 @@ export type {
 /* --- Agenda — NR-034 --- */
 export { cancelAppointment } from './schedule/cancel-appointment.js'
 export type { CancelAppointmentDeps } from './schedule/cancel-appointment.js'
+export { updateAppointment } from './schedule/update-appointment.js'
+export type { UpdateAppointmentDeps } from './schedule/update-appointment.js'
 export { createAppointment, reminderFireAt } from './schedule/create-appointment.js'
 export type { CreateAppointmentDeps } from './schedule/create-appointment.js'
 export { listDayAppointments } from './schedule/list-day-appointments.js'
@@ -455,7 +471,13 @@ export type { IdentityRegistrar } from './ports/identity.js'
 export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
 export { changePhone, currentPhone } from './auth/change-phone.js'
 export type { ChangePhoneDeps, QuemTroca } from './auth/change-phone.js'
-export type { IdentityPhoneChanger, UserContacts } from './ports/phone-change.js'
+export type {
+  IdentityAccountEditor,
+  IdentityPhoneChanger,
+  UserContacts,
+} from './ports/phone-change.js'
+export { changeEmail, changeName, changePassword, myAccount } from './auth/my-account.js'
+export type { MyAccountDeps } from './auth/my-account.js'
 export type { RequestPasswordResetDeps, ResetPasswordDeps } from './auth/password-reset.js'
 export type { EmailSender, PasswordResetTokens, PasswordSetter } from './ports/password-reset.js'
 export {
@@ -475,6 +497,8 @@ export type {
   VendaParaNota,
 } from './ports/sale-fiscal.js'
 export { reconcileContingency } from './fiscal/reconcile-contingency.js'
+export { cancelSaleInvoice, PRAZO_DE_CANCELAMENTO_MINUTOS } from './fiscal/cancel-invoice.js'
+export type { CancelInvoiceDeps } from './fiscal/cancel-invoice.js'
 export type {
   ReconcileContingencyDeps,
   ResultadoDaReconciliacao,
@@ -547,6 +571,7 @@ export type {
 export {
   createVariableCost,
   deleteVariableCost,
+  updateVariableCost,
   listVariableCosts,
 } from './variable-costs/manage-variable-costs.js'
 export type { VariableCostDeps } from './variable-costs/manage-variable-costs.js'
@@ -577,7 +602,10 @@ export { resendPartnerApplication } from './partners/resend-partner-application.
 export type { ResendPartnerApplicationDeps } from './partners/resend-partner-application.js'
 export { getMyPartnerApplication } from './partners/my-partner-application.js'
 export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
-export type { PartnerApplicationRepository } from './ports/partner-application-repository.js'
+export type {
+  PartnerApplicationAlert,
+  PartnerApplicationRepository,
+} from './ports/partner-application-repository.js'
 export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'
 
 /* Consentimento dos documentos legais — RF-02, RF-03, LGPD art. 8 §1. */
@@ -585,3 +613,36 @@ export { pendingLegalAcceptance, recordLegalAcceptance } from './legal/legal-con
 export type { LegalConsentDeps, OrigemDoAceite } from './legal/legal-consent.js'
 export type { LegalConsentRepository } from './ports/legal-consent-repository.js'
 export { InMemoryLegalConsentRepository } from './legal/fakes.js'
+export {
+  addCashMovement,
+  cashHistory,
+  closeCash,
+  currentCash,
+  openCash,
+} from './cash/cash-register.js'
+export type { CashDeps } from './cash/cash-register.js'
+export type { CashRegister } from './ports/cash-register.js'
+export { InMemoryCashRegister } from './cash/fakes.js'
+
+/* Entrada de mercadoria — NR-158. */
+export {
+  custoMedio,
+  dividirEmParcelas,
+  listPurchases,
+  registerPurchase,
+} from './purchases/register-purchase.js'
+export type { ListPurchasesDeps, RegisterPurchaseDeps } from './purchases/register-purchase.js'
+export { InMemoryPurchases } from './purchases/fakes.js'
+export type {
+  NewPurchase,
+  NewPurchaseMovement,
+  PurchaseProductSnapshot,
+  PurchaseQueries,
+  PurchaseTransaction,
+  PurchaseUnitOfWork,
+} from './ports/purchase-register.js'
+/* Orcamento — NR-159. */
+export { cancelQuote, convertQuote, createQuote, getQuote, listQuotes } from './quotes/quotes.js'
+export type { QuoteDeps } from './quotes/quotes.js'
+export type { NewQuote, QuoteRepository } from './ports/quote-repository.js'
+export { InMemoryQuotes } from './quotes/fakes.js'

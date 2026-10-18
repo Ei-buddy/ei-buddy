@@ -152,6 +152,7 @@ export function ferramentasDeLeitura(casos: AgentUseCases) {
           const achados = await casos.searchProducts(turno.execucao, {
             q: input.termo,
             stock: 'todos',
+            situacao: 'ativos',
             page: 1,
             pageSize: 5,
           })

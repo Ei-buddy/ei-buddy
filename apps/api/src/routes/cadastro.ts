@@ -42,7 +42,6 @@ import {
   setProductActive,
   updateProduct,
   updateCompany,
-  updateProduct,
   registerCustomer,
   type RegisterCustomerDeps,
   registerProductWithStock,
@@ -634,24 +633,6 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
 
     return reply.code(200).send(produto)
   })
-
-  /**
-   * Editar o produto — espelho do PATCH de cliente.
-   *
-   * A tela manda o que mudou; o que nao veio fica como esta. Preco abaixo do
-   * custo e recusado no core, que enxerga o produto inteiro apos o merge.
-   */
-  app.patch(
-    '/produtos/:id',
-    { config: { rateLimit: LIMITE_DE_ESCRITA } },
-    async (request, reply) => {
-      const ctx = requireContext(request)
-      const { id } = request.params as { id: string }
-      const input = validate(updateProductInputSchema, request.body)
-
-      return reply.code(200).send(await updateProduct(deps, ctx, id, input))
-    },
-  )
 
   /**
    * Soft-delete do produto — sai da busca vigente, linha permanece.

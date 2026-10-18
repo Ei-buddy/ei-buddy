@@ -188,6 +188,7 @@ async function resolverProduto(
       const candidatos = await casos.searchProducts(turno.execucao, {
         q: ref,
         stock: 'todos',
+        situacao: 'ativos',
         page: 1,
         pageSize: 5,
       })
