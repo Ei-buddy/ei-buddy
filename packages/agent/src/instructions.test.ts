@@ -44,8 +44,9 @@ describe('instruções — contexto da conversa (US4)', () => {
 })
 
 describe('instruções — cadastro no meio do pedido (US5)', () => {
-  it('oferece cadastrar (só o nome basta) ou seguir sem cliente, exceto no fiado', () => {
-    expect(texto).toMatch(/só o nome basta/i)
+  it('oferece cadastrar com documento, celular e endereço, ou seguir sem cliente (exceto no fiado)', () => {
+    expect(texto).toMatch(/CPF\/CNPJ|documento/i)
+    expect(texto).toMatch(/celular|endereço/i)
     expect(texto).toMatch(/sem cliente/i)
     expect(texto).toMatch(/fiado.*nunca.*sem cliente|nunca.*sem cliente.*fiado/is)
   })
@@ -75,8 +76,9 @@ describe('instruções — fora do escopo e erros (US6)', () => {
 })
 
 describe('instruções — ajustes da avaliação com o modelo real', () => {
-  it('"cadastra" um cliente já citado propõe com o nome dito, sem pedir mais', () => {
-    expect(texto).toMatch(/não peça nome completo/i)
+  it('cliente já cadastrado na conversa segue com o ref, sem novo cadastro', () => {
+    expect(texto).toMatch(/ja_cadastrado/i)
+    expect(texto).toMatch(/não cadastre de novo/i)
   })
 
   it('consulta de estoque traz nome, quantidade e preço', () => {
