@@ -1,0 +1,5 @@
+interface:
+  display_name: 'PRD Generator'
+  short_description: 'Investiga e consolida decisões em um PRD'
+policy:
+  allow_implicit_invocation: false

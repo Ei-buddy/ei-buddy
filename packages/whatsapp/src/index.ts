@@ -18,7 +18,10 @@
  * proposito: importa `vitest`, que e dependencia de desenvolvimento.
  */
 export { createFakeMessageSender, FakeMessageSender } from './fake-sender.js'
-export type { FakeMessageSenderOptions, MensagemEnviada } from './fake-sender.js'
+export type { FakeMessageSenderOptions, MensagemEnviada, SinalDePresenca } from './fake-sender.js'
 
 export { criarRemetenteMeta, responderVerificacao } from './meta-sender.js'
 export type { MetaOptions } from './meta-sender.js'
+
+export { dividirRespostaWhatsapp } from './dividir-resposta-whatsapp.js'
+export { formatarTextoWhatsApp } from './formatar-texto-whatsapp.js'

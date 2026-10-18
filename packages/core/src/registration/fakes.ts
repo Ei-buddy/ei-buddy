@@ -14,11 +14,11 @@ import type {
   CompanyChanges,
   CompanyRepository,
   CustomerPatch,
-  ProductPatch,
   CustomerRepository,
   NewCompany,
   NewCustomer,
   NewProduct,
+  ProductPatch,
   ProductRepository,
 } from '../ports/registration-repositories.js'
 
@@ -377,7 +377,10 @@ export class InMemoryCustomerRepository implements CustomerRepository {
 }
 
 export class InMemoryProductRepository implements ProductRepository {
-  private readonly registros = new Map<string, ProductOutput & { companyId: CompanyId }>()
+  private readonly registros = new Map<
+    string,
+    ProductOutput & { companyId: CompanyId; deletedAt: string | null }
+  >()
   private sequencia = 0
 
   async create(product: NewProduct): Promise<ProductOutput> {
@@ -400,6 +403,7 @@ export class InMemoryProductRepository implements ProductRepository {
       category: product.category ?? null,
       supplier: product.supplier ?? null,
       isActive: true,
+      deletedAt: null as string | null,
     }
     this.registros.set(gravado.id, gravado)
     return this.semTenant(gravado)
@@ -407,7 +411,7 @@ export class InMemoryProductRepository implements ProductRepository {
 
   async findByBarcode(companyId: CompanyId, barcode: string): Promise<ProductOutput | undefined> {
     const achado = [...this.registros.values()].find(
-      (p) => p.companyId === companyId && p.barcode === barcode,
+      (p) => p.companyId === companyId && p.barcode === barcode && p.deletedAt === null,
     )
     /* De outra empresa e o mesmo que inexistente. */
     return achado ? this.semTenant(achado) : undefined
@@ -416,7 +420,17 @@ export class InMemoryProductRepository implements ProductRepository {
   async findById(companyId: CompanyId, productId: string): Promise<ProductOutput | undefined> {
     const achado = this.registros.get(productId)
     /* Filtra por empresa de verdade: um falso que ignorasse isso faria o teste
-       de isolamento medir o vazio. */
+       de isolamento medir o vazio. Produto excluido some da leitura vigente. */
+    return achado?.companyId === companyId && achado.deletedAt === null
+      ? this.semTenant(achado)
+      : undefined
+  }
+
+  async findByIdIncludingDeleted(
+    companyId: CompanyId,
+    productId: string,
+  ): Promise<ProductOutput | undefined> {
+    const achado = this.registros.get(productId)
     return achado?.companyId === companyId ? this.semTenant(achado) : undefined
   }
 
@@ -435,7 +449,7 @@ export class InMemoryProductRepository implements ProductRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((p) => p.companyId === companyId && p.isActive)
+      .filter((p) => p.companyId === companyId && p.deletedAt === null && p.isActive)
       .filter(
         (p) =>
           termo === '' ||
@@ -469,7 +483,7 @@ export class InMemoryProductRepository implements ProductRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     const casam = [...this.registros.values()]
-      .filter((p) => p.companyId === companyId)
+      .filter((p) => p.companyId === companyId && p.deletedAt === null)
       .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
       .filter(
         (p) =>
@@ -499,7 +513,9 @@ export class InMemoryProductRepository implements ProductRepository {
     readonly outOfStock: number
     readonly stockValueCents: number
   }> {
-    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId && p.isActive)
+    const meus = [...this.registros.values()].filter(
+      (p) => p.companyId === companyId && p.deletedAt === null && p.isActive,
+    )
 
     return {
       total: meus.length,
@@ -510,19 +526,6 @@ export class InMemoryProductRepository implements ProductRepository {
       outOfStock: meus.filter((p) => p.stock <= 0).length,
       stockValueCents: meus.reduce((acc, p) => acc + p.stock * p.costPriceCents, 0),
     }
-  }
-
-  async setActive(
-    companyId: CompanyId,
-    productId: string,
-    ativo: boolean,
-    _updatedBy: UserId,
-  ): Promise<ProductOutput | undefined> {
-    const atual = this.registros.get(productId)
-    if (atual === undefined || atual.companyId !== companyId) return undefined
-    const novo = { ...atual, isActive: ativo }
-    this.registros.set(productId, novo)
-    return this.semTenant(novo)
   }
 
   /**
@@ -539,45 +542,8 @@ export class InMemoryProductRepository implements ProductRepository {
     this.registros.set(id, { ...registro, stock: quantidade })
   }
 
-  /**
-   * Edita so o que veio — RF-017.
-   *
-   * `?? atual` campo a campo, que e o `COALESCE` do SQL escrito em JavaScript.
-   * Espalhar o patch com `{ ...atual, ...patch }` daria o mesmo resultado hoje
-   * e mentiria no dia em que o contrato aceitasse `null`.
-   */
-  async update(
-    companyId: CompanyId,
-    productId: string,
-    patch: ProductPatch,
-    _updatedBy: UserId,
-  ): Promise<ProductOutput | undefined> {
-    const atual = this.registros.get(productId)
-    if (atual === undefined || atual.companyId !== companyId) return undefined
-
-    const atualizado = {
-      ...atual,
-      description: patch.description ?? atual.description,
-      barcode: patch.barcode ?? atual.barcode,
-      unitOfMeasure: patch.unitOfMeasure ?? atual.unitOfMeasure,
-      salePriceCents: patch.salePriceCents ?? atual.salePriceCents,
-      costPriceCents: patch.costPriceCents ?? atual.costPriceCents,
-      taxRate: patch.taxRate ?? atual.taxRate,
-      minStock: patch.minStock ?? atual.minStock,
-      category: patch.category ?? atual.category,
-      supplier: patch.supplier ?? atual.supplier,
-      ncm: patch.ncm ?? atual.ncm,
-      cfop: patch.cfop ?? atual.cfop,
-      taxSituationCode: patch.taxSituationCode ?? atual.taxSituationCode,
-    }
-
-    this.registros.set(productId, atualizado)
-
-    const { companyId: _fora, ...semTenant } = atualizado
-    return semTenant
-  }
-
   async countAll(companyId: CompanyId): Promise<number> {
+    /* Conta os apagados tambem: o codigo interno nao pode ser reusado. */
     return [...this.registros.values()].filter((p) => p.companyId === companyId).length
   }
 
@@ -585,7 +551,9 @@ export class InMemoryProductRepository implements ProductRepository {
     readonly categories: readonly string[]
     readonly suppliers: readonly string[]
   }> {
-    const meus = [...this.registros.values()].filter((p) => p.companyId === companyId)
+    const meus = [...this.registros.values()].filter(
+      (p) => p.companyId === companyId && p.deletedAt === null,
+    )
 
     const distintosEmOrdem = (valores: (string | null)[]) =>
       [...new Set(valores.filter((v): v is string => v !== null))].sort((a, b) =>
@@ -598,8 +566,73 @@ export class InMemoryProductRepository implements ProductRepository {
     }
   }
 
-  private semTenant(registro: ProductOutput & { companyId: CompanyId }): ProductOutput {
-    const { companyId: _omitido, ...resto } = registro
+  async update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId || atual.deletedAt !== null) {
+      return undefined
+    }
+
+    const atualizado = {
+      ...atual,
+      description: patch.description ?? atual.description,
+      barcode: patch.barcode !== undefined ? patch.barcode : atual.barcode,
+      unitOfMeasure: patch.unitOfMeasure ?? atual.unitOfMeasure,
+      salePriceCents: patch.salePriceCents ?? atual.salePriceCents,
+      costPriceCents: patch.costPriceCents ?? atual.costPriceCents,
+      taxRate: patch.taxRate !== undefined ? patch.taxRate : atual.taxRate,
+      minStock: patch.minStock ?? atual.minStock,
+      category: patch.category !== undefined ? patch.category : atual.category,
+      supplier: patch.supplier !== undefined ? patch.supplier : atual.supplier,
+      ncm: patch.ncm !== undefined ? patch.ncm : atual.ncm,
+      cfop: patch.cfop !== undefined ? patch.cfop : atual.cfop,
+      taxSituationCode:
+        patch.taxSituationCode !== undefined ? patch.taxSituationCode : atual.taxSituationCode,
+    }
+
+    this.registros.set(productId, atualizado)
+    return this.semTenant(atualizado)
+  }
+
+  async setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId || atual.deletedAt !== null) {
+      return undefined
+    }
+    const atualizado = { ...atual, isActive: ativo }
+    this.registros.set(productId, atualizado)
+    return this.semTenant(atualizado)
+  }
+
+  async setDeletedAt(
+    companyId: CompanyId,
+    productId: string,
+    deletedAt: Date | null,
+    _updatedBy: UserId,
+  ): Promise<boolean> {
+    const achado = this.registros.get(productId)
+    if (achado === undefined || achado.companyId !== companyId) return false
+
+    this.registros.set(productId, {
+      ...achado,
+      deletedAt: deletedAt === null ? null : deletedAt.toISOString(),
+    })
+    return true
+  }
+
+  private semTenant(
+    registro: ProductOutput & { companyId: CompanyId; deletedAt: string | null },
+  ): ProductOutput {
+    const { companyId: _omitido, deletedAt: _apagado, ...resto } = registro
     return resto
   }
 }

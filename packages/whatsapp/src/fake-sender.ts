@@ -27,6 +27,12 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 const SEGREDO_PADRAO = 'segredo-de-webhook-para-teste'
 const JANELA_DE_ATENDIMENTO_MS = 24 * 60 * 60 * 1000
 
+/** Lido ou digitando que o falso registrou, na ordem da chamada. */
+export type SinalDePresenca = {
+  readonly messageId: string
+  readonly kind: 'read' | 'typing'
+}
+
 /** Mensagem que o falso "entregou", para o teste conferir. */
 export type MensagemEnviada = {
   readonly messageId: string
@@ -47,6 +53,11 @@ export type FakeMessageSenderOptions = {
    * nao e recusa de destinatario, e job para retentar.
    */
   readonly falhaDeInfraestrutura?: string
+  /**
+   * Falha do POST de lido ou digitando. A tentativa entra em `sinais` e o
+   * metodo resolve: presenca e melhor-esforco, ao contrario do envio.
+   */
+  readonly falhaDePresenca?: boolean
 }
 
 export class FakeMessageSender {
@@ -55,6 +66,7 @@ export class FakeMessageSender {
   /** Ultima mensagem recebida por numero de cliente — base da janela de 24h. */
   private readonly ultimaEntrada = new Map<string, number>()
   private readonly enviadas: MensagemEnviada[] = []
+  private readonly sinaisRegistrados: SinalDePresenca[] = []
   private readonly entradasVistas = new Set<string>()
   private readonly enviosPorEmpresa = new Map<string, number>()
   private sequencia = 0
@@ -73,6 +85,11 @@ export class FakeMessageSender {
     return [...this.enviadas]
   }
 
+  /** Lido e digitando, na ordem em que foram pedidos. Apoio de teste. */
+  get sinais(): readonly SinalDePresenca[] {
+    return [...this.sinaisRegistrados]
+  }
+
   async sendText(request: SendTextRequest): Promise<SendResult> {
     this.talvezFalhar()
     const validado = sendTextRequestSchema.parse(request)
@@ -84,6 +101,14 @@ export class FakeMessageSender {
     const validado = sendMediaRequestSchema.parse(request)
     const rotulo = validado.filename ?? validado.kind
     return this.entregar(validado, validado.caption ?? `[${rotulo}] ${validado.url}`)
+  }
+
+  async markRead(messageId: string): Promise<void> {
+    this.registrarPresenca(messageId, 'read')
+  }
+
+  async showTyping(messageId: string): Promise<void> {
+    this.registrarPresenca(messageId, 'typing')
   }
 
   readInbound(rawBody: string, signature: string): InboundReadResult {
@@ -234,6 +259,15 @@ export class FakeMessageSender {
         },
       ],
     })
+  }
+
+  private registrarPresenca(messageId: string, kind: SinalDePresenca['kind']): void {
+    this.sinaisRegistrados.push({ messageId, kind })
+    /*
+     * Presenca configurada para falhar ainda registra a tentativa. Nao lanca:
+     * ao contrario do envio, lido e digitando nao podem segurar a resposta.
+     */
+    if (this.opcoes.falhaDePresenca) return
   }
 
   private entregar(

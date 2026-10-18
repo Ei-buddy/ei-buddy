@@ -675,6 +675,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: r.customer.id,
       customerName: 'Maria Devedora',
       walletBalanceCents: 3_500,
     })
@@ -682,7 +683,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
   it('declara saldo zerado explicitamente', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer(
+    const r = await registerCustomer(
       { customers },
       contexto(),
       cliente({
@@ -690,6 +691,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
         phone: '41999992222',
       }),
     )
+    if (r.status !== 'created') throw new Error('esperava created')
 
     const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), {
       query: 'Joao Quitado',
@@ -697,6 +699,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: r.customer.id,
       customerName: 'Joao Quitado',
       walletBalanceCents: 0,
     })
@@ -1231,6 +1234,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       },
       findByBarcode: (c, b) => produtos.findByBarcode(c, b),
       findById: (c, id) => produtos.findById(c, id),
+      findByIdIncludingDeleted: (c, id) => produtos.findByIdIncludingDeleted(c, id),
       search: (c, k) => produtos.search(c, k),
       listCatalog: (c, k) => produtos.listCatalog(c, k),
       catalogSummary: (c) => produtos.catalogSummary(c),
@@ -1238,6 +1242,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       listSuggestions: (c) => produtos.listSuggestions(c),
       update: (empresa, id, patch, autor) => produtos.update(empresa, id, patch, autor),
       setActive: (empresa, id, ativo, autor) => produtos.setActive(empresa, id, ativo, autor),
+      setDeletedAt: (c, id, at, by) => produtos.setDeletedAt(c, id, at, by),
     }
 
     return {

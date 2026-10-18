@@ -264,14 +264,11 @@ export type NewProduct = {
 }
 
 /**
- * O que a edicao de produto pode mudar — RF-017.
+ * O que a edicao pode mudar.
  *
- * Espelha `updateProductInputSchema` de `contracts`: tudo opcional, nada
- * anulavel — o contrato aceita omitir ou mandar valor, nunca `null`.
- *
- * Sem `stock`: saldo so muda por movimento (RF-124). Sem `internalCode`: ele
- * e gerado uma vez e e por ele que o lojista chama o produto quando o leitor
- * nao le.
+ * Espelha `updateProductInputSchema` de `contracts`: tudo opcional. Ausente
+ * quer dizer "nao mexe". A checagem preco >= custo NAO mora aqui — o schema e
+ * `.partial()` sem refine; quem enxerga o produto inteiro e o caso de uso.
  */
 export type ProductPatch = {
   readonly description?: string | undefined
@@ -301,9 +298,21 @@ export type ProductRepository = {
    * granel, produto sem embalagem e etiqueta amassada usam o codigo interno, e
    * a ficha precisa abrir para eles tambem.
    *
-   * `undefined` quando nao existe OU e de outra empresa.
+   * `undefined` quando nao existe, foi excluido OU e de outra empresa.
+   * Diferente do cliente: produto apagado nao reabre ficha pelo id vigente.
    */
   findById(companyId: CompanyId, productId: string): Promise<ProductOutput | undefined>
+
+  /**
+   * Como `findById`, mas inclui produto com `deleted_at` preenchido.
+   *
+   * Existe para o soft-delete ser idempotente: `findById` esconde o excluido,
+   * e sem isto o segundo delete nao distinguiria "ja saiu" de "nunca existiu".
+   */
+  findByIdIncludingDeleted(
+    companyId: CompanyId,
+    productId: string,
+  ): Promise<ProductOutput | undefined>
 
   /**
    * Catalogo para o balcao — RF-019.
@@ -313,9 +322,10 @@ export type ProductRepository = {
    * significaria carregar o catalogo inteiro a cada tecla digitada. Uma loja de
    * mercearia tem milhares de itens.
    *
-   * Sem `deleted_at` e so ativos: produto apagado ou inativo nao se vende. O `limite` existe porque
-   * a tela mostra uma lista, nao um banco de dados — quem nao achou refina a
-   * busca, e devolver dez mil linhas so trava o navegador.
+   * Sem `deleted_at` e so ativos: produto apagado ou inativo nao se vende. O
+   * `limite` existe porque a tela mostra uma lista, nao um banco de dados —
+   * quem nao achou refina a busca, e devolver dez mil linhas so trava o
+   * navegador.
    */
   search(
     companyId: CompanyId,
@@ -361,38 +371,6 @@ export type ProductRepository = {
   }>
 
   /**
-   * Edita o que veio, e so o que veio — RF-017.
-   *
-   * Mesma forma de `CustomerRepository.update`: ausente nao mexe. O estoque
-   * NAO esta aqui de proposito — saldo so muda por MOVIMENTO (RF-124), e
-   * deixar editar o numero abriria um caminho para corrigir contagem sem
-   * deixar rastro de quem corrigiu e por que.
-   *
-   * `undefined` quando nao ha o que atualizar: inexistente ou de outra
-   * empresa, indistinguiveis daqui por causa da RLS.
-   */
-  update(
-    companyId: CompanyId,
-    productId: string,
-    patch: ProductPatch,
-    updatedBy: UserId,
-  ): Promise<ProductOutput | undefined>
-
-  /**
-   * Inativa ou reativa — NR-151.
-   *
-   * Inativo sai do balcao (busca, leitor, venda) e do resumo do catalogo, mas a
-   * linha fica: as vendas passadas continuam apontando para ela. `undefined`
-   * quando nao existe ou e de outra empresa.
-   */
-  setActive(
-    companyId: CompanyId,
-    productId: string,
-    ativo: boolean,
-    updatedBy: UserId,
-  ): Promise<ProductOutput | undefined>
-
-  /**
    * Quantos produtos a empresa tem, para gerar o proximo codigo interno.
    *
    * Contagem, e nao "proximo codigo": gerar o codigo e regra (o formato), e
@@ -411,4 +389,43 @@ export type ProductRepository = {
     readonly categories: readonly string[]
     readonly suppliers: readonly string[]
   }>
+
+  /**
+   * Edita so o que veio. Campo ausente fica como esta.
+   *
+   * `undefined` quando nao ha o que atualizar: inexistente, excluido ou de
+   * outra empresa — indistinguiveis daqui por causa da RLS.
+   */
+  update(
+    companyId: CompanyId,
+    productId: string,
+    patch: ProductPatch,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
+
+  /**
+   * Inativa ou reativa — NR-151.
+   *
+   * Inativo sai do balcao e do resumo do catalogo, mas a linha fica. `undefined`
+   * quando nao existe ou e de outra empresa.
+   */
+  setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    updatedBy: UserId,
+  ): Promise<ProductOutput | undefined>
+
+  /**
+   * Soft-delete (data) ou reativacao (`null`).
+   *
+   * `false` quando nao ha o que atualizar — inexistente ou de outra empresa.
+   * Enxerga linhas ja excluidas: o caso de uso precisa disso para idempotencia.
+   */
+  setDeletedAt(
+    companyId: CompanyId,
+    productId: string,
+    deletedAt: Date | null,
+    updatedBy: UserId,
+  ): Promise<boolean>
 }

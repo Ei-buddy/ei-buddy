@@ -369,6 +369,7 @@ const LIMITE_BUSCA_CLIENTE = 5
 export type CheckCustomerWalletByQueryResult =
   | {
       readonly status: 'found'
+      readonly customerId?: string
       readonly customerName: string
       readonly walletBalanceCents: number
     }
@@ -426,6 +427,7 @@ export async function checkCustomerWalletByQuery(
   const cliente = candidatos[0]!
   return {
     status: 'found',
+    customerId: cliente.id,
     customerName: cliente.name,
     walletBalanceCents: cliente.walletBalanceCents,
   }

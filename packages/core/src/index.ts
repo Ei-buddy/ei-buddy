@@ -328,6 +328,7 @@ export type {
 } from './registration/register-customer.js'
 export {
   catalogSummary,
+  deleteProduct,
   findProductByBarcode,
   getProduct,
   importProducts,
@@ -346,6 +347,7 @@ export type {
   RegisterProductDeps,
   SearchProductsDeps,
 } from './registration/register-product.js'
+export { resolveCustomerRef, resolveProductRef } from './registration/resolve-ref.js'
 
 /* --- LGPD: exportacao e anonimizacao — NR-031 --- */
 export { anonymizeCustomer, NOME_ANONIMIZADO } from './privacy/anonymize-customer.js'

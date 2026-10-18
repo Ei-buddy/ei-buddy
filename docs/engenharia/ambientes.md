@@ -138,15 +138,14 @@ do sistema — ver [`seguranca.md`](../arquitetura/seguranca.md#certificado-digi
 
 | Variável                     | Obr. | Seg. | local                                | Descrição                                                                                        |
 | ---------------------------- | :--: | :--: | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `AGENT_PROVIDER`             |  ✅  |      | `fake`                               | `fake` \| `mastra` — em produção só `mastra` é servido                                           |
-| `OPENAI_API_KEY`             |      |  🔒  | vazio                                | obrigatória só com `AGENT_PROVIDER=mastra`                                                       |
-| `AGENT_MODEL`                |      |      | `openai/gpt-4o-mini`                 | formato Mastra `provedor/modelo`                                                                 |
-| `AGENT_HARNESS`              |      |      | ausente                              | `1` libera HTTP (`/agent/messages`) **e** Studio (`/api/agents`) fora do `development` (staging) |
+| `OPENAI_API_KEY`             |      |  🔒  | vazio                                | opcional no parse; obrigatória só para o assistente montar                                       |
+| `AGENT_MODEL`                |      |      | `openai/gpt-6-luna`                  | formato Mastra `provedor/modelo`; trocar só com a avaliação `pnpm --filter @na-regua/agent eval` |
+| `AGENT_HARNESS`              |      |      | ausente                              | `1` libera HTTP (`/agent/messages`) **e** Studio (`/api/agents`) em produção (staging)           |
 | `AGENT_STUDIO_PRESETS`       |      |      | `packages/agent/studio/presets.json` | path do JSON de presets do Studio (NR-121). Ausente/vazio = esse default. IDs reais fora do git  |
 | `AGENT_MONTHLY_BUDGET_CENTS` |      |      | —                                    | teto por empresa ([RNF-073](../produto/requisitos-nao-funcionais.md))                            |
 
 O mesmo porteiro (`motivoDoAgenteIndisponivel`) vale para os dois harnesses:
-sem runtime, `fake` em produção, ou produção sem `AGENT_HARNESS=1`, o
+sem `OPENAI_API_KEY`, ou produção sem `AGENT_HARNESS=1`, o
 Studio **não** monta (`/api/agents` = 404) e o POST responde 503. Presets
 inválidos: a API segue; só o adapter do Studio fica de fora. Copiar
 `packages/agent/studio/presets.example.json` → `presets.json` (gitignored)

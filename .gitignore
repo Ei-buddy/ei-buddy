@@ -61,3 +61,6 @@ packages/agent/studio/presets.json
 # Playwright (E2E no navegador — NR-049)
 test-results/
 playwright-report/
+
+# Transcrições da avaliação do Buddy com modelo real (anexar ao PR, não versionar)
+packages/agent/eval/.transcricoes/

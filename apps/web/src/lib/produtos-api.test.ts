@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { centavosDaPlanilha, inteiroDaPlanilha } from './produtos-api'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { atualizarProduto, centavosDaPlanilha, inteiroDaPlanilha } from './produtos-api'
 
 /*
  * Os dois conversores tinham `[^d,.-]` no lugar de `[^\d,.-]`: apagavam TODO
@@ -34,5 +34,63 @@ describe('inteiroDaPlanilha', () => {
 
   it('devolve null quando nao ha numero', () => {
     expect(inteiroDaPlanilha('')).toBeNull()
+  })
+})
+
+describe('atualizarProduto', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('envia PATCH parcial com precos em centavos', async () => {
+    const espiao = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => Response.json({ ok: true }, { status: 200 }),
+    )
+    vi.stubGlobal('fetch', espiao)
+
+    const r = await atualizarProduto('p-1', {
+      descricao: ' Cafe especial ',
+      precoVenda: 29.9,
+      precoCusto: 12.5,
+    })
+
+    expect(r).toEqual({ ok: true })
+    expect(espiao).toHaveBeenCalledOnce()
+    const [url, init] = espiao.mock.calls[0]!
+    expect(url).toBe('/api/produtos/p-1')
+    expect(init).toMatchObject({
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(JSON.parse(String(init?.body))).toEqual({
+      description: 'Cafe especial',
+      salePriceCents: 2990,
+      costPriceCents: 1250,
+    })
+  })
+
+  it('mapeia campos recusados do PATCH', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message: 'Preco invalido',
+              fields: [{ path: 'salePriceCents', message: 'Preco de venda menor que o custo' }],
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    const r = await atualizarProduto('p-1', { precoVenda: 1 })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.campos.precoVenda).toBe('Preco de venda menor que o custo')
+    expect(r.error).toBe('Preco de venda menor que o custo')
   })
 })

@@ -18,7 +18,8 @@ import {
   createDefaultSaleSettings,
   createPayable,
   createReceivable,
-  findProductByBarcode,
+  deleteCustomer,
+  deleteProduct,
   listPayables,
   listReceivables,
   listSales,
@@ -27,27 +28,31 @@ import {
   createAppointment,
   listDayAppointments,
   abrirCanal,
+  rankCustomers,
+  rankProducts,
   registerCustomer,
   registerProductWithStock,
   registerSale,
+  resolveCustomerRef,
+  resolveProductRef,
+  searchCustomers,
   searchProducts,
   sendCustomerCharge,
   settlePayable,
   settleReceivable,
+  updateCustomer,
+  updateProduct,
 } from '@na-regua/core'
 import { processMessage, type PeerDirectory as AgentPeerDirectory } from '@na-regua/agent'
 import { createFakeMessageSender, criarRemetenteMeta } from '@na-regua/whatsapp'
 import {
   createAgentRuntime,
-  createToolCatalog,
-  FakeLlm,
   FixturePeerDirectory,
   InMemoryAiUsageCounter,
   loadStudioPresets,
   type AgentRuntime,
   type AgentUseCases,
-  type LlmPort,
-  type ToolDescriptor,
+  type CreateBuddyBrainOptions,
 } from '@na-regua/agent'
 import type { AgendaDeps } from './routes/agenda.js'
 import type { OrcamentosDeps } from './routes/orcamentos.js'
@@ -62,6 +67,7 @@ import type {
   PasswordSetter,
 } from '@na-regua/core'
 import type { AuthRouteDeps } from './routes/auth.js'
+import { buscarRotulosDoOperador, type RotulosDoOperador } from './rotulos-do-operador.js'
 import type { PrivacidadeDeps } from './routes/privacidade.js'
 import { ExportacaoEmArquivo } from './exportacao-em-arquivo.js'
 import { IdentidadeBetterAuth } from './identidade-better-auth.js'
@@ -1041,11 +1047,9 @@ export function buildContasDeps(): ContasDeps {
  * Devolve o motivo, ou `undefined` quando da para servir. Repare no que ela
  * NAO faz: derrubar o processo. Quem chama desliga so a rota do assistente.
  *
- * O canal desta fatia e harness de engenharia: sessao da fixture, nao produto
- * do lojista. Serve em nao-producao, ou em producao so com `AGENT_HARNESS=1`
- * (staging). `AGENT_PROVIDER=fake` nunca e servido em producao — nem com a
- * flag: publicar o reconhecedor de tres frases seria mentir no canal de
- * produto.
+ * Producao sem `AGENT_HARNESS=1` continua desligada, mesmo com chave.
+ * Sem `OPENAI_API_KEY` o assistente nao monta em ambiente nenhum. O unico
+ * runtime servido e o Mastra.
  *
  * Recusa de boot fica para falha de SEGURANCA, onde servir seria ativamente
  * nocivo: RLS furada (vaza linha de outra loja) e `AUTH_PROVIDER=fake`
@@ -1053,13 +1057,6 @@ export function buildContasDeps(): ContasDeps {
  * ninguem — derrubava venda, financeiro e estoque junto por tabela.
  */
 export function motivoDoAgenteIndisponivel(): string | undefined {
-  if (env.NODE_ENV === 'production' && env.AGENT_PROVIDER === 'fake') {
-    return (
-      'AGENT_PROVIDER=fake nao chama modelo nenhum e nao serve em producao. ' +
-      'Defina AGENT_PROVIDER=mastra e OPENAI_API_KEY (ADR-0010).'
-    )
-  }
-
   if (env.NODE_ENV === 'production' && !env.AGENT_HARNESS) {
     return (
       'Harness do assistente desligado em producao (FR-001b). ' +
@@ -1068,32 +1065,26 @@ export function motivoDoAgenteIndisponivel(): string | undefined {
     )
   }
 
-  if (env.AGENT_PROVIDER === 'mastra' && env.OPENAI_API_KEY === undefined) {
+  if (env.OPENAI_API_KEY === undefined) {
     return (
-      'AGENT_PROVIDER=mastra exige OPENAI_API_KEY (ADR-0010). ' +
-      'Para desenvolver sem chave, use AGENT_PROVIDER=fake.'
+      'OPENAI_API_KEY ausente: o assistente fica indisponivel e o restante da API segue. ' +
+      'Defina a chave para montar o modelo (ADR-0010).'
     )
   }
 
   return undefined
 }
 
-async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPort> {
-  if (env.AGENT_PROVIDER !== 'mastra') return new FakeLlm()
-
+function modeloDoAgente(): CreateBuddyBrainOptions['model'] {
   if (env.OPENAI_API_KEY === undefined) {
     /* Inalcancavel: `motivoDoAgenteIndisponivel` ja barrou antes de construir
-       nada. Fica pelo estreitamento de tipo, e como rede se alguem chamar
-       daqui a dois anos por outro caminho. */
-    throw new Error('AGENT_PROVIDER=mastra exige OPENAI_API_KEY (ADR-0010).')
+       nada. Fica pelo estreitamento de tipo. */
+    throw new Error('OPENAI_API_KEY ausente: o assistente nao monta (ADR-0010).')
   }
 
-  const { createMastraLlm } = await import('@na-regua/agent/mastra')
-  return createMastraLlm({
-    model: env.AGENT_MODEL,
-    apiKey: env.OPENAI_API_KEY,
-    tools,
-  })
+  /* A chave vai na configuracao do modelo, e nao em `process.env`: trocar de
+     provedor e trocar a string de `AGENT_MODEL`, sem estado global. */
+  return { id: env.AGENT_MODEL as `${string}/${string}`, apiKey: env.OPENAI_API_KEY }
 }
 
 /**
@@ -1110,6 +1101,10 @@ async function criarLlmDoAgente(tools: readonly ToolDescriptor[]): Promise<LlmPo
 export type AgentComposition = {
   readonly runtime: AgentRuntime
   readonly studioDirectory?: FixturePeerDirectory
+  readonly rotulosDoOperador?: (ids: {
+    readonly userId: string
+    readonly companyId: string
+  }) => Promise<RotulosDoOperador>
 }
 
 /**
@@ -1218,6 +1213,8 @@ export function buildWhatsAppWebhookDeps(
 
   const sql = getClient(env.DATABASE_URL)
   const vinculos = createPeerDirectory(sql)
+  const users = createUserDirectory(sql)
+  const companies = createCompanyRepository(sql)
 
   const peers: AgentPeerDirectory = {
     resolve: async (peer) => {
@@ -1227,7 +1224,8 @@ export function buildWhatsAppWebhookDeps(
       )
       if (resultado.status === 'silencio') return null
       const { companyId, userId } = resultado.ctx
-      return { companyId, userId, role: 'owner' }
+      const rotulos = await buscarRotulosDoOperador(users, companies, { userId, companyId })
+      return { companyId, userId, role: 'owner', ...rotulos }
     },
   }
 
@@ -1294,6 +1292,9 @@ export function buildAgentUseCases(): AgentUseCases {
 
   return {
     listSales: (ctx, input) => listSales(sales, ctx, input),
+    resolveProductId: (ctx, ref) => resolveProductRef(cadastro, ctx, ref),
+    resolveCustomerId: (ctx, ref) =>
+      resolveCustomerRef({ customers: cadastro.customers }, ctx, ref),
     listReceivables: (ctx) => listReceivables(contas, ctx),
     checkStock: (ctx, input) => checkStock(estoque, ctx, input),
     checkStockByQuery: (ctx, input) =>
@@ -1360,7 +1361,13 @@ export function buildAgentUseCases(): AgentUseCases {
         ctx,
         input,
       ),
-    findProductByBarcode: (ctx, barcode) => findProductByBarcode(cadastro, ctx, barcode),
+    searchCustomers: (ctx, input) => searchCustomers({ customers: cadastro.customers }, ctx, input),
+    rankCustomers: (ctx, input) => rankCustomers(relatorios, ctx, input),
+    rankProducts: (ctx, input) => rankProducts(relatorios, ctx, input),
+    updateCustomer: (ctx, customerId, input) => updateCustomer(cadastro, ctx, customerId, input),
+    updateProduct: (ctx, productId, input) => updateProduct(cadastro, ctx, productId, input),
+    deleteCustomer: (ctx, customerId) => deleteCustomer(cadastro, ctx, customerId),
+    deleteProduct: (ctx, productId) => deleteProduct(cadastro, ctx, productId),
   }
 }
 
@@ -1369,15 +1376,15 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
   if (motivoDoAgenteIndisponivel() !== undefined) return null
 
   const useCases = buildAgentUseCases()
-  const tools = createToolCatalog(useCases)
-  const llm = await criarLlmDoAgente(tools)
   const studioDirectory = tentarDiretorioStudio()
   const sql = getClient(env.DATABASE_URL)
+  const users = createUserDirectory(sql)
+  const companies = createCompanyRepository(sql)
 
   return {
     runtime: createAgentRuntime({
       useCases,
-      llm,
+      model: modeloDoAgente(),
       timeZone: env.TZ,
       confirmations: createConfirmationStore(sql),
       aiUsage: new InMemoryAiUsageCounter({
@@ -1390,6 +1397,7 @@ export async function buildAgentDeps(): Promise<AgentComposition | null> {
       /* HTTP app e Studio wa seguem identidades distintas (`app:` vs `wa:`). */
       conversations: createConversationStore(sql),
     }),
+    rotulosDoOperador: (ids) => buscarRotulosDoOperador(users, companies, ids),
     ...(studioDirectory === undefined ? {} : { studioDirectory }),
   }
 }

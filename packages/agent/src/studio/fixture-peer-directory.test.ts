@@ -55,4 +55,21 @@ describe('FixturePeerDirectory', () => {
       { id: 'claudia-loja-2', peer: '5511999000002' },
     ])
   })
+
+  it('resolve encaminha nome e fantasia do preset quando existem', async () => {
+    const dir = new FixturePeerDirectory([
+      {
+        ...presets[0]!,
+        userName: 'Ana Silva',
+        companyName: 'Mercearia Sol',
+      },
+    ])
+    await expect(dir.resolve('5511999000001')).resolves.toEqual({
+      companyId: UUID_A,
+      userId: USER_A,
+      role: 'owner',
+      userName: 'Ana Silva',
+      companyName: 'Mercearia Sol',
+    })
+  })
 })

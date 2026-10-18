@@ -663,6 +663,18 @@ export function createProductRepository(sql: Sql): ProductRepository {
       return linha === undefined ? undefined : paraProduto(linha)
     },
 
+    findByIdIncludingDeleted: async (companyId, productId) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<LinhaProduto[]>`
+          SELECT * FROM products
+          WHERE id = ${productId}
+        `,
+      )
+      return linha === undefined ? undefined : paraProduto(linha)
+    },
+
     /**
      * O catalogo do balcao — RF-019.
      *
@@ -892,6 +904,22 @@ export function createProductRepository(sql: Sql): ProductRepository {
         `,
       )
       return { categories: linha?.categories ?? [], suppliers: linha?.suppliers ?? [] }
+    },
+
+    setDeletedAt: async (companyId, productId, deletedAt, updatedBy) => {
+      const linhas = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ id: string }[]>`
+          UPDATE products
+             SET deleted_at = ${deletedAt},
+                 updated_by = ${updatedBy},
+                 updated_at = now()
+           WHERE id = ${productId}
+          RETURNING id
+        `,
+      )
+      return linhas.length > 0
     },
   }
 }

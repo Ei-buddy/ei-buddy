@@ -96,6 +96,7 @@ function repositorioBusca(
     products: {
       search: async () => resultados,
       findById: async () => undefined,
+      findByIdIncludingDeleted: async () => undefined,
       findByBarcode: async () => undefined,
       create: async () => {
         throw new Error('nao deveria criar')
@@ -116,6 +117,7 @@ function repositorioBusca(
       setActive: async () => {
         throw new Error('nao deveria inativar')
       },
+      setDeletedAt: async () => false,
     } satisfies ProductRepository,
     inventory: inv,
   }
