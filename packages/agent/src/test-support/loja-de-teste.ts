@@ -36,6 +36,21 @@ export type LojaDeTeste = {
   readonly produtos: ComEmpresa<ProductOutput>[]
 }
 
+/** Entrada mínima válida de `create_customer` (NR-142 / NR-149). */
+export const CADASTRO_CLIENTE = {
+  name: 'João',
+  document: '52998224725',
+  phone: '41998765432',
+  address: {
+    zipCode: '80010000',
+    street: 'Rua XV de Novembro',
+    number: '100',
+    district: 'Centro',
+    city: 'Curitiba',
+    state: 'PR',
+  },
+} as const
+
 export function cliente(
   dados: Partial<CustomerOutput> & { readonly companyId?: string } = {},
 ): ComEmpresa<CustomerOutput> {

@@ -3,6 +3,7 @@ import { InMemoryConfirmations } from '../confirmations.js'
 import { RESUMO_VAZIO, type ResumoDeEntidades } from '../conversation-context.js'
 import {
   AGORA,
+  CADASTRO_CLIENTE,
   cliente,
   criarLojaDeTeste,
   ctxDaEmpresa,
@@ -203,7 +204,7 @@ describe('cadastro no meio do pedido (US5)', () => {
 
   it('create_customer com paraRetomar abre a intencao e o campo nao vai para o caso de uso', async () => {
     const { chamar, turno, confirmations } = montar()
-    const saida = await chamar('create_customer', { name: 'João', paraRetomar })
+    const saida = await chamar('create_customer', { ...CADASTRO_CLIENTE, paraRetomar })
     expect(saida).toMatchObject({ status: 'proposta' })
     expect(turno.coletor.snapshot().intencao).toEqual({
       acao: 'create_sale',
@@ -212,7 +213,7 @@ describe('cadastro no meio do pedido (US5)', () => {
       aguardando: 'cadastro_cliente',
     })
     const pendente = await confirmations.getOpen('emp-A', turno.conversationKey, AGORA)
-    expect(pendente?.args).toEqual({ entrada: { name: 'João' }, rotulos: {} })
+    expect(pendente?.args).toEqual({ entrada: { ...CADASTRO_CLIENTE }, rotulos: {} })
   })
 
   it('create_product com paraRetomar abre a intencao aguardando o cadastro do produto', async () => {
@@ -235,7 +236,7 @@ describe('cadastro no meio do pedido (US5)', () => {
       payments: [{ method: 'pix' }],
     })
     await chamar('create_customer', {
-      name: 'João',
+      ...CADASTRO_CLIENTE,
       paraRetomar: { acao: 'create_sale', descricao: 'venda de café para o João' },
     })
     expect(turno.coletor.snapshot().intencao?.jaDito).toMatchObject({
@@ -248,14 +249,18 @@ describe('cadastro no meio do pedido (US5)', () => {
     const { chamar, put } = montar(criarLojaDeTeste(), {
       entidades: [{ tipo: 'cliente', ref: 'cli-joao', rotulo: 'João' }],
     })
-    const saida = await chamar('create_customer', { name: 'joao', paraRetomar })
+    const saida = await chamar('create_customer', {
+      ...CADASTRO_CLIENTE,
+      name: 'joao',
+      paraRetomar,
+    })
     expect(saida).toMatchObject({ status: 'ja_cadastrado', ref: 'cli-joao', rotulo: 'João' })
     expect(put).not.toHaveBeenCalled()
   })
 
   it('uma segunda proposta no mesmo turno devolve ja_tem_proposta e nao grava outra', async () => {
     const { chamar, put } = montar()
-    await chamar('create_customer', { name: 'João' })
+    await chamar('create_customer', { ...CADASTRO_CLIENTE })
     const segunda = await chamar('create_sale', {
       customerId: 'Maria',
       items: [{ productId: 'café' }],
@@ -282,7 +287,7 @@ describe('cadastro no meio do pedido (US5)', () => {
 })
 
 const DEMAIS: readonly [string, unknown][] = [
-  ['create_customer', { name: 'João' }],
+  ['create_customer', { ...CADASTRO_CLIENTE }],
   ['update_customer', { id: 'Maria', phone: '11999998888' }],
   ['mark_customer_deleted', { id: 'Maria' }],
   ['update_product', { id: 'café', salePriceCents: 3_000 }],

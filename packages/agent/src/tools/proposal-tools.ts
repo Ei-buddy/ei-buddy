@@ -533,7 +533,8 @@ export function definicoesDeProposta(): readonly DefinicaoDeProposta[] {
     {
       id: 'create_customer',
       descricao:
-        'Propõe cadastrar um cliente. Só o nome é obrigatório. Se o cadastro interrompe outro pedido, preencha paraRetomar.',
+        'Propõe cadastrar um cliente. Obrigatórios: nome, CPF/CNPJ, celular e endereço completo. ' +
+        'Se o cadastro interrompe outro pedido, preencha paraRetomar.',
       entrada: clienteParaOModelo,
       preparar: async (input, turno) => {
         const { paraRetomar, ...dados } = input as { paraRetomar?: ParaRetomar } & Record<
@@ -558,10 +559,7 @@ export function definicoesDeProposta(): readonly DefinicaoDeProposta[] {
           status: 'pronto',
           ...(intencao === undefined ? {} : { intencao }),
           guardado: { entrada: c, rotulos: {} },
-          fatos: [
-            `cadastrar o cliente ${c.name}`,
-            ...(c.phone === undefined ? [] : [`telefone: ${c.phone}`]),
-          ],
+          fatos: [`cadastrar o cliente ${c.name}`, `telefone: ${c.phone}`],
         }
       },
       executar: async (casos, ctx, g) => {

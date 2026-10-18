@@ -3,7 +3,7 @@ import { createBuddyBrain, type ConversarInput } from './buddy-brain.js'
 import { InMemoryConfirmations } from './confirmations.js'
 import { RESUMO_VAZIO, type ResumoDeEntidades } from './conversation-context.js'
 import { TEXTO_SEM_RESPOSTA_LIMPA } from './technical-terms.js'
-import { criarLojaDeTeste, ctxDaEmpresa } from './test-support/loja-de-teste.js'
+import { CADASTRO_CLIENTE, criarLojaDeTeste, ctxDaEmpresa } from './test-support/loja-de-teste.js'
 import { roteiroDoModelo, type EtapaRoteirizada } from './test-support/mock-model.js'
 
 function montar(etapas: readonly EtapaRoteirizada[]) {
@@ -287,7 +287,7 @@ describe('createBuddyBrain — caso do João (US5)', () => {
       jaDito: intencao.jaDito,
     }
     const { brain, confirmations, chamadas } = montar([
-      { tool: 'create_customer', args: { name: 'João', paraRetomar } },
+      { tool: 'create_customer', args: { ...CADASTRO_CLIENTE, paraRetomar } },
       { texto: 'Vou cadastrar o João. Posso?' },
       { tool: 'accept_proposal', args: {} },
       { tool: 'find_product', args: { termo: 'café' } },

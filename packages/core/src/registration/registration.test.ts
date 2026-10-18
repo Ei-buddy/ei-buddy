@@ -675,6 +675,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: r.customer.id,
       customerName: 'Maria Devedora',
       walletBalanceCents: 3_500,
     })
@@ -682,7 +683,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
   it('declara saldo zerado explicitamente', async () => {
     const customers = new InMemoryCustomerRepository()
-    await registerCustomer(
+    const r = await registerCustomer(
       { customers },
       contexto(),
       cliente({
@@ -690,6 +691,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
         phone: '41999992222',
       }),
     )
+    if (r.status !== 'created') throw new Error('esperava created')
 
     const consulta = await checkCustomerWalletByQuery({ customers }, contexto(), {
       query: 'Joao Quitado',
@@ -697,6 +699,7 @@ describe('checkCustomerWalletByQuery — US3 / NR-115', () => {
 
     expect(consulta).toEqual({
       status: 'found',
+      customerId: r.customer.id,
       customerName: 'Joao Quitado',
       walletBalanceCents: 0,
     })

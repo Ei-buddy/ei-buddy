@@ -4,6 +4,7 @@ import { InMemoryConfirmations } from '../confirmations.js'
 import { RESUMO_VAZIO } from '../conversation-context.js'
 import {
   AGORA,
+  CADASTRO_CLIENTE,
   cliente,
   criarLojaDeTeste,
   ctxDaEmpresa,
@@ -174,7 +175,7 @@ describe('accept_proposal — cadastro no meio do pedido (US5)', () => {
       ttlMs: 300_000,
     }
     await proposta.create_customer!.execute(
-      { name: 'João', phone: '11988887777' },
+      { ...CADASTRO_CLIENTE, phone: '11988887777' },
       {
         requestContext: contextoDoTurno({
           ...base,
@@ -211,7 +212,7 @@ describe('accept_proposal — cadastro no meio do pedido (US5)', () => {
     }
     const base = { execucao: ctxDaEmpresa('A'), conversationKey: CHAVE, ttlMs: 300_000 }
     await proposta.create_customer!.execute(
-      { name: 'João' },
+      { ...CADASTRO_CLIENTE },
       {
         requestContext: contextoDoTurno({
           ...base,
