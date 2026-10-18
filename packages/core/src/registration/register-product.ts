@@ -191,92 +191,6 @@ export async function findProductByBarcode(
 }
 
 /**
- * A ficha de um produto — RF-017.
- *
- * LANCA quando nao acha, ao contrario de `findProductByBarcode`, e a diferenca
- * e de situacao: no PDV "nao achei este codigo" e resposta normal e leva ao
- * cadastro; abrir a ficha de um id que nao existe e um link quebrado, e a tela
- * precisa dizer isso em vez de desenhar um produto em branco.
- *
- * Produto de outra loja cai no mesmo erro, de proposito: distinguir "nao
- * existe" de "nao e seu" confirmaria, para quem varre ids, que aquele produto
- * existe em alguma outra loja.
- */
-/**
- * Edita o cadastro do produto — RF-017.
- *
- * O contrato ja tinha `updateProductInputSchema` desde o inicio, e NINGUEM o
- * usava: nem caso de uso, nem rota, nem botao. Preco errado nao tinha conserto
- * — e preco errado no cadastro vira preco errado em toda venda dali em diante.
- *
- * ## O estoque nao entra
- *
- * Saldo so muda por MOVIMENTO (RF-124), e ja existe caminho proprio para
- * corrigir contagem (`POST /produtos/:id/estoque`), que exige motivo e deixa
- * rastro na trilha. Deixar o saldo editavel aqui abriria uma porta sem nenhum
- * dos dois.
- *
- * ## Campo ausente nao e campo vazio
- *
- * A tela manda o que mudou; ausente fica como esta. Sem isso, salvar a
- * correcao do preco apagaria o NCM que ninguem tocou.
- */
-export async function updateProduct(
-  deps: { readonly products: ProductRepository; readonly audit?: AuditTrail },
-  ctx: ExecutionContext,
-  productId: string,
-  input: UpdateProductInput,
-): Promise<ProductOutput> {
-  assertCanWrite(ctx)
-
-  /* De outra empresa cai no MESMO 404 de "nao existe" — um erro diferente
-     confirmaria que aquele id existe em alguma outra loja. */
-  const atual = await deps.products.findById(ctx.companyId, productId)
-  if (atual === undefined) {
-    throw AppError.notFound('Produto não encontrado.')
-  }
-
-  /* A regra do cadastro, sobre o produto DEPOIS da edicao: mudar so o custo
-     tambem pode deixar a venda abaixo dele (o contrato nao enxerga isso). */
-  const venda = input.salePriceCents ?? atual.salePriceCents
-  const custo = input.costPriceCents ?? atual.costPriceCents
-  if (venda < custo) {
-    throw AppError.validation('Preco de venda menor que o custo. Confira os valores.', [
-      { path: 'salePriceCents', message: 'Preco de venda menor que o custo.' },
-    ])
-  }
-
-  const atualizado = await deps.products.update(ctx.companyId, productId, input, ctx.userId)
-  if (atualizado === undefined) {
-    throw AppError.notFound('Produto não encontrado.')
-  }
-
-  /* Trilha — RF-123: quais campos mudaram, e o preco antes e depois, que e a
-     pergunta de quem abre a auditoria ("quem mexeu no preco?"). */
-  await deps.audit?.record({
-    companyId: ctx.companyId,
-    entity: 'Product',
-    entityId: productId,
-    action: 'updated',
-    actorId: ctx.userId,
-    channel: ctx.channel,
-    occurredAt: ctx.now,
-    before: { salePriceCents: atual.salePriceCents, costPriceCents: atual.costPriceCents },
-    after: {
-      /* So o que MUDOU: a tela manda o formulario inteiro, e listar os nove
-         campos enviados esconderia que so o preco foi alterado. */
-      campos: (Object.keys(input) as (keyof UpdateProductInput)[])
-        .filter((k) => input[k] !== (atual as Record<string, unknown>)[k])
-        .sort(),
-      salePriceCents: atualizado.salePriceCents,
-      costPriceCents: atualizado.costPriceCents,
-    },
-  })
-
-  return atualizado
-}
-
-/**
  * Inativar ou reativar um produto — NR-151.
  *
  * E o "excluir" que o lojista pede, sem apagar: o produto sai do PDV, do leitor
@@ -318,6 +232,12 @@ export async function setProductActive(
   return novo
 }
 
+/**
+ * A ficha de um produto — RF-017.
+ *
+ * Lanca quando nao acha: abrir a ficha de um id inexistente e link quebrado.
+ * Produto de outra loja cai no mesmo 404 de proposito.
+ */
 export async function getProduct(
   deps: RegisterProductDeps,
   ctx: ExecutionContext,
@@ -333,14 +253,15 @@ export async function getProduct(
 }
 
 /**
- * Edita o cadastro do produto.
+ * Edita o cadastro do produto — RF-017.
  *
  * A tela manda o que mudou. Ausente fica como esta. A checagem de preco contra
  * custo mora AQUI — e nao no schema — porque `updateProductInputSchema` e
  * `.partial()` sem refine: so o core enxerga o produto inteiro depois do merge.
+ * Saldo nao entra: so muda por movimento (RF-124).
  */
 export async function updateProduct(
-  deps: RegisterProductDeps,
+  deps: RegisterProductDeps & { readonly audit?: AuditTrail },
   ctx: ExecutionContext,
   productId: string,
   input: UpdateProductInput,
@@ -377,6 +298,24 @@ export async function updateProduct(
   }
 
   await indexarProduto(deps, ctx.companyId, atualizado, ctx.now)
+
+  await deps.audit?.record({
+    companyId: ctx.companyId,
+    entity: 'Product',
+    entityId: productId,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { salePriceCents: atual.salePriceCents, costPriceCents: atual.costPriceCents },
+    after: {
+      campos: (Object.keys(input) as (keyof UpdateProductInput)[])
+        .filter((k) => input[k] !== (atual as Record<string, unknown>)[k])
+        .sort(),
+      salePriceCents: atualizado.salePriceCents,
+      costPriceCents: atualizado.costPriceCents,
+    },
+  })
 
   return atualizado
 }
