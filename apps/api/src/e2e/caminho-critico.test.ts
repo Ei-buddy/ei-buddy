@@ -79,7 +79,12 @@ const MIGRATION_URL = process.env.DATABASE_MIGRATION_URL ?? DATABASE_URL
  */
 type Composicao = typeof import('../composition.js')
 
-const EAN = `789${Date.now()}`.slice(0, 13)
+/* Unico por execucao e com digito verificador GS1 de verdade: o contrato
+   confere o digito de todo GTIN fora do prefixo de uso interno. */
+const EAN = ((corpo: string) => {
+  const soma = [...corpo].reduce((s, d, i) => s + Number(d) * (i % 2 === 0 ? 1 : 3), 0)
+  return corpo + String((10 - (soma % 10)) % 10)
+})(`789${Date.now()}`.slice(0, 12))
 
 /*
  * CNPJ com digito verificador de verdade, e unico por execucao.

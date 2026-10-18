@@ -33,11 +33,13 @@
   display: grid;
   gap: 8px;
   padding: 18px;
-  background: var(--app-raised);
-  border: 1px solid var(--app-border);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-panel-border);
   border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   animation: cartaoEntrada 0.25s ease-out;
+  box-shadow: var(--glass-shadow-panel);
 }
 
 @keyframes cartaoEntrada {

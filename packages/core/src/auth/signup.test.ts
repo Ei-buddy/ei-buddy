@@ -255,6 +255,70 @@ describe('cadastro de conta', () => {
   })
 
   describe('cadastro como Parceiro — NR-115, ADR-0013', () => {
+    /* NR-114: a candidatura so aparecia para quem abrisse o painel. */
+    describe('aviso a quem aprova', () => {
+      const comoParceiro = (email: string, cnpj: string) => ({
+        ...entrada,
+        email,
+        cnpj,
+        phone: undefined,
+        account: {
+          type: 'parceiro' as const,
+          pixKey: '41999990000',
+          pixKeyType: 'PHONE' as const,
+          message: 'Quero divulgar o Buddy para meus clientes.',
+          couponCode: 'ANA10',
+        },
+      })
+      const comAviso = (c: ReturnType<typeof cenario>, alerta: object) =>
+        ({ ...(c.deps as object), partnerAlert: alerta }) as never
+
+      it('avisa com empresa, e-mail e cupom', async () => {
+        const c = cenario()
+        const avisos: unknown[] = []
+
+        await signup(
+          comAviso(c, { candidaturaRecebida: async (i: unknown) => void avisos.push(i) }),
+          comoParceiro('ana@loja.local', '11222333000181'),
+          AGORA,
+        )
+
+        expect(avisos).toEqual([
+          expect.objectContaining({ email: 'ana@loja.local', couponCode: 'ANA10' }),
+        ])
+      })
+
+      it('lojista comum nao gera aviso', async () => {
+        const c = cenario()
+        const avisos: unknown[] = []
+
+        await signup(
+          comAviso(c, { candidaturaRecebida: async (i: unknown) => void avisos.push(i) }),
+          entrada,
+          AGORA,
+        )
+
+        expect(avisos).toHaveLength(0)
+      })
+
+      it('aviso que falha nao derruba o cadastro', async () => {
+        const c = cenario()
+
+        const sessao = await signup(
+          comAviso(c, {
+            candidaturaRecebida: async () => {
+              throw new Error('smtp fora do ar')
+            },
+          }),
+          comoParceiro('ana@loja.local', '11222333000181'),
+          AGORA,
+        )
+
+        expect(sessao.activeCompanyId).toBeDefined()
+        expect(await c.partners.mine(sessao.activeCompanyId!)).toMatchObject({ status: 'pending' })
+      })
+    })
+
     it('sem `account`, ninguem vira candidato — e o comportamento de sempre', async () => {
       const c = cenario()
       const sessao = await signup(c.deps, entrada, AGORA)

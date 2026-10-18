@@ -102,6 +102,9 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
     for (const empresa of [empresaA, empresaB].filter(Boolean)) {
       await withTenant(sql, empresa, async (tx) => {
         await tx`DELETE FROM payables`
+        await tx`DELETE FROM receivables WHERE sale_id IS NOT NULL`
+        await tx`DELETE FROM sale_items`
+        await tx`DELETE FROM sales`
         await tx`DELETE FROM receivables`
         await tx`DELETE FROM ledger_accounts`
         await tx`DELETE FROM companies`
@@ -269,6 +272,40 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
          lado somar o que ninguem classificou. Some-lo mudaria o total, e as
          linhas do relatorio deixariam de fechar com o resultado. */
       expect(semConta).toMatchObject({ accountId: null, accountType: 'expense' })
+    })
+
+    /* Achado do QA: sem a venda, o DRE nao tinha imposto, tarifa nem custo da
+       mercadoria (margem bruta 100%), e a parcela do credito vencendo no mes
+       seguinte levava a receita junto. */
+    it('a venda entra na data dela, com imposto, custo e tarifa; o recebivel dela nao', async () => {
+      const venda = randomUUID()
+      await withTenant(sql, empresaB, async (tx) => {
+        await tx`
+          INSERT INTO sales
+            (id, company_id, number, status, gross_amount_cents, discount_cents,
+             tax_amount_cents, card_fee_amount_cents, cost_amount_cents, net_amount_cents,
+             created_at)
+          VALUES (${venda}, ${empresaB}, 1, 'settled', 10000, 500,
+                  570, 300, 6000, 8630, '2027-01-10T15:00:00Z')
+        `
+        await tx`
+          INSERT INTO receivables
+            (company_id, sale_id, origin, description, amount_cents, net_amount_cents, due_date)
+          VALUES (${empresaB}, ${venda}, 'sale', 'Parcela 2/2', 4750, 4750, '2027-01-20')
+        `
+      })
+
+      const lancamentos = await repo.entriesBetween(empresaB, '2027-01-01', '2027-01-31')
+
+      expect(
+        Object.fromEntries(lancamentos.map((l) => [l.accountName, [l.accountType, l.amountCents]])),
+      ).toEqual({
+        vendas: ['revenue', 10000],
+        descontos: ['deduction', 500],
+        impostos: ['deduction', 570],
+        cmv: ['cost', 6000],
+        tarifas_cartao: ['expense', 300],
+      })
     })
 
     it('a data nao recua um dia por causa de fuso', async () => {

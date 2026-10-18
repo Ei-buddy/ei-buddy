@@ -211,7 +211,7 @@ export default function PlanoDeContasView() {
         <Stat
           label="Contas de despesa"
           value={String(contas.filter((c) => c.type === 'expense').length)}
-          hint="o resultado do periodo esta no DRE"
+          hint="o resultado do período está no DRE"
         />
       </div>
 

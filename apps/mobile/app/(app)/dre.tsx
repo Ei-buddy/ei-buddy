@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -20,7 +12,9 @@ import {
   type TipoDeConta,
 } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import BotoesExportar from '@/components/BotoesExportar'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Resultado do periodo — NR-077, RF-085, RF-086. US-041.
@@ -107,7 +101,15 @@ export default function Relatorio() {
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Cabecalho titulo="Resultado" subtitulo="Quanto sobrou no período" />
+      <Cabecalho
+        titulo="Resultado"
+        subtitulo="Quanto sobrou no período"
+        acao={
+          dre === null ? undefined : (
+            <BotoesExportar lista="dre" filtros={{ from: dre.from, to: dre.to }} />
+          )
+        }
+      />
 
       <View style={estilos.abas}>
         {(['atual', 'anterior'] as const).map((qual) => (
@@ -289,7 +291,7 @@ function Detalhe({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: espaco.lg },
   conteudo: { padding: espaco.md, gap: espaco.md, paddingBottom: espaco.xxl },
@@ -301,18 +303,16 @@ const estilos = StyleSheet.create({
     paddingBottom: espaco.sm,
   },
   aba: {
+    ...vidro.peca,
     paddingVertical: espaco.sm,
     paddingHorizontal: espaco.md,
     borderRadius: raio.pill,
-    backgroundColor: cores.superficie,
-    borderWidth: 1,
-    borderColor: cores.borda,
   },
-  /* `acento`: com `primaria`, o rotulo da aba ativa (`textoSobreAcento`,
-     quase preto) ficava a 1,12:1 — a aba selecionada era a unica ilegivel. */
-  abaAtiva: { backgroundColor: cores.acento, borderColor: cores.acento },
+  /* Aba ativa no azul de vidro com texto branco (NR-160). Fundo e texto em
+     par: com `primaria` e texto quase preto, a aba ficava a 1,12:1. */
+  abaAtiva: { ...vidro.ativo },
   abaTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
-  abaTextoAtivo: { color: cores.textoSobreAcento, fontWeight: peso.forte },
+  abaTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   resultadoRotulo: { fontSize: fonte.pequeno, color: cores.textoFraco },
   resultadoValor: {
@@ -360,4 +360,4 @@ const estilos = StyleSheet.create({
   contaValor: { fontSize: fonte.pequeno, color: cores.texto },
 
   aviso: { fontSize: fonte.pequeno, color: cores.textoFraco },
-})
+}))

@@ -43,6 +43,38 @@ export function IconWallet({ size = 24, className }: IconProps) {
   )
 }
 
+/** A gaveta do caixa: uma cedula — NR-157. */
+export function IconCash({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <rect x="3.5" y="6.5" width="17" height="11" rx="2" />
+      <circle cx="12" cy="12" r="2.4" />
+      <path d="M6.5 9.5v5M17.5 9.5v5" />
+    </svg>
+  )
+}
+
+/** A entrada de mercadoria: um caminhao de entrega — NR-158. */
+export function IconTruck({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M3.5 6.5h10v9h-10zM13.5 9.5h4l3 3v3h-7" />
+      <circle cx="7" cy="17.5" r="1.8" />
+      <circle cx="17" cy="17.5" r="1.8" />
+    </svg>
+  )
+}
+
+/** O orcamento: uma prancheta com a lista — NR-159. */
+export function IconClipboard({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3.5h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4" />
+    </svg>
+  )
+}
+
 export function IconBox({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

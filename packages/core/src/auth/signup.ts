@@ -6,7 +6,10 @@ import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
 import type { CouponRepository } from '../ports/coupon-repository.js'
 import type { IdentityRegistrar, SessionIssuer, UserDirectory } from '../ports/identity.js'
 import type { LegalConsentRepository } from '../ports/legal-consent-repository.js'
-import type { PartnerApplicationRepository } from '../ports/partner-application-repository.js'
+import type {
+  PartnerApplicationAlert,
+  PartnerApplicationRepository,
+} from '../ports/partner-application-repository.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 import { checkCoupon } from '../subscriptions/preview-coupon.js'
 
@@ -48,6 +51,8 @@ export type SignupDeps = {
   readonly sessions: SessionIssuer
   /** Candidatura de Parceiro — NR-115, ADR-0013. So chamada quando `account.type === 'parceiro'`. */
   readonly partners: PartnerApplicationRepository
+  /** Avisa quem aprova que chegou candidatura — NR-114. Opcional: sem ele, so a fila do painel. */
+  readonly partnerAlert?: PartnerApplicationAlert
   /** Prova de aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1. */
   readonly legalConsents: LegalConsentRepository
   /** Cupom de quem indicou — RF-114. So chamada quando vem `referralCode`. */
@@ -73,7 +78,7 @@ export async function signup(
    */
   if (await deps.companies.cnpjTaken(input.cnpj)) {
     throw AppError.conflict(
-      'Este CNPJ ja tem cadastro. Se a empresa e sua, peca acesso a quem administra a conta.',
+      'Este CNPJ já tem cadastro. Se a empresa é sua, peça acesso a quem administra a conta.',
     )
   }
 
@@ -90,7 +95,7 @@ export async function signup(
    */
   if (input.phone !== undefined && (await deps.users.findByPhone(input.phone)) !== undefined) {
     throw AppError.conflict(
-      'Nao foi possivel usar este telefone. Se a conta e sua, entre por "Acessar minha conta".',
+      'Não foi possível usar este telefone. Se a conta é sua, entre por "Acessar minha conta".',
     )
   }
 
@@ -99,7 +104,7 @@ export async function signup(
     input.account.couponCode !== undefined &&
     (await deps.partners.couponCodeTaken(input.account.couponCode))
   ) {
-    throw AppError.conflict('Este nome de cupom ja esta em uso. Escolha outro.')
+    throw AppError.conflict('Este nome de cupom já está em uso. Escolha outro.')
   }
 
   /*
@@ -128,7 +133,7 @@ export async function signup(
    */
   if (identidade === undefined) {
     throw AppError.conflict(
-      'Nao foi possivel usar este e-mail. Se a conta e sua, entre por "Acessar minha conta".',
+      'Não foi possível usar este e-mail. Se a conta é sua, entre por "Acessar minha conta".',
     )
   }
 
@@ -192,6 +197,17 @@ export async function signup(
       message: input.account.message,
       couponCode: input.account.couponCode,
     })
+
+    /* O aviso nunca derruba o cadastro: a candidatura ja esta na fila do
+       painel, e um e-mail que nao saiu nao pode custar a conta da pessoa. */
+    await deps.partnerAlert
+      ?.candidaturaRecebida({
+        companyName: input.legalName,
+        email: input.email,
+        couponCode: input.account.couponCode ?? null,
+        message: input.account.message,
+      })
+      .catch(() => undefined)
   }
 
   /*

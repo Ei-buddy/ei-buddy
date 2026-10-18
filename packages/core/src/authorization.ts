@@ -61,7 +61,7 @@ const CANAL_FRACO = new Set<Channel>(['whatsapp'])
 export function assertSegundoCanal(ctx: ExecutionContext, operacao: string): void {
   if (CANAL_FRACO.has(ctx.channel)) {
     throw AppError.forbidden(
-      `${operacao} exige o aplicativo, por seguranca. Entre no aplicativo para continuar.`,
+      `${operacao} exige o aplicativo, por segurança. Entre no aplicativo para continuar.`,
     )
   }
 }

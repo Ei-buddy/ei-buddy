@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import type { SessionUser } from '@/lib/session'
 import { entrar, escolherEmpresa } from '@/lib/session-client'
 import { validateCredential, validateLoginPassword, type FieldError } from '@/lib/validation'
@@ -71,12 +71,19 @@ export default function LoginForm() {
    */
   const [naoAbriu, setNaoAbriu] = useState<string | null>(null)
 
-  /* A rota do painel e pedida enquanto a pessoa ainda digita: assim a
-     navegacao no fim da animacao e instantanea, e a sequencia nunca vira
-     espera de rede disfarcada. */
-  useEffect(() => {
-    router.prefetch('/app')
-  }, [router])
+  /*
+   * Nada de `router.prefetch('/app')` ao abrir a tela — NR-145.
+   *
+   * Antes do login nao ha sessao, e a resposta para `/app` e o redirecionamento
+   * do proxy de volta para `/login?proximo=/app`. O roteador guardava ESSA
+   * resposta e a reaproveitava depois da senha aceita: o `router.push('/app')`
+   * caia de novo no login sem nem ir a rede, e sete segundos depois a travessia
+   * desistia com "o painel nao abriu a tempo". Em producao acontecia em todo
+   * login; em desenvolvimento o Next nao faz prefetch, e nada aparecia.
+   *
+   * O pedido antecipado agora acontece em `irParaOPainel`, com o cookie ja
+   * gravado: ainda sobra a animacao inteira (~950ms) para a rota chegar.
+   */
 
   const atravessar = useCallback(() => {
     if (destino) router.push(destino)
@@ -189,8 +196,12 @@ export default function LoginForm() {
     const proximo = new URLSearchParams(window.location.search).get('proximo')
     /* Nao navega aqui: guarda o destino e deixa a travessia levar. Com
        movimento reduzido ela vai no primeiro quadro, sem animacao nenhuma. */
+    const alvo = proximo && proximo.startsWith('/app') ? proximo : '/app'
+    /* Com a sessao ja aceita, o pedido antecipado traz o painel de verdade, e
+       nao o redirecionamento para o login (ver o comentario la em cima). */
+    router.prefetch(alvo)
     setNaoAbriu(null)
-    setDestino(proximo && proximo.startsWith('/app') ? proximo : '/app')
+    setDestino(alvo)
   }
 
   /**

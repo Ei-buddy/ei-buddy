@@ -22,11 +22,13 @@
   display: grid;
   gap: 16px;
   padding: 20px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-lg);
-  background: var(--app-surface);
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   color: var(--app-text);
-  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--glass-shadow-panel);
 }
 
 .cabecalho {
@@ -141,9 +143,10 @@
   flex: 1;
   min-width: 0;
   padding: 11px 14px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-inset-border);
   border-radius: var(--radius-sm);
-  background: var(--app-field);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
   color: var(--app-text);
   font-family: var(--font-body);
   font-size: 15px;

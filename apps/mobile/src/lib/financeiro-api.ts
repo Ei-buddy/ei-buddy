@@ -6,7 +6,10 @@
  * app chamava) sairam, para nada parecer gravar sem gravar.
  */
 
-import { chamarApi, type Resposta } from './api'
+import { File, Paths } from 'expo-file-system'
+import { isAvailableAsync, shareAsync } from 'expo-sharing'
+import { API_URL, chamarApi, type Resposta } from './api'
+import { lerToken } from './session'
 import type { StatusTitulo } from './types'
 
 /* -------------------------------------------------------------------------- */
@@ -76,6 +79,8 @@ export type Titulo = {
   valorCents: number
   baixadoCents: number
   status: StatusTitulo
+  /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
+  mutavel: boolean
 }
 
 export type ListaDeTitulos = {
@@ -99,6 +104,7 @@ type PagarDaApi = {
 
 type ReceberDaApi = {
   id: string
+  saleId: string | null
   customerName: string | null
   description: string
   amountCents: number
@@ -146,6 +152,7 @@ export async function listarContasPagar(): Promise<Resposta<ListaDeTitulos>> {
           valorCents: p.amountCents,
           baixadoCents: p.settledAmountCents,
           status: paraStatus(p.status),
+          mutavel: p.settledAmountCents === 0,
         })),
       ),
       totalCents: r.dados.totalCents,
@@ -178,6 +185,8 @@ export async function listarContasReceber(): Promise<Resposta<ListaDeTitulos>> {
           valorCents: rec.amountCents,
           baixadoCents: rec.settledAmountCents,
           status: paraStatus(rec.status),
+          /* O que veio de venda se resolve na venda (cancelar ou devolver). */
+          mutavel: rec.saleId === null && rec.settledAmountCents === 0,
         })),
       ),
       totalCents: r.dados.totalCents,
@@ -289,6 +298,36 @@ export const estornarBaixa = (baixaId: string, motivo: string): Promise<Resposta
   })
 
 /* -------------------------------------------------------------------------- */
+/* Corrigir e cancelar titulo — NR-150                                        */
+/* -------------------------------------------------------------------------- */
+
+/** So o que mudou. Fornecedor so existe na conta a pagar. */
+export type CorrecaoDeTitulo = {
+  supplier?: string
+  description?: string
+  amountCents?: number
+  dueDate?: string
+}
+
+export const corrigirTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  mudancas: CorrecaoDeTitulo,
+): Promise<Resposta<unknown>> =>
+  chamarApi(`/contas-a-${tipo}/${encodeURIComponent(id)}`, { method: 'PATCH', body: mudancas })
+
+/** Cancelar — o titulo fica, com o motivo na trilha. */
+export const cancelarTitulo = (
+  tipo: TipoDeTitulo,
+  id: string,
+  motivo: string,
+): Promise<Resposta<unknown>> =>
+  chamarApi(`/contas-a-${tipo}/${encodeURIComponent(id)}/cancelar`, {
+    method: 'POST',
+    body: { reason: motivo },
+  })
+
+/* -------------------------------------------------------------------------- */
 /* Utilitarios de status                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -319,4 +358,64 @@ export const ROTULO_SITUACAO: Record<SituacaoVisual, string> = {
   vencido: 'Vencido',
   quitado: 'Quitado',
   parcial: 'Baixa parcial',
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lancamento — RF-061, RF-064                                                */
+/* -------------------------------------------------------------------------- */
+
+export async function lancarContaAPagar(entrada: {
+  supplier: string
+  description: string
+  amountCents: number
+  dueDate: string
+  accountId?: string
+}): Promise<Resposta<unknown>> {
+  return chamarApi<unknown>('/contas-a-pagar', { method: 'POST', body: entrada })
+}
+
+export async function lancarContaAReceber(entrada: {
+  description: string
+  amountCents: number
+  dueDate: string
+  customerId?: string
+}): Promise<Resposta<unknown>> {
+  return chamarApi<unknown>('/contas-a-receber', { method: 'POST', body: entrada })
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exportacao — RF-087                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Baixa a lista de titulos em CSV ou PDF e abre o compartilhar do celular —
+ * mandar ao contador pelo WhatsApp ou e-mail e o uso de verdade. O arquivo e o
+ * mesmo que o web baixa: quem monta e o servidor.
+ */
+export async function exportarTitulos(
+  tipo: TipoDeTitulo,
+  formato: 'csv' | 'pdf',
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const token = await lerToken()
+  const destino = new File(Paths.cache, `contas-a-${tipo}.${formato}`)
+  try {
+    const arquivo = await File.downloadFileAsync(
+      `${API_URL}/contas-a-${tipo}/exportar?formato=${formato}`,
+      destino,
+      {
+        idempotent: true,
+        ...(token === null ? {} : { headers: { authorization: `Bearer ${token}` } }),
+      },
+    )
+    if (!(await isAvailableAsync())) {
+      return { ok: false, erro: 'Este aparelho não permite compartilhar arquivos.' }
+    }
+    await shareAsync(arquivo.uri, {
+      mimeType: formato === 'csv' ? 'text/csv' : 'application/pdf',
+      dialogTitle: 'Exportar títulos',
+    })
+    return { ok: true }
+  } catch {
+    return { ok: false, erro: 'Não foi possível exportar. Confira a conexão e tente de novo.' }
+  }
 }

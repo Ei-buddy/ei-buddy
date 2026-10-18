@@ -69,3 +69,16 @@ overrides:
   # O teto preserva a correcao de seguranca e para na fronteira do major, que e
   # onde a promessa de compatibilidade acaba — como o override do vite acima.
   js-yaml: '>=4.3.2 <5'
+
+# Excecoes de auditoria — RNF-029. So para aviso SEM versao corrigida, e com
+# prazo: passado o prazo, a linha sai e o gate volta a barrar.
+auditConfig:
+  ignoreGhsas:
+    # node-forge <=1.4.0 aceita assinatura PKCS#1 v1.5 com DigestAlgorithm
+    # aninhado a mais (alta). Publicado em 2026-10-01 sem versao corrigida
+    # (first_patched_version nulo). Chega so pelo @expo/cli, que usa o pacote
+    # para gerar o certificado HTTPS do servidor de DESENVOLVIMENTO do mobile:
+    # nao vai no app, na api nem no worker, e nada aqui verifica assinatura
+    # RSA de terceiros com ele. Prazo: 2026-11-01 — revisar se saiu a 1.4.1
+    # ou se o Expo trocou de biblioteca.
+    - GHSA-86w9-cpqp-85rv

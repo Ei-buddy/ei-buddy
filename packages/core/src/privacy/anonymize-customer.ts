@@ -48,11 +48,11 @@ export async function anonymizeCustomer(
   assertSegundoCanal(ctx, 'Anonimizar os dados de um cliente')
 
   if (ctx.role !== 'owner') {
-    throw AppError.forbidden('Somente o responsavel pela loja pode anonimizar dados de cliente.')
+    throw AppError.forbidden('Somente o responsável pela loja pode anonimizar dados de cliente.')
   }
 
   const cliente = await deps.subjects.findCustomer(ctx.companyId, input.customerId)
-  if (cliente === undefined) throw AppError.notFound('Cliente nao encontrado.')
+  if (cliente === undefined) throw AppError.notFound('Cliente não encontrado.')
 
   if (cliente.anonymizedAt !== null) {
     /*
@@ -62,7 +62,7 @@ export async function anonymizeCustomer(
      * meses atras, e e a data que importa num pedido de titular.
      */
     throw AppError.conflict(
-      `Este cliente ja foi anonimizado em ${cliente.anonymizedAt.slice(0, 10)}.`,
+      `Este cliente já foi anonimizado em ${cliente.anonymizedAt.slice(0, 10)}.`,
     )
   }
 
@@ -172,7 +172,7 @@ function recusaSeDeve(cliente: CustomerPersonalData): void {
   if (cliente.walletBalanceCents > 0) {
     throw AppError.conflict(
       'Este cliente tem fiado em aberto. Receba o valor ou baixe a divida como perda antes de ' +
-        'anonimizar — depois disso nao havera mais como identificar quem devia.',
+        'anonimizar — depois disso não haverá mais como identificar quem devia.',
     )
   }
 }

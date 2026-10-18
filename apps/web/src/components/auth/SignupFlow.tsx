@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState, type FormEvent } from 'react'
-import { createAccount, createPixCharge, fetchPixChargeStatus } from '@/lib/auth-api'
+import {
+  COBRANCA_DA_ASSINATURA_DISPONIVEL,
+  createAccount,
+  createPixCharge,
+  fetchPixChargeStatus,
+} from '@/lib/auth-api'
 import { saveSubscriptionStatus } from '@/lib/subscription-store'
 import {
   maskCNPJ,
@@ -194,15 +199,10 @@ export default function SignupFlow() {
   const aoConfirmarPagamento = useCallback(() => {
     saveSubscriptionStatus('active')
 
-    /* Abre a sessao para o proxy liberar /app/*. */
-    /* A criacao de conta ainda e simulada (POST /auth/signup nao existe — nao
-       ha tarefa no ledger para ela). Antes isto abria uma sessao FALSA, com um
-       cookie que o proxy aceitava: quem criava conta entrava no painel sem
-       nunca ter passado pela api. Agora manda para o login, que e verdade —
-       a conta so existe quando o cadastro existir. */
-
+    /* A sessao ja esta aberta: `createAccount` cria a conta de verdade na api
+       e o proprio handler grava o cookie (NR-014). Daqui e so entrar. */
     router.push('/app')
-  }, [router, nome, email])
+  }, [router])
 
   return (
     <>
@@ -470,7 +470,7 @@ export default function SignupFlow() {
       ) : null}
 
       {/* ============================ Etapa 4 ============================ */}
-      {step === 4 ? (
+      {step === 4 && COBRANCA_DA_ASSINATURA_DISPONIVEL ? (
         <>
           <FormHeader
             title="Pagamento via Pix"
@@ -488,6 +488,26 @@ export default function SignupFlow() {
             onPago={aoConfirmarPagamento}
             textoSucesso="Sua assinatura está ativa. Estamos abrindo seu painel..."
           />
+        </>
+      ) : null}
+
+      {/* Sem cobranca de verdade, a conta ja criada segue direto para o painel
+          em vez de parar num QR de exemplo — ver COBRANCA_DA_ASSINATURA_DISPONIVEL. */}
+      {step === 4 && !COBRANCA_DA_ASSINATURA_DISPONIVEL ? (
+        <>
+          <FormHeader
+            title="Conta criada"
+            subtitle={`Seu ${BRAND} já está pronto. A cobrança da mensalidade começa depois do período de teste, e avisamos antes.`}
+          />
+          <SubmitButton
+            type="button"
+            onClick={() => {
+              saveSubscriptionStatus('trial')
+              router.push('/app')
+            }}
+          >
+            Ir para o painel
+          </SubmitButton>
         </>
       ) : null}
     </>

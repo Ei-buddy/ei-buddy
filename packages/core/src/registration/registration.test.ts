@@ -1055,6 +1055,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
       countAll: (c) => produtos.countAll(c),
       listSuggestions: (c) => produtos.listSuggestions(c),
       update: (c, id, patch, by) => produtos.update(c, id, patch, by),
+      setActive: (c, id, ativo, by) => produtos.setActive(c, id, ativo, by),
       setDeletedAt: (c, id, at, by) => produtos.setDeletedAt(c, id, at, by),
     }
 
@@ -1077,6 +1078,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
 
     const catalogo = await c.produtos.listCatalog('emp-1', {
       stock: 'todos',
+      situacao: 'ativos',
       offset: 0,
       limite: 10,
     })
@@ -1112,6 +1114,7 @@ describe('importacao de catalogo — NR-072, US-008', () => {
     /* E a linha 2 entrou: a recusa nao interrompeu o lote. */
     const catalogo = await c.produtos.listCatalog('emp-1', {
       stock: 'todos',
+      situacao: 'ativos',
       offset: 0,
       limite: 10,
     })

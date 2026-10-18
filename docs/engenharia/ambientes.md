@@ -84,15 +84,16 @@ Subconta por lojista: [ADR-0005](../decisoes/adr/0005-subconta-asaas-nao-baas.md
 Split nas vendas: [DEC-018](../decisoes/README.md#dec-018) (aberta — não enviar
 `split[]` até fechar).
 
-| Variável                   | Obr. | Seg. | local                              | Descrição                                        |
-| -------------------------- | :--: | :--: | ---------------------------------- | ------------------------------------------------ |
-| `PAYMENTS_PROVIDER`        |  ✅  |      | `fake`                             | `fake` \| `asaas`                                |
-| `BILLING_PROVIDER`         |      |      | `fake`                             | `fake` \| `asaas` — mensalidade na conta-pai     |
-| `ASAAS_BASE_URL`           |      |      | `https://api-sandbox.asaas.com/v3` | sandbox ou produção                              |
-| `ASAAS_API_KEY`            |      |  🔒  | vazio                              | chave da **conta-pai**                           |
-| `ASAAS_USER_AGENT`         |      |      | vazio                              | identificar a aplicação                          |
-| `ASAAS_WEBHOOK_AUTH_TOKEN` |      |  🔒  | vazio                              | `authToken` dos webhooks da conta-pai            |
-| `ASAAS_WALLET_ID`          |      |      | vazio                              | `walletId` da pai — só se DEC-018 escolher Split |
+| Variável                   | Obr. | Seg. | local                              | Descrição                                                                                     |
+| -------------------------- | :--: | :--: | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `PAYMENTS_PROVIDER`        |  ✅  |      | `fake`                             | `fake` \| `asaas`                                                                             |
+| `BILLING_PROVIDER`         |      |      | `fake`                             | `fake` \| `asaas` — mensalidade na conta-pai                                                  |
+| `ASAAS_BASE_URL`           |      |      | `https://api-sandbox.asaas.com/v3` | sandbox ou produção                                                                           |
+| `ASAAS_API_KEY`            |      |  🔒  | vazio                              | chave da **conta-pai**                                                                        |
+| `ASAAS_AMBIENTE`           |      |      | vazio (`NODE_ENV` decide)          | `sandbox` ou `producao`; no deploy vem da variable do Environment do GitHub, padrão `sandbox` |
+| `ASAAS_USER_AGENT`         |      |      | vazio                              | identificar a aplicação                                                                       |
+| `ASAAS_WEBHOOK_AUTH_TOKEN` |      |  🔒  | vazio                              | `authToken` dos webhooks da conta-pai                                                         |
+| `ASAAS_WALLET_ID`          |      |      | vazio                              | `walletId` da pai — só se DEC-018 escolher Split                                              |
 
 Chave da subconta e `authToken` do webhook por lojista **não** são env global:
 vão ao cofre, referenciados pelo satélite de integração da empresa.
@@ -155,6 +156,19 @@ assistente sobe desligado: `/agent/messages` responde `503 UNAVAILABLE` e o log
 avisa na subida. Venda, financeiro, estoque e CRM seguem normais — mesmo
 critério de `SECRETS_KEY` na emissão fiscal. Recusa de boot fica só para falha
 de segurança (RLS furada, `AUTH_PROVIDER=fake`).
+
+### E-mail — NR-014, NR-114
+
+| Variável               | Obr. | Seg. | local   | Descrição                                                                                      |
+| ---------------------- | :--: | :--: | ------- | ---------------------------------------------------------------------------------------------- |
+| `EMAIL_PROVIDER`       |      |      | `log`   | `log` \| `smtp`. Em produção com `log`, **nenhum e-mail sai** (o log nem escreve o corpo)      |
+| `SMTP_HOST`            |      |      | vazio   | obrigatório com `smtp`. Local: `localhost` com o Mailpit (perfil `full`)                       |
+| `SMTP_PORT`            |      |      | `587`   | `587` STARTTLS · `465` TLS (com `SMTP_SECURE=true`) · `1025` Mailpit                           |
+| `SMTP_USER`            |      |  🔒  | vazio   | —                                                                                              |
+| `SMTP_PASSWORD`        |      |  🔒  | vazio   | —                                                                                              |
+| `SMTP_FROM`            |      |      | vazio   | remetente; obrigatório com `smtp` — sem ele a api cai para `log` e avisa na subida             |
+| `SMTP_SECURE`          |      |      | `false` | TLS na conexão (porta 465)                                                                     |
+| `AVISO_PARCEIRO_EMAIL` |      |      | vazio   | quem recebe o aviso de nova candidatura de Parceiro. Vazio = sem aviso; a fila do painel segue |
 
 ### Webhooks em desenvolvimento
 

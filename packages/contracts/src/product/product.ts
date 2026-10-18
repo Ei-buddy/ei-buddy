@@ -94,6 +94,16 @@ export const updateProductInputSchema = z
     minStock: z.number().int().nonnegative(),
     category: z.string().trim().max(80),
     supplier: z.string().trim().max(120),
+    /*
+     * Os fiscais entraram no cadastro depois deste schema — RF-046, NR-042.
+     *
+     * Ficaram de fora por ordem de escrita, nao por decisao: sem eles, um NCM
+     * digitado errado no cadastro nao teria conserto, e a nota travaria por um
+     * dado que o lojista ACHA que pode corrigir.
+     */
+    ncm: ncmSchema,
+    cfop: cfopSchema,
+    taxSituationCode: csosnSchema,
   })
   .partial()
   .strict()
@@ -124,6 +134,11 @@ export const productOutputSchema = z.object({
   minStock: z.number().int(),
   category: z.string().nullable(),
   supplier: z.string().nullable(),
+  /**
+   * Inativo sai do PDV e do catalogo do balcao, mas continua no historico —
+   * NR-151. E o "excluir" que nao apaga venda passada.
+   */
+  isActive: z.boolean(),
 })
 
 export type ProductOutput = z.infer<typeof productOutputSchema>
@@ -144,6 +159,13 @@ export const stockLevelSchema = z.enum(NIVEL_DE_ESTOQUE)
 
 export type StockLevel = z.infer<typeof stockLevelSchema>
 
+/** Ativos por padrao: o inativo so aparece quando se pede por ele — NR-151. */
+export const SITUACAO_DO_PRODUTO = ['ativos', 'inativos'] as const
+
+export const productSituationSchema = z.enum(SITUACAO_DO_PRODUTO)
+
+export type ProductSituation = z.infer<typeof productSituationSchema>
+
 export const PAGINA_PADRAO_DO_CATALOGO = 24
 export const PAGINA_MAXIMA_DO_CATALOGO = 100
 
@@ -152,6 +174,7 @@ export const catalogInputSchema = z
     /** Descricao, codigo interno ou codigo de barras. */
     q: z.string().trim().max(120).optional(),
     stock: stockLevelSchema.default('todos'),
+    situacao: productSituationSchema.default('ativos'),
     page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
     pageSize: z.coerce
       .number()

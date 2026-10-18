@@ -16,8 +16,26 @@ describe('cadastro de produto', () => {
   })
 
   it('normaliza o codigo de barras', () => {
-    const r = createProductInputSchema.parse({ ...produto, barcode: '789.123 45678 90' })
-    expect(r.barcode).toBe('7891234567890')
+    const r = createProductInputSchema.parse({ ...produto, barcode: '789.123 45678 95' })
+    expect(r.barcode).toBe('7891234567895')
+  })
+
+  /* O QA cadastrou 7891000100100 (o certo e ...103) e passou. */
+  it('confere o digito do GTIN, menos na etiqueta interna da loja', () => {
+    const com = (barcode: string) => createProductInputSchema.safeParse({ ...produto, barcode })
+
+    expect(com('7891000100103').success).toBe(true)
+    expect(com('7891000100100').success).toBe(false)
+    /* Prefixo 2: balanca e etiqueta propria, fora do GTIN. */
+    expect(com('2000123000009').success).toBe(true)
+  })
+
+  it('recusa CFOP e CSOSN que nao existem', () => {
+    const com = (over: object) => createProductInputSchema.safeParse({ ...produto, ...over })
+
+    expect(com({ cfop: '5102', taxSituationCode: '102' }).success).toBe(true)
+    expect(com({ cfop: '9999' }).success).toBe(false)
+    expect(com({ taxSituationCode: '999' }).success).toBe(false)
   })
 
   it('aceita so CSOSN: o produto atende Simples e MEI, nao o regime normal', () => {

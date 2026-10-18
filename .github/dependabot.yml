@@ -35,6 +35,12 @@ updates:
       - dependency-name: expo
       - dependency-name: react-native
       - dependency-name: 'expo-*'
+      # Modulos NATIVOS do React Native seguem o SDK do Expo pelo mesmo motivo:
+      # a CI nao compila o mobile, entao o PR ficaria verde sem provar nada, e
+      # o app ja esta acima do conjunto que o Expo 57 recomenda
+      # (`npx expo install --check`). Foram o #332 e o #333.
+      - dependency-name: 'react-native-*'
+      - dependency-name: '@react-native-async-storage/*'
       # ESLint 10 ainda nao da para adotar, e nao e escolha nossa.
       #
       # O `eslint-config-next` puxa `eslint-plugin-react`, cuja ULTIMA versao
@@ -52,6 +58,17 @@ updates:
       # publicar uma versao com o plugin compativel, apague estas linhas.
       - dependency-name: eslint
         update-types: [version-update:semver-major]
+      # React so recebe PATCH: o React Native 0.86 traz o renderizador da
+      # linha 19.2 e confere a versao ao abrir o app — com React 19.3 o mobile
+      # nao abre ("Incompatible React versions"). O Expo 57 recomenda 19.2.x.
+      # A CI nao compila o mobile, entao o PR do dependabot ficava VERDE e
+      # quebraria o app (foi o #334). Apague quando o SDK do Expo subir.
+      - dependency-name: react
+        update-types: [version-update:semver-minor, version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-minor, version-update:semver-major]
+      - dependency-name: '@types/react'
+        update-types: [version-update:semver-minor, version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /

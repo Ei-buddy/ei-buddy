@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, Text, View } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Botao from './ui/Botao'
 import Campo from './ui/Campo'
+import { tocarBipe } from '@/lib/som'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Tempo travado apos uma leitura, para nao ler o mesmo codigo em rajada. */
 const TRAVA_MS = 1500
@@ -39,6 +41,8 @@ export default function LeitorCodigo({
     if (agora < travadoAte.current) return
     travadoAte.current = agora + TRAVA_MS
 
+    /* O bipe da leitora, como no web — NR-163. Respeita o liga/desliga. */
+    tocarBipe()
     onLer(codigo)
   }
 
@@ -111,7 +115,7 @@ export default function LeitorCodigo({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   cabecalho: {
     flexDirection: 'row',
@@ -166,4 +170,4 @@ const estilos = StyleSheet.create({
   },
 
   manual: { padding: espaco.lg, gap: espaco.md },
-})
+}))

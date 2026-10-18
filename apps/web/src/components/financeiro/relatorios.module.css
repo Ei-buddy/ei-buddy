@@ -43,6 +43,8 @@
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 14px;
+  /* O h2 global usa a cor do site, que nao segue o tema do app. */
+  color: var(--app-text);
 }
 
 .blocoTotal {
@@ -52,6 +54,12 @@
 }
 
 /* ===================== Faturamento mes a mes ===================== */
+
+.legenda {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  color: var(--app-muted);
+}
 
 .meses {
   width: 100%;

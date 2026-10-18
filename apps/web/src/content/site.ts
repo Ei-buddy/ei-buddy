@@ -9,6 +9,14 @@
  * O primeiro escopo usou metricas e depoimentos ficticios para dar forma ao
  * layout. Eles sairam. Os pontos onde dado real entra estao marcados com TODO.
  *
+ * "Usuarios ilimitados" e "papel para dono, equipe e contador" sairam porque a
+ * gestao de equipe foi cancelada (RF-005, RF-006, RF-008, RF-012, RF-042):
+ * cada loja e operada por quem a cadastrou.
+ *
+ * NFS-e e importacao de XML de compra sairam pelo mesmo motivo: NFS-e e
+ * pos-MVP (escopo-mvp.md) e o emissor da loja so faz NFC-e (DEC-004); o XML
+ * de compra saiu do produto antes de ficar pronto.
+ *
  * A integracao com Google Agenda saiu junto, aqui e nos dois apps: ela nao
  * aparecia em requisito, user story nem decisao — os RF-089 a RF-093 descrevem
  * agenda propria com lembrete, sem integracao externa. Anunciar o que nao esta
@@ -87,7 +95,7 @@ export const perguntasDoHero = [
 export const highlights = [
   'Gestão completa do negócio',
   'Assistente por WhatsApp',
-  'Emissão de NFC-e e NFS-e',
+  'Emissão de NFC-e',
   'Contas a pagar e a receber',
   'Controle de estoque',
   'CRM e agenda integrados',
@@ -117,7 +125,7 @@ export const modules = [
     name: 'Produtos',
     tag: 'Catálogo e estoque',
     description:
-      'Catálogo com controle de estoque, importação de XML de compra, busca por EAN e NCM e histórico de movimentação.',
+      'Catálogo com controle de estoque, importação por planilha, leitura do código de barras e histórico de movimentação.',
   },
   {
     id: 'financeiro',
@@ -133,7 +141,7 @@ export const modules = [
     name: 'Vendas',
     tag: 'PDV e nota fiscal',
     description:
-      'Catálogo, carrinho e pagamento em Pix, cartão, dinheiro ou carteira — com NFC-e ou NFS-e emitida no fechamento.',
+      'Catálogo, carrinho e pagamento em Pix, cartão, dinheiro ou carteira — com NFC-e emitida no fechamento.',
   },
   {
     id: 'crm',
@@ -172,7 +180,7 @@ export const benefits = [
   {
     icon: 'receipt',
     title: 'A nota sai junto com a venda',
-    text: 'NFC-e e NFS-e emitidas no fechamento, com imposto e taxa de cartão já calculados.',
+    text: 'NFC-e emitida no fechamento, com imposto e taxa de cartão já calculados.',
   },
   {
     icon: 'wallet',
@@ -192,7 +200,7 @@ export const benefits = [
   {
     icon: 'shield',
     title: 'Cada empresa vê só o que é dela',
-    text: 'Dados isolados por empresa, com papel de acesso separado para dono, equipe e contador.',
+    text: 'Os dados de cada empresa ficam isolados, e cada acesso e alteração fica registrado.',
   },
 ]
 
@@ -209,12 +217,12 @@ export const plan = {
   note: 'Cobrança mensal, sem fidelidade. Cancele quando quiser.',
   features: [
     'Empresa, clientes, produtos e estoque',
-    'Vendas com emissão de NFC-e e NFS-e',
+    'Vendas com emissão de NFC-e',
     'Financeiro: plano de contas, contas a pagar e a receber',
     'CRM em quadro Kanban e agenda com lembrete de compromisso',
     'Assistente de IA pelo WhatsApp',
     'Importação de clientes e produtos por planilha',
-    'Usuários ilimitados por empresa',
+    'Exportação completa dos seus dados quando quiser',
   ],
 }
 
@@ -232,12 +240,12 @@ export const faq = [
   {
     question: 'O app emite nota fiscal?',
     answer:
-      'Sim, NFC-e para venda de produto e NFS-e para serviço, emitidas no mesmo passo do fechamento da venda. O imposto e a taxa de cartão entram no cálculo e o valor líquido vai para contas a receber.',
+      'Sim, NFC-e para venda de produto, emitida no mesmo passo do fechamento da venda. O imposto e a taxa de cartão entram no cálculo e o valor líquido vai para contas a receber. NFS-e, para quem presta serviço, vem depois.',
   },
   {
     question: 'Posso importar meus clientes e produtos de uma planilha?',
     answer:
-      'Sim. Clientes e produtos aceitam importação por planilha, com mapeamento das colunas do seu arquivo. Produtos também aceitam XML de nota de compra, que já traz descrição, EAN e NCM preenchidos.',
+      'Sim. Clientes e produtos aceitam importação por planilha em CSV, com mapeamento das colunas do seu arquivo. No Excel ou no Google Planilhas, é só salvar como CSV.',
   },
   {
     question: 'Como funciona o pagamento da mensalidade?',

@@ -3,7 +3,7 @@ import type {
   SettlePayableInput,
   SettleReceivableInput,
 } from '@na-regua/contracts'
-import { aplicarBaixa } from '@na-regua/domain'
+import { aplicarBaixa, DomainError } from '@na-regua/domain'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
@@ -38,13 +38,13 @@ export async function settlePayable(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findPayable(ctx.companyId, input.payableId)
-    if (titulo === undefined) throw AppError.notFound('Conta nao encontrada.')
+    if (titulo === undefined) throw AppError.notFound('Conta não encontrada.')
     if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Esta conta foi cancelada e nao pode receber baixa.')
+      throw AppError.conflict('Esta conta foi cancelada e não pode receber baixa.')
     }
 
     /* A aritmetica e de `domain`, e a mesma para os dois tipos de titulo. */
-    const r = aplicarBaixa(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
+    const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
 
     const baixa = await tx.insertSettlement({
       companyId: ctx.companyId,
@@ -95,12 +95,12 @@ export async function settleReceivable(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findReceivable(ctx.companyId, input.receivableId)
-    if (titulo === undefined) throw AppError.notFound('Recebivel nao encontrado.')
+    if (titulo === undefined) throw AppError.notFound('Recebível não encontrado.')
     if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Este recebivel foi cancelado e nao pode receber baixa.')
+      throw AppError.conflict('Este recebível foi cancelado e não pode receber baixa.')
     }
 
-    const r = aplicarBaixa(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
+    const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
 
     const baixa = await tx.insertSettlement({
       companyId: ctx.companyId,
@@ -139,4 +139,23 @@ export async function settleReceivable(
 
     return baixa
   })
+}
+
+/**
+ * A regra da baixa e de `domain`; o que ela recusa e erro do USUARIO.
+ *
+ * Sem esta traducao, "baixa maior que o saldo" e "titulo ja quitado" subiam
+ * como DomainError cru, e o handler respondia 500 — "algo deu errado do nosso
+ * lado" para um valor digitado a mais. Mesmo tratamento da venda.
+ */
+function baixaDeDominio(...args: Parameters<typeof aplicarBaixa>): ReturnType<typeof aplicarBaixa> {
+  try {
+    return aplicarBaixa(...args)
+  } catch (erro) {
+    if (erro instanceof DomainError) {
+      if (erro.code === 'ALREADY_SETTLED') throw AppError.conflict(erro.message)
+      throw AppError.validation(erro.message, [{ path: 'amountCents', message: erro.message }])
+    }
+    throw erro
+  }
 }

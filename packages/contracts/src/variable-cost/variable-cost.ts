@@ -21,6 +21,11 @@ export const createVariableCostInputSchema = z
 
 export type CreateVariableCostInput = z.infer<typeof createVariableCostInputSchema>
 
+/** Editar — NR-152. O mesmo formulario do cadastro: os dois campos vem juntos. */
+export const updateVariableCostInputSchema = createVariableCostInputSchema
+
+export type UpdateVariableCostInput = CreateVariableCostInput
+
 export const variableCostOutputSchema = z.object({
   id: idSchema,
   name: z.string(),

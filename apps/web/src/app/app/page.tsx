@@ -77,7 +77,11 @@ export default async function VisaoGeralPage() {
         <Stat
           label="Faturamento hoje"
           value={painel.hoje === null ? '—' : formatMoney(emReais(painel.hoje.grossCents))}
-          hint={painel.hoje === null ? 'não carregou' : `${painel.hoje.salesCount} vendas`}
+          hint={
+            painel.hoje === null
+              ? 'não carregou'
+              : `${painel.hoje.salesCount} vendas · líquido ${formatMoney(emReais(painel.hoje.netCents))}`
+          }
           tone={painel.hoje !== null && painel.hoje.grossCents > 0 ? 'positive' : undefined}
         />
         {/*
@@ -95,7 +99,7 @@ export default async function VisaoGeralPage() {
           Apareceu ao abrir a tela com a api fora do ar.
         */}
         <Stat
-          label="Ticket médio"
+          label="Ticket médio (bruto)"
           value={
             painel.hoje?.averageTicketCents == null
               ? '—'

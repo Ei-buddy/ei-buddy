@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { assinarConexao, lerConexao, lerConexaoNoServidor } from '@/lib/conexao'
-import { IconLogout, IconReceipt, IconStore } from '../Icons'
+import { IconLogout, IconReceipt, IconStore, IconUsers } from '../Icons'
 import PeriodoDoDia from './PeriodoDoDia'
 import styles from './AppShell.module.css'
 
@@ -95,6 +95,16 @@ export default function MenuDoUsuario({
             <strong>{nome}</strong>
             <span>{empresa}</span>
           </p>
+
+          <Link
+            href="/app/perfil"
+            className={styles.userMenuItem}
+            role="menuitem"
+            onClick={() => setAberto(false)}
+          >
+            <IconUsers size={17} />
+            Meu perfil
+          </Link>
 
           <Link
             href="/app/empresa"

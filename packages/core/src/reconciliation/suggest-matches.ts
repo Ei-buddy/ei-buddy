@@ -70,7 +70,7 @@ export async function suggestMatches(
     tx.findTransaction(ctx.companyId, input.transactionId),
   )
 
-  if (transacao === undefined) throw AppError.notFound('Transacao nao encontrada.')
+  if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
 
   /* Conciliada nao tem sugestao: ela ja tem resposta. Devolver candidatos aqui
      convidaria a trocar por outro sem passar pelo desfazer, e o desfazer e o

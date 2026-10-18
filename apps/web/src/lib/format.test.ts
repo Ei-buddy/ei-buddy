@@ -18,7 +18,15 @@
  * repositorios de `db`, segundo o comentario do vitest.config de la.
  */
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { daysUntil, describeDueDate, diaLocal, hoje, mesDeHoje } from './format'
+import {
+  daysUntil,
+  describeDueDate,
+  diaLocal,
+  formaPagamentoLabel,
+  formatCentavos,
+  hoje,
+  mesDeHoje,
+} from './format'
 
 /* Import estatico e `TZ` depois, como em `agenda-api.test.ts`: as funcoes leem
    o fuso na CHAMADA, e nao na carga do modulo. */
@@ -167,5 +175,32 @@ describe('describeDueDate', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('formatCentavos', () => {
+  /* Intl separa o simbolo com espaco nao quebravel. */
+  const limpo = (t: string) => t.replace(/\s/g, ' ')
+
+  it('le centavos, nao reais', () => {
+    expect(limpo(formatCentavos(97770))).toBe('R$ 977,70')
+  })
+
+  it('formata milhar e zero', () => {
+    expect(limpo(formatCentavos(123456789))).toBe('R$ 1.234.567,89')
+    expect(limpo(formatCentavos(0))).toBe('R$ 0,00')
+  })
+
+  it('mantem o sinal do estorno', () => {
+    expect(limpo(formatCentavos(-1500))).toBe('-R$ 15,00')
+  })
+})
+
+describe('formaPagamentoLabel', () => {
+  /* O painel recebe o codigo da API e mostrava "cash" e "wallet" crus. */
+  it('traduz os codigos da api', () => {
+    expect(['cash', 'pix', 'debit', 'credit', 'wallet'].map((m) => formaPagamentoLabel[m])).toEqual(
+      ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado'],
+    )
   })
 })

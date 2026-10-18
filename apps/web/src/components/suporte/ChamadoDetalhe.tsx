@@ -32,7 +32,6 @@ export default function ChamadoDetalhe({
   onAtualizar: (chamado: Chamado) => void
 }) {
   const [resposta, setResposta] = useState('')
-  const [anexo, setAnexo] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -88,7 +87,7 @@ export default function ChamadoDetalhe({
     setErro(null)
     setEnviando(true)
 
-    const r = await responderChamado(chamado.id, resposta, anexo)
+    const r = await responderChamado(chamado.id, resposta, null)
     setEnviando(false)
 
     if (!r.ok) {
@@ -106,7 +105,6 @@ export default function ChamadoDetalhe({
      */
     onAtualizar(r.dados)
     setResposta('')
-    setAnexo(null)
   }
 
   const encerrado = chamado.status === 'closed'
@@ -196,24 +194,8 @@ export default function ChamadoDetalhe({
           />
 
           <div className={styles.respostaBarra}>
-            {anexo ? (
-              <span className={styles.anexoEscolhido}>
-                <span>{anexo}</span>
-                <button type="button" onClick={() => setAnexo(null)}>
-                  Remover
-                </button>
-              </span>
-            ) : (
-              <label className={styles.anexoBotao}>
-                <IconUpload size={16} />
-                Anexar
-                <input
-                  type="file"
-                  className={styles.anexoInput}
-                  onChange={(e) => setAnexo(e.target.files?.[0]?.name ?? null)}
-                />
-              </label>
-            )}
+            {/* Sem anexo: so o nome do arquivo viajava, e o arquivo nao. */}
+            <span />
 
             <Button type="submit" disabled={enviando || !resposta.trim()}>
               {enviando ? (

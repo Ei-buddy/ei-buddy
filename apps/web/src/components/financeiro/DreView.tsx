@@ -12,6 +12,7 @@ import { formatMoney } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, Field, Input, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './dre.module.css'
 
 /**
@@ -112,6 +113,7 @@ export default function DreView() {
       <PageHeader
         title="DRE simplificado"
         subtitle="Receita, custo, despesa e resultado do período"
+        actions={<BotoesExportar lista="dre" filtros={{ from: de, to: ate }} />}
       />
 
       <Card>
@@ -119,7 +121,7 @@ export default function DreView() {
           <Field label="De">
             <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
           </Field>
-          <Field label="Ate">
+          <Field label="Até">
             <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
           </Field>
           <Button onClick={aplicarPeriodo} disabled={periodoInvalido || carregando}>
@@ -163,8 +165,11 @@ export default function DreView() {
                           : undefined
                       }
                     >
-                      {l.subtrai && l.valorCents !== 0 ? '− ' : ''}
-                      {formatMoney(emReais(Math.abs(l.valorCents)))}
+                      {/* So a linha que subtrai ganha o "−" fixo; nos totais o
+                          sinal vem do valor, e prejuizo aparece negativo. */}
+                      {l.subtrai
+                        ? `${l.valorCents !== 0 ? '− ' : ''}${formatMoney(emReais(Math.abs(l.valorCents)))}`
+                        : formatMoney(emReais(l.valorCents))}
                     </td>
                   </tr>
                 ))}
@@ -218,7 +223,7 @@ function Detalhe({
   const comMovimento = ORDEM.filter((t) => linhas.some((l) => l.type === t))
 
   if (comMovimento.length === 0) {
-    return <p className={styles.aviso}>Nenhum lancamento neste periodo.</p>
+    return <p className={styles.aviso}>Nenhum lançamento neste período.</p>
   }
 
   return (

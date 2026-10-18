@@ -55,7 +55,7 @@ export async function getTicket(
   const chamado = await deps.support.findById(ctx.companyId, ticketId)
 
   if (chamado === undefined) {
-    throw AppError.notFound('Chamado nao encontrado.')
+    throw AppError.notFound('Chamado não encontrado.')
   }
 
   return chamado
@@ -104,7 +104,7 @@ export async function replyToTicket(
   })
 
   if (chamado === undefined) {
-    throw AppError.notFound('Chamado nao encontrado.')
+    throw AppError.notFound('Chamado não encontrado.')
   }
 
   return chamado

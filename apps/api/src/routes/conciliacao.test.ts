@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { StatementParseResult } from '@na-regua/contracts'
 import {
   InMemoryAuditTrail,
@@ -85,7 +86,12 @@ async function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL) {
     uow: repo,
     queries: repo,
     listQueries: repo,
-    import: { parser: leitor.parser, transactions: escritor.writer, audit },
+    import: {
+      parser: leitor.parser,
+      transactions: escritor.writer,
+      audit,
+      ids: { next: () => randomUUID() },
+    },
   }
 
   const app = Fastify({ logger: false })
@@ -194,6 +200,7 @@ describe('importar extrato — RF-076, RF-077', () => {
         parser: leitor.parser,
         transactions: escritor.writer,
         audit: new InMemoryAuditTrail(),
+        ids: { next: () => randomUUID() },
       },
     })
     app = app2

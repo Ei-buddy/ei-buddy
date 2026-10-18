@@ -193,3 +193,47 @@ describe('calculateSaleTotals — RF-040 / US-020', () => {
     }
   })
 })
+
+describe('desconto no total — RF-031', () => {
+  it('os pagamentos fecham o total com desconto, e o bruto fica', () => {
+    const totals = calculateSaleTotals(
+      [saleItem()],
+      [pay('cash', '270.00')],
+      simples,
+      fees,
+      at,
+      Money.parse('30.00'),
+    )
+
+    expect(totals.grossAmount.toDecimalString()).toBe('300.00')
+    /* 6% sobre os 270 cobrados, e nao sobre os 300 de tabela. */
+    expect(totals.taxAmount.toDecimalString()).toBe('16.20')
+    expect(totals.netAmount.toDecimalString()).toBe('253.80')
+  })
+
+  it('recusa pagamento que fecha o bruto quando houve desconto', () => {
+    expect(() =>
+      calculateSaleTotals(
+        [saleItem()],
+        [pay('pix', '300.00')],
+        simples,
+        fees,
+        at,
+        Money.parse('30.00'),
+      ),
+    ).toThrow(/total com desconto/)
+  })
+
+  it('recusa desconto maior que a venda', () => {
+    expect(() =>
+      calculateSaleTotals(
+        [saleItem()],
+        [pay('pix', '0.00')],
+        simples,
+        fees,
+        at,
+        Money.parse('300.01'),
+      ),
+    ).toThrow(DomainError)
+  })
+})

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import Animated, {
   FadeIn,
   FadeOut,
@@ -7,7 +7,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /** Duracao das transicoes, em ms. Curta: a sanfona e tocada o tempo todo. */
 const DURACAO = 180
@@ -107,12 +108,10 @@ export default function Sanfona({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   bloco: {
-    borderWidth: 1,
-    borderColor: cores.borda,
+    ...vidro.peca,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
     /* Segura o conteudo dentro do bloco enquanto a altura anima. */
     overflow: 'hidden',
   },
@@ -136,4 +135,4 @@ const estilos = StyleSheet.create({
     paddingTop: 0,
     gap: espaco.md,
   },
-})
+}))

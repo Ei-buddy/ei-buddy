@@ -95,6 +95,7 @@ function unitOfWorkEmMemoria() {
             id: `venda-${sequencia}`,
             number: sequencia,
             grossAmountCents: 1_000,
+            discountCents: 0,
             costAmountCents: 600,
             taxAmountCents: 0,
             cardFeeAmountCents: 0,
@@ -110,7 +111,7 @@ function unitOfWorkEmMemoria() {
 
         /* O saldo do fiado — RF-013. O teste da rota afirma status e corpo;
            quanto subiu tem cobertura em core. */
-        adjustCustomerBalance: async () => {},
+        chargeCustomerWallet: async () => ({ outcome: 'charged' as const }),
       }
       return fn(tx)
     },
@@ -358,6 +359,7 @@ describe('historico de vendas — NR-027, US-021', () => {
     taxAmountCents: 0,
     cardFeeAmountCents: 0,
     returnedAmountCents: 0,
+    changeCents: 0,
     items: [
       {
         productId: null,

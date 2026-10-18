@@ -222,6 +222,15 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
         </p>
       )}
 
+      {/* Cliente de antes da DEC-025: continua valendo, e o aviso diz o que
+          falta e leva direto para completar. */}
+      {cliente.faltando.length > 0 && cliente.anonimizadoEm === null ? (
+        <p className={styles.privacidadeAviso}>
+          Cadastro incompleto: falta {cliente.faltando.join(', ')}.{' '}
+          <Link href={`/app/clientes/${cliente.id}/editar`}>Completar cadastro</Link>
+        </p>
+      ) : null}
+
       <div className="statRow">
         <Stat
           label="Fiado em aberto"

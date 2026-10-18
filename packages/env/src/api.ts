@@ -191,6 +191,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
   ASAAS_API_KEY: opcionalNaoVazia,
 
   /**
+   * Qual Asaas a api chama — NR-182.
+   *
+   * Separado de `NODE_ENV` de proposito: o servidor de dev roda com
+   * `NODE_ENV=production` (build de producao) e precisa falar com o SANDBOX.
+   * Amarrado ao `NODE_ENV`, uma chave de sandbox no servidor seria recusada
+   * pelo Asaas de producao. Ausente, vale a regra antiga: producao fora do
+   * desenvolvimento, sandbox nele.
+   */
+  ASAAS_AMBIENTE: z.enum(['sandbox', 'producao']).optional(),
+
+  /**
    * Segredo do webhook do Asaas — RNF-028, NR-044.
    *
    * Da PLATAFORMA e nao da loja: o corpo precisa ser verificado antes de se
@@ -244,6 +255,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+
+  /**
+   * Quem recebe o aviso de nova candidatura de Parceiro — NR-114.
+   *
+   * Sem ele, a candidatura so aparecia para quem abrisse o painel por conta
+   * propria (achado do QA). Vazio = sem aviso: a fila do painel continua
+   * sendo a fonte, e o cadastro nao depende de e-mail nenhum.
+   */
+  AVISO_PARCEIRO_EMAIL: opcionalNaoVazia.pipe(
+    z.email('AVISO_PARCEIRO_EMAIL precisa ser um e-mail.').optional(),
+  ),
 
   WHATSAPP_PROVIDER: z.enum(['fake', 'meta']).default('fake'),
   WHATSAPP_API_TOKEN: opcionalNaoVazia,

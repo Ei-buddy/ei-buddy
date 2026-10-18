@@ -48,9 +48,10 @@
   align-items: center;
   gap: 9px;
   padding: 9px 15px;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-full);
-  background: var(--app-surface);
+  background: var(--glass-sheen), var(--glass-surface);
+  box-shadow: var(--glass-shadow);
   font-size: 13.5px;
   color: var(--app-text);
   transition:

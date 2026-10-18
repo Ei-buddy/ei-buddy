@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useId, type ReactNode } from 'react'
 import Image from 'next/image'
 import styles from './UI.module.css'
 
@@ -96,16 +96,42 @@ export function Field({
   label,
   hint,
   htmlFor,
+  obrigatorio = false,
   span = 6,
   children,
 }: {
   label: string
   hint?: string
   htmlFor?: string
+  /**
+   * Marca o campo como obrigatorio NA TELA — NR-148: asterisco no rotulo,
+   * "(obrigatório)" para leitor de tela e `aria-required` no campo ligado.
+   * Nao valida nada: quem recusa o envio continua sendo o formulario. Por
+   * isso `aria-required`, e nao `required` — o atributo do HTML acionaria a
+   * validacao nativa do navegador e mudaria o comportamento do envio.
+   */
+  obrigatorio?: boolean
   /** Colunas ocupadas dentro de FormGrid (de 1 a 12). */
   span?: number
   children: ReactNode
 }) {
+  /* Sem `htmlFor`, o rotulo se liga sozinho ao primeiro campo que e filho
+     direto: assim leitor de tela e clique no rotulo chegam ao campo sem cada
+     formulario lembrar de inventar um id. Campo dentro de outro elemento (com
+     botao ao lado, por exemplo) ainda precisa de `htmlFor` explicito. */
+  const gerado = useId()
+  const lista = Children.toArray(children)
+  const campo = lista.find(ehCampo)
+  const alvo = htmlFor ?? (campo ? (campo.props.id ?? gerado) : undefined)
+  const extras = {
+    ...(htmlFor === undefined && campo && campo.props.id === undefined ? { id: gerado } : {}),
+    ...(obrigatorio ? { 'aria-required': true } : {}),
+  }
+  const filhos =
+    campo && Object.keys(extras).length > 0
+      ? lista.map((f) => (f === campo ? cloneElement(campo, extras) : f))
+      : children
+
   return (
     <div className={styles.field} data-span={span}>
       {/*
@@ -119,13 +145,46 @@ export function Field({
         em "a altura do DDD e do Celular esta fora do padrao".
       */}
       <span className={styles.labelRow}>
-        <label className={styles.label} htmlFor={htmlFor}>
+        <label className={styles.label} htmlFor={alvo}>
           {label}
+          {obrigatorio ? <MarcaObrigatorio /> : null}
         </label>
         {hint ? <span className={styles.hint}>{hint}</span> : null}
       </span>
-      {children}
+      {filhos}
     </div>
+  )
+}
+
+/** O asterisco de campo obrigatorio — para rotulo montado fora do `Field`. */
+export function MarcaObrigatorio() {
+  return (
+    <>
+      <span className={styles.obrigatorio} aria-hidden="true">
+        {' '}
+        *
+      </span>
+      <span className={styles.somenteLeitor}> (obrigatório)</span>
+    </>
+  )
+}
+
+/** A legenda do asterisco, no topo do formulario que usa `obrigatorio`. */
+export function LegendaObrigatorio() {
+  return (
+    <p className={styles.legendaObrigatorio}>
+      <span className={styles.obrigatorio} aria-hidden="true">
+        *
+      </span>{' '}
+      Campo obrigatório
+    </p>
+  )
+}
+
+function ehCampo(filho: ReactNode): filho is React.ReactElement<{ id?: string }> {
+  return (
+    isValidElement(filho) &&
+    (filho.type === Input || filho.type === Select || filho.type === Textarea)
   )
 }
 

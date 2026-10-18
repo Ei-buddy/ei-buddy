@@ -170,4 +170,19 @@ describe.skipIf(!DATABASE_URL)('vinculo do canal — NR-113', () => {
     expect(await createPeerDirectory(sql).porTelefone(antigo)).toBeUndefined()
     expect((await createPeerDirectory(sql).porTelefone(novo))?.userId).toBe(donaNova)
   })
+
+  /* Meu perfil — NR-153 (migration 0038). Pelo papel da aplicacao, sem tenant. */
+  it('troca nome e e-mail da propria pessoa, e o contato devolve os tres', async () => {
+    const tel = `4194${String(Date.now()).slice(-7)}`
+    const pessoa = await criarUsuario(tel, 'Dona Perfil')
+    const contatos = createUserContacts(sql)
+
+    await contatos.changeName(pessoa, 'Dona Perfil Nova')
+    await contatos.changeEmail(pessoa, `perfil${Date.now()}@loja.local`)
+
+    const c = await contatos.contactOf(pessoa)
+    expect(c?.name).toBe('Dona Perfil Nova')
+    expect(c?.email).toMatch(/^perfil\d+@loja\.local$/)
+    expect(c?.phone).toBe(tel)
+  })
 })

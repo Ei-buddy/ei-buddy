@@ -62,6 +62,23 @@ export type PayableTransaction = TransactionalAuditTrail & {
   ): Promise<number>
 
   findByRecurrence(companyId: CompanyId, recurrenceId: string): Promise<readonly PayableOutput[]>
+  /** Correcao e cancelamento de um titulo — NR-150. */
+  findById(companyId: CompanyId, id: string): Promise<PayableOutput | null>
+  update(companyId: CompanyId, id: string, changes: PayableChanges): Promise<PayableOutput>
+  cancel(
+    companyId: CompanyId,
+    id: string,
+    cancelledBy: UserId,
+    cancelledAt: Date,
+  ): Promise<PayableOutput>
+}
+
+/** O que a correcao de um titulo pode mudar — so o que se digitou ao lancar. */
+export type PayableChanges = {
+  readonly supplier?: string | undefined
+  readonly description?: string | undefined
+  readonly amountCents?: number | undefined
+  readonly dueDate?: string | undefined
 }
 
 export type PayableUnitOfWork = {

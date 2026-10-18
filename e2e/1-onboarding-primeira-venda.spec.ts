@@ -29,9 +29,10 @@ test('cadastra a loja pela tela e fecha a primeira venda', async ({ page }) => {
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'Criar conta' }).click()
 
-  /* A etapa 4 (Pix da mensalidade) ainda espera o preco (QST-002). A sessao ja
-     existe quando ela aparece — e isso que o cadastro precisa garantir. */
-  await expect(page.getByRole('heading', { name: 'Pagamento via Pix' })).toBeVisible()
+  /* Sem cobranca da mensalidade (QST-002), o cadastro termina em "Conta
+     criada" — sem o QR de exemplo de antes. A sessao ja existe aqui: e isso
+     que o cadastro precisa garantir. */
+  await expect(page.getByRole('heading', { name: 'Conta criada' })).toBeVisible()
 
   await produtoNovo(page.request, { description: 'Arroz E2E 5kg', salePriceCents: 2890, stock: 5 })
 

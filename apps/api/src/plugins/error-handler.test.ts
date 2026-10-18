@@ -13,7 +13,7 @@ function buildApp(): FastifyInstance {
   registerErrorHandler(app)
 
   app.get('/nao-encontrado', async () => {
-    throw AppError.notFound('Cliente nao encontrado.')
+    throw AppError.notFound('Cliente não encontrado.')
   })
   app.get('/sem-permissao', async () => {
     throw AppError.forbidden()
@@ -26,6 +26,17 @@ function buildApp(): FastifyInstance {
   app.get('/explode', async () => {
     throw new Error('relation "users" does not exist')
   })
+  /* Os erros do Postgres como o driver os entrega: `code` e o SQLSTATE. */
+  app.get('/id-malformado', async () => {
+    throw Object.assign(new Error('invalid input syntax for type uuid: "abc"'), { code: '22P02' })
+  })
+  app.get('/referencia-inexistente', async () => {
+    throw Object.assign(new Error('violates foreign key constraint "receivables_customer_fk"'), {
+      code: '23503',
+    })
+  })
+
+  app.post('/corpo', async () => ({ ok: true }))
 
   return app
 }
@@ -62,7 +73,37 @@ describe('erro esperado', () => {
     app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/nao-encontrado' })
 
-    expect(res.json().error.message).toBe('Cliente nao encontrado.')
+    expect(res.json().error.message).toBe('Cliente não encontrado.')
+  })
+})
+
+describe('registro citado que nao existe', () => {
+  it('corpo JSON vazio e erro do pedido (400), nao do servidor (500)', async () => {
+    app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/corpo',
+      headers: { 'content-type': 'application/json' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_FAILED')
+  })
+
+  it('id malformado vira 404, nao 500', async () => {
+    app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/id-malformado' })
+
+    expect(res.statusCode).toBe(404)
+    expect(JSON.stringify(res.json())).not.toContain('uuid')
+  })
+
+  it('chave estrangeira violada vira 404 sem vazar o nome da constraint', async () => {
+    app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/referencia-inexistente' })
+
+    expect(res.statusCode).toBe(404)
+    expect(JSON.stringify(res.json())).not.toContain('receivables_customer_fk')
   })
 })
 

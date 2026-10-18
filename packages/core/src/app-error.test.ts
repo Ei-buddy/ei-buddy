@@ -49,7 +49,7 @@ describe('mensagens padrao', () => {
   })
 
   it('aceita mensagem propria no lugar da padrao', () => {
-    expect(AppError.notFound('Cliente nao encontrado.').message).toBe('Cliente nao encontrado.')
+    expect(AppError.notFound('Cliente não encontrado.').message).toBe('Cliente não encontrado.')
   })
 
   /* `conflict` nao tem padrao: o que conflita muda caso a caso. */

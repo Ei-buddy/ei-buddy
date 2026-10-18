@@ -1,0 +1,99 @@
+/* Caixa — NR-157. */
+.ajuda {
+  margin: 0 0 14px;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.vazio {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tipo {
+  padding: 7px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-full);
+  color: var(--app-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tipoAtivo {
+  border-color: var(--app-accent);
+  color: var(--app-text);
+  background: var(--app-field);
+}
+
+.movimentos,
+.historico {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.movimentos li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.linhaHistorico {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.linhaHistorico span {
+  display: grid;
+  gap: 2px;
+}
+
+.linhaHistorico small {
+  color: var(--app-muted);
+}
+
+.ok {
+  color: var(--app-success, inherit);
+}
+
+.sobra {
+  color: var(--app-warn);
+}
+
+.falta {
+  color: var(--app-danger);
+}
+
+@media (max-width: 640px) {
+  .linhaHistorico {
+    grid-template-columns: 1fr auto;
+  }
+}

@@ -222,7 +222,7 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return produtos
-        .filter((p) => p.companyId === companyId && p.deletedAt === null)
+        .filter((p) => p.companyId === companyId && p.deletedAt === null && p.isActive)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .sort((a, b) => a.description.localeCompare(b.description))
         .slice(0, criterio.limite)
@@ -236,6 +236,7 @@ function cadastroEmMemoria() {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = produtos
         .filter((p) => p.companyId === companyId && p.deletedAt === null)
+        .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .filter((p) => {
           if (criterio.stock === 'esgotado') return p.stock <= 0
@@ -251,7 +252,9 @@ function cadastroEmMemoria() {
     },
 
     catalogSummary: async (companyId) => {
-      const meus = produtos.filter((p) => p.companyId === companyId && p.deletedAt === null)
+      const meus = produtos.filter(
+        (p) => p.companyId === companyId && p.deletedAt === null && p.isActive,
+      )
       return {
         total: meus.length,
         belowMinimum: meus.filter((p) => p.stock < p.minStock).length,
@@ -279,6 +282,7 @@ function cadastroEmMemoria() {
         minStock: p.minStock,
         category: p.category ?? null,
         supplier: p.supplier ?? null,
+        isActive: true,
         deletedAt: null as string | null,
       }
       produtos.push(pr)
@@ -342,7 +346,18 @@ function cadastroEmMemoria() {
       alvo.minStock = patch.minStock ?? alvo.minStock
       if (patch.category !== undefined) alvo.category = patch.category
       if (patch.supplier !== undefined) alvo.supplier = patch.supplier
+      if (patch.ncm !== undefined) alvo.ncm = patch.ncm
+      if (patch.cfop !== undefined) alvo.cfop = patch.cfop
+      if (patch.taxSituationCode !== undefined) alvo.taxSituationCode = patch.taxSituationCode
 
+      return semDeletedAt(alvo)
+    },
+    setActive: async (companyId, productId, ativo) => {
+      const alvo = produtos.find(
+        (p) => p.id === productId && p.companyId === companyId && p.deletedAt === null,
+      )
+      if (alvo === undefined) return undefined
+      alvo.isActive = ativo
       return semDeletedAt(alvo)
     },
     setDeletedAt: async (companyId, productId, deletedAt) => {

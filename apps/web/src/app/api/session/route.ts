@@ -105,7 +105,8 @@ export async function GET() {
 }
 
 /** O token e o unico campo que nao pode voltar para o navegador. */
-function semToken(sessao: SessaoDaApi) {
-  const { token: _token, ...resto } = sessao
-  return resto
+function semToken(sessao: SessaoDaApi): Omit<SessaoDaApi, 'token'> {
+  const resto: Partial<SessaoDaApi> = { ...sessao }
+  delete resto.token
+  return resto as Omit<SessaoDaApi, 'token'>
 }

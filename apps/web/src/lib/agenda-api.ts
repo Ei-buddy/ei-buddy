@@ -124,21 +124,37 @@ export type DadosEvento = {
  * mandar `location: ''` seria recusado como local invalido por quem
  * simplesmente nao quis preencher.
  */
-export async function criarEvento(dados: DadosEvento): Promise<Resultado<Evento>> {
+function corpoDoEvento(dados: DadosEvento) {
   const descricao = dados.descricao.trim()
   const local = dados.local.trim()
+  return {
+    title: dados.titulo.trim(),
+    startsAt: instante(dados.data, dados.horaInicio),
+    /* Fim vazio e legitimo: "pagar aluguel as 10h" nao dura nada. */
+    ...(dados.horaFim === '' ? {} : { endsAt: instante(dados.data, dados.horaFim) }),
+    ...(local === '' ? {} : { location: local }),
+    ...(descricao === '' ? {} : { notes: descricao }),
+    ...(dados.lembreteMinutos === null ? {} : { reminderMinutesBefore: dados.lembreteMinutos }),
+  }
+}
 
+/**
+ * Editar ou remarcar — NR-152. O mesmo corpo do cadastro: campo vazio nao
+ * viaja, e a api entende "nao veio" como "ficou vazio".
+ */
+export async function editarEvento(id: string, dados: DadosEvento): Promise<Resultado<Evento>> {
+  const r = await pedir<CompromissoDaApi>(`/api/agenda/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(corpoDoEvento(dados)),
+  })
+
+  return r.ok ? { ok: true, dados: paraEvento(r.dados) } : r
+}
+
+export async function criarEvento(dados: DadosEvento): Promise<Resultado<Evento>> {
   const r = await pedir<CompromissoDaApi>('/api/agenda', {
     method: 'POST',
-    body: JSON.stringify({
-      title: dados.titulo.trim(),
-      startsAt: instante(dados.data, dados.horaInicio),
-      /* Fim vazio e legitimo: "pagar aluguel as 10h" nao dura nada. */
-      ...(dados.horaFim === '' ? {} : { endsAt: instante(dados.data, dados.horaFim) }),
-      ...(local === '' ? {} : { location: local }),
-      ...(descricao === '' ? {} : { notes: descricao }),
-      ...(dados.lembreteMinutos === null ? {} : { reminderMinutesBefore: dados.lembreteMinutos }),
-    }),
+    body: JSON.stringify(corpoDoEvento(dados)),
   })
 
   return r.ok ? { ok: true, dados: paraEvento(r.dados) } : r

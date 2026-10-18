@@ -25,7 +25,9 @@ function cenario() {
   const parser = new FakeStatementParser()
   const transactions = new InMemoryBankTransactionWriter()
   const audit = new InMemoryAuditTrail()
-  return { deps: { parser, transactions, audit }, parser, transactions, audit }
+  /* Uuid fixo: a trilha grava `entity_id` como uuid, e "ofx:req-1" quebrava. */
+  const ids = { next: () => '00000000-0000-4000-8000-000000000001' }
+  return { deps: { parser, transactions, audit, ids }, parser, transactions, audit }
 }
 
 const arquivo = { content: new Uint8Array([1, 2, 3]), filename: 'extrato.ofx' }
@@ -130,6 +132,19 @@ describe('importar extrato — RF-076', () => {
     expect(entradas).toHaveLength(1)
     expect(entradas[0]!.entity).toBe('BankStatement')
     expect(entradas[0]!.after).toMatchObject({ read: 2, imported: 2, ignored: 0 })
+  })
+
+  /* "ofx:req-1" ia para `audit_logs.entity_id`, que e uuid: as transacoes ja
+     estavam gravadas e a tela recebia 500. */
+  it('o lote entra na trilha com id uuid, e o formato vai no detalhe', async () => {
+    const { deps, parser, audit } = cenario()
+    parser.programar(lido([transacao()]))
+
+    await importStatement(deps, contexto(), arquivo)
+
+    const [entrada] = audit.daEmpresa(EMPRESA)
+    expect(entrada!.entityId).toBe('00000000-0000-4000-8000-000000000001')
+    expect(entrada!.after).toMatchObject({ format: 'ofx', requestId: 'req-1' })
   })
 
   it('recusa quem so pode ler', async () => {

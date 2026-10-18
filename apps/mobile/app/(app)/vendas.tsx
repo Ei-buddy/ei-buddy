@@ -1,37 +1,93 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { FORMAS, listarHistoricoDeVendas, type VendaHistorico } from '@/lib/vendas-api'
+import {
+  estadoDaNota,
+  FORMAS,
+  listarHistoricoDeVendas,
+  type ResumoDoHistorico,
+  type VendaHistorico,
+} from '@/lib/vendas-api'
 import { formatDateTime, formatMoney } from '@/lib/format'
+import { compartilharComprovante } from '@/lib/comprovante-da-venda'
+import { hojeLocal } from '@/lib/periodo'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_VENDAS } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import CancelarVendaModal from '@/components/CancelarVendaModal'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import CancelarNotaModal from '@/components/CancelarNotaModal'
+import DevolverItensModal from '@/components/DevolverItensModal'
+import BotoesExportar from '@/components/BotoesExportar'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
+
+type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
+
+const PERIODOS: [Periodo, string][] = [
+  ['hoje', 'Hoje'],
+  ['7d', '7 dias'],
+  ['30d', '30 dias'],
+  ['tudo', 'Tudo'],
+]
+
+/** O inicio do periodo, em data LOCAL — o dia da loja, nao o de UTC. */
+function inicioDoPeriodo(periodo: Periodo): string | undefined {
+  if (periodo === 'tudo') return undefined
+  const dias = periodo === 'hoje' ? 0 : periodo === '7d' ? 6 : 29
+  const d = new Date()
+  d.setDate(d.getDate() - dias)
+  return hojeLocal(d)
+}
+
+/** Abre o DANFE da venda — o link vem da consulta da nota (NR-169). */
+async function abrirPdfDaNota(vendaId: string) {
+  const nota = await estadoDaNota(vendaId)
+  if (nota?.status === 'authorized' && nota.danfeUrl) {
+    await Linking.openURL(nota.danfeUrl).catch(() =>
+      Alert.alert('Nota fiscal', 'Não deu para abrir o PDF da nota.'),
+    )
+    return
+  }
+  Alert.alert('Nota fiscal', 'O PDF desta nota ainda não está disponível.')
+}
 
 /**
  * Historico de vendas — RF-036, US-021.
  *
- * Cada venda e uma sanfona: fechada mostra cliente, valor e situacao —
- * que e o que se procura ao conferir o dia. Abrir revela os itens, o
- * pagamento e a nota, sem trocar de tela.
- *
- * Mostrava cinco vendas de exemplo, sempre as mesmas: o faturamento e o
- * ticket medio do topo somavam dinheiro que nao existia. Agora busca em
- * `GET /sales`.
+ * Cada venda e uma sanfona: fechada mostra cliente, valor e situacao. Aberta
+ * revela itens, pagamento e nota, e as acoes do web: devolver itens, cancelar
+ * a nota e estornar. Busca, periodo e paginas sao do servidor.
  */
 export default function Vendas() {
   const router = useRouter()
   const [vendas, setVendas] = useState<VendaHistorico[]>([])
+  const [total, setTotal] = useState(0)
+  const [resumo, setResumo] = useState<ResumoDoHistorico | null>(null)
+  const [pagina, setPagina] = useState(1)
+  /* `?q=`: a busca global (NR-162) abre o historico ja na venda achada. */
+  const { q } = useLocalSearchParams<{ q?: string }>()
+  const [termo, setTermo] = useState(q ?? '')
+  const [periodo, setPeriodo] = useState<Periodo>('30d')
   const [carregando, setCarregando] = useState(true)
+  const [carregandoMais, setCarregandoMais] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [estornando, setEstornando] = useState<VendaHistorico | null>(null)
+  const [devolvendo, setDevolvendo] = useState<VendaHistorico | null>(null)
+  const [cancelandoNota, setCancelandoNota] = useState<VendaHistorico | null>(null)
 
-  const buscar = useCallback(async () => {
-    const r = await listarHistoricoDeVendas()
+  const buscar = useCallback(async (t: string, p: Periodo, pag: number) => {
+    const de = inicioDoPeriodo(p)
+    const r = await listarHistoricoDeVendas({
+      termo: t,
+      pagina: pag,
+      ...(de === undefined ? {} : { de, ate: hojeLocal() }),
+    })
     setCarregando(false)
+    setCarregandoMais(false)
 
     if (!r.ok) {
       setErro(r.erro)
@@ -39,152 +95,319 @@ export default function Vendas() {
     }
 
     setErro(null)
-    setVendas(r.vendas)
+    setPagina(pag)
+    setTotal(r.total)
+    setResumo(r.resumo)
+    setVendas((atual) => (pag === 1 ? r.vendas : [...atual, ...r.vendas]))
   }, [])
 
   useEffect(() => {
-    /* `async` explicito: os `setState` vem todos depois do await, nunca
-       sincronos no corpo do efeito. */
-    void (async () => {
-      await buscar()
-    })()
-  }, [buscar])
+    if (q !== undefined) {
+      setTermo(q)
+      setPeriodo('tudo')
+    }
+  }, [q])
+
+  useEffect(() => {
+    /* Espera a digitacao parar: a resposta de "Mar" nao pode chegar depois da
+       de "Maria" e apagar o resultado certo. */
+    const t = setTimeout(() => void buscar(termo, periodo, 1), 300)
+    return () => clearTimeout(t)
+  }, [termo, periodo, buscar])
+
+  const recarregar = () => void buscar(termo, periodo, 1)
 
   /* Estorno de verdade — RF-043: o servidor devolve o estoque e cancela os
      recebiveis numa transacao so. A lista recarrega depois, porque o status
      quem decide e o servidor. */
-  function aoCancelar() {
+  function aoEstornar() {
     const numero = estornando?.numero
     setEstornando(null)
-    void buscar()
+    recarregar()
     Alert.alert('Venda estornada', `A venda #${numero ?? ''} foi estornada.`)
   }
-
-  const resumo = useMemo(() => {
-    const concluidas = vendas.filter((v) => v.status === 'concluida')
-    const total = concluidas.reduce((a, v) => a + v.total, 0)
-    return {
-      concluidas,
-      total,
-      liquido: concluidas.reduce((a, v) => a + v.valorLiquido, 0),
-      ticket: concluidas.length ? total / concluidas.length : 0,
-    }
-  }, [vendas])
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <Cabecalho
         titulo="Vendas"
-        subtitulo={`${resumo.concluidas.length} concluídas`}
-        acao={<Botao onPress={() => router.push('/pdv')}>Nova</Botao>}
+        subtitulo={resumo ? `${resumo.quantidade} venda(s) no período` : undefined}
+        acao={
+          <View style={estilos.topo}>
+            {/* Exportar — NR-155, o mesmo periodo e busca da lista. */}
+            <BotoesExportar
+              lista="vendas"
+              filtros={{
+                q: termo.trim(),
+                ...(inicioDoPeriodo(periodo) === undefined
+                  ? {}
+                  : { from: inicioDoPeriodo(periodo), to: hojeLocal() }),
+              }}
+            />
+            <Botao onPress={() => router.push('/pdv')}>Nova</Botao>
+          </View>
+        }
       />
 
-      <ScrollView contentContainerStyle={estilos.conteudo}>
+      <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+        <TextInput
+          style={estilos.busca}
+          value={termo}
+          onChangeText={setTermo}
+          placeholder="Número, cliente ou produto"
+          placeholderTextColor={cores.textoFraco}
+          autoCorrect={false}
+          accessibilityLabel="Buscar venda"
+        />
+
+        <View style={estilos.periodos}>
+          {PERIODOS.map(([valor, rotulo]) => (
+            <Pressable
+              key={valor}
+              onPress={() => setPeriodo(valor)}
+              style={[estilos.periodo, periodo === valor && estilos.periodoAtivo]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: periodo === valor }}
+            >
+              <Text style={[estilos.periodoTexto, periodo === valor && estilos.periodoTextoAtivo]}>
+                {rotulo}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         {carregando ? (
           <Vazio titulo="Carregando" descricao="Buscando o histórico de vendas." />
         ) : erro !== null ? (
           <Vazio
             titulo="Não foi possível carregar"
             descricao={erro}
-            acao={<Botao onPress={() => void buscar()}>Tentar de novo</Botao>}
+            acao={<Botao onPress={recarregar}>Tentar de novo</Botao>}
           />
         ) : vendas.length === 0 ? (
-          <Vazio
-            titulo="Nenhuma venda ainda"
-            descricao="As vendas fechadas no PDV aparecem aqui."
-            acao={<Botao onPress={() => router.push('/pdv')}>Fazer a primeira venda</Botao>}
-          />
+          termo === '' && periodo === 'tudo' ? (
+            <Vazio
+              titulo="Nenhuma venda ainda"
+              descricao="As vendas fechadas no PDV aparecem aqui."
+              acao={<Botao onPress={() => router.push('/pdv')}>Fazer a primeira venda</Botao>}
+            />
+          ) : (
+            <Vazio
+              titulo="Nenhuma venda encontrada"
+              descricao="Nada neste período ou nesta busca."
+              acao={
+                <Botao
+                  variante="secundario"
+                  onPress={() => {
+                    setTermo('')
+                    setPeriodo('tudo')
+                  }}
+                >
+                  Ver todas
+                </Botao>
+              }
+            />
+          )
         ) : (
           <>
-            <View style={estilos.resumo}>
-              <View style={estilos.resumoItem}>
-                <Text style={estilos.resumoRotulo}>Faturamento</Text>
-                <Text style={estilos.resumoValor}>{formatMoney(resumo.total)}</Text>
+            {resumo !== null ? (
+              <View style={estilos.resumo}>
+                <View style={estilos.resumoItem}>
+                  <Text style={estilos.resumoRotulo}>Bruto</Text>
+                  <Text style={estilos.resumoValor}>{formatMoney(resumo.faturamento)}</Text>
+                </View>
+                <View style={estilos.resumoItem}>
+                  <Text style={estilos.resumoRotulo}>Líquido</Text>
+                  <Text style={[estilos.resumoValor, estilos.liquido]}>
+                    {formatMoney(resumo.liquido)}
+                  </Text>
+                </View>
+                <View style={estilos.resumoItem}>
+                  <Text style={estilos.resumoRotulo}>Ticket bruto</Text>
+                  <Text style={estilos.resumoValor}>
+                    {resumo.ticketMedio === null ? '—' : formatMoney(resumo.ticketMedio)}
+                  </Text>
+                </View>
               </View>
-              <View style={estilos.resumoItem}>
-                <Text style={estilos.resumoRotulo}>Líquido</Text>
-                <Text style={[estilos.resumoValor, estilos.liquido]}>
-                  {formatMoney(resumo.liquido)}
-                </Text>
-              </View>
-              <View style={estilos.resumoItem}>
-                <Text style={estilos.resumoRotulo}>Ticket médio</Text>
-                <Text style={estilos.resumoValor}>{formatMoney(resumo.ticket)}</Text>
-              </View>
-            </View>
+            ) : null}
 
-            {vendas.map((v) => (
-              <Sanfona
-                key={v.id}
-                titulo={`#${v.numero} · ${v.clienteNome}`}
-                resumo={`${formatDateTime(v.data)} · ${formatMoney(v.total)}`}
-                etiqueta={
-                  v.status === 'estornada' ? (
-                    <Etiqueta tom="erro">Estornada</Etiqueta>
-                  ) : (
-                    <Etiqueta tom="sucesso">{formatMoney(v.total)}</Etiqueta>
-                  )
-                }
-              >
-                {/* Itens */}
-                {v.itens.map((i, idx) => (
-                  <View key={idx} style={estilos.item}>
-                    <Text style={estilos.itemQtd}>{i.quantidade}×</Text>
-                    <Text style={estilos.itemNome} numberOfLines={1}>
-                      {i.descricao}
-                    </Text>
-                    <Text style={estilos.itemValor}>
-                      {formatMoney(i.precoUnitario * i.quantidade)}
-                    </Text>
-                  </View>
-                ))}
+            {vendas.map((v) => {
+              const estornada = v.status === 'estornada'
+              const podeDevolver =
+                !estornada &&
+                v.itens.some((i) => i.produtoId !== null && i.quantidade > i.devolvido)
 
-                <View style={estilos.divisor} />
-
-                <Detalhe rotulo="Subtotal" valor={formatMoney(v.subtotal)} />
-                {v.desconto > 0 ? (
-                  <Detalhe rotulo="Desconto" valor={`- ${formatMoney(v.desconto)}`} />
-                ) : null}
-                <Detalhe rotulo="Total" valor={formatMoney(v.total)} forte />
-                <Detalhe
-                  rotulo="Pagamento"
-                  valor={v.pagamentos
-                    .map((p) => FORMAS.find((f) => f.valor === p.forma)?.rotulo ?? p.forma)
-                    .join(' + ')}
-                />
-                <Detalhe rotulo="Líquido" valor={formatMoney(v.valorLiquido)} />
-                <Detalhe
-                  rotulo="Nota fiscal"
-                  valor={
-                    v.nota
-                      ? `${v.nota.tipo === 'nfce' ? 'NFC-e' : 'NFS-e'} ${v.nota.numero}`
-                      : 'sem nota'
+              return (
+                <Sanfona
+                  key={v.id}
+                  titulo={`#${v.numero} · ${v.clienteNome}`}
+                  resumo={`${formatDateTime(v.data)} · ${formatMoney(v.total)}`}
+                  etiqueta={
+                    estornada ? (
+                      <Etiqueta tom="erro">Estornada</Etiqueta>
+                    ) : v.devolvidoValor > 0 ? (
+                      <Etiqueta tom="atencao">Devolução parcial</Etiqueta>
+                    ) : (
+                      <Etiqueta tom="sucesso">{formatMoney(v.total)}</Etiqueta>
+                    )
                   }
-                />
+                >
+                  {v.itens.map((i, idx) => (
+                    <View key={idx} style={estilos.item}>
+                      <Text style={estilos.itemQtd}>{i.quantidade}×</Text>
+                      <Text style={estilos.itemNome} numberOfLines={1}>
+                        {i.descricao}
+                        {i.devolvido > 0 ? ` (${i.devolvido} devolvido)` : ''}
+                      </Text>
+                      <Text style={estilos.itemValor}>
+                        {formatMoney(i.precoUnitario * i.quantidade)}
+                      </Text>
+                    </View>
+                  ))}
 
-                {v.status !== 'estornada' ? (
-                  <Pressable
-                    style={estilos.estornar}
-                    accessibilityRole="button"
-                    onPress={() => setEstornando(v)}
-                  >
-                    <Text style={estilos.estornarTexto}>Estornar venda</Text>
-                  </Pressable>
-                ) : null}
-              </Sanfona>
-            ))}
+                  <View style={estilos.divisor} />
+
+                  <Detalhe rotulo="Subtotal" valor={formatMoney(v.subtotal)} />
+                  {v.desconto > 0 ? (
+                    <Detalhe rotulo="Desconto" valor={`- ${formatMoney(v.desconto)}`} />
+                  ) : null}
+                  <Detalhe rotulo="Total" valor={formatMoney(v.total)} forte />
+                  {v.devolvidoValor > 0 ? (
+                    <Detalhe rotulo="Devolvido" valor={`- ${formatMoney(v.devolvidoValor)}`} />
+                  ) : null}
+                  <Detalhe
+                    rotulo="Pagamento"
+                    valor={v.pagamentos
+                      .map((p) => FORMAS.find((f) => f.valor === p.forma)?.rotulo ?? p.forma)
+                      .join(' + ')}
+                  />
+                  <Detalhe rotulo="Líquido" valor={formatMoney(v.valorLiquido)} />
+                  <Detalhe
+                    rotulo="Nota fiscal"
+                    valor={
+                      v.nota
+                        ? `${v.nota.tipo === 'nfce' ? 'NFC-e' : 'NFS-e'} ${v.nota.numero}`
+                        : 'sem nota'
+                    }
+                  />
+
+                  {/* Recibo nao fiscal, para a venda estornada tambem (sai
+                      marcado) — NR-154. */}
+                  <View style={estilos.acoes}>
+                    <Acao
+                      rotulo="Comprovante"
+                      onPress={() =>
+                        void compartilharComprovante(v).then((r) => {
+                          if (!r.ok) Alert.alert('Comprovante', r.erro)
+                        })
+                      }
+                    />
+                    {/* O PDF da nota (DANFE), como o "Baixar PDF" do web — NR-169. */}
+                    {v.nota !== null ? (
+                      <Acao rotulo="PDF da nota" onPress={() => void abrirPdfDaNota(v.id)} />
+                    ) : null}
+                  </View>
+
+                  {!estornada ? (
+                    <View style={estilos.acoes}>
+                      {/* Com nota ativa, o servidor recusa estorno e devolucao:
+                          cancelar a nota e o primeiro passo, e o botao diz isso. */}
+                      {v.nota !== null ? (
+                        <Acao rotulo="Cancelar nota" onPress={() => setCancelandoNota(v)} />
+                      ) : null}
+                      {podeDevolver ? (
+                        <Acao rotulo="Devolver itens" onPress={() => setDevolvendo(v)} />
+                      ) : null}
+                      <Acao rotulo="Estornar venda" perigo onPress={() => setEstornando(v)} />
+                    </View>
+                  ) : null}
+                </Sanfona>
+              )
+            })}
+
+            {vendas.length < total ? (
+              <Botao
+                variante="secundario"
+                carregando={carregandoMais}
+                onPress={() => {
+                  setCarregandoMais(true)
+                  void buscar(termo, periodo, pagina + 1)
+                }}
+                largura
+              >
+                Carregar mais ({total - vendas.length})
+              </Botao>
+            ) : null}
           </>
         )}
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={COMANDOS_VENDAS} />
       </ScrollView>
 
       {estornando !== null ? (
         <CancelarVendaModal
           venda={estornando}
-          onCancelada={aoCancelar}
+          onCancelada={aoEstornar}
           onFechar={() => setEstornando(null)}
         />
       ) : null}
+
+      {devolvendo !== null ? (
+        <DevolverItensModal
+          venda={devolvendo}
+          onDevolvido={(r) => {
+            setDevolvendo(null)
+            recarregar()
+            Alert.alert(
+              'Devolução registrada',
+              r.entregarAoCliente > 0
+                ? `Entregue ${formatMoney(r.entregarAoCliente)} ao cliente.`
+                : `${formatMoney(r.deixaDeReceber)} deixam de ser cobrados.`,
+            )
+          }}
+          onFechar={() => setDevolvendo(null)}
+        />
+      ) : null}
+
+      {cancelandoNota !== null && cancelandoNota.nota !== null ? (
+        <CancelarNotaModal
+          venda={{
+            id: cancelandoNota.id,
+            numero: cancelandoNota.numero,
+            notaNumero: cancelandoNota.nota.numero,
+          }}
+          onCancelada={() => {
+            setCancelandoNota(null)
+            recarregar()
+            Alert.alert(
+              'Nota cancelada',
+              'A SEFAZ cancelou a nota. Agora a venda pode ser estornada ou devolvida.',
+            )
+          }}
+          onFechar={() => setCancelandoNota(null)}
+        />
+      ) : null}
     </SafeAreaView>
+  )
+}
+
+function Acao({
+  rotulo,
+  onPress,
+  perigo = false,
+}: {
+  rotulo: string
+  onPress: () => void
+  perigo?: boolean
+}) {
+  return (
+    <Pressable
+      style={[estilos.acao, perigo && estilos.acaoPerigo]}
+      accessibilityRole="button"
+      onPress={onPress}
+    >
+      <Text style={[estilos.acaoTexto, perigo && estilos.acaoTextoPerigo]}>{rotulo}</Text>
+    </Pressable>
   )
 }
 
@@ -205,7 +428,8 @@ function Detalhe({
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
+  topo: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -214,12 +438,10 @@ const estilos = StyleSheet.create({
     gap: espaco.sm,
   },
   resumoItem: {
+    ...vidro.peca,
     flex: 1,
     padding: espaco.md,
-    borderWidth: 1,
-    borderColor: cores.borda,
     borderRadius: raio.md,
-    backgroundColor: cores.superficie,
     gap: 2,
   },
   resumoRotulo: { fontSize: 11, color: cores.textoFraco },
@@ -238,13 +460,38 @@ const estilos = StyleSheet.create({
   detalheValor: { fontSize: fonte.micro, color: cores.texto },
   detalheForte: { fontSize: fonte.pequeno, fontWeight: peso.pesado },
 
-  estornar: {
-    marginTop: espaco.sm,
+  busca: {
+    minHeight: 48,
+    paddingHorizontal: espaco.lg,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+    fontSize: fonte.corpo,
+    color: cores.texto,
+  },
+  periodos: { flexDirection: 'row', gap: espaco.sm },
+  periodo: {
+    flex: 1,
+    paddingVertical: espaco.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  periodoAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
+  periodoTexto: { fontSize: fonte.micro, color: cores.textoFraco },
+  periodoTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+
+  acoes: { gap: espaco.sm, marginTop: espaco.sm },
+  acao: {
     paddingVertical: espaco.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: cores.erro,
+    borderColor: cores.borda,
     borderRadius: raio.pill,
   },
-  estornarTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
-})
+  acaoPerigo: { borderColor: cores.erro },
+  acaoTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
+  acaoTextoPerigo: { color: cores.erro },
+}))

@@ -402,6 +402,7 @@ export class InMemoryProductRepository implements ProductRepository {
       minStock: product.minStock,
       category: product.category ?? null,
       supplier: product.supplier ?? null,
+      isActive: true,
       deletedAt: null as string | null,
     }
     this.registros.set(gravado.id, gravado)
@@ -448,7 +449,7 @@ export class InMemoryProductRepository implements ProductRepository {
     const termo = criterio.termo?.trim().toLowerCase() ?? ''
 
     return [...this.registros.values()]
-      .filter((p) => p.companyId === companyId && p.deletedAt === null)
+      .filter((p) => p.companyId === companyId && p.deletedAt === null && p.isActive)
       .filter(
         (p) =>
           termo === '' ||
@@ -474,6 +475,7 @@ export class InMemoryProductRepository implements ProductRepository {
     criterio: {
       readonly termo?: string
       readonly stock: 'todos' | 'baixo' | 'esgotado'
+      readonly situacao: 'ativos' | 'inativos'
       readonly offset: number
       readonly limite: number
     },
@@ -482,6 +484,7 @@ export class InMemoryProductRepository implements ProductRepository {
 
     const casam = [...this.registros.values()]
       .filter((p) => p.companyId === companyId && p.deletedAt === null)
+      .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
       .filter(
         (p) =>
           termo === '' ||
@@ -511,7 +514,7 @@ export class InMemoryProductRepository implements ProductRepository {
     readonly stockValueCents: number
   }> {
     const meus = [...this.registros.values()].filter(
-      (p) => p.companyId === companyId && p.deletedAt === null,
+      (p) => p.companyId === companyId && p.deletedAt === null && p.isActive,
     )
 
     return {
@@ -585,8 +588,27 @@ export class InMemoryProductRepository implements ProductRepository {
       minStock: patch.minStock ?? atual.minStock,
       category: patch.category !== undefined ? patch.category : atual.category,
       supplier: patch.supplier !== undefined ? patch.supplier : atual.supplier,
+      ncm: patch.ncm !== undefined ? patch.ncm : atual.ncm,
+      cfop: patch.cfop !== undefined ? patch.cfop : atual.cfop,
+      taxSituationCode:
+        patch.taxSituationCode !== undefined ? patch.taxSituationCode : atual.taxSituationCode,
     }
 
+    this.registros.set(productId, atualizado)
+    return this.semTenant(atualizado)
+  }
+
+  async setActive(
+    companyId: CompanyId,
+    productId: string,
+    ativo: boolean,
+    _updatedBy: UserId,
+  ): Promise<ProductOutput | undefined> {
+    const atual = this.registros.get(productId)
+    if (atual === undefined || atual.companyId !== companyId || atual.deletedAt !== null) {
+      return undefined
+    }
+    const atualizado = { ...atual, isActive: ativo }
     this.registros.set(productId, atualizado)
     return this.semTenant(atualizado)
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { partnerAccountFieldsSchema } from './partner.js'
+import { partnerAccountFieldsSchema, rejectPartnerApplicationInputSchema } from './partner.js'
 
 describe('chave PIX combina com o tipo', () => {
   const base = { message: 'Divulgo para lojistas da minha regiao.' }
@@ -24,5 +24,16 @@ describe('chave PIX combina com o tipo', () => {
     const r = partnerAccountFieldsSchema.safeParse({ ...base, pixKey, pixKeyType })
     expect(r.success).toBe(false)
     expect(r.error?.issues[0]?.path).toEqual(['pixKey'])
+  })
+})
+
+describe('recusa de candidatura', () => {
+  it('exige motivo que o parceiro consiga entender', () => {
+    expect(rejectPartnerApplicationInputSchema.safeParse({}).success).toBe(false)
+    expect(rejectPartnerApplicationInputSchema.safeParse({ note: 'nao' }).success).toBe(false)
+    expect(
+      rejectPartnerApplicationInputSchema.safeParse({ note: 'Faltou contar onde voce divulga.' })
+        .success,
+    ).toBe(true)
   })
 })

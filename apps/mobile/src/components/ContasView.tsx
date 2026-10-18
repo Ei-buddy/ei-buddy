@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   baixarTitulo,
+  exportarTitulos,
   type DadosDaBaixa,
   listarContasPagar,
   listarContasReceber,
@@ -11,12 +12,18 @@ import {
   type Titulo,
 } from '@/lib/financeiro-api'
 import { daysUntil, describeDueDate, formatDate, formatMoney } from '@/lib/format'
+import ComandosWhatsApp from '@/components/ComandosWhatsApp'
+import { COMANDOS_PAGAR, COMANDOS_RECEBER } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
 import BaixaModal from '@/components/BaixaModal'
+import CorrecaoTituloModal from '@/components/CorrecaoTituloModal'
 import EstornoModal from '@/components/EstornoModal'
+import NovoTituloModal from '@/components/NovoTituloModal'
+import Botao from '@/components/ui/Botao'
 import Sanfona from '@/components/ui/Sanfona'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 /**
  * Forma comum entre conta a pagar e a receber — vem pronta de `financeiro-api`.
@@ -84,9 +91,22 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
    */
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
+  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
+    null,
+  )
   const [processando, setProcessando] = useState(false)
   const [erroDoDialogo, setErroDoDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [lancando, setLancando] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [exportando, setExportando] = useState(false)
+
+  async function exportar(formato: 'csv' | 'pdf') {
+    setExportando(true)
+    const r = await exportarTitulos(tipo, formato)
+    setExportando(false)
+    if (!r.ok) Alert.alert('Não deu para exportar', r.erro)
+  }
 
   useEffect(() => {
     if (aviso === null) return
@@ -96,13 +116,23 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   }, [aviso])
 
   const grupos = useMemo(() => {
-    const abertos = linhas.filter((l) => l.status !== 'pago')
+    /* Busca por contraparte ou descricao — o filtro que o web tem no topo. */
+    const termo = busca.trim().toLowerCase()
+    const visiveis =
+      termo === ''
+        ? linhas
+        : linhas.filter(
+            (l) =>
+              l.contraparte.toLowerCase().includes(termo) ||
+              l.descricao.toLowerCase().includes(termo),
+          )
+    const abertos = visiveis.filter((l) => l.status !== 'pago')
     return {
       vencidos: abertos.filter((l) => daysUntil(l.vencimento) < 0),
       aVencer: abertos.filter((l) => daysUntil(l.vencimento) >= 0),
-      quitados: linhas.filter((l) => l.status === 'pago'),
+      quitados: visiveis.filter((l) => l.status === 'pago'),
     }
-  }, [linhas])
+  }, [linhas, busca])
 
   const soma = (lista: Linha[]) => lista.reduce((a, l) => a + (l.valorCents - l.baixadoCents), 0)
 
@@ -151,6 +181,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       <Cabecalho
         titulo={pagar ? 'Contas a pagar' : 'Contas a receber'}
         subtitulo={`${formatMoney(totalAberto / 100)} em aberto`}
+        acao={<Botao onPress={() => setLancando(true)}>Lançar</Botao>}
       />
 
       <ScrollView
@@ -165,6 +196,35 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
           />
         }
       >
+        <View style={estilos.ferramentas}>
+          <TextInput
+            style={estilos.busca}
+            value={busca}
+            onChangeText={setBusca}
+            placeholder={pagar ? 'Fornecedor ou descrição' : 'Cliente ou descrição'}
+            placeholderTextColor={cores.textoFraco}
+            accessibilityLabel="Buscar título"
+          />
+          <Pressable
+            style={estilos.exportar}
+            onPress={() => void exportar('csv')}
+            disabled={exportando}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar CSV"
+          >
+            <Text style={estilos.exportarTexto}>CSV</Text>
+          </Pressable>
+          <Pressable
+            style={estilos.exportar}
+            onPress={() => void exportar('pdf')}
+            disabled={exportando}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar PDF"
+          >
+            <Text style={estilos.exportarTexto}>PDF</Text>
+          </Pressable>
+        </View>
+
         {carregando ? (
           <Vazio titulo="Carregando" descricao="Buscando os títulos da loja." />
         ) : erro !== null ? (
@@ -177,7 +237,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         ) : linhas.length === 0 ? (
           <Vazio
             titulo={pagar ? 'Nenhuma conta a pagar' : 'Nenhuma conta a receber'}
-            descricao="Lançamentos aparecem aqui conforme forem criados."
+            descricao="Toque em Lançar para registrar o primeiro."
           />
         ) : (
           <>
@@ -208,6 +268,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
@@ -230,6 +292,8 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
@@ -251,12 +315,16 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                       setBaixando(l)
                     }}
                     onEstornar={() => setEstornando(l)}
+                    onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
               )}
             </Sanfona>
           </>
         )}
+        {/* Via WhatsApp, como no web — NR-165. */}
+        <ComandosWhatsApp comandos={pagar ? COMANDOS_PAGAR : COMANDOS_RECEBER} />
       </ScrollView>
 
       {/* A faixa de resposta. Sai sozinha em 4s — no balcao ninguem toca em
@@ -265,6 +333,20 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         <View style={estilos.aviso} accessibilityLiveRegion="polite">
           <Text style={estilos.avisoTexto}>{aviso}</Text>
         </View>
+      ) : null}
+
+      {lancando ? (
+        <NovoTituloModal
+          tipo={tipo}
+          /* Os fornecedores que a loja ja usou, para "Copel" nao virar "copel". */
+          contrapartesConhecidas={[...new Set(linhas.map((l) => l.contraparte))]}
+          onSalvo={(msg) => {
+            setLancando(false)
+            setAviso(msg)
+            void buscar()
+          }}
+          onFechar={() => setLancando(false)}
+        />
       ) : null}
 
       {baixando !== null ? (
@@ -280,6 +362,20 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             setBaixando(null)
             setErroDoDialogo(null)
           }}
+        />
+      ) : null}
+
+      {mudando !== null ? (
+        <CorrecaoTituloModal
+          tipo={tipo}
+          modo={mudando.modo}
+          titulo={mudando.linha}
+          onFeito={(msg) => {
+            setMudando(null)
+            setAviso(msg)
+            void buscar()
+          }}
+          onFechar={() => setMudando(null)}
         />
       ) : null}
 
@@ -305,10 +401,14 @@ function LinhaTitulo({
   linha,
   onBaixar,
   onEstornar,
+  onCorrigir,
+  onCancelar,
 }: {
   linha: Linha
   onBaixar: () => void
   onEstornar: () => void
+  onCorrigir: () => void
+  onCancelar: () => void
 }) {
   const saldoCents = linha.valorCents - linha.baixadoCents
   const quitado = linha.status === 'pago'
@@ -347,21 +447,62 @@ function LinhaTitulo({
           </Text>
         </View>
 
-        <Pressable
-          onPress={quitado || linha.baixadoCents > 0 ? onEstornar : onBaixar}
-          style={[estilos.acao, quitado && estilos.acaoSecundaria]}
-          accessibilityRole="button"
-        >
-          <Text style={[estilos.acaoTexto, quitado && estilos.acaoTextoSecundario]}>
-            {quitado || linha.baixadoCents > 0 ? 'Estornar' : 'Baixar'}
-          </Text>
-        </Pressable>
+        <View style={estilos.acoes}>
+          {linha.mutavel ? (
+            <>
+              <Pressable
+                onPress={onCorrigir}
+                style={[estilos.acao, estilos.acaoSecundaria]}
+                accessibilityRole="button"
+              >
+                <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Corrigir</Text>
+              </Pressable>
+              <Pressable
+                onPress={onCancelar}
+                style={[estilos.acao, estilos.acaoSecundaria]}
+                accessibilityRole="button"
+              >
+                <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Cancelar</Text>
+              </Pressable>
+            </>
+          ) : null}
+          <Pressable
+            onPress={quitado || linha.baixadoCents > 0 ? onEstornar : onBaixar}
+            style={[estilos.acao, quitado && estilos.acaoSecundaria]}
+            accessibilityRole="button"
+          >
+            <Text style={[estilos.acaoTexto, quitado && estilos.acaoTextoSecundario]}>
+              {quitado || linha.baixadoCents > 0 ? 'Estornar' : 'Baixar'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
+  ferramentas: { flexDirection: 'row', gap: espaco.sm, alignItems: 'center' },
+  busca: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+    backgroundColor: cores.campo,
+    color: cores.texto,
+    fontSize: fonte.pequeno,
+  },
+  exportar: {
+    minHeight: 44,
+    paddingHorizontal: espaco.md,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  exportarTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   vazioTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
@@ -385,13 +526,14 @@ const estilos = StyleSheet.create({
     gap: espaco.md,
   },
   tituloSituacao: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco.xs },
   tituloData: { fontSize: fonte.micro, color: cores.textoFraco },
 
   acao: {
     paddingHorizontal: espaco.lg,
     paddingVertical: espaco.sm,
     borderRadius: raio.pill,
-    backgroundColor: cores.acento,
+    ...vidro.ativo,
     minHeight: 36,
     justifyContent: 'center',
   },
@@ -403,20 +545,20 @@ const estilos = StyleSheet.create({
   acaoTexto: {
     fontSize: fonte.micro,
     fontWeight: peso.forte,
-    color: cores.textoSobreAcento,
+    color: cores.textoSobreAtivo,
   },
   acaoTextoSecundario: { color: cores.textoFraco },
 
   aviso: {
+    ...vidro.painel,
     position: 'absolute',
     left: espaco.lg,
     right: espaco.lg,
     bottom: espaco.xl,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficieAlta,
     borderWidth: 1,
     borderColor: cores.sucesso,
   },
   avisoTexto: { fontSize: fonte.pequeno, color: cores.texto },
-})
+}))

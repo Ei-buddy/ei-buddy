@@ -53,7 +53,7 @@ export default function Home() {
               A nota sai junto com a <span className="gradientText">venda</span>
             </>
           }
-          text="Monte o carrinho pelo leitor de código de barras ou pela busca, aplique desconto por item e receba em Pix, cartão, dinheiro ou carteira. A NFC-e ou NFS-e é emitida no fechamento."
+          text="Monte o carrinho pelo leitor de código de barras ou pela busca, aplique desconto por item e receba em Pix, cartão, dinheiro ou carteira. A NFC-e é emitida no fechamento."
           bullets={[
             'Leitor de código de barras direto no catálogo',
             'Desconto por item ou no total da venda',

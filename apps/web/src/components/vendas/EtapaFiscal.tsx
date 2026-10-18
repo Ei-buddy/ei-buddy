@@ -185,15 +185,18 @@ export default function EtapaFiscal({
                   : 'Nenhum certificado digital cadastrado'}
               </strong>
               <p>
-                A emissão de NFC-e e NFS-e depende de um certificado A1 válido. A venda já está
-                registrada — assim que o certificado for enviado, dá para emitir a nota por esta
-                mesma tela.
+                A emissão da NFC-e depende de um certificado A1 válido. A venda já está registrada —
+                assim que o certificado for enviado, dá para emitir a nota por esta mesma tela.
               </p>
             </div>
 
             <div className={styles.semCertificadoAcoes}>
               <ButtonLink href="/app/empresa">
                 {certificado === 'expirado' ? 'Trocar certificado' : 'Cadastrar certificado'}
+              </ButtonLink>
+              {/* Sem nota, o cliente ainda leva um recibo — NR-154. */}
+              <ButtonLink href={`/app/vendas/${vendaId}/comprovante`} variant="secondary">
+                Comprovante
               </ButtonLink>
               <Button variant="secondary" onClick={onConcluir}>
                 Concluir sem nota
@@ -224,10 +227,21 @@ export default function EtapaFiscal({
                 <strong>{formatMoney(nota.impostos.reduce((a, i) => a + i.valor, 0))}</strong>
               </li>
             </ul>
-            <p className={styles.impostosNota}>Guardados na venda para consulta e relatorio.</p>
+            <p className={styles.impostosNota}>Guardados na venda para consulta e relatório.</p>
 
             <div className={styles.notaAcoes}>
-              <Button variant="secondary">Baixar PDF</Button>
+              {/* O PDF e o DANFE que o provedor devolve na autorizacao. O botao
+                  existia sem acao nenhuma — NR-169. Em contingencia nao ha link. */}
+              {nota.url ? (
+                <ButtonLink
+                  href={nota.url}
+                  variant="secondary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Baixar PDF
+                </ButtonLink>
+              ) : null}
               <Button onClick={onConcluir}>Concluir venda</Button>
             </div>
           </div>
@@ -265,6 +279,9 @@ export default function EtapaFiscal({
               </button>
             </div>
 
+            <ButtonLink href={`/app/vendas/${vendaId}/comprovante`} variant="secondary" block>
+              Comprovante não fiscal
+            </ButtonLink>
             <Button variant="ghost" block onClick={onConcluir}>
               Concluir sem emitir nota
             </Button>

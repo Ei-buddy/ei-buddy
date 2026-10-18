@@ -9,7 +9,7 @@ import {
 } from '@/lib/partners-api'
 import { formatDateTime } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
-import { Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
+import { Card, EmptyState, PageHeader, Stat, Textarea } from '@/components/ui/UI'
 import styles from './lista-vip.module.css'
 
 const ROTULO_TIPO_DE_CHAVE: Record<CandidaturaDeParceiro['pixKeyType'], string> = {
@@ -31,6 +31,10 @@ export default function AdminParceirosView() {
   const [candidaturas, setCandidaturas] = useState<CandidaturaDeParceiro[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [emAcao, setEmAcao] = useState<string | null>(null)
+  /* Recusa em dois passos: um clique abre o motivo, outro confirma. Antes,
+     um clique recusava, sem motivo e sem volta (achado do QA). */
+  const [recusando, setRecusando] = useState<string | null>(null)
+  const [motivo, setMotivo] = useState('')
 
   async function carregar() {
     const r = await listarParceirosPendentes()
@@ -67,12 +71,14 @@ export default function AdminParceirosView() {
 
   async function recusar(partnerId: string) {
     setEmAcao(partnerId)
-    const r = await recusarParceiro(partnerId)
+    const r = await recusarParceiro(partnerId, motivo.trim())
     setEmAcao(null)
     if (!r.ok) {
       setErro(r.erro)
       return
     }
+    setRecusando(null)
+    setMotivo('')
     await carregar()
   }
 
@@ -126,23 +132,59 @@ export default function AdminParceirosView() {
                     <td>{c.message}</td>
                     <td>{formatDateTime(c.createdAt)}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={emAcao === c.partnerId}
-                          onClick={() => void recusar(c.partnerId)}
-                        >
-                          Recusar
-                        </Button>
-                        <Button
-                          size="sm"
-                          disabled={emAcao === c.partnerId}
-                          onClick={() => void aprovar(c.partnerId)}
-                        >
-                          Aprovar
-                        </Button>
-                      </div>
+                      {recusando === c.partnerId ? (
+                        <div style={{ display: 'grid', gap: 8, minWidth: 240 }}>
+                          <Textarea
+                            aria-label="Motivo da recusa"
+                            placeholder="O parceiro vai ler este motivo antes de reenviar."
+                            rows={3}
+                            maxLength={500}
+                            value={motivo}
+                            onChange={(e) => setMotivo(e.target.value)}
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={emAcao === c.partnerId}
+                              onClick={() => {
+                                setRecusando(null)
+                                setMotivo('')
+                              }}
+                            >
+                              Voltar
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={emAcao === c.partnerId || motivo.trim().length < 10}
+                              onClick={() => void recusar(c.partnerId)}
+                            >
+                              Confirmar recusa
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={emAcao === c.partnerId}
+                            onClick={() => {
+                              setRecusando(c.partnerId)
+                              setMotivo('')
+                            }}
+                          >
+                            Recusar
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={emAcao === c.partnerId}
+                            onClick={() => void aprovar(c.partnerId)}
+                          >
+                            Aprovar
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

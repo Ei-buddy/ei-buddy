@@ -1,0 +1,48 @@
+/* Comprovante nao fiscal — NR-154. Papel de bobina: branco, monoespacado. */
+.mesa {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 32px;
+}
+
+.papel {
+  margin: 0;
+  padding: 20px 18px;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  color: #111;
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+/* Na impressora, so o papel: sem menu, cabecalho nem botoes. */
+@media print {
+  :global(body *) {
+    visibility: hidden;
+  }
+
+  .papel,
+  .papel * {
+    visibility: visible;
+  }
+
+  .papel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    font-size: 11px;
+  }
+
+  .semImpressao {
+    display: none;
+  }
+}

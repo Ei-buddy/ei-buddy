@@ -259,7 +259,7 @@ export default function EstornoDialog({
                   className={styles.estornoMotivoInput}
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Ex.: pagamento lancado na conta errada"
+                  placeholder="Ex.: pagamento lançado na conta errada"
                   maxLength={280}
                   disabled={processando}
                 />

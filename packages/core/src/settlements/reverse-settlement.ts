@@ -29,18 +29,18 @@ export async function reverseSettlement(
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const baixa = await tx.findSettlement(ctx.companyId, input.settlementId)
-    if (baixa === undefined) throw AppError.notFound('Baixa nao encontrada.')
+    if (baixa === undefined) throw AppError.notFound('Baixa não encontrada.')
 
     /* Estornar um estorno seria re-aplicar a baixa por um caminho que ninguem
        revisou. Quem quer baixar de novo, baixa de novo. */
     if (baixa.reversesId !== null) {
-      throw AppError.conflict('Esta linha ja e um estorno. Para baixar de novo, lance uma baixa.')
+      throw AppError.conflict('Esta linha já é um estorno. Para baixar de novo, lance uma baixa.')
     }
 
     /* Sem isto, duas chamadas seguidas devolveriam a divida duas vezes — e o
        titulo terminaria com saldo baixado negativo. */
     if (await tx.hasReversal(ctx.companyId, baixa.id)) {
-      throw AppError.conflict('Esta baixa ja foi estornada.')
+      throw AppError.conflict('Esta baixa já foi estornada.')
     }
 
     const ehPagar = baixa.payableId !== null
@@ -50,7 +50,7 @@ export async function reverseSettlement(
       ? await tx.findPayable(ctx.companyId, tituloId)
       : await tx.findReceivable(ctx.companyId, tituloId)
 
-    if (titulo === undefined) throw AppError.notFound('Titulo da baixa nao encontrado.')
+    if (titulo === undefined) throw AppError.notFound('Título da baixa não encontrado.')
 
     const r = estornarBaixa(titulo.amountCents, titulo.settledAmountCents, baixa.amountCents)
 

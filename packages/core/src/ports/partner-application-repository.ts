@@ -70,3 +70,19 @@ export type PartnerApplicationRepository = {
     note: string | undefined
   }): Promise<void>
 }
+
+/**
+ * Aviso de nova candidatura de Parceiro — NR-114.
+ *
+ * Porta, e nao o envio de e-mail direto, porque o destino e o canal sao da
+ * composicao (hoje um endereco de configuracao; amanha, quem sabe, o sino do
+ * painel). O caso de uso so diz QUE chegou uma candidatura.
+ */
+export type PartnerApplicationAlert = {
+  candidaturaRecebida(info: {
+    readonly companyName: string
+    readonly email: string
+    readonly couponCode: string | null
+    readonly message: string
+  }): Promise<void>
+}

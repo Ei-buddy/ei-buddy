@@ -201,3 +201,18 @@ describe('e-mail por SMTP — NR-014', () => {
     expect(loadApiEnv(base).SMTP_SECURE).toBe(false)
   })
 })
+
+describe('ASAAS_AMBIENTE — NR-182', () => {
+  it('ausente fica indefinido: a composicao decide pelo NODE_ENV', () => {
+    expect(loadApiEnv(base).ASAAS_AMBIENTE).toBeUndefined()
+  })
+
+  it('aceita sandbox e producao', () => {
+    expect(loadApiEnv({ ...base, ASAAS_AMBIENTE: 'sandbox' }).ASAAS_AMBIENTE).toBe('sandbox')
+    expect(loadApiEnv({ ...base, ASAAS_AMBIENTE: 'producao' }).ASAAS_AMBIENTE).toBe('producao')
+  })
+
+  it('recusa qualquer outro valor, em vez de cair num ambiente por engano', () => {
+    expect(() => loadApiEnv({ ...base, ASAAS_AMBIENTE: 'production' })).toThrow()
+  })
+})

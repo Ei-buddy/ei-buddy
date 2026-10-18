@@ -125,6 +125,7 @@ describe.skipIf(!DATABASE_URL)('extrato e conciliacao — NR-076', () => {
     for (const empresa of [empresaA, empresaB].filter(Boolean)) {
       await withTenant(sql, empresa, async (tx) => {
         await tx`DELETE FROM bank_transactions`
+        await tx`DELETE FROM settlements`
         await tx`DELETE FROM receivables`
         await tx`DELETE FROM payables`
         /* Depois dos lancamentos: `account_id` referencia com RESTRICT. */
@@ -380,6 +381,29 @@ describe.skipIf(!DATABASE_URL)('extrato e conciliacao — NR-076', () => {
   })
 
   describe('candidatos — RF-078', () => {
+    /* Conta que vence dia 25 e foi paga dia 10 sai do banco dia 10. So pelo
+       vencimento ela nunca era sugerida — achado do QA. */
+    it('acha a conta pela data da BAIXA, nao so pelo vencimento', async () => {
+      const conta = await criarConta(empresaA, 4_200, '2026-09-25')
+      await withTenant(
+        sql,
+        empresaA,
+        (tx) => tx`
+          INSERT INTO settlements (company_id, payable_id, amount_cents, settled_on, bank_account)
+          VALUES (${empresaA}, ${conta}, 4200, '2026-09-10', 'Itau')
+        `,
+      )
+
+      const candidatos = await queries.findCandidates(
+        empresaA,
+        'payable',
+        '2026-09-05',
+        '2026-09-15',
+      )
+
+      expect(candidatos.map((c) => c.id)).toContain(conta)
+    })
+
     it('traz o bruto E o liquido, e deixa a comparacao para `core`', async () => {
       const recebivel = randomUUID()
       await withTenant(

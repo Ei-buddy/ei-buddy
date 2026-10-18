@@ -15,6 +15,7 @@ import { ButtonLink, Button } from '@/components/ui/Button'
 import { IconPlus, IconSearch } from '@/components/Icons'
 import { COMANDOS_VENDAS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './vendas.module.css'
 
 /**
@@ -45,7 +46,7 @@ const ESPERA_DA_BUSCA_MS = 350
 
 /** Os recortes de periodo da barra, em dias para tras a partir de hoje. */
 const PERIODOS = [
-  { valor: 0, rotulo: 'Qualquer periodo' },
+  { valor: 0, rotulo: 'Qualquer período' },
   { valor: 1, rotulo: 'Hoje e ontem' },
   { valor: 7, rotulo: '7 dias' },
   { valor: 30, rotulo: '30 dias' },
@@ -164,27 +165,38 @@ export default function HistoricoVendas() {
         title="Vendas"
         subtitle="Histórico de vendas fechadas"
         actions={
-          <ButtonLink href="/app/vendas/nova">
-            <IconPlus size={17} />
-            Nova venda
-          </ButtonLink>
+          <>
+            {/* O mesmo periodo e busca da lista — NR-155. */}
+            <BotoesExportar
+              lista="vendas"
+              filtros={{
+                q: busca.trim(),
+                from: periodoDe(periodo).de,
+                to: periodoDe(periodo).ate,
+              }}
+            />
+            <ButtonLink href="/app/vendas/nova">
+              <IconPlus size={17} />
+              Nova venda
+            </ButtonLink>
+          </>
         }
       />
 
       <div className="statRow">
         <Stat
-          label="Faturamento"
+          label="Faturamento bruto"
           value={resumo ? formatMoney(resumo.faturamento) : '—'}
           hint={resumo ? `${resumo.quantidade} vendas` : 'carregando'}
         />
         <Stat
-          label="Valor liquido"
+          label="Faturamento líquido"
           value={resumo ? formatMoney(resumo.liquido) : '—'}
-          hint="ja sem taxa de cartao"
+          hint="sem desconto, imposto e taxa de cartão"
           tone="positive"
         />
         <Stat
-          label="Ticket médio"
+          label="Ticket médio (bruto)"
           /* Nulo, e nao zero: "ticket medio R$ 0,00" diria que houve venda de
              valor nenhum. O travessao diz que nao houve venda. */
           value={resumo?.ticketMedio == null ? '—' : formatMoney(resumo.ticketMedio)}
@@ -208,7 +220,7 @@ export default function HistoricoVendas() {
             className={styles.select}
             value={periodo}
             onChange={(e) => mudarPeriodo(Number(e.target.value))}
-            aria-label="Periodo"
+            aria-label="Período"
           >
             {PERIODOS.map((p) => (
               <option key={p.valor} value={p.valor}>

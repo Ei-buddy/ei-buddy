@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { cardTokenRequestSchema } from '@na-regua/contracts'
+import { cardTokenRequestSchema, ErroDeIntegracao } from '@na-regua/contracts'
 import type {
   BoletoCharge,
   BoletoChargeRequest,
@@ -164,7 +164,13 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
         ).corpo
 
       const id = String(pagamento.id ?? '')
-      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+      if (id === '') {
+        throw new ErroDeIntegracao('O Asaas nao devolveu id da cobranca.', {
+          provedor: 'asaas',
+          operacao: 'criar cobranca pix',
+          resposta: pagamento,
+        })
+      }
 
       /* O copia-e-cola vem de OUTRA chamada: o POST cria a cobranca, nao o QR.
          Gerar o QR tambem nao e o cliente ter pago. */
@@ -221,7 +227,13 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
         ).corpo
 
       const id = String(pagamento.id ?? '')
-      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+      if (id === '') {
+        throw new ErroDeIntegracao('O Asaas nao devolveu id da cobranca.', {
+          provedor: 'asaas',
+          operacao: 'criar boleto',
+          resposta: pagamento,
+        })
+      }
 
       /* A linha digitavel vem de OUTRA chamada, como o copia-e-cola do Pix: o
          POST cria o titulo, o banco e que numera o documento. */
@@ -235,7 +247,12 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
         /* Lanca, e nao devolve pela metade: boleto sem linha digitavel nao e
            pagavel, e entregar um assim faria a tela exibir um campo vazio no
            lugar do unico dado que o cliente precisa digitar. */
-        throw new Error('O Asaas nao devolveu a linha digitavel do boleto.')
+        throw new ErroDeIntegracao('O Asaas nao devolveu a linha digitavel do boleto.', {
+          provedor: 'asaas',
+          operacao: 'linha digitavel do boleto',
+          status: ok ? null : 0,
+          resposta: ficha,
+        })
       }
 
       return {
@@ -345,7 +362,15 @@ export function criarGatewayAsaas(opcoes: AsaasOptions) {
 
       const pagamento = resposta.corpo
       const id = String(pagamento.id ?? '')
-      if (id === '') throw new Error('O Asaas nao devolveu id da cobranca.')
+      if (id === '') {
+        /* Sem o corpo: a resposta de cobranca no cartao traz dados do cartao,
+           e log e onde um dado desses sobrevive por anos. */
+        throw new ErroDeIntegracao('O Asaas nao devolveu id da cobranca.', {
+          provedor: 'asaas',
+          operacao: 'cobrar cartao',
+          status: 'status' in resposta ? resposta.status : null,
+        })
+      }
 
       const cartao = (pagamento.creditCard ?? {}) as Record<string, unknown>
       const cobranca: CardCharge = {

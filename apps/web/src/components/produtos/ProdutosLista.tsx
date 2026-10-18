@@ -18,6 +18,7 @@ import { IconBox, IconPlus, IconSearch, IconUpload } from '@/components/Icons'
 import { COMANDOS_PRODUTOS } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ImportarPlanilha from '@/components/app/ImportarPlanilha'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './produtos.module.css'
 
 /**
@@ -45,25 +46,25 @@ import styles from './produtos.module.css'
 const CAMPOS_PLANILHA = [
   {
     key: 'codigo',
-    label: 'Codigo',
+    label: 'Código',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('codigo') || c === 'cod' || c.includes('sku'),
   },
   {
     key: 'descricao',
-    label: 'Descricao',
+    label: 'Descrição',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('descri') || c.includes('produto') || c.includes('nome'),
   },
   {
     key: 'precoVenda',
-    label: 'Preco de venda',
+    label: 'Preço de venda',
     obrigatorio: true,
     reconhece: (c: string) => c.includes('venda') || c.includes('preco'),
   },
   {
     key: 'precoCusto',
-    label: 'Preco de custo',
+    label: 'Preço de custo',
     obrigatorio: false,
     reconhece: (c: string) => c.includes('custo'),
   },
@@ -97,6 +98,9 @@ const ESPERA_DA_BUSCA_MS = 350
 export default function ProdutosLista() {
   const [busca, setBusca] = useState('')
   const [filtroEstoque, setFiltroEstoque] = useState<NivelDeEstoque>('todos')
+  /* Inativos sao um filtro a parte (NR-151): por padrao a lista so mostra o
+     que esta a venda. */
+  const [inativos, setInativos] = useState(false)
   const [pagina, setPagina] = useState(1)
 
   const [dados, setDados] = useState<PaginaDoCatalogo | null>(null)
@@ -116,28 +120,32 @@ export default function ProdutosLista() {
    */
   const pedido = useRef(0)
 
-  const buscar = useCallback(async (termo: string, estoque: NivelDeEstoque, qualPagina: number) => {
-    const meu = ++pedido.current
+  const buscar = useCallback(
+    async (termo: string, estoque: NivelDeEstoque, soInativos: boolean, qualPagina: number) => {
+      const meu = ++pedido.current
 
-    const r = await carregarCatalogo({
-      termo,
-      estoque,
-      pagina: qualPagina,
-      porPagina: POR_PAGINA,
-    })
+      const r = await carregarCatalogo({
+        termo,
+        estoque,
+        ...(soInativos ? { situacao: 'inativos' as const } : {}),
+        pagina: qualPagina,
+        porPagina: POR_PAGINA,
+      })
 
-    if (meu !== pedido.current) return
+      if (meu !== pedido.current) return
 
-    setCarregando(false)
+      setCarregando(false)
 
-    if (!r.ok) {
-      setErro(r.erro)
-      return
-    }
+      if (!r.ok) {
+        setErro(r.erro)
+        return
+      }
 
-    setErro(null)
-    setDados(r.dados)
-  }, [])
+      setErro(null)
+      setDados(r.dados)
+    },
+    [],
+  )
 
   /* O resumo fala do catalogo INTEIRO: nao depende de busca nem de pagina, e
      por isso e buscado uma vez e nao a cada tecla. */
@@ -159,11 +167,11 @@ export default function ProdutosLista() {
    */
   useEffect(() => {
     const t = setTimeout(() => {
-      void buscar(busca, filtroEstoque, pagina)
+      void buscar(busca, filtroEstoque, inativos, pagina)
     }, ESPERA_DA_BUSCA_MS)
 
     return () => clearTimeout(t)
-  }, [busca, filtroEstoque, pagina, buscar])
+  }, [busca, filtroEstoque, inativos, pagina, buscar])
 
   /* Trocar busca ou filtro volta para a primeira pagina: continuar na pagina 4
      de um resultado que agora tem uma pagina mostraria vazio, e o lojista
@@ -174,9 +182,10 @@ export default function ProdutosLista() {
     setPagina(1)
   }
 
-  const mudarFiltro = (valor: NivelDeEstoque) => {
+  const mudarFiltro = (valor: NivelDeEstoque | 'inativos') => {
     setCarregando(true)
-    setFiltroEstoque(valor)
+    setInativos(valor === 'inativos')
+    setFiltroEstoque(valor === 'inativos' ? 'todos' : valor)
     setPagina(1)
   }
 
@@ -189,12 +198,14 @@ export default function ProdutosLista() {
     setCarregando(true)
     setBusca('')
     setFiltroEstoque('todos')
+    setInativos(false)
     setPagina(1)
   }
 
   const total = dados?.total ?? 0
   const ultimaPagina = Math.max(1, Math.ceil(total / POR_PAGINA))
-  const filtrando = busca.trim() !== '' || filtroEstoque !== 'todos'
+  const filtrando = busca.trim() !== '' || filtroEstoque !== 'todos' || inativos
+  const filtroAtual = inativos ? 'inativos' : filtroEstoque
 
   return (
     <>
@@ -203,6 +214,15 @@ export default function ProdutosLista() {
         subtitle="Catálogo, preços e estoque"
         actions={
           <>
+            {/* O arquivo leva os filtros aplicados — NR-155. */}
+            <BotoesExportar
+              lista="produtos"
+              filtros={{
+                q: busca.trim(),
+                stock: filtroEstoque,
+                ...(inativos ? { situacao: 'inativos' } : {}),
+              }}
+            />
             <Button variant="secondary" onClick={() => setImportandoPlanilha(true)}>
               <IconUpload size={17} />
               Importar planilha
@@ -238,14 +258,15 @@ export default function ProdutosLista() {
               ['todos', 'Todos'],
               ['baixo', 'Estoque baixo'],
               ['esgotado', 'Esgotados'],
+              ['inativos', 'Inativos'],
             ] as const
           ).map(([valor, rotulo]) => (
             <button
               key={valor}
               type="button"
-              className={`${styles.filtro} ${filtroEstoque === valor ? styles.filtroAtivo : ''}`}
+              className={`${styles.filtro} ${filtroAtual === valor ? styles.filtroAtivo : ''}`}
               onClick={() => mudarFiltro(valor)}
-              aria-pressed={filtroEstoque === valor}
+              aria-pressed={filtroAtual === valor}
             >
               {rotulo}
             </button>
@@ -262,7 +283,7 @@ export default function ProdutosLista() {
                 onClick={() => {
                   setCarregando(true)
                   setErro(null)
-                  void buscar(busca, filtroEstoque, pagina)
+                  void buscar(busca, filtroEstoque, inativos, pagina)
                 }}
               >
                 Tentar de novo
@@ -332,7 +353,9 @@ export default function ProdutosLista() {
                       </span>
 
                       <span className={styles.estoque}>
-                        {nivel === 'esgotado' ? (
+                        {!produto.ativo ? (
+                          <Badge tone="neutral">Inativo</Badge>
+                        ) : nivel === 'esgotado' ? (
                           <Badge tone="danger">Esgotado</Badge>
                         ) : nivel === 'baixo' ? (
                           <Badge tone="warning">{produto.estoque} un · baixo</Badge>
@@ -400,23 +423,23 @@ export default function ProdutosLista() {
  * Nunca somados da pagina: "valor em estoque" calculado sobre 24 de 300
  * produtos erra por um fator de doze, e o lojista decide compra com ele.
  *
- * "Precisam de reposicao" usa `belowMinimum`, que JA inclui os zerados —
+ * "Precisam de reposição" usa `belowMinimum`, que JA inclui os zerados —
  * somar as duas contagens contaria o produto zerado duas vezes.
  */
 function Resumo({ resumo }: { resumo: ResumoDoCatalogo | null }) {
   if (resumo === null) {
     return (
       <div className="statRow">
-        <Stat label="Produtos no catalogo" value="—" />
-        <Stat label="Precisam de reposicao" value="—" />
-        <Stat label="Valor em estoque" value="—" hint="a preco de custo" />
+        <Stat label="Produtos no catálogo" value="—" />
+        <Stat label="Precisam de reposição" value="—" />
+        <Stat label="Valor em estoque" value="—" hint="a preço de custo" />
       </div>
     )
   }
 
   return (
     <div className="statRow">
-      <Stat label="Produtos no catalogo" value={String(resumo.total)} />
+      <Stat label="Produtos no catálogo" value={String(resumo.total)} />
       <Stat
         label="Precisam de reposição"
         value={String(resumo.belowMinimum)}
@@ -430,7 +453,7 @@ function Resumo({ resumo }: { resumo: ResumoDoCatalogo | null }) {
       <Stat
         label="Valor em estoque"
         value={formatMoney(resumo.stockValueCents / 100)}
-        hint="a preco de custo"
+        hint="a preço de custo"
       />
     </div>
   )

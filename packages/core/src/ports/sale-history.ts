@@ -50,6 +50,8 @@ export type VendaDoHistorico = {
   readonly cardFeeAmountCents: number
   /** Ja devolvido ao cliente, cumulativo — RF-044. */
   readonly returnedAmountCents: number
+  /** Troco devolvido em dinheiro — NR-156. */
+  readonly changeCents: number
   readonly items: readonly ItemDoHistorico[]
   readonly payments: readonly PagamentoDoHistorico[]
   /** Numero da nota, quando houve emissao. */

@@ -29,7 +29,7 @@ export async function inviteUser(
   assertSegundoCanal(ctx, 'Convidar usuario')
 
   if (ctx.role !== 'owner') {
-    throw AppError.forbidden('Somente o responsavel pela loja pode convidar usuarios.')
+    throw AppError.forbidden('Somente o responsável pela loja pode convidar usuários.')
   }
 
   const existente =
@@ -52,7 +52,7 @@ export async function inviteUser(
     }
 
     if ((await deps.users.findMembership(ctx.companyId, existente.id)) !== undefined) {
-      throw AppError.conflict('Esta pessoa ja tem acesso a esta loja.')
+      throw AppError.conflict('Esta pessoa já tem acesso a esta loja.')
     }
 
     await deps.users.grantAccess({

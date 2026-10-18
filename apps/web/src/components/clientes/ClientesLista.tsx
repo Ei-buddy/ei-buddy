@@ -7,6 +7,8 @@ import {
   confirmarImportacaoClientes,
   type FiltroDeCliente,
   listarClientes,
+  listarInadimplentes,
+  type ClienteInadimplente,
 } from '@/lib/clientes-api'
 import { isValidCNPJ, isValidCPF } from '@/lib/validation'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -17,16 +19,12 @@ import { IconPlus, IconSearch, IconUpload } from '@/components/Icons'
 import { COMANDOS_CLIENTES } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import ImportarPlanilha from '@/components/app/ImportarPlanilha'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './clientes.module.css'
 
-/** Campos que a planilha de clientes pode alimentar. */
-/*
- * Cidade e UF NAO estao aqui, e a ausencia e de proposito.
- *
- * A tabela `customers` nao tem endereco — nem coluna, nem contrato. Enquanto
- * elas ficavam no mapeamento, o lojista escolhia a coluna da planilha dele e o
- * dado era descartado em silencio: pior que nao oferecer, porque parece que
- * funcionou. Voltam quando houver onde guardar.
+/**
+ * Campos que a planilha de clientes pode alimentar — os mesmos do app.
+ * Celular e endereco completo sao obrigatorios no cadastro (NR-142).
  */
 const CAMPOS_PLANILHA = [
   {
@@ -44,7 +42,7 @@ const CAMPOS_PLANILHA = [
   {
     key: 'celular',
     label: 'Celular',
-    obrigatorio: false,
+    obrigatorio: true,
     reconhece: (c: string) => c.includes('tel') || c.includes('cel') || c.includes('whats'),
   },
   {
@@ -53,7 +51,70 @@ const CAMPOS_PLANILHA = [
     obrigatorio: false,
     reconhece: (c: string) => c.includes('mail'),
   },
+  {
+    key: 'cep',
+    label: 'CEP',
+    obrigatorio: true,
+    reconhece: (c: string) => c.includes('cep'),
+  },
+  {
+    key: 'rua',
+    label: 'Rua',
+    obrigatorio: true,
+    reconhece: (c: string) =>
+      c.includes('rua') || c.includes('logradouro') || c === 'endereço' || c === 'endereco',
+  },
+  {
+    key: 'numero',
+    label: 'Número',
+    obrigatorio: true,
+    reconhece: (c: string) =>
+      c.includes('número') || c.includes('numero') || c === 'nº' || c === 'n',
+  },
+  {
+    key: 'complemento',
+    label: 'Complemento',
+    obrigatorio: false,
+    reconhece: (c: string) => c.includes('complemento'),
+  },
+  {
+    key: 'bairro',
+    label: 'Bairro',
+    obrigatorio: true,
+    reconhece: (c: string) => c.includes('bairro'),
+  },
+  {
+    key: 'cidade',
+    label: 'Cidade',
+    obrigatorio: true,
+    reconhece: (c: string) =>
+      c.includes('cidade') || c.includes('municipio') || c.includes('município'),
+  },
+  {
+    key: 'uf',
+    label: 'UF',
+    obrigatorio: true,
+    reconhece: (c: string) => c === 'uf' || c.includes('estado'),
+  },
 ]
+
+/** Celular e endereco de uma linha da planilha — obrigatorios (NR-142). */
+function validarContatoEEndereco(v: Record<string, string>): string | null {
+  /* Celular e endereco sao obrigatorios no cadastro (NR-142). */
+  const celular = (v.celular ?? '').replace(/\D/g, '')
+  if (celular.length !== 10 && celular.length !== 11) return 'Celular com DDD vazio ou inválido'
+  if ((v.cep ?? '').replace(/\D/g, '').length !== 8) return 'CEP vazio ou inválido'
+  for (const [campo, rotulo] of [
+    ['rua', 'Rua'],
+    ['numero', 'Número'],
+    ['bairro', 'Bairro'],
+    ['cidade', 'Cidade'],
+  ] as const) {
+    if (!v[campo]?.trim()) return `${rotulo} vazio`
+  }
+  if ((v.uf ?? '').trim().length !== 2) return 'UF vazia ou inválida'
+  return null
+}
 
 /*
  * A fronteira do "inativo" saiu daqui.
@@ -63,7 +124,7 @@ const CAMPOS_PLANILHA = [
  * vem". Duas copias divergem no dia em que uma das duas mudar.
  */
 
-type Filtro = 'todos' | 'pendencia' | 'inativos'
+type Filtro = 'todos' | 'pendencia' | 'inativos' | 'inadimplentes'
 
 export default function ClientesLista() {
   const [busca, setBusca] = useState('')
@@ -71,6 +132,7 @@ export default function ClientesLista() {
   const [importando, setImportando] = useState(false)
 
   const [listaFiltrada, setListaFiltrada] = useState<ClienteDaLista[]>([])
+  const [inadimplentes, setInadimplentes] = useState<ClienteInadimplente[] | null>(null)
   const [total, setTotal] = useState(0)
   const [carregando, setCarregando] = useState(true)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
@@ -87,6 +149,24 @@ export default function ClientesLista() {
    * conta repetida aqui e no CRM.
    */
   const buscar = useCallback(async (termo: string, qual: Filtro) => {
+    /* Inadimplentes tem consulta propria (RF-071): o que importa e o valor
+       VENCIDO e os dias de atraso, que a lista geral nao traz. A busca filtra
+       por nome aqui mesmo — a lista ja vem curta, so de quem deve. */
+    if (qual === 'inadimplentes') {
+      const d = await listarInadimplentes()
+      setCarregando(false)
+      if (!d.ok) {
+        setErroCarga(d.erro)
+        return
+      }
+      const t = termo.trim().toLowerCase()
+      const filtrados = d.dados.filter((c) => t === '' || c.nome.toLowerCase().includes(t))
+      setErroCarga(null)
+      setInadimplentes(filtrados)
+      setTotal(filtrados.length)
+      return
+    }
+    setInadimplentes(null)
     const r = await listarClientes({
       termo,
       filtro: (qual === 'pendencia' ? 'fiado' : qual) as FiltroDeCliente,
@@ -128,6 +208,15 @@ export default function ClientesLista() {
         subtitle="Base de clientes, pendências e histórico"
         actions={
           <>
+            {/* O arquivo leva a busca e o filtro aplicados — NR-155. */}
+            <BotoesExportar
+              lista="clientes"
+              filtros={{
+                q: busca.trim(),
+                filter:
+                  filtro === 'pendencia' ? 'fiado' : filtro === 'inativos' ? 'inativos' : 'todos',
+              }}
+            />
             <Button variant="secondary" onClick={() => setImportando(true)}>
               <IconUpload size={17} />
               Importar planilha
@@ -180,6 +269,7 @@ export default function ClientesLista() {
                 ['todos', 'Todos'],
                 ['pendencia', 'Com pendência'],
                 ['inativos', 'Sem compras recentes'],
+                ['inadimplentes', 'Inadimplentes'],
               ] as const
             ).map(([valor, rotulo]) => (
               <button
@@ -215,6 +305,41 @@ export default function ClientesLista() {
               </Button>
             }
           />
+        ) : inadimplentes !== null ? (
+          inadimplentes.length === 0 ? (
+            <EmptyState
+              title="Ninguém em atraso"
+              description="Nenhum cliente com conta vencida e não paga."
+            />
+          ) : (
+            <ul className={styles.lista}>
+              {inadimplentes.map((c) => (
+                <li key={c.id}>
+                  <Link href={`/app/clientes/${c.id}`} className={styles.item}>
+                    <span className={styles.avatar} aria-hidden="true">
+                      {c.nome.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className={styles.itemPrincipal}>
+                      <strong>{c.nome}</strong>
+                      <span>
+                        {c.titulos} {c.titulos === 1 ? 'conta vencida' : 'contas vencidas'}
+                      </span>
+                    </span>
+                    <span className={styles.itemContato}>{c.celular ?? 'sem telefone'}</span>
+                    <span className={styles.itemUltima}>
+                      Vencido desde {formatDate(c.venceuEm)}
+                    </span>
+                    <span className={styles.itemStatus}>
+                      <Badge tone="danger">
+                        {formatMoney(c.vencido)} · {c.diasDeAtraso}{' '}
+                        {c.diasDeAtraso === 1 ? 'dia' : 'dias'}
+                      </Badge>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )
         ) : listaFiltrada.length === 0 ? (
           /* Sem a base inteira em memoria, quem distingue "nenhum cadastro" de
              "nenhum resultado" e a busca estar vazia — e a diferenca importa: a
@@ -287,6 +412,11 @@ export default function ClientesLista() {
                     </span>
 
                     <span className={styles.itemStatus}>
+                      {/* Cliente de antes da DEC-025 pode estar sem celular ou
+                          endereco: o aviso aparece aqui para ser completado. */}
+                      {cliente.faltando.length > 0 ? (
+                        <Badge tone="warning">Cadastro incompleto</Badge>
+                      ) : null}
                       {pendente > 0 ? (
                         <Badge tone="info">Em aberto · {formatMoney(pendente)}</Badge>
                       ) : (
@@ -310,10 +440,11 @@ export default function ClientesLista() {
           titulo="Importar clientes"
           campos={CAMPOS_PLANILHA}
           /*
-           * Vazio: a lista desta tela ainda vem de `mock-data`, e conferir
-           * duplicidade contra dados de exemplo diria "ja cadastrado" para
-           * quem nunca foi cadastrado. Repetido DENTRO da planilha continua
-           * sendo detectado, e o servidor recusa o que precisar recusar.
+           * Vazio: a lista desta tela e paginada no servidor, entao o
+           * navegador so conhece uma pagina — conferir contra ela deixaria
+           * passar quem esta na pagina seguinte. Repetido DENTRO da planilha
+           * continua sendo detectado; parecido com quem ja existe ENTRA, de
+           * proposito (`importCustomers`, NR-072), para juntar depois.
            */
           chavesExistentes={[]}
           chaveDuplicidade={(v) => (v.documento ?? '').replace(/\D/g, '')}
@@ -323,7 +454,8 @@ export default function ClientesLista() {
             if (!doc) return 'CPF/CNPJ vazio'
             const ok =
               doc.length === 11 ? isValidCPF(doc) : doc.length === 14 ? isValidCNPJ(doc) : false
-            return ok ? null : 'CPF/CNPJ inválido'
+            if (!ok) return 'CPF/CNPJ inválido'
+            return validarContatoEEndereco(v)
           }}
           onConfirmar={confirmarImportacaoClientes}
           onClose={() => setImportando(false)}

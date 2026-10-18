@@ -1,5 +1,6 @@
 import {
   resendPartnerApplicationInputSchema,
+  rejectPartnerApplicationInputSchema,
   reviewPartnerApplicationInputSchema,
 } from '@na-regua/contracts'
 import {
@@ -61,7 +62,7 @@ export function registerPartnersRoutes(app: FastifyInstance, deps: PartnersRoute
   app.post('/admin/parceiros/:id/recusar', async (request, reply) => {
     const sessao = sessaoOuFalha(request)
     const { id } = request.params as { id: string }
-    const input = validate(reviewPartnerApplicationInputSchema, request.body ?? {})
+    const input = validate(rejectPartnerApplicationInputSchema, request.body ?? {})
 
     await rejectPartnerApplication(deps, sessao.userId, id, input.note)
 

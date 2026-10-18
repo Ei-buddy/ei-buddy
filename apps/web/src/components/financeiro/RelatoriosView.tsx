@@ -13,6 +13,7 @@ import { formatMoney } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, Field, Input, PageHeader } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
+import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './relatorios.module.css'
 
 /**
@@ -150,6 +151,7 @@ export default function RelatoriosView() {
       <PageHeader
         title="Relatórios"
         subtitle="Faturamento mês a mês, e quem é o que puxou esse dinheiro"
+        actions={<BotoesExportar lista="faturamento" filtros={{ from: de, to: ate }} />}
       />
 
       <Card>
@@ -157,7 +159,7 @@ export default function RelatoriosView() {
           <Field label="De">
             <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
           </Field>
-          <Field label="Ate">
+          <Field label="Até">
             <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
           </Field>
           <Button onClick={aplicarPeriodo} disabled={periodoInvalido || carregando}>
@@ -204,23 +206,34 @@ export default function RelatoriosView() {
  */
 function Faturamento({ dados }: { dados: Faturamento }) {
   const maior = Math.max(...dados.months.map((m) => m.netCents), 0)
+  const totalBruto = dados.months.reduce((acc, m) => acc + m.grossCents, 0)
 
   return (
     <section className={styles.bloco}>
       <header className={styles.blocoCabecalho}>
         <h2 className={styles.blocoTitulo}>Faturamento mês a mês</h2>
         <span className={styles.blocoTotal}>
-          Total: <strong>{formatMoney(emReais(dados.totalNetCents))}</strong>
+          Bruto: <strong>{formatMoney(emReais(totalBruto))}</strong> · Líquido:{' '}
+          <strong>{formatMoney(emReais(dados.totalNetCents))}</strong>
         </span>
       </header>
+      {/* Os dois, e cada um dizendo o que e: bruto sozinho parece dinheiro no
+          caixa, liquido sozinho parece venda que sumiu. */}
+      <p className={styles.legenda}>
+        Bruto é o valor das vendas antes do desconto. Líquido é o que sobra depois do desconto, do
+        imposto e da taxa de cartão.
+      </p>
 
       <table className={styles.meses}>
         <thead>
           <tr>
             <th scope="col">Mês</th>
             <th scope="col">Vendas</th>
-            <th scope="col">Ticket médio</th>
-            <th scope="col">Faturamento</th>
+            {/* Sobre o liquido, como a coluna ao lado; o do historico de vendas
+                e sobre o bruto. O rotulo diz qual e qual (DEC-024). */}
+            <th scope="col">Ticket médio (líquido)</th>
+            <th scope="col">Bruto</th>
+            <th scope="col">Líquido</th>
           </tr>
         </thead>
         <tbody>
@@ -235,6 +248,7 @@ function Faturamento({ dados }: { dados: Faturamento }) {
                  */}
                 {m.averageTicketCents === null ? '—' : formatMoney(emReais(m.averageTicketCents))}
               </td>
+              <td className={styles.valor}>{formatMoney(emReais(m.grossCents))}</td>
               <td className={styles.valor}>
                 <span className={styles.barraCaixa} aria-hidden="true">
                   <span
@@ -273,7 +287,12 @@ function Sobra({ rotulo, cents }: { rotulo: string; cents: number }) {
 function Clientes({ dados }: { dados: RankingDeClientes }) {
   return (
     <section className={styles.bloco}>
-      <h2 className={styles.blocoTitulo}>Clientes que mais compraram</h2>
+      <div className={styles.blocoCabecalho}>
+        <h2 className={styles.blocoTitulo}>Clientes que mais compraram</h2>
+        <span className={styles.blocoAcoes}>
+          <BotoesExportar lista="ranking-clientes" filtros={{ from: dados.from, to: dados.to }} />
+        </span>
+      </div>
 
       {dados.customers.length === 0 ? (
         <p className={styles.aviso}>Nenhuma venda com cliente identificado neste período.</p>
@@ -293,7 +312,7 @@ function Clientes({ dados }: { dados: RankingDeClientes }) {
         </ol>
       )}
 
-      <Sobra rotulo="Venda de balcao, sem cliente identificado" cents={dados.unidentifiedCents} />
+      <Sobra rotulo="Venda de balcão, sem cliente identificado" cents={dados.unidentifiedCents} />
     </section>
   )
 }
@@ -301,7 +320,12 @@ function Clientes({ dados }: { dados: RankingDeClientes }) {
 function Produtos({ dados }: { dados: RankingDeProdutos }) {
   return (
     <section className={styles.bloco}>
-      <h2 className={styles.blocoTitulo}>Produtos mais vendidos</h2>
+      <div className={styles.blocoCabecalho}>
+        <h2 className={styles.blocoTitulo}>Produtos mais vendidos</h2>
+        <span className={styles.blocoAcoes}>
+          <BotoesExportar lista="ranking-produtos" filtros={{ from: dados.from, to: dados.to }} />
+        </span>
+      </div>
 
       {dados.products.length === 0 ? (
         <p className={styles.aviso}>Nenhum produto do cadastro foi vendido neste período.</p>

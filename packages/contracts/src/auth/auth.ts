@@ -361,3 +361,48 @@ export const changePhoneInputSchema = z
   .strict()
 
 export type ChangePhoneInput = z.infer<typeof changePhoneInputSchema>
+
+/* -------------------------------------------------------------------------- */
+/* Meu perfil — NR-153                                                        */
+/* -------------------------------------------------------------------------- */
+
+/** O que a tela de perfil mostra: os dados da PESSOA, nao da loja. */
+export const myAccountOutputSchema = z.object({
+  name: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+})
+
+export type MyAccountOutput = z.infer<typeof myAccountOutputSchema>
+
+/** Trocar o nome nao pede senha: nao muda como se entra na conta. */
+export const changeNameInputSchema = z.object({ name: nameSchema }).strict()
+
+export type ChangeNameInput = z.infer<typeof changeNameInputSchema>
+
+/**
+ * Trocar o e-mail pede a senha atual: e por ele que se entra e se recupera a
+ * conta. Mesmo raciocinio da troca de celular (RF-132).
+ */
+export const changeEmailInputSchema = z
+  .object({
+    email: emailSchema,
+    secret: z.string().min(1, 'Informe a sua senha atual.').max(200),
+  })
+  .strict()
+
+export type ChangeEmailInput = z.infer<typeof changeEmailInputSchema>
+
+/** Trocar a senha logado: a atual confere, a nova segue o minimo do cadastro. */
+export const changePasswordInputSchema = z
+  .object({
+    secret: z.string().min(1, 'Informe a sua senha atual.').max(200),
+    newSecret: z.string().min(8, 'A senha precisa de ao menos 8 caracteres.').max(200),
+  })
+  .strict()
+  .refine((v) => v.newSecret !== v.secret, {
+    message: 'A nova senha precisa ser diferente da atual.',
+    path: ['newSecret'],
+  })
+
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>

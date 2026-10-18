@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { safeUrl } from './logging.js'
+import { ErroDeIntegracao } from '@na-regua/contracts'
+import { camposDaFalha, safeUrl } from './logging.js'
 
 /**
  * `REDIS_URL` e `DATABASE_URL` sao marcadas como segredo em ambientes.md e
@@ -33,5 +34,31 @@ describe('safeUrl', () => {
   /* Na duvida, omite: imprimir texto nao parseado pode publicar credencial. */
   it.each(['nao-e-url', '', 'redis//sem-dois-pontos'])('omite %j quando nao parseia', (entrada) => {
     expect(safeUrl(entrada)).toBe('[url invalida]')
+  })
+})
+
+describe('camposDaFalha — RF-129', () => {
+  it('erro de integracao leva provedor, status e a resposta, com a venda do job', () => {
+    const erro = new ErroDeIntegracao('Focus NFe respondeu 502 com corpo ilegivel em /nfce.', {
+      provedor: 'focusnfe',
+      operacao: 'POST /nfce',
+      status: 502,
+      resposta: '<html>Bad Gateway</html>',
+    })
+
+    expect(camposDaFalha(erro, { saleId: 'venda-1', companyId: 'c' })).toEqual({
+      error: 'Focus NFe respondeu 502 com corpo ilegivel em /nfce.',
+      ref: 'venda-1',
+      integracao: {
+        provedor: 'focusnfe',
+        operacao: 'POST /nfce',
+        status: 502,
+        resposta: '<html>Bad Gateway</html>',
+      },
+    })
+  })
+
+  it('erro comum continua so com a mensagem', () => {
+    expect(camposDaFalha(new Error('Redis fora'), undefined)).toEqual({ error: 'Redis fora' })
   })
 })

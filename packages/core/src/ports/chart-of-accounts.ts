@@ -15,9 +15,14 @@ export type NewAccount = {
   readonly createdAt: Date
 }
 
-/** Um lancamento do periodo, ja com a conta que ele recebeu. */
+/**
+ * Um lancamento do periodo, ja com a conta que ele recebeu.
+ *
+ * `sale` e a venda lida na data dela: nao tem conta, e `accountName` traz um
+ * CODIGO (`vendas`, `impostos`, `cmv`...) que `core` traduz em rotulo.
+ */
 export type LancamentoClassificado = {
-  readonly entryKind: EntryKind
+  readonly entryKind: EntryKind | 'sale'
   readonly entryId: string
   readonly accountId: string | null
   readonly accountName: string

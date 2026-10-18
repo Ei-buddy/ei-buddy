@@ -2,6 +2,7 @@ import type { ImportStatementResult } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
+import type { IdGenerator } from '../ports/payable-repository.js'
 import type { ExecutionContext } from '../context.js'
 import type {
   BankTransactionWriter,
@@ -13,6 +14,8 @@ export type ImportStatementDeps = {
   readonly parser: StatementParser
   readonly transactions: BankTransactionWriter
   readonly audit: AuditTrail
+  /** Id do lote na trilha: `audit_logs.entity_id` e uuid. */
+  readonly ids: IdGenerator
 }
 
 /**
@@ -79,13 +82,14 @@ export async function importStatement(
   await deps.audit.record({
     companyId: ctx.companyId,
     entity: 'BankStatement',
-    entityId: `${lido.format}:${ctx.requestId}`,
+    entityId: deps.ids.next(),
     action: 'created',
     actorId: ctx.userId,
     channel: ctx.channel,
     occurredAt: ctx.now,
     before: null,
     after: {
+      requestId: ctx.requestId,
       format: lido.format,
       account: lido.account,
       read: lido.transactions.length,

@@ -18,8 +18,8 @@ const ctx = { companyId: EMPRESA, userId: 'u1', role: 'owner', channel: 'app' } 
 
 /* So os dois campos que as assercoes leem: o resto do ProductOutput nao
    participa do que se prova aqui. */
-const produto = (id: string, description: string): ProductOutput =>
-  ({ id, description }) as unknown as ProductOutput
+const produto = (id: string, description: string, isActive = true): ProductOutput =>
+  ({ id, description, isActive }) as unknown as ProductOutput
 
 function cenario(entrada: {
   buscaExata?: readonly ProductOutput[]
@@ -99,6 +99,21 @@ describe('quando a recuperacao entra', () => {
 })
 
 describe('o que a recuperacao devolve', () => {
+  /* O indice nao sabe que o produto saiu do balcao — NR-151. */
+  it('deixa de fora o produto inativo', async () => {
+    const c = cenario({
+      buscaExata: [],
+      candidatos: [
+        { kind: 'product', refId: 'p9', conteudo: 'Coca-Cola 2 litros', relevancia: 0.8 },
+      ],
+      catalogo: { p9: produto('p9', 'Coca-Cola 2 litros', false) },
+    })
+
+    const r = await searchProducts(c.deps, ctx, { termo: 'coca 2l' })
+
+    expect(r).toEqual([])
+  })
+
   it('o PRODUTO do catalogo, e nao o texto do indice', async () => {
     const c = cenario({
       buscaExata: [],

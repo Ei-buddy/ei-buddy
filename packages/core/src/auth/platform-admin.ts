@@ -130,7 +130,7 @@ export async function grantPlatformAdmin(
   )
 
   if (identidade === undefined) {
-    throw AppError.conflict('Nao foi possivel criar a credencial para este e-mail.')
+    throw AppError.conflict('Não foi possível criar a credencial para este e-mail.')
   }
 
   const usuario = await deps.users.createUserWithoutCompany({
@@ -175,14 +175,14 @@ export async function revokePlatformAdmin(
   await exigirSuperAdmin(deps, requestedBy)
 
   if (requestedBy === userId) {
-    throw AppError.validation('Voce nao pode revogar o proprio acesso. Peca a outro Super Admin.')
+    throw AppError.validation('Você não pode revogar o próprio acesso. Peça a outro Super Admin.')
   }
 
   if (!(await deps.access.isPlatformAdmin(userId))) {
     /* Nao e erro de autorizacao: quem pediu E Super Admin. O alvo e que nao
        tem o acesso — e dizer isso e melhor que um sucesso silencioso sobre
        uma revogacao que nao revogou nada. */
-    throw AppError.notFound('Esta conta nao e Super Admin.')
+    throw AppError.notFound('Esta conta não é Super Admin.')
   }
 
   await deps.access.revoke(userId, requestedBy)

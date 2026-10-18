@@ -119,6 +119,16 @@ const colunas = (tx: TransactionSql) => tx`
   r.installment_number, r.installment_count, r.status, r.created_at
 `
 
+async function relido(tx: TransactionSql, id: string): Promise<ReceivableOutput> {
+  const [linha] = await tx<Linha[]>`
+    SELECT ${colunas(tx)}
+    FROM receivables r
+    LEFT JOIN customers c ON c.id = r.customer_id
+    WHERE r.id = ${id}
+  `
+  return paraSaida(linha!)
+}
+
 function escopo(tx: TransactionSql): ManualReceivableTransaction {
   return {
     /* A trilha entra NA transacao — NR-087. Ver `TransactionalAuditTrail`. */
@@ -145,6 +155,43 @@ function escopo(tx: TransactionSql): ManualReceivableTransaction {
         WHERE r.id = ${criado!.id}
       `
       return paraSaida(linha!)
+    },
+
+    /* `FOR UPDATE OF r`: trava o recebivel (e nao o cliente do JOIN) entre ler
+       "sem baixa" e gravar a correcao — NR-150. */
+    findForChange: async (_empresa, id) => {
+      const [linha] = await tx<(Linha & { is_customer_debt: boolean })[]>`
+        SELECT ${colunas(tx)}, r.is_customer_debt
+        FROM receivables r
+        LEFT JOIN customers c ON c.id = r.customer_id
+        WHERE r.id = ${id}
+        FOR UPDATE OF r
+      `
+      return linha === undefined
+        ? null
+        : { receivable: paraSaida(linha), isCustomerDebt: linha.is_customer_debt }
+    },
+
+    /* Avulso nao tem tarifa: o liquido acompanha o bruto. */
+    update: async (_empresa, id, mudancas) => {
+      const valor = mudancas.amountCents ?? null
+      await tx`
+        UPDATE receivables
+        SET description = COALESCE(${mudancas.description ?? null}, description),
+            amount_cents = COALESCE(${valor}::bigint, amount_cents),
+            net_amount_cents = COALESCE(${valor}::bigint, net_amount_cents),
+            due_date = COALESCE(${mudancas.dueDate ?? null}::date, due_date),
+            updated_at = now()
+        WHERE id = ${id}
+      `
+      return relido(tx, id)
+    },
+
+    cancel: async (_empresa, id) => {
+      await tx`
+        UPDATE receivables SET status = 'cancelled', updated_at = now() WHERE id = ${id}
+      `
+      return relido(tx, id)
     },
 
     /**

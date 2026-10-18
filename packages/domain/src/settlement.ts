@@ -1,3 +1,4 @@
+import { Money } from '@na-regua/money'
 import { DomainError } from './domain-error.js'
 
 /**
@@ -60,7 +61,7 @@ export function aplicarBaixa(
   if (baixaCents > restante) {
     throw new DomainError(
       'SETTLEMENT_EXCEEDS_BALANCE',
-      `A baixa de ${baixaCents} passa do saldo devedor de ${restante}.`,
+      `A baixa de ${Money.fromCents(baixaCents).format()} passa do saldo devedor de ${Money.fromCents(restante).format()}.`,
     )
   }
 

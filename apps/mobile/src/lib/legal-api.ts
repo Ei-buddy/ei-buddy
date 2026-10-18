@@ -18,7 +18,7 @@ import { chamarApi, type Resposta } from './api'
 export type TipoDeDocumento = 'privacy' | 'terms'
 
 export const ROTULO_DO_DOCUMENTO: Record<TipoDeDocumento, string> = {
-  privacy: 'Politica de Privacidade',
+  privacy: 'Política de Privacidade',
   terms: 'Termos de Uso',
 }
 

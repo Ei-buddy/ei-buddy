@@ -6,6 +6,43 @@ import { addCustomerContact, listCustomerContacts } from './customer-contacts.js
 import { InMemoryCustomerContacts, InMemoryCustomerRepository } from './fakes.js'
 import { registerCustomer } from './register-customer.js'
 
+/* Documento, celular e endereco sao obrigatorios no cadastro (NR-142, NR-149). O celular muda a
+   cada chamada: repetido, o cadastro acusaria cliente duplicado. */
+let celularDoTeste = 0
+const ENDERECO_DO_TESTE = {
+  zipCode: '80010000',
+  street: 'Rua XV de Novembro',
+  number: '100',
+  district: 'Centro',
+  city: 'Curitiba',
+  state: 'PR',
+} as const
+/* CPF valido e unico por chamada: repetido, o cadastro acusaria duplicado. */
+function cpfDoTeste(n: number): string {
+  const base = String(100_000_000 + n)
+    .slice(-9)
+    .split('')
+    .map(Number)
+  const dv = (d: number[]) => {
+    const soma = d.reduce((a, x, i) => a + x * (d.length + 1 - i), 0)
+    const r = (soma * 10) % 11
+    return r === 10 ? 0 : r
+  }
+  base.push(dv(base))
+  base.push(dv(base))
+  return base.join('')
+}
+
+function cliente<T extends object>(campos: T) {
+  celularDoTeste += 1
+  return {
+    document: cpfDoTeste(celularDoTeste),
+    phone: `4198${String(celularDoTeste).padStart(7, '0')}`,
+    address: ENDERECO_DO_TESTE,
+    ...campos,
+  }
+}
+
 /** Contatos da ficha — RF-011, NR-072. */
 
 const AGORA = new Date('2026-09-24T13:00:00.000Z')
@@ -26,7 +63,7 @@ async function cenario() {
   const customers = new InMemoryCustomerRepository()
   const contacts = new InMemoryCustomerContacts(customers)
 
-  const r = await registerCustomer({ customers }, contexto(), { name: 'Joao do Bar' })
+  const r = await registerCustomer({ customers }, contexto(), cliente({ name: 'Joao do Bar' }))
   if (r.status !== 'created') throw new Error('esperava created')
 
   return { deps: { contacts }, clienteId: r.customer.id }

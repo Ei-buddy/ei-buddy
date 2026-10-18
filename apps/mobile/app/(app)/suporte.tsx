@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
@@ -20,7 +20,8 @@ import {
   type StatusChamado,
 } from '@/lib/suporte-api'
 import { formatDate, formatDateTime } from '@/lib/format'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
+import { criarEstilos } from '@/theme/estilos'
 
 const TOM_STATUS: Record<StatusChamado, 'neutro' | 'sucesso' | 'atencao' | 'erro'> = {
   open: 'atencao',
@@ -363,7 +364,7 @@ export default function Suporte() {
   )
 }
 
-const estilos = StyleSheet.create({
+const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 
@@ -383,9 +384,9 @@ const estilos = StyleSheet.create({
     borderColor: cores.borda,
     backgroundColor: cores.campo,
   },
-  chipAtivo: { borderColor: cores.acento, backgroundColor: cores.acento },
+  chipAtivo: { ...vidro.ativo },
   chipTexto: { fontSize: fonte.micro, color: cores.texto },
-  chipTextoAtivo: { color: cores.textoSobreAcento, fontWeight: peso.forte },
+  chipTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
 
   mensagem: {
     padding: espaco.md,
@@ -409,15 +410,15 @@ const estilos = StyleSheet.create({
   },
 
   aviso: {
+    ...vidro.painel,
     position: 'absolute',
     left: espaco.lg,
     right: espaco.lg,
     bottom: espaco.xl,
     padding: espaco.md,
     borderRadius: raio.md,
-    backgroundColor: cores.superficieAlta,
     borderWidth: 1,
     borderColor: cores.sucesso,
   },
   avisoTexto: { fontSize: fonte.pequeno, color: cores.texto },
-})
+}))

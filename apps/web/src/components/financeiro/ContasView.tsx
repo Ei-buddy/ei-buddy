@@ -15,7 +15,7 @@ import {
   type SituacaoVisual,
 } from '@/lib/financeiro-api'
 import type { StatusTitulo } from '@/lib/types'
-import { daysUntil, describeDueDate, formatDate, formatMoney, mesDeHoje } from '@/lib/format'
+import { daysUntil, describeDueDate, formatCentavos, formatDate, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
@@ -24,6 +24,7 @@ import { IconFilter, IconPlus, IconUpload } from '@/components/Icons'
 import { COMANDOS_PAGAR, COMANDOS_RECEBER } from '@/lib/comandos'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import BaixaDialog from './BaixaDialog'
+import CorrecaoTitulo from './CorrecaoTitulo'
 import EstornoDialog from './EstornoDialog'
 import FormularioTitulo from './FormularioTitulo'
 import styles from './financeiro.module.css'
@@ -59,6 +60,7 @@ function paraLinhaAPagar(c: ContaAPagar, nomeDaConta: (accountId: string | null)
     /* A classificacao e id de conta (NR-077) — o plano vem carregado junto
        com a lista, exatamente para resolver o nome aqui. */
     classificacao: nomeDaConta(c.accountId),
+    mutavel: c.settledAmountCents === 0,
   }
 }
 
@@ -89,6 +91,8 @@ function paraLinhaAReceber(c: ContaAReceber): Linha {
     valorBaixadoCents: c.settledAmountCents,
     status: statusDaApi(c.status, c.dueDate),
     classificacao: c.installmentCount > 1 ? `${c.installmentNumber}/${c.installmentCount}` : '',
+    /* O que veio de venda se resolve na venda (cancelar ou devolver). */
+    mutavel: c.saleId === null && c.settledAmountCents === 0,
   }
 }
 
@@ -111,6 +115,8 @@ type Linha = {
   status: StatusTitulo
   /** Plano de conta (pagar) ou parcela (receber). */
   classificacao: string
+  /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
+  mutavel: boolean
 }
 
 const TOM_SITUACAO: Record<SituacaoVisual, 'neutral' | 'warning' | 'danger' | 'success' | 'info'> =
@@ -137,6 +143,10 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
    * existem no banco.
    */
   const [linhas, setLinhas] = useState<Linha[]>([])
+  /* Pago/recebido no mes, calculado no servidor pela data da baixa. */
+  const [quitadoNoMes, setQuitadoNoMes] = useState<{ totalCents: number; count: number } | null>(
+    null,
+  )
   const [carregando, setCarregando] = useState(true)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
 
@@ -167,6 +177,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       setLinhas(
         r.dados.grupos.flatMap((g) => g.payables.map((p) => paraLinhaAPagar(p, nomeDaConta))),
       )
+      setQuitadoNoMes(r.dados.settledThisMonth ?? null)
       return
     }
 
@@ -178,6 +189,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
     }
     setErroCarga(null)
     setLinhas(r.dados.grupos.flatMap((g) => g.receivables.map(paraLinhaAReceber)))
+    setQuitadoNoMes(r.dados.settledThisMonth ?? null)
   }, [pagar])
 
   useEffect(() => {
@@ -211,6 +223,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const [lancando, setLancando] = useState(false)
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
+  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
+    null,
+  )
   const [processando, setProcessando] = useState(false)
   /* Nao ha `processandoEstorno`: o `EstornoDialog` cuida do proprio ciclo —
      ele carrega o historico, escolhe a baixa e confirma. O que volta para ca e
@@ -252,12 +267,6 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const totalAberto = emAberto.reduce((acc, l) => acc + (l.valorCents - l.valorBaixadoCents), 0)
   const vencidos = emAberto.filter((l) => daysUntil(l.vencimento) < 0)
   const totalVencido = vencidos.reduce((acc, l) => acc + (l.valorCents - l.valorBaixadoCents), 0)
-  /* `mesDeHoje()` e nao `'2026-08'`: o bloco "quitados no mes" mostrava agosto
-     para sempre, e em setembro ele exibia o mes passado como se fosse este. */
-  const quitadosMes = linhas.filter(
-    (l) => l.status === 'pago' && l.vencimento.startsWith(mesDeHoje()),
-  )
-  const totalMes = quitadosMes.reduce((acc, l) => acc + l.valorBaixadoCents, 0)
 
   /* ---------------------------------------------------------------- *
    * Baixa e estorno
@@ -352,7 +361,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             </Button>
             <Button onClick={() => setLancando(true)}>
               <IconPlus size={17} />
-              Novo lancamento
+              Novo lançamento
             </Button>
           </>
         }
@@ -361,26 +370,29 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       <div className="statRow">
         <Stat
           label={pagar ? 'Total a pagar' : 'Total a receber'}
-          value={formatMoney(totalAberto)}
+          value={formatCentavos(totalAberto)}
           hint={`${emAberto.length} titulo(s)`}
         />
         <Stat
           label="Vencido"
-          value={formatMoney(totalVencido)}
+          value={formatCentavos(totalVencido)}
           hint={vencidos.length ? `${vencidos.length} em atraso` : 'nada em atraso'}
           tone={totalVencido > 0 ? 'warning' : 'positive'}
         />
         <Stat
           label={pagar ? 'Pago no mes' : 'Recebido no mes'}
-          value={formatMoney(totalMes)}
-          hint={`${quitadosMes.length} titulo(s)`}
+          /* Do servidor, pela data da BAIXA. Antes saia dos titulos pagos com
+             vencimento no mes — que a lista nem traz (so vem o que esta em
+             aberto), e o cartao marcava zero com o caixa cheio. */
+          value={quitadoNoMes === null ? '—' : formatCentavos(quitadoNoMes.totalCents)}
+          hint={quitadoNoMes === null ? undefined : `${quitadoNoMes.count} titulo(s)`}
           tone="positive"
         />
       </div>
 
       <Card>
         {/* --- Filtros --- */}
-        <div className={styles.filtrosLinha} role="group" aria-label="Filtro de situacao">
+        <div className={styles.filtrosLinha} role="group" aria-label="Filtro de situação">
           {(
             [
               ['todos', 'Todos'],
@@ -435,7 +447,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
           </label>
 
           <label className={styles.filtroCampo}>
-            <span>Vence ate</span>
+            <span>Vence até</span>
             <input
               type="date"
               className={styles.filtroSelect}
@@ -472,7 +484,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
               action={
                 <Button onClick={() => setLancando(true)}>
                   <IconPlus size={17} />
-                  Novo lancamento
+                  Novo lançamento
                 </Button>
               }
             />
@@ -525,6 +537,24 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                   </div>
 
                   <div className={styles.tituloAcoes}>
+                    {l.mutavel ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMudando({ linha: l, modo: 'corrigir' })}
+                        >
+                          Corrigir
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setMudando({ linha: l, modo: 'cancelar' })}
+                        >
+                          Cancelar
+                        </Button>
+                      </>
+                    ) : null}
                     {quitado || l.valorBaixadoCents > 0 ? (
                       <Button variant="secondary" size="sm" onClick={() => setEstornando(l)}>
                         Estornar
@@ -601,6 +631,26 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             void carregar()
           }}
           onCancelar={() => setEstornando(null)}
+        />
+      ) : null}
+
+      {mudando ? (
+        <CorrecaoTitulo
+          tipo={tipo}
+          modo={mudando.modo}
+          titulo={{
+            id: mudando.linha.id,
+            contraparte: mudando.linha.contraparte,
+            descricao: mudando.linha.descricao,
+            vencimento: mudando.linha.vencimento,
+            valorCents: mudando.linha.valorCents,
+          }}
+          onFeito={(msg) => {
+            setMudando(null)
+            setToast({ msg, tone: 'success' })
+            void carregar()
+          }}
+          onFechar={() => setMudando(null)}
         />
       ) : null}
 

@@ -16,6 +16,14 @@ export function formatMoney(value: number): string {
   return brl.format(value)
 }
 
+/**
+ * Valor em CENTAVOS, que e como a API devolve tudo. `formatMoney` recebe
+ * reais; passar centavos para ele mostrou os totais de contas 100x maiores.
+ */
+export function formatCentavos(centavos: number): string {
+  return brl.format(centavos / 100)
+}
+
 export function formatMoneyCompact(value: number): string {
   return brlCompact.format(value)
 }
@@ -106,6 +114,12 @@ export const formaPagamentoLabel: Record<string, string> = {
   credito: 'Crédito',
   dinheiro: 'Dinheiro',
   carteira: 'Carteira',
+  /* Os codigos da API, como chegam no painel — sem eles a tela mostrava
+     "cash" e "wallet" crus (achado do QA). */
+  cash: 'Dinheiro',
+  debit: 'Débito',
+  credit: 'Crédito',
+  wallet: 'Fiado',
 }
 
 export const statusTituloLabel: Record<string, string> = {
