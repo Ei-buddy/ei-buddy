@@ -189,20 +189,30 @@ jobs:
             *gmail*) SMTP_PASSWORD=${SMTP_PASSWORD// /} ;;
           esac
 
+          # Valor entre aspas simples: o compose le o `env_file` com interpolacao,
+          # e a chave do Asaas comeca com `$` (`$aact_...`) — sem aspas ela virava
+          # o nome de uma variavel e chegava VAZIA na api. Aspas simples sao
+          # literais para o compose; uma aspa simples dentro do valor nao tem
+          # escape la, entao e recusada ANTES do pipe — dentro dele, o `exit`
+          # so mataria o subshell e o ssh rodaria com o arquivo pela metade.
+          linha() { printf "%s='%s'\n" "$1" "$2"; }
+          for valor in "$SMTP_HOST" "$SMTP_USER" "$SMTP_PASSWORD" "$SMTP_FROM" "$AVISO_PARCEIRO_EMAIL"; do
+            case "$valor" in *"'"*) echo "::error::Um valor de e-mail contem aspa simples, que o env_file nao aceita literal."; exit 1 ;; esac
+          done
+
           {
             echo "set -eu"
             echo "cd '$CAMINHO'"
             echo "umask 077"
             echo "cat > .email.env.novo <<'FIM_DO_EMAIL'"
-            printf '%s\n' \
-              "EMAIL_PROVIDER=smtp" \
-              "SMTP_HOST=$SMTP_HOST" \
-              "SMTP_PORT=$SMTP_PORT" \
-              "SMTP_SECURE=$SMTP_SECURE" \
-              "SMTP_USER=$SMTP_USER" \
-              "SMTP_PASSWORD=$SMTP_PASSWORD" \
-              "SMTP_FROM=$SMTP_FROM" \
-              "AVISO_PARCEIRO_EMAIL=$AVISO_PARCEIRO_EMAIL"
+            linha EMAIL_PROVIDER smtp
+            linha SMTP_HOST "$SMTP_HOST"
+            linha SMTP_PORT "$SMTP_PORT"
+            linha SMTP_SECURE "$SMTP_SECURE"
+            linha SMTP_USER "$SMTP_USER"
+            linha SMTP_PASSWORD "$SMTP_PASSWORD"
+            linha SMTP_FROM "$SMTP_FROM"
+            linha AVISO_PARCEIRO_EMAIL "$AVISO_PARCEIRO_EMAIL"
             echo "FIM_DO_EMAIL"
             cat <<'TROCA'
           touch .env.production
@@ -236,16 +246,22 @@ jobs:
             *) echo "::error::ASAAS_AMBIENTE deve ser sandbox ou producao (veio '$ASAAS_AMBIENTE')."; exit 1 ;;
           esac
 
+          # Aspas simples pelo mesmo motivo do e-mail — aqui e onde ele morde:
+          # a chave do Asaas comeca com `$`.
+          linha() { printf "%s='%s'\n" "$1" "$2"; }
+          for valor in "$ASAAS_API_KEY" "$ASAAS_WEBHOOK_AUTH_TOKEN"; do
+            case "$valor" in *"'"*) echo "::error::Um valor do Asaas contem aspa simples, que o env_file nao aceita literal."; exit 1 ;; esac
+          done
+
           {
             echo "set -eu"
             echo "cd '$CAMINHO'"
             echo "umask 077"
             echo "cat > .asaas.env.novo <<'FIM_DO_ASAAS'"
-            printf '%s\n' \
-              "ASAAS_API_KEY=$ASAAS_API_KEY" \
-              "ASAAS_AMBIENTE=$ASAAS_AMBIENTE"
+            linha ASAAS_API_KEY "$ASAAS_API_KEY"
+            linha ASAAS_AMBIENTE "$ASAAS_AMBIENTE"
             if [ -n "$ASAAS_WEBHOOK_AUTH_TOKEN" ]; then
-              printf '%s\n' "ASAAS_WEBHOOK_AUTH_TOKEN=$ASAAS_WEBHOOK_AUTH_TOKEN"
+              linha ASAAS_WEBHOOK_AUTH_TOKEN "$ASAAS_WEBHOOK_AUTH_TOKEN"
             fi
             echo "FIM_DO_ASAAS"
             cat <<'TROCA'
