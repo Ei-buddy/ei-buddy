@@ -15,6 +15,17 @@ import { dateSchema } from '../common/primitives.js'
  * opcionais e o repositorio preserva o que nao veio — um formulario que envia
  * apenas o que mudou nao deve apagar o resto.
  */
+const cscSchema = z
+  .object({
+    id: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{1,6}$/, 'O ID do CSC tem so numeros (ate 6).')
+      .transform((v) => String(Number(v))),
+    code: z.string().trim().min(8, 'CSC muito curto.').max(64, 'CSC muito longo.'),
+  })
+  .strict()
+
 export const updateFiscalCredentialsInputSchema = z
   .object({
     /** Token da conta do lojista no emissor. Vai como usuario do Basic. */
@@ -45,6 +56,14 @@ export const updateFiscalCredentialsInputSchema = z
      * nota parasse de sair.
      */
     certificateExpiresAt: dateSchema.optional(),
+
+    /**
+     * CSC da NFC-e — NR-183. A loja gera no site da SEFAZ do estado, um par
+     * por ambiente: o ID (numero de ordem, ate 6 digitos) e o codigo. Vai para
+     * a Focus no cadastro da empresa; sem ele, a NFC-e nao tem QR Code valido.
+     */
+    cscProduction: cscSchema.optional(),
+    cscHomologation: cscSchema.optional(),
   })
   .strict()
   .refine(
@@ -72,6 +91,20 @@ export const fiscalCredentialsStatusSchema = z
     hasToken: z.boolean(),
     hasCertificate: z.boolean(),
     certificateExpiresAt: z.string().nullable(),
+    hasCscProduction: z.boolean(),
+    hasCscHomologation: z.boolean(),
+    /**
+     * Cadastro da empresa na Focus — NR-183. `syncedAt` e o ultimo aceito;
+     * `error` e o que a Focus disse na ultima recusa (nulo depois de aceito);
+     * `available` diz se o servidor tem a conta de revenda configurada.
+     */
+    focus: z
+      .object({
+        available: z.boolean(),
+        syncedAt: z.string().nullable(),
+        error: z.string().nullable(),
+      })
+      .strict(),
   })
   .strict()
 

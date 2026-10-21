@@ -7,11 +7,12 @@ import {
   celularDoCanal,
   enviarCertificado,
   exportarDados,
+  salvarCsc,
   trocarCelularDoCanal,
   type ResultadoDaExportacao,
   type SituacaoFiscal,
 } from '@/lib/empresa-api'
-import { dataDoTexto, formatDate, hoje, mascaraData } from '@/lib/format'
+import { dataDoTexto, formatDate, formatDateTime, hoje, mascaraData } from '@/lib/format'
 import { maskPhone } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
@@ -147,6 +148,162 @@ export function CertificadoDigital() {
         ) : null}
       </View>
     </Sanfona>
+  )
+}
+
+/**
+ * Emissao de NFC-e — NR-183, a mesma secao do web.
+ *
+ * A EiBuddy cadastra a empresa na Focus NFe (como revenda) com o certificado,
+ * o CSC e o endereco. Aqui o lojista informa o CSC que gerou no site da SEFAZ e
+ * ve se o cadastro foi aceito — ou o que a Focus disse.
+ */
+export function EmissaoNfce() {
+  const [situacao, setSituacao] = useState<SituacaoFiscal | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const r = await carregarSituacaoFiscal()
+      if (!cancelado && r.ok) setSituacao(r.dados)
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  const focus = situacao?.focus
+  const etiqueta =
+    situacao === null ? null : !focus?.disponivel ? (
+      <Etiqueta tom="neutro">Em breve</Etiqueta>
+    ) : focus.erro !== null ? (
+      <Etiqueta tom="atencao">Pendente</Etiqueta>
+    ) : focus.cadastradaEm !== null ? (
+      <Etiqueta tom="sucesso">Cadastrada</Etiqueta>
+    ) : (
+      <Etiqueta tom="atencao">Falta</Etiqueta>
+    )
+
+  return (
+    <Sanfona
+      titulo="Emissão de NFC-e"
+      resumo={
+        situacao === null
+          ? 'carregando'
+          : focus?.cadastradaEm != null && focus.erro === null
+            ? 'cadastrada na Focus NFe'
+            : 'cadastro na Focus NFe'
+      }
+      etiqueta={etiqueta}
+    >
+      <View style={estilos.bloco}>
+        {situacao === null ? null : !situacao.focus.disponivel ? (
+          <Text style={estilos.texto}>
+            O cadastro na Focus ainda não está ligado neste servidor. Você já pode enviar o
+            certificado e o CSC: eles ficam guardados e vão para a Focus assim que for ativado.
+          </Text>
+        ) : situacao.focus.erro !== null ? (
+          <Text style={estilos.erro}>{situacao.focus.erro}</Text>
+        ) : situacao.focus.cadastradaEm !== null ? (
+          <Text style={estilos.ok}>
+            Cadastrada na Focus NFe em {formatDateTime(situacao.focus.cadastradaEm)}.
+          </Text>
+        ) : (
+          <Text style={estilos.texto}>
+            Para cadastrar, envie o certificado digital e o CSC. O endereço completo da empresa
+            também é necessário.
+          </Text>
+        )}
+        <FormularioCsc
+          titulo="CSC de produção"
+          configurado={situacao?.temCscProducao ?? false}
+          salvar={(csc) => salvarCsc({ producao: csc })}
+          onSalvo={setSituacao}
+        />
+        <FormularioCsc
+          titulo="CSC de homologação (testes)"
+          configurado={situacao?.temCscHomologacao ?? false}
+          salvar={(csc) => salvarCsc({ homologacao: csc })}
+          onSalvo={setSituacao}
+        />
+        <Text style={estilos.texto}>
+          O CSC (Código de Segurança do Contribuinte) é gerado no site da SEFAZ do seu estado, junto
+          com o ID dele. Ele assina o QR Code da NFC-e e fica guardado cifrado.
+        </Text>
+      </View>
+    </Sanfona>
+  )
+}
+
+function FormularioCsc({
+  titulo,
+  configurado,
+  salvar,
+  onSalvo,
+}: {
+  titulo: string
+  configurado: boolean
+  salvar: (csc: { id: string; code: string }) => ReturnType<typeof salvarCsc>
+  onSalvo: (s: SituacaoFiscal) => void
+}) {
+  const [id, setId] = useState('')
+  const [codigo, setCodigo] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function enviar() {
+    if (!/^[0-9]{1,6}$/.test(id.trim())) {
+      setErro('O ID do CSC tem só números (até 6).')
+      return
+    }
+    if (codigo.trim().length < 8) {
+      setErro('Confira o CSC: ele tem pelo menos 8 caracteres.')
+      return
+    }
+    setErro(null)
+    setSalvando(true)
+    const r = await salvar({ id: id.trim(), code: codigo.trim() })
+    setSalvando(false)
+    if (!r.ok) {
+      setErro(r.erro)
+      return
+    }
+    setId('')
+    setCodigo('')
+    onSalvo(r.dados)
+  }
+
+  return (
+    <View style={estilos.bloco}>
+      <Text style={estilos.rotuloCsc}>
+        {titulo}
+        {configurado ? ' · configurado' : ''}
+      </Text>
+      <Campo
+        rotulo="ID do CSC"
+        valor={id}
+        onChange={setId}
+        tipoTeclado="numeric"
+        placeholder={configurado ? 'Preencha só para trocar' : 'Ex.: 1'}
+      />
+      <Campo
+        rotulo="CSC"
+        valor={codigo}
+        onChange={setCodigo}
+        senha
+        placeholder={configurado ? 'Preencha só para trocar' : 'Código gerado na SEFAZ'}
+      />
+      {erro !== null ? <Text style={estilos.erro}>{erro}</Text> : null}
+      <Botao
+        variante="secundario"
+        onPress={() => void enviar()}
+        carregando={salvando}
+        desabilitado={id === '' || codigo === ''}
+        largura
+      >
+        {configurado ? 'Trocar CSC' : 'Salvar CSC'}
+      </Botao>
+    </View>
   )
 }
 
@@ -291,6 +448,7 @@ const estilos = criarEstilos(() => ({
   texto: { fontSize: fonte.micro, lineHeight: 19, color: cores.textoFraco },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   ok: { fontSize: fonte.pequeno, color: cores.sucesso },
+  rotuloCsc: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   resultado: {
     ...vidro.painel,
     gap: espaco.xs,

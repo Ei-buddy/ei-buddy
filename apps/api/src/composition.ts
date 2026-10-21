@@ -148,7 +148,11 @@ import {
   type DatabaseHealth,
 } from '@na-regua/db'
 import { createFileStatementReader } from '@na-regua/banking'
-import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
+import {
+  createFakeInvoiceIssuer,
+  criarCadastroDeEmpresasFocus,
+  criarEmissorFocusNfe,
+} from '@na-regua/fiscal'
 import { criarProvedorDeAssinaturaAsaas } from '@na-regua/billing'
 import { criarGatewayAsaas } from '@na-regua/payments'
 import type { InvoiceIssuer } from '@na-regua/core'
@@ -972,7 +976,17 @@ export function buildFiscalDeps(): CredenciaisFiscaisDeps {
   }
 
   const sql = getClient(env.DATABASE_URL)
-  return { fiscalCredentials: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY)) }
+  return {
+    fiscalCredentials: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY), {
+      ambiente: env.FISCAL_AMBIENTE,
+    }),
+    /* Sem o token da revenda, nada vai para a Focus — e a tela diz isso. */
+    ...(env.FOCUS_REVENDA_TOKEN === undefined
+      ? {}
+      : {
+          cadastroFocus: criarCadastroDeEmpresasFocus({ tokenDaRevenda: env.FOCUS_REVENDA_TOKEN }),
+        }),
+  }
 }
 
 /**
@@ -1019,8 +1033,12 @@ function montarEmissorDaApi(
   if (env.SECRETS_KEY === undefined) return createFakeInvoiceIssuer()
 
   return criarEmissorFocusNfe({
-    ambiente: 'homologacao',
-    credenciais: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY)),
+    /* O mesmo ambiente em que o worker emite: consultar em homologacao uma nota
+       emitida em producao nunca a encontraria (era fixo ate a NR-183). */
+    ambiente: env.FISCAL_AMBIENTE,
+    credenciais: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY), {
+      ambiente: env.FISCAL_AMBIENTE,
+    }),
     store,
   })
 }

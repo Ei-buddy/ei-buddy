@@ -63,6 +63,10 @@ on:
         required: false
       ASAAS_WEBHOOK_AUTH_TOKEN:
         required: false
+      # Token principal da conta de REVENDA da EiBuddy na Focus NFe. Opcional:
+      # sem ele, o `.env.production` fica como esta. Ver "Configurar a Focus NFe".
+      FOCUS_REVENDA_TOKEN:
+        required: false
 
 concurrency:
   # Mesmo grupo dos atalhos `deploy-api`/`deploy-web`: tudo mexe no mesmo
@@ -273,6 +277,53 @@ jobs:
           chmod 600 .env.production
           rm -f .asaas.env.novo
           echo "asaas configurado: $(echo "$chaves" | tr '|' ' ')"
+          TROCA
+          } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
+
+      # NR-183. Mesmo desenho do Asaas: so as linhas fiscais sao trocadas. O
+      # token da revenda e secret do Environment; o ambiente (homologacao |
+      # producao) e o provedor vem das variables, com homologacao e focusnfe
+      # como padrao — homologacao nao tem validade fiscal, e producao so entra
+      # quando alguem disser.
+      - name: Configurar a Focus NFe
+        env:
+          FOCUS_REVENDA_TOKEN: ${{ secrets.FOCUS_REVENDA_TOKEN }}
+          FISCAL_AMBIENTE: ${{ vars.FISCAL_AMBIENTE || 'homologacao' }}
+          FISCAL_PROVIDER: ${{ vars.FISCAL_PROVIDER || 'focusnfe' }}
+        run: |
+          if [ -z "$FOCUS_REVENDA_TOKEN" ]; then
+            echo "::notice::Secret FOCUS_REVENDA_TOKEN ausente — emissao fiscal do servidor nao foi alterada."
+            exit 0
+          fi
+          case "$FISCAL_AMBIENTE" in
+            homologacao|producao) ;;
+            *) echo "::error::FISCAL_AMBIENTE deve ser homologacao ou producao (veio '$FISCAL_AMBIENTE')."; exit 1 ;;
+          esac
+          case "$FISCAL_PROVIDER" in
+            fake|focusnfe) ;;
+            *) echo "::error::FISCAL_PROVIDER deve ser fake ou focusnfe (veio '$FISCAL_PROVIDER')."; exit 1 ;;
+          esac
+          case "$FOCUS_REVENDA_TOKEN" in *"'"*) echo "::error::O token da Focus contem aspa simples, que o env_file nao aceita literal."; exit 1 ;; esac
+
+          linha() { printf "%s='%s'\n" "$1" "$2"; }
+          {
+            echo "set -eu"
+            echo "cd '$CAMINHO'"
+            echo "umask 077"
+            echo "cat > .fiscal.env.novo <<'FIM_DO_FISCAL'"
+            linha FOCUS_REVENDA_TOKEN "$FOCUS_REVENDA_TOKEN"
+            linha FISCAL_AMBIENTE "$FISCAL_AMBIENTE"
+            linha FISCAL_PROVIDER "$FISCAL_PROVIDER"
+            echo "FIM_DO_FISCAL"
+            cat <<'TROCA'
+          touch .env.production
+          chaves=$(cut -d= -f1 .fiscal.env.novo | paste -sd'|')
+          grep -Ev "^(${chaves})=" .env.production > .env.production.novo || true
+          cat .fiscal.env.novo >> .env.production.novo
+          mv .env.production.novo .env.production
+          chmod 600 .env.production
+          rm -f .fiscal.env.novo
+          echo "fiscal configurado: $(echo "$chaves" | tr '|' ' ')"
           TROCA
           } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
 

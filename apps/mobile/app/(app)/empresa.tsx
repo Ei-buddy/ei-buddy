@@ -3,7 +3,12 @@ import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { buscarCep, carregarEmpresa, salvarEmpresa, type DadosEmpresa } from '@/lib/empresa-api'
 import { maskCelular, maskCEP, maskCNPJ } from '@/lib/validation'
-import { CelularDoCanal, CertificadoDigital, MeusDados } from '@/components/EmpresaSecoes'
+import {
+  CelularDoCanal,
+  CertificadoDigital,
+  EmissaoNfce,
+  MeusDados,
+} from '@/components/EmpresaSecoes'
 import ComandosWhatsApp from '@/components/ComandosWhatsApp'
 import { COMANDOS_EMPRESA } from '@/lib/comandos'
 import Cabecalho from '@/components/Cabecalho'
@@ -202,6 +207,7 @@ export default function Empresa() {
 
         {/* Fora do formulario: cada um grava sozinho, com seu proprio botao. */}
         <CertificadoDigital />
+        <EmissaoNfce />
         <CelularDoCanal />
         <MeusDados />
         {/* Via WhatsApp, como no web — NR-165. */}
