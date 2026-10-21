@@ -16,9 +16,9 @@
     "studio": "tsx --env-file-if-exists=../../.env ./scripts/studio.mjs"
   },
   "dependencies": {
-    "@fastify/cors": "^11.3.0",
-    "@fastify/rate-limit": "^11.2.0",
-    "@mastra/fastify": "1.5.18",
+    "@fastify/cors": "^11.3.1",
+    "@fastify/rate-limit": "^11.2.1",
+    "@mastra/fastify": "1.5.22",
     "@na-regua/agent": "workspace:*",
     "@na-regua/banking": "workspace:*",
     "@na-regua/billing": "workspace:*",
@@ -30,14 +30,14 @@
     "@na-regua/money": "workspace:*",
     "@na-regua/payments": "workspace:*",
     "@na-regua/whatsapp": "workspace:*",
-    "better-auth": "^1.7.7",
-    "bullmq": "^6.3.11",
-    "fastify": "^5.12.5",
+    "better-auth": "^1.7.10",
+    "bullmq": "^6.3.15",
+    "fastify": "^5.12.7",
     "ioredis": "^6.0.0",
     "nodemailer": "^10.0.14",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
