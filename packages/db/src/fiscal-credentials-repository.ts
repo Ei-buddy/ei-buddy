@@ -1,4 +1,4 @@
-import type { CredenciaisFocusNfe } from '@na-regua/fiscal'
+import type { CredenciaisFocusNfe, DadosDaEmpresaFocus, EmpresaNaFocus } from '@na-regua/fiscal'
 import type { Sql } from 'postgres'
 import { cifrar, decifrar } from './secret-box.js'
 import { withTenant } from './tenant.js'
@@ -34,6 +34,18 @@ export type SituacaoFiscalDaEmpresa = {
   readonly temCertificado: boolean
   /** Nulo quando nao ha certificado. Em claro — ver a migration 0015. */
   readonly certificadoVenceEm: string | null
+  /** CSC de producao configurado — NR-183. */
+  readonly temCscProducao: boolean
+  readonly temCscHomologacao: boolean
+  /** Ultimo cadastro aceito pela Focus, ou nulo se nunca foi. */
+  readonly focusSincronizadaEm: string | null
+  /** O que a Focus disse na ultima recusa. Nulo depois de um cadastro aceito. */
+  readonly focusErro: string | null
+}
+
+/** Os dados da loja que o cadastro na Focus precisa — NR-183. */
+export type CadastroFiscalDaEmpresa = Omit<DadosDaEmpresaFocus, 'regimeTributario'> & {
+  readonly regime: string
 }
 
 function paraDia(v: Date | string): string {
@@ -46,6 +58,14 @@ function paraDia(v: Date | string): string {
 export function createFiscalCredentials(
   sql: Sql,
   chave: Buffer,
+  opcoes: {
+    /**
+     * Qual token de EMISSAO `tokenDe` devolve — NR-183. A Focus da um por
+     * ambiente; sem o de homologacao (empresa cadastrada antes da revenda),
+     * cai no `focus_token`, que e o que existia.
+     */
+    readonly ambiente?: 'homologacao' | 'producao'
+  } = {},
 ): CredenciaisFocusNfe & {
   /**
    * Grava ou substitui as credenciais.
@@ -59,17 +79,43 @@ export function createFiscalCredentials(
     readonly certificadoBase64?: string
     readonly senhaDoCertificado?: string
     readonly certificadoVenceEm?: string
+    readonly cscProducao?: { readonly id: string; readonly codigo: string }
+    readonly cscHomologacao?: { readonly id: string; readonly codigo: string }
     readonly atualizadoPor: string
   }): Promise<void>
+
+  /**
+   * Tudo o que o cadastro na Focus precisa, ja decifrado — NR-183.
+   *
+   * `undefined` quando a empresa nao existe. Quem chama decide o que fazer
+   * com cadastro incompleto (falta de endereco, de certificado): aqui so se le.
+   */
+  dadosParaFocus(companyId: string): Promise<CadastroFiscalDaEmpresa | undefined>
+
+  /** Grava o desfecho do cadastro na Focus: os tokens, ou a recusa. */
+  registrarFocus(
+    companyId: string,
+    resultado:
+      | { readonly ok: true; readonly empresa: EmpresaNaFocus }
+      | { readonly ok: false; readonly mensagem: string },
+  ): Promise<void>
 
   /** O que esta configurado, sem os segredos — para a tela de Empresa. */
   situacao(companyId: string): Promise<SituacaoFiscalDaEmpresa>
 } {
   type Linha = {
     focus_token: string | null
+    focus_token_homologacao: string | null
     certificate: string | null
     certificate_password: string | null
     certificate_expires_at: Date | string | null
+    csc_producao: string | null
+    csc_id_producao: string | null
+    csc_homologacao: string | null
+    csc_id_homologacao: string | null
+    focus_company_id: string | null
+    focus_synced_at: Date | string | null
+    focus_sync_error: string | null
   }
 
   const ler = async (companyId: string): Promise<Linha | undefined> => {
@@ -77,7 +123,9 @@ export function createFiscalCredentials(
       sql,
       companyId,
       (tx) => tx<Linha[]>`
-        SELECT focus_token, certificate, certificate_password, certificate_expires_at
+        SELECT focus_token, focus_token_homologacao, certificate, certificate_password,
+               certificate_expires_at, csc_producao, csc_id_producao, csc_homologacao,
+               csc_id_homologacao, focus_company_id, focus_synced_at, focus_sync_error
         FROM company_fiscal_credentials WHERE company_id = ${companyId}
       `,
     )
@@ -94,9 +142,13 @@ export function createFiscalCredentials(
      */
     tokenDe: async (companyId) => {
       const linha = await ler(companyId)
-      if (linha?.focus_token == null) return undefined
+      const cifrado =
+        opcoes.ambiente === 'homologacao'
+          ? (linha?.focus_token_homologacao ?? linha?.focus_token)
+          : linha?.focus_token
+      if (cifrado == null) return undefined
 
-      return decifrar(linha.focus_token, chave, companyId)
+      return decifrar(cifrado, chave, companyId)
     },
 
     /**
@@ -125,13 +177,18 @@ export function createFiscalCredentials(
         (tx) => tx`
           INSERT INTO company_fiscal_credentials
             (company_id, focus_token, certificate, certificate_password,
-             certificate_expires_at, updated_by, updated_at)
+             certificate_expires_at, csc_producao, csc_id_producao, csc_homologacao,
+             csc_id_homologacao, updated_by, updated_at)
           VALUES (
             ${entrada.companyId},
             ${cifrado(entrada.focusToken)},
             ${cifrado(entrada.certificadoBase64)},
             ${cifrado(entrada.senhaDoCertificado)},
             ${entrada.certificadoVenceEm ?? null},
+            ${cifrado(entrada.cscProducao?.codigo)},
+            ${entrada.cscProducao?.id ?? null},
+            ${cifrado(entrada.cscHomologacao?.codigo)},
+            ${entrada.cscHomologacao?.id ?? null},
             ${entrada.atualizadoPor},
             now()
           )
@@ -146,6 +203,16 @@ export function createFiscalCredentials(
             ),
             certificate_expires_at = COALESCE(
               EXCLUDED.certificate_expires_at, company_fiscal_credentials.certificate_expires_at
+            ),
+            csc_producao = COALESCE(EXCLUDED.csc_producao, company_fiscal_credentials.csc_producao),
+            csc_id_producao = COALESCE(
+              EXCLUDED.csc_id_producao, company_fiscal_credentials.csc_id_producao
+            ),
+            csc_homologacao = COALESCE(
+              EXCLUDED.csc_homologacao, company_fiscal_credentials.csc_homologacao
+            ),
+            csc_id_homologacao = COALESCE(
+              EXCLUDED.csc_id_homologacao, company_fiscal_credentials.csc_id_homologacao
             ),
             updated_by = EXCLUDED.updated_by,
             updated_at = now()
@@ -164,7 +231,113 @@ export function createFiscalCredentials(
         temCertificado: linha?.certificate != null,
         certificadoVenceEm:
           linha?.certificate_expires_at == null ? null : paraDia(linha.certificate_expires_at),
+        temCscProducao: linha?.csc_producao != null,
+        temCscHomologacao: linha?.csc_homologacao != null,
+        focusSincronizadaEm:
+          linha?.focus_synced_at == null ? null : new Date(linha.focus_synced_at).toISOString(),
+        focusErro: linha?.focus_sync_error ?? null,
       }
+    },
+
+    dadosParaFocus: async (companyId) => {
+      type Empresa = {
+        legal_name: string
+        trade_name: string | null
+        cnpj: string
+        state_registration: string | null
+        municipal_registration: string | null
+        tax_regime: string
+        email: string | null
+        phone: string | null
+        postal_code: string | null
+        street: string | null
+        street_number: string | null
+        complement: string | null
+        neighborhood: string | null
+        city: string | null
+        state: string | null
+      }
+      const [empresa] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<Empresa[]>`
+          SELECT legal_name, trade_name, cnpj, state_registration, municipal_registration,
+                 tax_regime, email, phone, postal_code, street, street_number, complement,
+                 neighborhood, city, state
+          FROM companies WHERE id = ${companyId}
+        `,
+      )
+      if (empresa === undefined) return undefined
+      const linha = await ler(companyId)
+      const abrir = (v: string | null | undefined) =>
+        v == null ? undefined : decifrar(v, chave, companyId)
+
+      const certificado = abrir(linha?.certificate)
+      const senha = abrir(linha?.certificate_password)
+      const cscProd = abrir(linha?.csc_producao)
+      const cscHomo = abrir(linha?.csc_homologacao)
+      const texto = (v: string | null) => v ?? undefined
+
+      return {
+        ...(linha?.focus_company_id == null ? {} : { focusId: linha.focus_company_id }),
+        razaoSocial: empresa.legal_name,
+        ...(empresa.trade_name === null ? {} : { nomeFantasia: empresa.trade_name }),
+        cnpj: empresa.cnpj,
+        ...(empresa.state_registration === null
+          ? {}
+          : { inscricaoEstadual: empresa.state_registration }),
+        ...(empresa.municipal_registration === null
+          ? {}
+          : { inscricaoMunicipal: empresa.municipal_registration }),
+        regime: empresa.tax_regime,
+        ...(empresa.email === null ? {} : { email: empresa.email }),
+        ...(empresa.phone === null ? {} : { telefone: empresa.phone }),
+        endereco: {
+          cep: texto(empresa.postal_code) ?? '',
+          logradouro: texto(empresa.street) ?? '',
+          numero: texto(empresa.street_number) ?? '',
+          ...(empresa.complement === null ? {} : { complemento: empresa.complement }),
+          bairro: texto(empresa.neighborhood) ?? '',
+          municipio: texto(empresa.city) ?? '',
+          uf: texto(empresa.state) ?? '',
+        },
+        ...(certificado === undefined || senha === undefined
+          ? {}
+          : { certificado: { base64: certificado, senha } }),
+        ...(cscProd === undefined || linha?.csc_id_producao == null
+          ? {}
+          : { cscProducao: { id: linha.csc_id_producao, codigo: cscProd } }),
+        ...(cscHomo === undefined || linha?.csc_id_homologacao == null
+          ? {}
+          : { cscHomologacao: { id: linha.csc_id_homologacao, codigo: cscHomo } }),
+      }
+    },
+
+    registrarFocus: async (companyId, resultado) => {
+      if (resultado.ok) {
+        await withTenant(
+          sql,
+          companyId,
+          (tx) => tx`
+            UPDATE company_fiscal_credentials SET
+              focus_company_id = ${resultado.empresa.focusId},
+              focus_token = ${cifrar(resultado.empresa.tokenProducao, chave, companyId)},
+              focus_token_homologacao = ${cifrar(resultado.empresa.tokenHomologacao, chave, companyId)},
+              focus_synced_at = now(),
+              focus_sync_error = NULL
+            WHERE company_id = ${companyId}
+          `,
+        )
+        return
+      }
+      await withTenant(
+        sql,
+        companyId,
+        (tx) => tx`
+          UPDATE company_fiscal_credentials SET focus_sync_error = ${resultado.mensagem.slice(0, 500)}
+          WHERE company_id = ${companyId}
+        `,
+      )
     },
   }
 }

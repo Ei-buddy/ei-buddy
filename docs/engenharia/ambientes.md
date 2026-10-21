@@ -115,11 +115,13 @@ só o Phone Number ID.
 
 ### Fiscal — [DEC-004](../decisoes/README.md#dec-004)
 
-| Variável             | Obr. | Seg. | local         | Descrição                    |
-| -------------------- | :--: | :--: | ------------- | ---------------------------- |
-| `FISCAL_PROVIDER`    |  ✅  |      | `fake`        | `fake` \| provedor escolhido |
-| `FISCAL_API_TOKEN`   |      |  🔒  | vazio         | —                            |
-| `FISCAL_ENVIRONMENT` |      |      | `homologacao` | `homologacao` \| `producao`  |
+| Variável              | Obr. | Seg. | local         | Descrição                                                                                                                           |
+| --------------------- | :--: | :--: | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `FISCAL_PROVIDER`     |  ✅  |      | `fake`        | `fake` \| provedor escolhido                                                                                                        |
+| `FISCAL_API_TOKEN`    |      |  🔒  | vazio         | —                                                                                                                                   |
+| `FISCAL_ENVIRONMENT`  |      |      | `homologacao` | `homologacao` \| `producao`                                                                                                         |
+| `FISCAL_AMBIENTE`     |      |      | `homologacao` | api e worker: em que ambiente da Focus consultar e emitir (NR-183)                                                                  |
+| `FOCUS_REVENDA_TOKEN` |      |  🔒  | vazio         | token principal da revenda EiBuddy na Focus; a api cadastra a empresa de cada loja (NR-183). No deploy vem do secret do Environment |
 
 O **certificado digital A1** não é variável de ambiente: é dado por empresa,
 cifrado em repouso com chave separada do banco

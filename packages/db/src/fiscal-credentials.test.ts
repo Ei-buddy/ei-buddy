@@ -171,4 +171,67 @@ describe.skipIf(!DATABASE_URL)('credenciais fiscais — NR-042', () => {
        empresa", e elas divergiriam na primeira correcao de cadastro. */
     expect(await repo.cnpjDe(empresaA)).toBe(cnpjDaA)
   })
+
+  describe('revenda Focus — NR-183', () => {
+    it('guarda o CSC cifrado, com o id em claro, e a situacao diz que tem', async () => {
+      await repo.salvar({
+        companyId: empresaA,
+        cscProducao: { id: '1', codigo: 'CSC-SECRETO-PROD' },
+        atualizadoPor: usuario,
+      })
+      const [linha] = await withTenant(
+        sql,
+        empresaA,
+        (tx) => tx<{ csc_producao: string; csc_id_producao: string }[]>`
+          SELECT csc_producao, csc_id_producao FROM company_fiscal_credentials
+          WHERE company_id = ${empresaA}
+        `,
+      )
+      expect(linha?.csc_producao).not.toContain('CSC-SECRETO-PROD')
+      expect(linha?.csc_id_producao).toBe('1')
+      expect((await repo.situacao(empresaA)).temCscProducao).toBe(true)
+    })
+
+    it('dadosParaFocus le a empresa e decifra o CSC', async () => {
+      const d = await repo.dadosParaFocus(empresaA)
+      expect(d?.cnpj).toBe(cnpjDaA)
+      expect(d?.razaoSocial).toBe('Loja Credencial A')
+      expect(d?.cscProducao).toEqual({ id: '1', codigo: 'CSC-SECRETO-PROD' })
+      expect(d?.focusId).toBeUndefined()
+    })
+
+    it('cadastro aceito grava id e os dois tokens, e cada ambiente le o seu', async () => {
+      await repo.registrarFocus(empresaA, {
+        ok: true,
+        empresa: { focusId: '77', tokenProducao: 'tok-prod', tokenHomologacao: 'tok-homo' },
+      })
+      expect(await repo.tokenDe(empresaA)).toBe('tok-prod')
+      expect(
+        await createFiscalCredentials(sql, CHAVE, { ambiente: 'homologacao' }).tokenDe(empresaA),
+      ).toBe('tok-homo')
+      const s = await repo.situacao(empresaA)
+      expect(s.focusSincronizadaEm).not.toBeNull()
+      expect(s.focusErro).toBeNull()
+      expect((await repo.dadosParaFocus(empresaA))?.focusId).toBe('77')
+    })
+
+    it('recusa da Focus fica registrada sem apagar os tokens que ja valiam', async () => {
+      await repo.registrarFocus(empresaA, { ok: false, mensagem: 'certificado vencido' })
+      expect((await repo.situacao(empresaA)).focusErro).toBe('certificado vencido')
+      expect(await repo.tokenDe(empresaA)).toBe('tok-prod')
+    })
+
+    it('CSC sem id e recusado pelo banco', async () => {
+      await expect(
+        withTenant(
+          sql,
+          empresaA,
+          (tx) => tx`
+            UPDATE company_fiscal_credentials SET csc_homologacao = 'x', csc_id_homologacao = NULL
+            WHERE company_id = ${empresaA}
+          `,
+        ),
+      ).rejects.toThrow(/fiscal_csc_homologacao_completo/)
+    })
+  })
 })

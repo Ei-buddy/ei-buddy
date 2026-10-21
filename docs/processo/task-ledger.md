@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     148 |  311 |
-| ✅ Concluídas                 |     141 |  286 |
+| Total                         |     149 |  314 |
+| ✅ Concluídas                 |     142 |  289 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -389,6 +389,7 @@ voltam a ⬜.
 | NR-180 | Acentuação dos textos de tela no web e no app (produto, PDV, financeiro, privacidade)                                                |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-181 | Mensagens de erro da api com acentuação correta (aparecem no web e no app)                                                           |   🟢   | `core` `api`                                                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-182 | Asaas: ASAAS_AMBIENTE separado do NODE_ENV e deploy leva chave e token dos secrets do GitHub                                         |   🟢   | `infra` `api`                                                 |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-183 | Focus NFe como revenda: cadastro da empresa pela API, CSC no web e no app, ambiente fiscal no deploy                                 |   🟢   | `fiscal` `db` `api` `web` `mobile`                            |   3 | —                                      | —    | RF-004, RF-045                                     |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                  |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                           |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -506,10 +507,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      72 |  121 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      73 |  124 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **311 dias-desenvolvedor** em 148 tarefas. Com 3 pessoas, isso é cerca
+Somando: **314 dias-desenvolvedor** em 149 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

@@ -202,6 +202,23 @@ export const apiEnvSchema = baseEnvSchema.extend({
   ASAAS_AMBIENTE: z.enum(['sandbox', 'producao']).optional(),
 
   /**
+   * Token principal da conta de REVENDA da EiBuddy na Focus NFe — NR-183.
+   *
+   * Com ele a api cadastra a empresa de cada loja na Focus (certificado, CSC,
+   * endereco) e recebe os tokens de emissao dela. Opcional: sem ele, a loja
+   * continua gravando certificado e CSC, e a tela avisa que o cadastro na Focus
+   * ainda nao esta disponivel. Mesmo criterio de `ASAAS_API_KEY`.
+   */
+  FOCUS_REVENDA_TOKEN: opcionalNaoVazia,
+
+  /**
+   * Em qual ambiente da Focus a api CONSULTA notas — NR-183. O mesmo do
+   * worker, que emite. Homologacao NAO tem validade fiscal, e e o padrao de
+   * proposito: producao so quando alguem disser.
+   */
+  FISCAL_AMBIENTE: z.enum(['homologacao', 'producao']).default('homologacao'),
+
+  /**
    * Segredo do webhook do Asaas — RNF-028, NR-044.
    *
    * Da PLATAFORMA e nao da loja: o corpo precisa ser verificado antes de se
