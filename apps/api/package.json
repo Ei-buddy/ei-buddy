@@ -31,7 +31,7 @@
     "@na-regua/payments": "workspace:*",
     "@na-regua/whatsapp": "workspace:*",
     "better-auth": "^1.7.10",
-    "bullmq": "^6.3.15",
+    "bullmq": "^6.4.0",
     "fastify": "^5.12.7",
     "ioredis": "^6.0.0",
     "nodemailer": "^10.0.14",
