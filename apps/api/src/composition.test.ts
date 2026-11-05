@@ -43,6 +43,8 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSettlementUnitOfWork: vi.fn(vazio),
       createSettlementQueries: vi.fn(vazio),
       createSettlementTotals: vi.fn(vazio),
+      /* NR-186: a baixa confere a conta bancaria contra as contas da loja. */
+      createBankAccountRepository: vi.fn(vazio),
       /* NR-119: e a agenda, pelo mesmo motivo. */
       createAppointmentRepository: vi.fn(vazio),
       createCustomerChargeRepository: vi.fn(vazio),
