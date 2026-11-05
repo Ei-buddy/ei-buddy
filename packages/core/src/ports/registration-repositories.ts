@@ -272,7 +272,8 @@ export type NewProduct = {
  */
 export type ProductPatch = {
   readonly description?: string | undefined
-  readonly barcode?: string | undefined
+  /** `null` tira o codigo de barras. */
+  readonly barcode?: string | null | undefined
   readonly unitOfMeasure?: ProductOutput['unitOfMeasure'] | undefined
   readonly salePriceCents?: number | undefined
   readonly costPriceCents?: number | undefined

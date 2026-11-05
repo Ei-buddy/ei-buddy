@@ -208,7 +208,11 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
         {/* ---------------- Identificacao ---------------- */}
         <Card title="Identificação">
           <FormGrid>
-            <Field label="Código de barras (EAN)" span={12}>
+            <Field
+              label="Código de barras (EAN)"
+              span={12}
+              hint="opcional — deixe em branco se o produto não tiver"
+            >
               <div className={styles.inline}>
                 <Input
                   value={ean}
@@ -304,12 +308,14 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
                  tributaria depende do produto E do estado, e errar para menos
                  e sonegacao. Dizer como o codigo se parece e ajudar; escolher
                  por ele seria dar conselho fiscal. */
-              hint="3 dígitos, ex. 102"
+              hint="origem + código, 4 dígitos, ex. 0102"
             >
               <Input
                 value={situacaoTributaria}
-                onChange={(e) => setSituacaoTributaria(e.target.value)}
-                placeholder="102"
+                onChange={(e) =>
+                  setSituacaoTributaria(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
+                placeholder="0102"
                 inputMode="numeric"
               />
               {erroDe('situacaoTributaria')}

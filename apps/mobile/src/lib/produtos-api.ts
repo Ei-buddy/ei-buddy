@@ -152,7 +152,12 @@ export async function salvarProduto(
       method: editando ? 'PATCH' : 'POST',
       body: {
         description: texto(dados.descricao),
-        ...(dados.ean ? { barcode: dados.ean.replace(/\D/g, '') } : {}),
+        /* Na edicao, EAN apagado vai como `null`; no cadastro, vazio nem vai. */
+        ...(dados.ean
+          ? { barcode: dados.ean.replace(/\D/g, '') }
+          : editando
+            ? { barcode: null }
+            : {}),
         ...(editando ? {} : { unitOfMeasure: 'un' }),
         /* A tela trabalha em reais; o contrato exige centavos inteiros
            (RNF-044). A conversao acontece AQUI, na borda. */
@@ -283,6 +288,11 @@ export type MovimentoDeEstoque = {
   delta: number
   saldoDepois: number
   motivo: string | null
+  /** A origem — venda nº N ou a compra (achado do QA). */
+  vendaId: string | null
+  vendaNumero: number | null
+  compraFornecedor: string | null
+  compraNota: string | null
   quando: string
 }
 
@@ -292,6 +302,10 @@ type MovimentoDaApi = {
   quantityDelta: number
   balanceAfter: number
   reason: string | null
+  saleId: string | null
+  saleNumber?: number | null
+  purchaseSupplier?: string | null
+  purchaseInvoiceNumber?: string | null
   createdAt: string
 }
 
@@ -301,6 +315,10 @@ const paraMovimento = (m: MovimentoDaApi): MovimentoDeEstoque => ({
   delta: m.quantityDelta,
   saldoDepois: m.balanceAfter,
   motivo: m.reason,
+  vendaId: m.saleId,
+  vendaNumero: m.saleNumber ?? null,
+  compraFornecedor: m.purchaseSupplier ?? null,
+  compraNota: m.purchaseInvoiceNumber ?? null,
   quando: m.createdAt,
 })
 

@@ -86,7 +86,9 @@ export type CreateProductInput = z.infer<typeof createProductInputSchema>
 export const updateProductInputSchema = z
   .object({
     description: z.string().trim().min(2).max(200),
-    barcode: barcodeSchema,
+    /* `null` tira o codigo de barras — achado do QA: "nao podemos exigir o
+       EAN"; quem gravou um errado precisa poder deixar o produto sem. */
+    barcode: barcodeSchema.nullable(),
     unitOfMeasure: unitOfMeasureSchema,
     salePriceCents: moneyCentsSchema,
     costPriceCents: moneyCentsSchema,

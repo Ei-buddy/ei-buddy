@@ -12,6 +12,7 @@ import {
   issueInvoiceRequestSchema,
   LOCAL_REJECTION_CODES,
   ncmSchema,
+  separarOrigem,
   taxSituationCodeSchema,
 } from './invoice.js'
 
@@ -71,9 +72,17 @@ describe('classificacao fiscal', () => {
     expect(taxSituationCodeSchema.parse('102')).toBe('102')
   })
 
-  it('recusa CST/CSOSN com 1 ou 4 digitos', () => {
+  it('aceita 4 digitos (origem + CSOSN) e recusa 1 ou 5', () => {
+    expect(taxSituationCodeSchema.parse('0102')).toBe('0102')
     expect(taxSituationCodeSchema.safeParse('0').success).toBe(false)
-    expect(taxSituationCodeSchema.safeParse('1020').success).toBe(false)
+    expect(taxSituationCodeSchema.safeParse('01020').success).toBe(false)
+  })
+
+  it('separa a origem do codigo', () => {
+    expect(separarOrigem('0102')).toEqual({ origem: 0, codigo: '102' })
+    expect(separarOrigem('2500')).toEqual({ origem: 2, codigo: '500' })
+    expect(separarOrigem('102')).toEqual({ origem: 0, codigo: '102' })
+    expect(separarOrigem('00')).toEqual({ origem: 0, codigo: '00' })
   })
 })
 

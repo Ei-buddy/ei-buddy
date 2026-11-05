@@ -7,6 +7,7 @@ import {
   issueInvoiceRequestSchema,
   type IssueInvoiceRequest,
   LOCAL_REJECTION_CODES,
+  separarOrigem,
 } from '@na-regua/contracts'
 import type { InvoiceStore, NotaGuardada } from './invoice-store.js'
 
@@ -260,10 +261,10 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
         valor_unitario_comercial: reaisDeCentavos(item.unitPriceCents),
         valor_unitario_tributavel: reaisDeCentavos(item.unitPriceCents),
         valor_bruto: reaisDeCentavos(item.unitPriceCents * item.quantity),
-        /* 0 = nacional. Origem por item existe no XML e nao no nosso cadastro;
-           assumir importado seria pior que assumir nacional. */
-        icms_origem: 0,
-        icms_situacao_tributaria: item.taxSituationCode,
+        /* A origem vem no CSOSN de 4 digitos (0102 = nacional + 102); com 3,
+           e 0 (nacional) — assumir importado seria pior que assumir nacional. */
+        icms_origem: separarOrigem(item.taxSituationCode).origem,
+        icms_situacao_tributaria: separarOrigem(item.taxSituationCode).codigo,
       })),
 
       formas_pagamento: request.payments.map((p) => ({

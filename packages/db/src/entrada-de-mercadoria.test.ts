@@ -3,6 +3,7 @@ import { createPurchaseInputSchema } from '@na-regua/contracts'
 import { registerPurchase, type ExecutionContext } from '@na-regua/core'
 import postgres, { type Sql } from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createInventoryHistory } from './inventory-repository.js'
 import { migrate } from './migrate.js'
 import { createPurchaseQueries, createPurchaseUnitOfWork } from './purchase-repository.js'
 import { cnpjDeTeste, conectarComoAplicacao, type ConexaoDeAplicacao } from './test-support.js'
@@ -127,6 +128,16 @@ describe.skipIf(!DATABASE_URL)('entrada de mercadoria — NR-158', () => {
     expect(trilha).toEqual([
       { product_id: cafe, kind: 'purchase', purchase_id: compra.id, balance_after: 20 },
     ])
+
+    /* A ficha do produto mostra de qual compra veio — achado do QA. */
+    const [doCafe] = await createInventoryHistory(sql).byProduct(empresa, cafe, 5)
+    expect(doCafe).toMatchObject({
+      kind: 'purchase',
+      purchaseId: compra.id,
+      purchaseSupplier: 'Distribuidora Boa',
+      purchaseInvoiceNumber: '555',
+      saleNumber: null,
+    })
 
     const contas = await withTenant(
       sql,

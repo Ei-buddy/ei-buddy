@@ -210,6 +210,11 @@ export type MovimentoDeEstoque = {
   saldoDepois: number
   motivo: string | null
   saleId: string | null
+  /** A origem, para a ficha mostrar e abrir: venda nº N ou a compra. */
+  vendaNumero: number | null
+  compraId: string | null
+  compraFornecedor: string | null
+  compraNota: string | null
   /** ISO 8601 com hora: dois ajustes no mesmo dia precisam de ordem visivel. */
   quando: string
 }
@@ -221,6 +226,10 @@ type MovimentoDaApi = {
   balanceAfter: number
   reason: string | null
   saleId: string | null
+  saleNumber?: number | null
+  purchaseId?: string | null
+  purchaseSupplier?: string | null
+  purchaseInvoiceNumber?: string | null
   createdAt: string
 }
 
@@ -248,6 +257,10 @@ export async function carregarMovimentos(
           saldoDepois: m.balanceAfter,
           motivo: m.reason,
           saleId: m.saleId,
+          vendaNumero: m.saleNumber ?? null,
+          compraId: m.purchaseId ?? null,
+          compraFornecedor: m.purchaseSupplier ?? null,
+          compraNota: m.purchaseInvoiceNumber ?? null,
           quando: m.createdAt,
         })),
       }
@@ -286,6 +299,11 @@ export async function ajustarEstoque(
           saldoDepois: r.dados.balanceAfter,
           motivo: r.dados.reason,
           saleId: r.dados.saleId,
+          /* Ajuste manual nao tem lancamento de origem. */
+          vendaNumero: null,
+          compraId: null,
+          compraFornecedor: null,
+          compraNota: null,
           quando: r.dados.createdAt,
         },
       }

@@ -42,6 +42,17 @@ describe('cadastro de produto', () => {
     expect(createProductInputSchema.parse({ ...produto, taxSituationCode: '102' })).toMatchObject({
       taxSituationCode: '102',
     })
+    /* Achado do QA: 4 digitos, com a origem na frente (0102). */
+    expect(createProductInputSchema.parse({ ...produto, taxSituationCode: '0102' })).toMatchObject({
+      taxSituationCode: '0102',
+    })
+    /* Origem 9 nao existe; 0999 e CSOSN inexistente. */
+    expect(
+      createProductInputSchema.safeParse({ ...produto, taxSituationCode: '9102' }).success,
+    ).toBe(false)
+    expect(
+      createProductInputSchema.safeParse({ ...produto, taxSituationCode: '0999' }).success,
+    ).toBe(false)
     /* CST de dois digitos passaria aqui e seria recusado pela SEFAZ na nota. */
     expect(createProductInputSchema.safeParse({ ...produto, taxSituationCode: '00' }).success).toBe(
       false,

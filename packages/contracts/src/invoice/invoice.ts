@@ -58,8 +58,8 @@ export const cfopSchema = z
 export const taxSituationCodeSchema = z
   .string()
   .transform((v) => v.replace(/\D/g, ''))
-  .refine((d) => d.length === 2 || d.length === 3, {
-    message: 'CST/CSOSN invalido. Deve ter 2 digitos (CST) ou 3 (CSOSN).',
+  .refine((d) => d.length >= 2 && d.length <= 4, {
+    message: 'CST/CSOSN invalido. Deve ter 2 digitos (CST), 3 (CSOSN) ou 4 (origem + CSOSN).',
   })
 
 /**
@@ -74,12 +74,32 @@ export const taxSituationCodeSchema = z
 export const csosnSchema = z
   .string()
   .transform((v) => v.replace(/\D/g, ''))
-  .refine((d) => d.length === 3, {
-    message: 'CSOSN invalido. Deve ter 3 digitos, por exemplo 102.',
+  /*
+   * 3 ou 4 digitos — achado do QA: "CSOSN tem que ter 4 digitos". Os sistemas
+   * de gestao gravam a ORIGEM da mercadoria junto (0102 = nacional + 102), e e
+   * assim que o contador passa. Com 3, a origem e 0 (nacional), como era.
+   */
+  .refine((d) => d.length === 3 || d.length === 4, {
+    message: 'CSOSN invalido. Use 4 digitos (origem + CSOSN, ex.: 0102) ou 3 (ex.: 102).',
   })
-  .refine((d) => CSOSN_VALIDOS.includes(d), {
+  .refine((d) => d.length === 3 || ORIGENS_VALIDAS.includes(d[0]!), {
+    message: 'Origem invalida. O primeiro digito vai de 0 (nacional) a 8.',
+  })
+  .refine((d) => CSOSN_VALIDOS.includes(d.slice(-3)), {
     message: 'CSOSN inexistente. Os validos sao 101, 102, 103, 201, 202, 203, 300, 400, 500 e 900.',
   })
+
+/** A origem da mercadoria (tabela A do ICMS): 0 nacional ... 8 nacional com importacao > 70%. */
+const ORIGENS_VALIDAS: readonly string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
+
+/**
+ * Origem e codigo de um CST/CSOSN gravado — o emissor manda os dois em campos
+ * separados. 4 digitos trazem a origem na frente; 2 e 3, origem 0 (nacional).
+ */
+export function separarOrigem(codigo: string): { origem: number; codigo: string } {
+  const d = codigo.replace(/\D/g, '')
+  return d.length === 4 ? { origem: Number(d[0]), codigo: d.slice(1) } : { origem: 0, codigo: d }
+}
 
 /** A tabela do CSOSN — dez codigos, fixos desde o Ajuste SINIEF 03/2010. */
 const CSOSN_VALIDOS: readonly string[] = [
