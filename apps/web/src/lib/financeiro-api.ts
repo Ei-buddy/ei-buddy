@@ -19,19 +19,15 @@ import type { StatusTitulo } from './types'
 /* Listas para os campos "(T)"                                                */
 /* -------------------------------------------------------------------------- */
 
-/** Sugestoes genericas para a BAIXA, quando a loja ainda nao cadastrou contas (RF-073). */
-export const NOMES_BANCOS = [
-  'Caixa da loja',
-  'Banco do Brasil',
-  'Caixa Econômica',
-  'Itaú',
-  'Bradesco',
-  'Santander',
-  'Nubank',
-  'Inter',
-  'Sicredi',
-  'Sicoob',
-]
+/**
+ * A "conta" de quem pagou com o dinheiro da gaveta — copia de
+ * `CONTA_DINHEIRO_DO_CAIXA` do contrato (DEC-025: o web nao carrega o zod do
+ * contrato no navegador). O teste confere que as duas nao se separam.
+ *
+ * A baixa nao sugere mais nomes genericos de banco: so aceita conta
+ * cadastrada (ou esta), porque o saldo da conta soma as baixas pelo nome.
+ */
+export const CONTA_DINHEIRO_DO_CAIXA = 'Dinheiro do caixa'
 
 /* -------------------------------------------------------------------------- */
 /* Exportacao — NR-074                                                        */
@@ -234,6 +230,8 @@ export type ContaAPagar = {
   recurrenceId: string | null
   occurrenceNumber: number | null
   occurrenceCount: number | null
+  /** Quando foi lancada — a coluna "Emissão" da tela. */
+  createdAt: string
 }
 
 export type GrupoDeVencimento = {
@@ -250,6 +248,8 @@ export type ContasAPagarAgrupadas = {
   temVencidas: boolean
   /** Pago/recebido no mes, pela data da baixa. Ausente = o servidor nao calculou. */
   settledThisMonth?: { totalCents: number; count: number }
+  /** As quitadas mais recentes — o filtro "Pagos". Ausente em api antiga. */
+  quitadas?: ContaAPagar[]
 }
 
 /**
@@ -307,6 +307,8 @@ export type ContaAReceber = {
   installmentNumber: number
   installmentCount: number
   status: 'open' | 'partially_settled' | 'settled' | 'cancelled'
+  /** Quando foi lancado — a coluna "Emissão" da tela. */
+  createdAt: string
 }
 
 export type GrupoDeRecebimento = {
@@ -321,6 +323,8 @@ export type ContasAReceberAgrupadas = {
   temVencidas: boolean
   /** Pago/recebido no mes, pela data da baixa. Ausente = o servidor nao calculou. */
   settledThisMonth?: { totalCents: number; count: number }
+  /** Os quitados mais recentes — o filtro "Recebidos". Ausente em api antiga. */
+  quitadas?: ContaAReceber[]
 }
 
 export const carregarContasAReceber = (): Promise<ResultadoContas<ContasAReceberAgrupadas>> =>
@@ -453,6 +457,8 @@ export type CorrecaoDeTitulo = {
   description?: string
   amountCents?: number
   dueDate?: string
+  /** Plano de conta — so a pagar. `null` tira a classificacao. */
+  accountId?: string | null
 }
 
 const rotaDoTitulo = (tipo: TipoDeTitulo, id: string) =>

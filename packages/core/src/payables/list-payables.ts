@@ -24,7 +24,19 @@ export type PayablesAgrupadas = {
    * descobrir isso convida cada tela a responder de um jeito.
    */
   readonly temVencidas: boolean
+  /**
+   * As quitadas mais recentes, da mais nova para a mais antiga — o filtro
+   * "Pagos" da tela. Fora dos grupos e do total: grupo e total falam do que
+   * AINDA falta pagar. Achado do QA: sem elas o filtro nunca mostrava nada.
+   */
+  readonly quitadas: readonly PayableOutput[]
 }
+
+/**
+ * Quantas quitadas a lista leva. O historico de pagas so cresce; a tela quer
+ * as recentes, e a consulta antiga cabe no relatorio e na exportacao.
+ */
+export const QUITADAS_NA_LISTA = 200
 
 /** A ordem em que o lojista quer ver, e nao a alfabetica. */
 const ORDEM: readonly FaixaDeVencimento[] = ['overdue', 'today', 'week', 'month', 'later']
@@ -35,14 +47,18 @@ const ORDEM: readonly FaixaDeVencimento[] = ['overdue', 'today', 'week', 'month'
  * Leitura: nao passa por `assertCanWrite`. `accountant` e somente leitura, e e
  * justamente quem mais consulta esta lista.
  *
- * So o que esta em aberto. Conta paga nao pertence a "o que vence esta semana",
- * e cancelada nao pertence a lugar nenhum.
+ * Os grupos so tem o que esta em aberto. Conta paga nao pertence a "o que vence
+ * esta semana" — ela vem a parte, em `quitadas` —, e cancelada nao pertence a
+ * lugar nenhum.
  */
 export async function listPayables(
   deps: ListPayablesDeps,
   ctx: ExecutionContext,
 ): Promise<PayablesAgrupadas> {
-  const abertas = await deps.list(ctx.companyId, { status: ['open', 'partially_settled'] })
+  const [abertas, quitadas] = await Promise.all([
+    deps.list(ctx.companyId, { status: ['open', 'partially_settled'] }),
+    deps.list(ctx.companyId, { status: ['settled'], maisRecentes: QUITADAS_NA_LISTA }),
+  ])
 
   /*
    * O dia de hoje sai de `ctx.now`, que e UTC. O fuso da empresa ainda nao
@@ -69,6 +85,7 @@ export async function listPayables(
     grupos,
     totalCents: grupos.reduce((soma, g) => soma + g.totalCents, 0),
     temVencidas: grupos.find((g) => g.faixa === 'overdue')!.payables.length > 0,
+    quitadas,
   }
 }
 

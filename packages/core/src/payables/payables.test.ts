@@ -245,6 +245,22 @@ describe('agrupar por vencimento — RF-061, RF-062', () => {
     expect(tamanho).toMatchObject({ overdue: 1, today: 1, week: 1, month: 1 })
   })
 
+  it('as quitadas vem a parte, da mais nova para a mais antiga, fora do total', async () => {
+    /* Achado do QA: o filtro "Pagos" nunca mostrava nada — a lista so trazia
+       o que estava em aberto. */
+    const d = await comContas(['2026-08-20', '2026-08-25', '2026-09-25'])
+    const [a, b] = d.pag.todas('empresa-1')
+    d.pag.simularQuitacao(a!.id)
+    d.pag.simularQuitacao(b!.id)
+
+    const r = await listPayables(d.pag, contexto())
+
+    expect(r.quitadas.map((p) => p.dueDate)).toEqual(['2026-08-25', '2026-08-20'])
+    expect(r.grupos.flatMap((g) => g.payables)).toHaveLength(1)
+    expect(r.totalCents).toBe(48_000)
+    expect(r.temVencidas).toBe(false)
+  })
+
   it('destaca que ha conta vencida — RF-062', async () => {
     const vencida = await comContas(['2026-08-20'])
     const emDia = await comContas(['2026-09-25'])

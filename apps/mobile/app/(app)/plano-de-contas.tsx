@@ -153,6 +153,11 @@ export default function PlanoDeContas() {
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
         {criando ? (
           <View style={estilos.formulario}>
+            {/* QA: "plano de contas — como cadastrar um?". O par do texto do web. */}
+            <Text style={estilos.ajuda}>
+              Digite o nome (ex.: Aluguel, Embalagens), escolha o tipo e toque em Criar. O tipo
+              decide onde a conta entra no DRE. Depois, use a conta nas contas a pagar.
+            </Text>
             <Campo
               rotulo="Nome da conta"
               valor={novoNome}
@@ -253,6 +258,7 @@ const estilos = criarEstilos(() => ({
   linhaValor: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
   apagar: { fontSize: 20, color: cores.textoFraco, paddingHorizontal: espaco.xs },
 
+  ajuda: { fontSize: fonte.pequeno, color: cores.textoFraco, lineHeight: 20 },
   formulario: {
     ...vidro.peca,
     gap: espaco.md,

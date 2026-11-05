@@ -1,10 +1,11 @@
+import { CONTA_DINHEIRO_DO_CAIXA } from '@na-regua/contracts'
+import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import {
   type DadosDaBaixa,
   FORMAS_DE_RECEBIMENTO,
   type FormaDeRecebimento,
-  NOMES_BANCOS,
   nomesDasContasDaLoja,
   type TipoDeTitulo,
 } from '@/lib/financeiro-api'
@@ -107,20 +108,26 @@ export default function BaixaModal({
   const [valorParcial, setValorParcial] = useState('')
   const [dataBr, setDataBr] = useState(() => paraBr(hoje()))
   const [conta, setConta] = useState('')
-  /* As contas da loja (RF-073); sem nenhuma, as sugestoes genericas. */
-  const [contasDaLoja, setContasDaLoja] = useState<string[]>([])
+  const router = useRouter()
+  /*
+   * As contas da loja (RF-073) — e so elas, mais o dinheiro da gaveta. Achado
+   * do QA: a baixa aceitava banco que nao existia, e o saldo da conta soma as
+   * baixas pelo nome. Nulo = a lista nao veio: o campo vira texto e o
+   * servidor confere.
+   */
+  const [contasDaLoja, setContasDaLoja] = useState<string[] | null | undefined>(undefined)
   useEffect(() => {
     let cancelado = false
     void nomesDasContasDaLoja().then((nomes) => {
       if (cancelado) return
       setContasDaLoja(nomes)
-      if (nomes.length === 1 && pagar) setConta(nomes[0]!)
+      if (nomes !== null && nomes.length === 1 && pagar) setConta(nomes[0]!)
     })
     return () => {
       cancelado = true
     }
   }, [pagar])
-  const sugestoes = contasDaLoja.length > 0 ? contasDaLoja : NOMES_BANCOS
+  const opcoesDeConta = [...(contasDaLoja ?? []), CONTA_DINHEIRO_DO_CAIXA]
   const [forma, setForma] = useState<FormaDeRecebimento>('pix')
 
   /* Na baixa TOTAL o valor e o saldo exato — nao passa por reais e volta. */
@@ -246,18 +253,34 @@ export default function BaixaModal({
 
             {pagar ? (
               <>
-                <Campo
-                  rotulo="Conta de onde saiu"
-                  valor={conta}
-                  onChange={setConta}
-                  placeholder="Ex.: Banco do Brasil"
-                  editavel={!processando}
-                />
-                {/* Atalhos para as contas conhecidas. Digitar o nome do banco
-                    inteiro no celular e o tipo de atrito que faz a pessoa
-                    desistir e deixar a baixa para depois — e depois nao vem. */}
+                {contasDaLoja === null ? (
+                  <Campo
+                    rotulo="Conta de onde saiu"
+                    valor={conta}
+                    onChange={setConta}
+                    placeholder="Nome da conta cadastrada"
+                    editavel={!processando}
+                  />
+                ) : (
+                  <Text style={estilos.grupoRotulo}>Conta de onde saiu</Text>
+                )}
+                {contasDaLoja !== null &&
+                contasDaLoja !== undefined &&
+                contasDaLoja.length === 0 ? (
+                  <Pressable
+                    onPress={() => {
+                      onFechar()
+                      router.push('/contas-bancarias')
+                    }}
+                    accessibilityRole="link"
+                  >
+                    <Text style={estilos.dica}>
+                      Nenhuma conta bancária cadastrada. Toque para cadastrar.
+                    </Text>
+                  </Pressable>
+                ) : null}
                 <View style={estilos.chips}>
-                  {sugestoes.map((b) => (
+                  {opcoesDeConta.map((b) => (
                     <Pressable
                       key={b}
                       onPress={() => setConta(b)}
@@ -365,6 +388,7 @@ const estilos = criarEstilos(() => ({
 
   grupo: { gap: espaco.sm },
   grupoRotulo: { fontSize: fonte.micro, color: cores.textoFraco },
+  dica: { fontSize: fonte.micro, color: cores.acento, fontWeight: peso.forte },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
   chip: {

@@ -53,16 +53,27 @@ export class InMemoryPayables implements PayableUnitOfWork, PayableQueries, IdGe
     this.contas[i] = { ...this.contas[i]!, settledAmountCents: cents, status: 'partially_settled' }
   }
 
+  /** Simula a conta quitada — para a lista de quitadas da tela. */
+  simularQuitacao(id: string): void {
+    const i = this.contas.findIndex((c) => c.id === id)
+    const c = this.contas[i]!
+    this.contas[i] = { ...c, settledAmountCents: c.amountCents, status: 'settled' }
+  }
+
   todas(companyId: CompanyId): readonly PayableOutput[] {
     return this.contas.filter((c) => c.companyId === companyId)
   }
 
   async list(companyId: CompanyId, filtro: PayableFilter): Promise<readonly PayableOutput[]> {
-    return this.contas.filter(
+    const lidas = this.contas.filter(
       (c) =>
         c.companyId === companyId &&
         (filtro.status === undefined || filtro.status.includes(c.status)),
     )
+    if (filtro.maisRecentes === undefined) return lidas
+    return [...lidas]
+      .sort((a, b) => b.dueDate.localeCompare(a.dueDate))
+      .slice(0, filtro.maisRecentes)
   }
 
   async transaction<T>(

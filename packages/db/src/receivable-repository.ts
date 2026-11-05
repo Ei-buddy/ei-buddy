@@ -103,7 +103,11 @@ export function createReceivableRepository(sql: Sql): ReceivableQueries {
               : tx`AND r.status = ANY(${criterio.status as string[]})`
           }
           ${criterio.customerId === undefined ? tx`` : tx`AND r.customer_id = ${criterio.customerId}`}
-          ORDER BY r.due_date
+          ${
+            criterio.maisRecentes === undefined
+              ? tx`ORDER BY r.due_date`
+              : tx`ORDER BY r.due_date DESC, r.created_at DESC LIMIT ${criterio.maisRecentes}`
+          }
         `,
       )
 

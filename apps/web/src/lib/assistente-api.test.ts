@@ -127,6 +127,7 @@ describe('assistente com os dados da loja', () => {
       recurrenceId: null,
       occurrenceNumber: null,
       occurrenceCount: null,
+      createdAt: '2026-09-01T12:00:00.000Z',
     })
 
     const r = await responder(

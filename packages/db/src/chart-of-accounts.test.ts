@@ -225,7 +225,7 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
     })
 
     it('o historico vem da mais usada para a menos', async () => {
-      const energia = await repo.findByName(empresaA, 'Energia, agua e internet')
+      const energia = await repo.findByName(empresaA, 'Energia, água e internet')
       const outras = await repo.findByName(empresaA, 'Outras despesas')
 
       for (const _ of [1, 2, 3]) {

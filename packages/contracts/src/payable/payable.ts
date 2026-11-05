@@ -107,6 +107,13 @@ export const updatePayableInputSchema = z
       .optional(),
     amountCents: moneyCentsSchema.min(1, 'Conta de zero nao e conta.').optional(),
     dueDate: dateSchema.optional(),
+    /**
+     * O plano de conta — achado do QA: "ao corrigir a conta a pagar, ter como
+     * atribuir um plano de contas". `null` tira a classificacao. Trocar so a
+     * classificacao vale mesmo em conta paga: nao mexe em dinheiro, so em onde
+     * ela cai no DRE.
+     */
+    accountId: idSchema.nullable().optional(),
   })
   .strict()
   .refine(algoMudou, NADA_MUDOU)
