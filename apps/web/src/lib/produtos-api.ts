@@ -62,7 +62,7 @@ export type DadosProduto = {
   ncm: string
   /* Natureza da operacao — 5102 revenda comum, 5405 com ST ja recolhida. */
   cfop: string
-  /* CSOSN, 3 digitos — o produto atende Simples Nacional e MEI. */
+  /* CSOSN — 4 digitos com a origem (0102) ou 3 (102); Simples Nacional e MEI. */
   situacaoTributaria: string
   categoria: string
   fornecedor: string
@@ -121,7 +121,9 @@ export async function salvarProduto(
         credentials: 'same-origin',
         body: JSON.stringify({
           description: dados.descricao,
-          ...(dados.ean ? { barcode: dados.ean } : {}),
+          /* Na edicao, EAN apagado vai como `null` e o produto fica sem
+             codigo; no cadastro, vazio nem vai — o EAN e opcional. */
+          ...(dados.ean ? { barcode: dados.ean } : editando ? { barcode: null } : {}),
           ...(editando ? {} : { unitOfMeasure: 'un' }),
           /* A tela trabalha em reais; o contrato exige centavos inteiros
            (RNF-044). A conversao acontece AQUI, na borda, e nao no meio. */

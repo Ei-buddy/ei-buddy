@@ -273,7 +273,7 @@ export async function updateProduct(
     throw AppError.notFound('Produto nao encontrado.')
   }
 
-  if (input.barcode !== undefined && input.barcode !== atual.barcode) {
+  if (input.barcode != null && input.barcode !== atual.barcode) {
     const existente = await deps.products.findByBarcode(ctx.companyId, input.barcode)
     if (existente !== undefined && existente.id !== productId) {
       throw AppError.conflict(

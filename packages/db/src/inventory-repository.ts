@@ -55,6 +55,11 @@ type LinhaMovimento = {
   sale_id: string | null
   created_at: Date
   created_by: string
+  /* So na trilha (`byProduct`), pelo LEFT JOIN com a venda e a compra. */
+  sale_number?: number | null
+  purchase_id?: string | null
+  purchase_supplier?: string | null
+  purchase_invoice_number?: string | null
 }
 
 const paraMovimento = (l: LinhaMovimento): InventoryMovementOutput => ({
@@ -65,6 +70,12 @@ const paraMovimento = (l: LinhaMovimento): InventoryMovementOutput => ({
   balanceAfter: l.balance_after,
   reason: l.reason,
   saleId: l.sale_id,
+  ...(l.sale_number === undefined ? {} : { saleNumber: l.sale_number }),
+  ...(l.purchase_id === undefined ? {} : { purchaseId: l.purchase_id }),
+  ...(l.purchase_supplier === undefined ? {} : { purchaseSupplier: l.purchase_supplier }),
+  ...(l.purchase_invoice_number === undefined
+    ? {}
+    : { purchaseInvoiceNumber: l.purchase_invoice_number }),
   createdAt: l.created_at.toISOString(),
   createdBy: l.created_by,
 })
@@ -200,10 +211,16 @@ export function createInventoryHistory(sql: Sql) {
         sql,
         companyId,
         (tx) => tx<LinhaMovimento[]>`
-          SELECT * FROM inventory_movements
-          WHERE product_id = ${productId}
-          ORDER BY seq DESC
-          LIMIT ${limite}
+          SELECT m.*,
+                 s.number AS sale_number,
+                 pu.supplier AS purchase_supplier,
+                 pu.invoice_number AS purchase_invoice_number
+            FROM inventory_movements m
+            LEFT JOIN sales s ON s.id = m.sale_id
+            LEFT JOIN purchases pu ON pu.id = m.purchase_id
+           WHERE m.product_id = ${productId}
+           ORDER BY m.seq DESC
+           LIMIT ${limite}
         `,
       )
       return linhas.map(paraMovimento)

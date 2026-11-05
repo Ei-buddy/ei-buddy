@@ -422,6 +422,17 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
                     <span className={styles.movPrincipal}>
                       <strong>{CAUSA[m.causa]}</strong>
                       {m.motivo ? <span>{m.motivo}</span> : null}
+                      {/* O lancamento que originou o movimento — achado do QA. */}
+                      {m.saleId !== null ? (
+                        <Link href={`/app/vendas/${m.saleId}`} className={styles.movOrigem}>
+                          {m.vendaNumero !== null ? `Venda nº ${m.vendaNumero}` : 'Abrir a venda'}
+                        </Link>
+                      ) : m.compraId !== null ? (
+                        <Link href="/app/compras" className={styles.movOrigem}>
+                          Compra de {m.compraFornecedor ?? 'fornecedor'}
+                          {m.compraNota ? ` · NF ${m.compraNota}` : ''}
+                        </Link>
+                      ) : null}
                     </span>
 
                     <span

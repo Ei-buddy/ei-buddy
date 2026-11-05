@@ -176,7 +176,7 @@ export default function ProdutoNovoScreen() {
           <View style={estilos.linha}>
             <View style={estilos.flex}>
               <Campo
-                rotulo="Código de barras (EAN)"
+                rotulo="Código de barras (EAN) — opcional"
                 valor={ean}
                 onChange={(v) => setEan(v.replace(/\D/g, ''))}
                 tipoTeclado="numeric"
@@ -272,11 +272,13 @@ export default function ProdutoNovoScreen() {
             </View>
             <View style={estilos.flex}>
               <Campo
-                rotulo="CSOSN"
+                rotulo="CSOSN (origem + código)"
                 valor={cst}
-                onChange={(v) => setCst(v.replace(/\D/g, '').slice(0, 3))}
+                /* 4 digitos — achado do QA: o campo cortava no terceiro, e o
+                   contador passa o CSOSN com a origem na frente (0102). */
+                onChange={(v) => setCst(v.replace(/\D/g, '').slice(0, 4))}
                 tipoTeclado="numeric"
-                placeholder="102"
+                placeholder="0102"
               />
             </View>
           </View>

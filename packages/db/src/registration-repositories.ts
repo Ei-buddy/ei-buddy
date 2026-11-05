@@ -850,7 +850,8 @@ export function createProductRepository(sql: Sql): ProductRepository {
         (tx) => tx<LinhaProduto[]>`
           UPDATE products
              SET description       = COALESCE(${patch.description ?? null}, description),
-                 barcode           = COALESCE(${patch.barcode ?? null}, barcode),
+                 barcode           = CASE WHEN ${patch.barcode !== undefined}::boolean
+                                          THEN ${patch.barcode ?? null} ELSE barcode END,
                  unit_of_measure   = COALESCE(${patch.unitOfMeasure ?? null}, unit_of_measure),
                  sale_price_cents  = COALESCE(${patch.salePriceCents ?? null}, sale_price_cents),
                  cost_price_cents  = COALESCE(${patch.costPriceCents ?? null}, cost_price_cents),
