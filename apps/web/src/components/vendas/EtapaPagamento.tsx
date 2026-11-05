@@ -22,8 +22,14 @@ import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
 import { reaisDoTexto } from '@/lib/valor'
 
+/* No balcao, "carteira" e o fiado: e assim que o lojista chama, e o app ja
+   mostra "Fiado" no mesmo botao. */
+const rotuloNoPdv = (f: { valor: FormaPagamento; rotulo: string }) =>
+  f.valor === 'carteira' ? 'Fiado' : f.rotulo
+
 export default function EtapaPagamento({
   total,
+  temCliente,
   pagamentos,
   onPagamentos,
   onVoltar,
@@ -31,6 +37,8 @@ export default function EtapaPagamento({
   fechando,
 }: {
   total: number
+  /** Fiado e divida de alguem: sem cliente identificado, nao se lanca — RF-033. */
+  temCliente: boolean
   pagamentos: Pagamento[]
   onPagamentos: (pagamentos: Pagamento[]) => void
   onVoltar: () => void
@@ -68,6 +76,13 @@ export default function EtapaPagamento({
    * ---------------------------------------------------------------- */
 
   function lancar() {
+    if (forma === 'carteira' && !temCliente) {
+      setToast({
+        msg: 'Venda no fiado precisa de cliente. Volte ao início e escolha o cliente.',
+        tone: 'error',
+      })
+      return
+    }
     const valor = valorParcial.trim() ? reaisDoTexto(valorParcial) : restante
 
     if (valor <= 0) {
@@ -104,7 +119,9 @@ export default function EtapaPagamento({
         msg:
           trocoDeste > 0.009
             ? `Dinheiro: ${formatMoney(valor)} recebido. Troco: ${formatMoney(trocoDeste)}.`
-            : `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
+            : forma === 'carteira'
+              ? `Fiado: ${formatMoney(valor)} fica em aberto no contas a receber.`
+              : `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
         tone: 'success',
       })
     }
@@ -135,8 +152,10 @@ export default function EtapaPagamento({
                 aria-pressed={forma === f.valor}
                 disabled={quitado}
               >
-                <strong>{f.rotulo}</strong>
-                {f.taxa > 0 ? (
+                <strong>{rotuloNoPdv(f)}</strong>
+                {f.valor === 'carteira' && !temCliente ? (
+                  <span>precisa de cliente</span>
+                ) : f.taxa > 0 ? (
                   <span>taxa {f.taxa.toFixed(2).replace('.', ',')}%</span>
                 ) : (
                   <span>sem taxa</span>
@@ -183,13 +202,16 @@ export default function EtapaPagamento({
               <Button block onClick={lancar}>
                 {formaAtual.online
                   ? `Gerar cobranca em ${formaAtual.rotulo}`
-                  : `Confirmar recebimento em ${formaAtual.rotulo}`}
+                  : forma === 'carteira'
+                    ? 'Lançar no fiado'
+                    : `Confirmar recebimento em ${formaAtual.rotulo}`}
               </Button>
 
               {forma === 'carteira' ? (
                 <p className={styles.aviso}>
-                  A carteira do cliente ainda não tem saldo controlado no sistema — por enquanto
-                  isto registra apenas a forma de pagamento.
+                  {temCliente
+                    ? 'Fica em aberto no contas a receber do cliente e soma no saldo de fiado dele. O cadastro do cliente precisa ter limite de fiado.'
+                    : 'Fiado é dívida de alguém: volte ao início e escolha o cliente para vender no fiado.'}
                 </p>
               ) : null}
             </>
@@ -235,7 +257,7 @@ export default function EtapaPagamento({
                   <li key={p.id} className={styles.pagamento}>
                     <span className={styles.pagamentoPrincipal}>
                       <strong>
-                        {f.rotulo}
+                        {rotuloNoPdv(f)}
                         {p.parcelas ? ` · ${p.parcelas}x` : ''}
                       </strong>
                       {taxaDoPagamento(p) > 0 ? (
