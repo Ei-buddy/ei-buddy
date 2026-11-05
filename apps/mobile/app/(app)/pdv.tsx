@@ -919,9 +919,11 @@ function ResumoDaVenda({ venda, onFechar }: { venda: VendaRegistrada; onFechar: 
 
       <LinhaResumo rotulo="Bruto" centavos={venda.brutoCentavos} />
       <LinhaResumo rotulo="Custo" centavos={venda.custoCentavos} />
-      <LinhaResumo rotulo="Imposto" centavos={venda.impostoCentavos} />
+      {/* O imposto da venda so nasce com a nota: aqui e a previsao, e o
+          historico e o DRE so o descontam quando a nota sai. */}
+      <LinhaResumo rotulo="Imposto previsto na nota" centavos={venda.impostoCentavos} />
       <LinhaResumo rotulo="Tarifa de cartão" centavos={venda.tarifaCentavos} />
-      <LinhaResumo rotulo="Líquido" centavos={venda.liquidoCentavos} destaque />
+      <LinhaResumo rotulo="Líquido com a nota" centavos={venda.liquidoCentavos} destaque />
 
       <Text style={estilos.resumoMargem}>
         {/* Ponto e virgula na margem: 12,4% e 12,6% sao diferentes na conta do

@@ -1,6 +1,7 @@
 import type { PaymentMethod } from '@na-regua/contracts'
 import type { FiltroDoHistorico, SaleHistoryRepository, VendaDoHistorico } from '@na-regua/core'
 import type { Sql, TransactionSql } from 'postgres'
+import { impostoComNota, liquidoComNota } from './imposto-da-venda.js'
 import { withTenant } from './tenant.js'
 
 /**
@@ -93,12 +94,28 @@ const paraVenda = (l: LinhaVenda): VendaDoHistorico => ({
   invoiceAccessKey: l.invoice_access_key,
 })
 
+/**
+ * A venda que entra nos totais do topo — a mesma regra dos relatorios: a
+ * cancelada nao aconteceu e a devolvida inteira voltou. As duas continuam na
+ * LISTA, porque o lojista precisa ver o que cancelou ou recebeu de volta.
+ */
+const conta = (tx: TransactionSql) => tx`s.status NOT IN ('cancelled', 'returned')`
+
+/**
+ * O liquido sem a parte devolvida, na mesma proporcao do bruto, e com o
+ * imposto so quando ha nota — o mesmo calculo do relatorio de faturamento,
+ * para o topo do historico e o painel fecharem com ele.
+ */
+const liquidoSemDevolucao = (tx: TransactionSql) =>
+  tx`(${liquidoComNota(tx)} - COALESCE(ROUND(${liquidoComNota(tx)} * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
+
 export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHistoryRepository {
   /** O SELECT compartilhado pela lista e pela busca de uma venda so. */
   const colunas = (tx: TransactionSql) => tx`
     s.id, s.number, s.created_at, s.customer_id, c.name AS customer_name, s.status,
-    s.gross_amount_cents, s.discount_cents, s.net_amount_cents,
-    s.tax_amount_cents, s.card_fee_amount_cents, s.returned_amount_cents, s.change_cents,
+    s.gross_amount_cents, s.discount_cents, ${liquidoComNota(tx)} AS net_amount_cents,
+    ${impostoComNota(tx)} AS tax_amount_cents, s.card_fee_amount_cents,
+    s.returned_amount_cents, s.change_cents,
     i.itens, p.pagamentos,
     nf.number AS invoice_number, nf.access_key AS invoice_access_key
   `
@@ -159,14 +176,14 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
         (tx) => tx<LinhaVenda[]>`
           SELECT ${colunas(tx)},
                  count(*) OVER () AS total_geral,
-                 count(*) FILTER (WHERE s.status <> 'cancelled') OVER ()
+                 count(*) FILTER (WHERE ${conta(tx)}) OVER ()
                    AS resumo_contagem,
-                 COALESCE(SUM(s.gross_amount_cents)
-                   FILTER (WHERE s.status <> 'cancelled') OVER (), 0) AS resumo_bruto,
-                 COALESCE(SUM(s.net_amount_cents)
-                   FILTER (WHERE s.status <> 'cancelled') OVER (), 0) AS resumo_liquido,
+                 COALESCE(SUM(s.gross_amount_cents - s.returned_amount_cents)
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_bruto,
+                 COALESCE(SUM(${liquidoSemDevolucao(tx)})
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_liquido,
                  COALESCE(SUM(s.card_fee_amount_cents)
-                   FILTER (WHERE s.status <> 'cancelled') OVER (), 0) AS resumo_tarifa
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_tarifa
           FROM sales s
           ${filhos(tx)}
           WHERE TRUE
