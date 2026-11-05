@@ -9,7 +9,7 @@ import type {
   NewProduct,
   ProductRepository,
 } from '@na-regua/core'
-import type { Sql } from 'postgres'
+import type { Sql, TransactionSql } from 'postgres'
 import { withPlatformScope, withTenant } from './tenant.js'
 
 /**
@@ -85,6 +85,39 @@ const paraEmpresa = (l: LinhaEmpresa): CompanyOutput => ({
   businessSegment: l.business_segment,
   createdAt: l.created_at.toISOString(),
 })
+
+/**
+ * A busca de cliente pelo que o lojista digita — achado do QA: "melhore o
+ * mecanismo de busca colocando o nome do cliente".
+ *
+ * Sem acento e por PALAVRA: "joao silva" acha "João da Silva" (cada palavra
+ * tem de aparecer no nome ou no nome fantasia, em qualquer ordem). O
+ * documento e o telefone casam tambem so pelos digitos — "41 99999-0000" acha
+ * o telefone gravado sem mascara.
+ *
+ * `unaccent` na consulta, e nao numa coluna: ela nao e IMMUTABLE (ver a
+ * migration 0027), e a lista de clientes de uma loja cabe na varredura.
+ */
+function clienteCasaCom(tx: TransactionSql, termo: string, tabela: 'c' | 'customers') {
+  const t = tx(tabela)
+  const palavras = termo.trim().split(/\s+/).filter(Boolean).slice(0, 6)
+  const digitos = termo.replace(/\D/g, '')
+  const nomes = palavras.reduce(
+    (acc, p) =>
+      tx`${acc} AND unaccent(COALESCE(${t}.name, '') || ' ' || COALESCE(${t}.trade_name, ''))
+                    ILIKE unaccent(${'%' + p + '%'})`,
+    tx`TRUE`,
+  )
+  return tx`((${nomes})
+           OR ${t}.document ILIKE ${'%' + termo.trim() + '%'}
+           OR ${t}.phone ILIKE ${'%' + termo.trim() + '%'}
+           ${
+             digitos.length >= 3
+               ? tx`OR regexp_replace(COALESCE(${t}.document, ''), '[^0-9]', '', 'g') LIKE ${'%' + digitos + '%'}
+                    OR regexp_replace(COALESCE(${t}.phone, ''), '[^0-9]', '', 'g') LIKE ${'%' + digitos + '%'}`
+               : tx``
+           })`
+}
 
 export function createCompanyRepository(sql: Sql): CompanyRepository {
   return {
@@ -418,12 +451,7 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
              somando as vendas dele para quem abrir a ficha pelo historico. */
           WHERE c.deleted_at IS NULL
           ${
-            criterio.termo === undefined
-              ? tx``
-              : tx`AND (c.name ILIKE ${'%' + criterio.termo + '%'}
-                     OR c.trade_name ILIKE ${'%' + criterio.termo + '%'}
-                     OR c.document ILIKE ${'%' + criterio.termo + '%'}
-                     OR c.phone ILIKE ${'%' + criterio.termo + '%'})`
+            criterio.termo === undefined ? tx`` : tx`AND ${clienteCasaCom(tx, criterio.termo, 'c')}`
           }
           ${
             criterio.filtro === 'fiado'
@@ -484,10 +512,7 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
           ${
             criterio.termo === undefined
               ? tx``
-              : tx`AND (name ILIKE ${'%' + criterio.termo + '%'}
-                     OR trade_name ILIKE ${'%' + criterio.termo + '%'}
-                     OR document ILIKE ${'%' + criterio.termo + '%'}
-                     OR phone ILIKE ${'%' + criterio.termo + '%'})`
+              : tx`AND ${clienteCasaCom(tx, criterio.termo, 'customers')}`
           }
           ORDER BY name, id
           LIMIT ${criterio.limite}

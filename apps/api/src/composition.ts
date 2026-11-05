@@ -91,6 +91,7 @@ import {
   createConnectionRequests,
   createCrmRepository,
   createInventoryHistory,
+  createRestockQueries,
   createInventoryQueries,
   createInventoryUnitOfWork,
   createPurchaseQueries,
@@ -786,6 +787,7 @@ export function buildEstoqueDeps(): EstoqueDeps {
     products: createInventoryQueries(sql).products,
     uow: createInventoryUnitOfWork(sql),
     historico: createInventoryHistory(sql),
+    restock: createRestockQueries(sql),
   }
 }
 

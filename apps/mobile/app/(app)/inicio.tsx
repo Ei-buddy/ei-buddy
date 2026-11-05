@@ -329,9 +329,9 @@ export default function Inicio() {
           <Lista
             itens={estado.repor}
             carregando={carregando}
-            vazio="Nada abaixo do mínimo. Estoque em ordem."
+            vazio="Estoque em ordem: cobre a média de venda do mês."
             erro="Não deu para carregar o estoque."
-            chave={(p) => p.id}
+            chave={(p) => p.productId}
           >
             {(p) => (
               <View style={estilos.linha}>
@@ -339,9 +339,13 @@ export default function Inicio() {
                   <Text style={estilos.linhaTexto} numberOfLines={1}>
                     {p.description}
                   </Text>
-                  <Text style={estilos.linhaApoio}>mínimo {p.minStock} un</Text>
+                  <Text style={estilos.linhaApoio}>
+                    estoque {p.stock} {p.unitOfMeasure}
+                  </Text>
                 </View>
-                <Text style={[estilos.linhaValor, estilos.alerta]}>{p.stock} un</Text>
+                <Text style={[estilos.linhaValor, estilos.alerta]}>
+                  comprar {p.suggestedQuantity} {p.unitOfMeasure}
+                </Text>
               </View>
             )}
           </Lista>

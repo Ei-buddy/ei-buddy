@@ -58,11 +58,13 @@ type Contas = {
   grupos: { faixa: string; payables: ContaAPagar[]; totalCents: number }[]
 }
 
+/** Uma linha de `GET /estoque/reposicao` — a mesma regra do assistente. */
 export type ProdutoParaRepor = {
-  id: string
+  productId: string
   description: string
+  unitOfMeasure: string
   stock: number
-  minStock: number
+  suggestedQuantity: number
 }
 
 export type VendaRecente = {
@@ -148,10 +150,10 @@ export async function carregarContasAPagar(): Promise<{
 }
 
 export async function carregarParaRepor(): Promise<readonly ProdutoParaRepor[] | null> {
-  const r = await chamarApi<{ products: ProdutoParaRepor[] }>(
-    '/produtos/catalogo?stock=baixo&pageSize=10',
-  )
-  return r.ok ? r.dados.products : null
+  /* Achado do QA: o minimo sozinho deixava de fora quem nao tinha minimo e o
+     estoque negativo. A regra e a media de venda de seis meses. */
+  const r = await chamarApi<{ items: ProdutoParaRepor[] }>('/estoque/reposicao')
+  return r.ok ? r.dados.items.slice(0, 10) : null
 }
 
 export async function carregarVendasRecentes(): Promise<readonly VendaRecente[] | null> {
