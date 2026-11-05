@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { buscarCep, UFS } from '@/lib/empresa-api'
@@ -9,6 +10,7 @@ import {
   buscarCpf,
   type CandidatoCliente,
   type ClienteDaFicha,
+  listarClientes,
   salvarCliente,
 } from '@/lib/clientes-api'
 import {
@@ -134,6 +136,8 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
   /** Clientes parecidos que a api encontrou — RF-010. */
   const [duplicados, setDuplicados] = useState<CandidatoCliente[] | null>(null)
+  /** Cliente com o mesmo documento, achado ao sair do campo (achado do QA). */
+  const [existente, setExistente] = useState<{ id: string; nome: string } | null>(null)
 
   /*
    * Em edicao, o formulario abre com o que esta gravado.
@@ -192,7 +196,36 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
    * Busca por documento (CPF ou CNPJ)
    * ---------------------------------------------------------------- */
 
-  async function preencherPorDocumento() {
+  /**
+   * Ao sair do CPF/CNPJ — achado do QA: "quando tirar o foco do CPF ja avisar
+   * se ha algum cliente" e "ao informar o CNPJ tambem preencher o endereco".
+   *
+   * O aviso vem antes de a pessoa preencher a tela inteira: antes, o
+   * duplicado so aparecia ao salvar. E o CNPJ busca sozinho os dados na
+   * Receita quando o resto ainda esta vazio — nao sobrescreve o que ja foi
+   * digitado.
+   */
+  async function aoSairDoDocumento() {
+    const erro = validateDocumento(campos.documento, tipo)
+    setErros((er) => ({ ...er, documento: erro }))
+    setExistente(null)
+    if (erro) return
+
+    const digitos = campos.documento.replace(/\D/g, '')
+    const r = await listarClientes({ termo: digitos })
+    if (r.ok) {
+      const achado = r.dados.clientes.find(
+        (c) => (c.documento ?? '').replace(/\D/g, '') === digitos && c.id !== cliente?.id,
+      )
+      if (achado) setExistente({ id: achado.id, nome: achado.nome })
+    }
+
+    const vazio = campos.nome.trim() === '' && campos.logradouro.trim() === ''
+    if (tipo === 'juridica' && !editando && vazio) await preencherPorDocumento(true)
+  }
+
+  /** `silencioso`: a busca automatica ao sair do campo nao grita se falhar. */
+  async function preencherPorDocumento(silencioso = false) {
     setAvisoDoc(null)
 
     const erro = validateDocumento(campos.documento, tipo)
@@ -208,7 +241,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
       setBuscandoDoc(false)
 
       if (!r.ok) {
-        setAvisoDoc(r.error)
+        if (!silencioso) setAvisoDoc(r.error)
         return
       }
 
@@ -388,12 +421,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
                   aria-required
                   value={campos.documento}
                   onChange={(e) => set('documento', maskDocumento(e.target.value, tipo))}
-                  onBlur={() =>
-                    setErros((er) => ({
-                      ...er,
-                      documento: validateDocumento(campos.documento, tipo),
-                    }))
-                  }
+                  onBlur={() => void aoSairDoDocumento()}
                   placeholder={tipo === 'fisica' ? '000.000.000-00' : '00.000.000/0000-00'}
                   inputMode="numeric"
                   aria-invalid={Boolean(erros.documento)}
@@ -401,7 +429,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={preencherPorDocumento}
+                  onClick={() => void preencherPorDocumento()}
                   disabled={buscandoDoc}
                 >
                   {buscandoDoc ? <Spinner size={14} /> : <IconSearch size={15} />}
@@ -409,6 +437,12 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
                 </Button>
               </div>
               {erroDe('documento')}
+              {existente ? (
+                <span className={styles.aviso} role="status">
+                  Já existe cliente com este {rotuloDocumento}: <strong>{existente.nome}</strong>.{' '}
+                  <Link href={`/app/clientes/${existente.id}`}>Abrir a ficha</Link>
+                </span>
+              ) : null}
               {avisoDoc ? (
                 <span className={styles.aviso} role="status">
                   {avisoDoc}
