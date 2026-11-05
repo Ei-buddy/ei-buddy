@@ -5,6 +5,7 @@ import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { Cartao, Vazio } from '@/components/ui/Cartao'
+import ExtratoContaModal from '@/components/ExtratoContaModal'
 import {
   cadastrarContaBancaria,
   editarContaBancaria,
@@ -37,6 +38,8 @@ export default function ContasBancarias() {
   const [data, setData] = useState(formatDate(hoje()))
   const [salvando, setSalvando] = useState(false)
   const [erroForm, setErroForm] = useState<string | null>(null)
+  /* O extrato aberto — achado do QA, o par do web. */
+  const [vendoExtrato, setVendoExtrato] = useState<ContaBancaria | null>(null)
   /* Editar usa o mesmo formulario do cadastro — NR-152. */
   const [editando, setEditando] = useState<ContaBancaria | null>(null)
 
@@ -255,6 +258,13 @@ export default function ContasBancarias() {
                   {formatMoney(c.balanceCents / 100)}
                 </Text>
                 <View style={estilos.acoesConta}>
+                  <Pressable
+                    onPress={() => setVendoExtrato(c)}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                  >
+                    <Text style={estilos.extrato}>Extrato</Text>
+                  </Pressable>
                   <Pressable onPress={() => editar(c)} accessibilityRole="button" hitSlop={8}>
                     <Text style={estilos.editar}>Editar</Text>
                   </Pressable>
@@ -267,6 +277,9 @@ export default function ContasBancarias() {
           ))
         )}
       </ScrollView>
+      {vendoExtrato !== null ? (
+        <ExtratoContaModal conta={vendoExtrato} onFechar={() => setVendoExtrato(null)} />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -301,5 +314,6 @@ const estilos = criarEstilos(() => ({
   negativo: { color: cores.erro },
   excluir: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
   editar: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
+  extrato: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.acento },
   acoesConta: { flexDirection: 'row', gap: espaco.md },
 }))

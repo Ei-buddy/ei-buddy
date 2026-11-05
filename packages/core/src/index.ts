@@ -273,7 +273,13 @@ export {
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
-export type { BankAccountRepository, NewBankAccount } from './ports/bank-account-repository.js'
+export { getBankAccountStatement } from './banking/bank-account-statement.js'
+export type { BankAccountStatementDeps } from './banking/bank-account-statement.js'
+export type {
+  BankAccountRepository,
+  MovimentoDaConta,
+  NewBankAccount,
+} from './ports/bank-account-repository.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export { returnSaleItems } from './sales/return-sale-items.js'

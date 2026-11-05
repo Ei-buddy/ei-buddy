@@ -43,3 +43,37 @@ export const editarContaBancaria = (
     method: 'PATCH',
     body: JSON.stringify(entrada),
   })
+
+/** Uma linha do extrato — uma baixa (ou estorno) que citou a conta. */
+export type LinhaDoExtrato = {
+  id: string
+  date: string
+  kind: 'receivable' | 'payable'
+  isReversal: boolean
+  description: string
+  counterparty: string | null
+  /** Com sinal: positivo entrou, negativo saiu. */
+  amountCents: number
+  balanceCents: number
+}
+
+export type ExtratoDaConta = {
+  account: ContaBancaria
+  from: string
+  to: string
+  openingCents: number
+  inflowCents: number
+  outflowCents: number
+  closingCents: number
+  entries: LinhaDoExtrato[]
+}
+
+/** O extrato da conta no periodo — achado do QA ("Bancos: ter um extrato"). */
+export const carregarExtrato = (
+  id: string,
+  de: string,
+  ate: string,
+): Promise<Resultado<ExtratoDaConta>> =>
+  pedir<ExtratoDaConta>(
+    `/api/contas-bancarias/${encodeURIComponent(id)}/extrato?from=${de}&to=${ate}`,
+  )
