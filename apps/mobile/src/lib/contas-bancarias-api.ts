@@ -59,3 +59,38 @@ export async function excluirContaBancaria(id: string): Promise<Resultado<null>>
   })
   return r.ok ? { ok: true, dados: null } : { ok: false, erro: r.message }
 }
+
+/** Uma linha do extrato — uma baixa (ou estorno) que citou a conta. */
+export type LinhaDoExtrato = {
+  id: string
+  date: string
+  kind: 'receivable' | 'payable'
+  isReversal: boolean
+  description: string
+  counterparty: string | null
+  /** Com sinal: positivo entrou, negativo saiu. */
+  amountCents: number
+  balanceCents: number
+}
+
+export type ExtratoDaConta = {
+  from: string
+  to: string
+  openingCents: number
+  inflowCents: number
+  outflowCents: number
+  closingCents: number
+  entries: LinhaDoExtrato[]
+}
+
+/** O extrato da conta no periodo — o par do web (achado do QA). */
+export async function carregarExtrato(
+  id: string,
+  de: string,
+  ate: string,
+): Promise<Resultado<ExtratoDaConta>> {
+  const r = await chamarApi<ExtratoDaConta>(
+    `/contas-bancarias/${encodeURIComponent(id)}/extrato?from=${de}&to=${ate}`,
+  )
+  return r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
+}

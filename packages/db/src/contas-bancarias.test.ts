@@ -95,6 +95,42 @@ describe.skipIf(!DATABASE_URL)('contas bancarias — RF-073', () => {
     expect((await contas.findById(empresa, conta!.id))?.balanceCents).toBe(120_00)
   })
 
+  it('o extrato traz as baixas do periodo em ordem e quanto andou antes dele', async () => {
+    const contas = createBankAccountRepository(sql)
+    const conta = await contas.insert({
+      companyId: empresa,
+      name: 'Itau Extrato',
+      bank: 'Itau',
+      agency: null,
+      accountNumber: null,
+      openingBalanceCents: 0,
+      openingDate: '2026-10-01',
+      createdBy: null as never,
+      createdAt: new Date(),
+    })
+
+    await baixa('receber', 40_00, 'Itau Extrato', '2026-10-15')
+    await baixa('pagar', 15_00, 'itau extrato', '2026-11-03')
+    await baixa('receber', 25_00, 'Itau Extrato', '2026-11-02')
+    /* Antes da abertura e de outra conta: fora dos dois. */
+    await baixa('receber', 999_00, 'Itau Extrato', '2026-09-30')
+    await baixa('pagar', 1_00, 'Outra conta', '2026-11-02')
+
+    const r = await contas.statement(
+      empresa,
+      { name: conta!.name, openingDate: conta!.openingDate },
+      '2026-11-01',
+      '2026-11-30',
+    )
+
+    expect(r.antesCents).toBe(40_00)
+    expect(r.movimentos.map((m) => [m.date, m.kind, m.amountCents])).toEqual([
+      ['2026-11-02', 'receivable', 25_00],
+      ['2026-11-03', 'payable', -15_00],
+    ])
+    expect(r.movimentos[1]).toMatchObject({ counterparty: 'Fornecedor', description: 'Compra' })
+  })
+
   it('nome repetido, sem diferenca de caixa, e recusado com resposta e nao erro', async () => {
     const contas = createBankAccountRepository(sql)
     const nova = {

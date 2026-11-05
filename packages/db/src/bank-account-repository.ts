@@ -1,5 +1,5 @@
 import type { BankAccountOutput } from '@na-regua/contracts'
-import type { BankAccountRepository } from '@na-regua/core'
+import type { BankAccountRepository, MovimentoDaConta } from '@na-regua/core'
 import type { Sql, TransactionSql } from 'postgres'
 import { withTenant } from './tenant.js'
 
@@ -47,6 +47,23 @@ const selecionar = (tx: TransactionSql) => tx`
           ), 0))::text AS balance_cents
     FROM bank_accounts b
 `
+
+type LinhaDoExtrato = {
+  id: string
+  date: string
+  kind: 'receivable' | 'payable'
+  is_reversal: boolean
+  description: string | null
+  counterparty: string | null
+  amount_cents: string
+}
+
+/** O dia da baixa: `settled_on` quando foi informado, senao o instante. */
+const diaDaBaixa = (tx: TransactionSql) => tx`COALESCE(s.settled_on, s.settled_at::date)`
+
+/** Recebimento entra, pagamento sai — o mesmo sinal do saldo da lista. */
+const comSinal = (tx: TransactionSql) =>
+  tx`CASE WHEN s.receivable_id IS NOT NULL THEN s.amount_cents ELSE -s.amount_cents END`
 
 export function createBankAccountRepository(sql: Sql): BankAccountRepository {
   return {
@@ -132,5 +149,47 @@ export function createBankAccountRepository(sql: Sql): BankAccountRepository {
     remove: async (companyId, id) => {
       await withTenant(sql, companyId, (tx) => tx`DELETE FROM bank_accounts WHERE id = ${id}`)
     },
+
+    /**
+     * O extrato — as baixas que citam a conta pelo nome, como o saldo da lista.
+     * As duas consultas na mesma transacao: o "antes" e as linhas leem o mesmo
+     * retrato, e uma baixa lancada no meio nao entra num e falta no outro.
+     */
+    statement: async (companyId, conta, from, to) =>
+      withTenant(sql, companyId, async (tx) => {
+        const [antes] = await tx<{ cents: string }[]>`
+          SELECT COALESCE(SUM(${comSinal(tx)}), 0)::text AS cents
+            FROM settlements s
+           WHERE lower(s.bank_account) = lower(${conta.name})
+             AND ${diaDaBaixa(tx)} >= ${conta.openingDate}::date
+             AND ${diaDaBaixa(tx)} < ${from}::date
+        `
+        const linhas = await tx<LinhaDoExtrato[]>`
+          SELECT s.id,
+                 to_char(${diaDaBaixa(tx)}, 'YYYY-MM-DD') AS date,
+                 CASE WHEN s.receivable_id IS NOT NULL THEN 'receivable' ELSE 'payable' END AS kind,
+                 s.reverses_id IS NOT NULL AS is_reversal,
+                 COALESCE(p.description, r.description) AS description,
+                 COALESCE(p.supplier, c.name) AS counterparty,
+                 (${comSinal(tx)})::text AS amount_cents
+            FROM settlements s
+            LEFT JOIN payables p ON p.id = s.payable_id
+            LEFT JOIN receivables r ON r.id = s.receivable_id
+            LEFT JOIN customers c ON c.id = r.customer_id
+           WHERE lower(s.bank_account) = lower(${conta.name})
+             AND ${diaDaBaixa(tx)} BETWEEN ${from}::date AND ${to}::date
+           ORDER BY ${diaDaBaixa(tx)}, s.created_at, s.id
+        `
+        const movimentos: MovimentoDaConta[] = linhas.map((l) => ({
+          id: l.id,
+          date: l.date,
+          kind: l.kind,
+          isReversal: l.is_reversal,
+          description: l.description ?? (l.kind === 'receivable' ? 'Recebimento' : 'Pagamento'),
+          counterparty: l.counterparty,
+          amountCents: Number(l.amount_cents),
+        }))
+        return { antesCents: Number(antes?.cents ?? 0), movimentos }
+      }),
   }
 }

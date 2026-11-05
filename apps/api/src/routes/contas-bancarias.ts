@@ -1,8 +1,13 @@
-import { createBankAccountInputSchema, updateBankAccountInputSchema } from '@na-regua/contracts'
+import {
+  bankAccountStatementQuerySchema,
+  createBankAccountInputSchema,
+  updateBankAccountInputSchema,
+} from '@na-regua/contracts'
 import {
   type BankAccountDeps,
   createBankAccount,
   deleteBankAccount,
+  getBankAccountStatement,
   listBankAccounts,
   updateBankAccount,
 } from '@na-regua/core'
@@ -26,6 +31,14 @@ export function registerContasBancariasRoutes(
   app.get('/contas-bancarias', async (request, reply) => {
     const ctx = requireContext(request)
     return reply.code(200).send({ accounts: await listBankAccounts(deps, ctx) })
+  })
+
+  /* O extrato da conta no periodo — achado do QA ("Bancos: ter um extrato"). */
+  app.get('/contas-bancarias/:id/extrato', async (request, reply) => {
+    const ctx = requireContext(request)
+    const { id } = request.params as { id: string }
+    const periodo = validate(bankAccountStatementQuerySchema, request.query ?? {})
+    return reply.code(200).send(await getBankAccountStatement(deps, ctx, id, periodo))
   })
 
   app.post(

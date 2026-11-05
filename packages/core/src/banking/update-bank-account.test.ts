@@ -25,6 +25,7 @@ function repo(contas: BankAccountOutput[]): BankAccountRepository {
       empresa === 'emp-1' ? contas.find((c) => c.id === id) : undefined,
     insert: async () => undefined,
     remove: async () => undefined,
+    statement: async () => ({ antesCents: 0, movimentos: [] }),
     update: async (_e, id, m) => {
       if (contas.some((c) => c.id !== id && c.name.toLowerCase() === m.name.toLowerCase())) {
         return 'nome_em_uso'
