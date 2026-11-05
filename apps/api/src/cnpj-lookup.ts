@@ -53,7 +53,10 @@ export function createBrasilApiCnpjLookup(): CnpjLookup {
             motivo: motivoDoErro(erro),
           }),
         )
-        return undefined
+        /* Sem resposta nao e "CNPJ inexistente": devolver `undefined` aqui
+           virava 404 "confira os numeros" com o numero certo (visto no QA,
+           com o provedor fora do ar). Mesmo caminho do status inesperado. */
+        throw new Error(`a consulta de CNPJ nao respondeu: ${motivoDoErro(erro)}`, { cause: erro })
       }
 
       /*
