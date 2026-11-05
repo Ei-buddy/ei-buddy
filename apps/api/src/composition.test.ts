@@ -52,6 +52,7 @@ const { db, storePostgres } = vi.hoisted(() => {
       createInventoryQueries: vi.fn(() => ({ products: {} })),
       createInventoryHistory: vi.fn(vazio),
       createRestockQueries: vi.fn(vazio),
+      createSupplierRepository: vi.fn(vazio),
       createAuditTrail: vi.fn(vazio),
       createPayableUnitOfWork: vi.fn(vazio),
       createPayableQueries: vi.fn(vazio),

@@ -36,7 +36,9 @@ export const GRUPOS: Grupo[] = [
       { rota: '/catalogo', rotulo: 'Produtos' },
       { rota: '/compras', rotulo: 'Entrada de mercadoria' },
       { rota: '/empresa', rotulo: 'Empresa' },
-      { rota: '/fornecedores', rotulo: 'Fornecedores' },
+      /* O cadastro — NR-191. A busca por proximidade e outra tela. */
+      { rota: '/cadastro-fornecedores', rotulo: 'Fornecedores' },
+      { rota: '/fornecedores', rotulo: 'Buscar fornecedores na rede' },
       { rota: '/conexoes', rotulo: 'Conexões' },
     ],
   },
