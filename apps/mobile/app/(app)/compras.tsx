@@ -6,7 +6,14 @@ import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { Cartao, Vazio } from '@/components/ui/Cartao'
-import { carregarCompras, registrarCompra, type Compra } from '@/lib/compras-api'
+import {
+  carregarCompras,
+  estornarCompra,
+  parcelasIguais,
+  registrarCompra,
+  type Compra,
+} from '@/lib/compras-api'
+import { type FornecedorCadastrado, listarFornecedores } from '@/lib/cadastro-fornecedores-api'
 import {
   dataDoTexto,
   formatDate,
@@ -34,6 +41,23 @@ const custoInicial = (p: ProdutoDoCatalogo) =>
 export default function ComprasScreen() {
   const [compras, setCompras] = useState<Compra[] | undefined>(undefined)
   const [erro, setErro] = useState<string | null>(null)
+  /* Estorno — achado do QA ("poder estornar a compra"). */
+  const [estornando, setEstornando] = useState<Compra | null>(null)
+  const [motivo, setMotivo] = useState('')
+  const [processando, setProcessando] = useState(false)
+
+  async function confirmarEstorno() {
+    if (estornando === null) return
+    if (motivo.trim().length < 3) return Alert.alert('Estorno', 'Diga por que está estornando.')
+    setProcessando(true)
+    const r = await estornarCompra(estornando.id, motivo.trim())
+    setProcessando(false)
+    if (!r.ok) return Alert.alert('Não deu para estornar', r.erro)
+    setEstornando(null)
+    setMotivo('')
+    Alert.alert('Compra estornada', 'O estoque voltou e as contas a pagar foram canceladas.')
+    void carregar()
+  }
 
   const carregar = useCallback(async () => {
     const r = await carregarCompras()
@@ -53,6 +77,39 @@ export default function ComprasScreen() {
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <Cabecalho titulo="Entrada de mercadoria" subtitulo="Compra de fornecedor" />
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+        {estornando !== null ? (
+          <Cartao titulo={`Estornar a compra de ${estornando.supplier}`}>
+            <View style={estilos.form}>
+              <Text style={estilos.apoio}>
+                O estoque volta ao que era e as contas a pagar desta compra são canceladas. Conta já
+                paga precisa ter o pagamento estornado antes.
+              </Text>
+              <Campo
+                rotulo="Motivo *"
+                valor={motivo}
+                onChange={setMotivo}
+                placeholder="Ex.: nota lançada em dobro"
+              />
+              <View style={estilos.linha}>
+                <View style={estilos.flex}>
+                  <Botao variante="secundario" onPress={() => setEstornando(null)} largura>
+                    Voltar
+                  </Botao>
+                </View>
+                <View style={estilos.flex}>
+                  <Botao
+                    variante="perigo"
+                    onPress={() => void confirmarEstorno()}
+                    carregando={processando}
+                    largura
+                  >
+                    Estornar
+                  </Botao>
+                </View>
+              </View>
+            </View>
+          </Cartao>
+        ) : null}
         <NovaEntrada aoRegistrar={carregar} />
 
         <Cartao titulo="Entradas registradas">
@@ -67,10 +124,14 @@ export default function ComprasScreen() {
               <View key={c.id} style={estilos.compra}>
                 <View style={estilos.linha}>
                   <View style={estilos.flex}>
-                    <Text style={estilos.nome}>{c.supplier}</Text>
+                    <Text style={estilos.nome}>
+                      {c.supplier}
+                      {c.status === 'cancelled' ? ' · estornada' : ''}
+                    </Text>
                     <Text style={estilos.apoio}>
                       {formatDateTime(c.createdAt)}
                       {c.invoiceNumber ? ` · NF ${c.invoiceNumber}` : ''}
+                      {c.status === 'cancelled' && c.cancelReason ? ` · ${c.cancelReason}` : ''}
                     </Text>
                   </View>
                   <View style={estilos.direita}>
@@ -85,6 +146,15 @@ export default function ComprasScreen() {
                     {i.quantity} × {i.description} — {reais(i.unitCostCents)} cada
                   </Text>
                 ))}
+                {c.status === 'active' ? (
+                  <Pressable
+                    onPress={() => setEstornando(c)}
+                    accessibilityRole="button"
+                    style={estilos.estornar}
+                  >
+                    <Text style={estilos.remover}>Estornar</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ))
           )}
@@ -96,9 +166,15 @@ export default function ComprasScreen() {
 
 function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
   const [fornecedor, setFornecedor] = useState('')
+  /* O fornecedor do cadastro (NR-191) — achado do QA. O texto livre vale. */
+  const [fornecedorId, setFornecedorId] = useState<string | null>(null)
+  const [fornecedores, setFornecedores] = useState<FornecedorCadastrado[] | null>(null)
   const [nota, setNota] = useState('')
   const [vencimento, setVencimento] = useState(formatDate(hoje()))
-  const [parcelas, setParcelas] = useState(1)
+  const [quantas, setQuantas] = useState(1)
+  /* Parcelas uma a uma — achado do QA: vencimento e valor de cada uma. */
+  const [parcelas, setParcelas] = useState<{ data: string; valor: string }[]>([])
+  const [editadas, setEditadas] = useState(false)
   const [linhas, setLinhas] = useState<Linha[]>([])
   const [busca, setBusca] = useState('')
   const [achados, setAchados] = useState<ProdutoDoCatalogo[]>([])
@@ -114,6 +190,24 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
     }, 250)
     return () => clearTimeout(t)
   }, [busca])
+
+  /** O "Enter" do teclado no produto mostra a lista — como no PDV. */
+  async function listarProdutos() {
+    if (achados.length === 1) return incluir(achados[0]!)
+    const r = await listarCatalogo({ termo: busca.trim() })
+    setAchados(r.ok ? r.dados.produtos.slice(0, 12) : [])
+  }
+
+  async function mostrarFornecedores(termo: string) {
+    const r = await listarFornecedores({ termo })
+    setFornecedores(r.ok ? r.dados : [])
+  }
+
+  function escolherFornecedor(f: FornecedorCadastrado) {
+    setFornecedor(f.tradeName ?? f.name)
+    setFornecedorId(f.id)
+    setFornecedores(null)
+  }
 
   function incluir(p: ProdutoDoCatalogo) {
     setLinhas((atual) =>
@@ -134,6 +228,34 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
     return soma + (Number.isFinite(q) && q > 0 && c !== null ? q * c : 0)
   }, 0)
 
+  const recalcular = useCallback(() => {
+    const primeiro = dataDoTexto(vencimento)
+    if (primeiro === null) return
+    setParcelas(
+      parcelasIguais(Math.max(total, quantas), quantas, primeiro).map((p) => ({
+        data: formatDate(p.dueDate),
+        valor: (p.amountCents / 100).toFixed(2).replace('.', ','),
+      })),
+    )
+    setEditadas(false)
+  }, [quantas, total, vencimento])
+
+  useEffect(() => {
+    if (editadas) return
+    const t = setTimeout(recalcular, 0)
+    return () => clearTimeout(t)
+  }, [recalcular, editadas])
+
+  const soma = parcelas.reduce((s, p) => s + (centavosDoTexto(p.valor) ?? 0), 0)
+  const diferenca = total - soma
+
+  function mudarParcela(i: number, campo: 'data' | 'valor', v: string) {
+    setEditadas(true)
+    setParcelas((ps) =>
+      ps.map((p, j) => (j === i ? { ...p, [campo]: campo === 'data' ? mascaraData(v) : v } : p)),
+    )
+  }
+
   async function registrar() {
     if (fornecedor.trim().length < 2) return Alert.alert('Entrada', 'Informe o fornecedor.')
     if (linhas.length === 0) return Alert.alert('Entrada', 'Inclua pelo menos um produto.')
@@ -153,13 +275,29 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
       itens.push({ productId: l.produto.id, quantity, unitCostCents })
     }
 
+    const parcels = parcelas.map((p) => ({
+      dueDate: dataDoTexto(p.data) ?? '',
+      amountCents: centavosDoTexto(p.valor) ?? 0,
+    }))
+    if (total > 0) {
+      if (parcels.some((p) => p.dueDate === '' || p.amountCents <= 0)) {
+        return Alert.alert('Entrada', 'Cada parcela precisa de vencimento (DD/MM/AAAA) e valor.')
+      }
+      if (diferenca !== 0) {
+        return Alert.alert(
+          'Entrada',
+          `As parcelas somam ${reais(soma)}; a compra é de ${reais(total)}.`,
+        )
+      }
+    }
+
     setSalvando(true)
     const r = await registrarCompra({
       supplier: fornecedor.trim(),
+      ...(fornecedorId !== null ? { supplierId: fornecedorId } : {}),
       ...(nota.trim() ? { invoiceNumber: nota.trim() } : {}),
       items: itens,
-      dueDate: data,
-      installments: parcelas,
+      ...(total > 0 ? { parcels } : { dueDate: data }),
     })
     setSalvando(false)
     if (!r.ok) return Alert.alert('Não deu para registrar', r.erro)
@@ -169,8 +307,10 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
       `${reais(r.dados.totalCents)}${r.dados.totalCents > 0 ? ' lançado em contas a pagar' : ''}.`,
     )
     setFornecedor('')
+    setFornecedorId(null)
     setNota('')
-    setParcelas(1)
+    setQuantas(1)
+    setEditadas(false)
     setLinhas([])
     await aoRegistrar()
   }
@@ -181,9 +321,33 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
         <Campo
           rotulo="Fornecedor *"
           valor={fornecedor}
-          onChange={setFornecedor}
-          placeholder="Ex.: Distribuidora Boa Vista"
+          onChange={(v) => {
+            setFornecedor(v)
+            setFornecedorId(null)
+            if (v.trim().length >= 2) void mostrarFornecedores(v)
+          }}
+          placeholder="Busque ou digite o nome"
+          dica={fornecedorId !== null ? 'Fornecedor do cadastro' : 'Enter mostra os cadastrados'}
+          aoConfirmar={() => void mostrarFornecedores(fornecedor)}
         />
+        {fornecedores !== null && fornecedorId === null
+          ? fornecedores.slice(0, 6).map((f) => (
+              <Pressable
+                key={f.id}
+                onPress={() => escolherFornecedor(f)}
+                style={estilos.achado}
+                accessibilityRole="button"
+              >
+                <Text style={estilos.nome}>{f.tradeName ?? f.name}</Text>
+                {f.tradeName ? <Text style={estilos.apoio}>{f.name}</Text> : null}
+              </Pressable>
+            ))
+          : null}
+        {fornecedores !== null && fornecedores.length === 0 && fornecedorId === null ? (
+          <Text style={estilos.apoio}>
+            Nenhum fornecedor cadastrado com esse nome. Pode seguir com o nome digitado.
+          </Text>
+        ) : null}
         <Campo rotulo="Número da nota" valor={nota} onChange={setNota} dica="opcional" />
         <Campo
           rotulo="Adicionar produto"
@@ -193,6 +357,8 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
             if (v.trim().length < 2) setAchados([])
           }}
           placeholder="Nome, código ou código de barras"
+          dica="Enter mostra a lista"
+          aoConfirmar={() => void listarProdutos()}
         />
         {achados.map((p) => (
           <Pressable
@@ -248,27 +414,67 @@ function NovaEntrada({ aoRegistrar }: { aoRegistrar: () => Promise<void> }) {
           ))
         )}
 
-        <Campo
-          rotulo="Vencimento da 1ª parcela *"
-          valor={vencimento}
-          onChange={(v) => setVencimento(mascaraData(v))}
-          tipoTeclado="numeric"
-          placeholder="DD/MM/AAAA"
-        />
         <Text style={estilos.rotulo}>Parcelas</Text>
         <View style={estilos.parcelas}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
             <Pressable
               key={n}
-              onPress={() => setParcelas(n)}
-              style={[estilos.parcela, parcelas === n && estilos.parcelaAtiva]}
+              onPress={() => {
+                setQuantas(n)
+                setEditadas(false)
+              }}
+              style={[estilos.parcela, quantas === n && estilos.parcelaAtiva]}
               accessibilityRole="button"
-              accessibilityState={{ selected: parcelas === n }}
+              accessibilityState={{ selected: quantas === n }}
             >
               <Text style={estilos.parcelaTexto}>{n === 1 ? 'Única' : `${n}x`}</Text>
             </Pressable>
           ))}
         </View>
+        <Campo
+          rotulo="Primeiro vencimento *"
+          valor={vencimento}
+          onChange={(v) => {
+            setVencimento(mascaraData(v))
+            setEditadas(false)
+          }}
+          tipoTeclado="numeric"
+          placeholder="DD/MM/AAAA"
+        />
+        {total > 0
+          ? parcelas.map((p, i) => (
+              <View key={i} style={estilos.linha}>
+                <Text style={estilos.apoio}>{i + 1}ª</Text>
+                <View style={estilos.flex}>
+                  <Campo
+                    rotulo="Vencimento"
+                    valor={p.data}
+                    onChange={(v) => mudarParcela(i, 'data', v)}
+                    tipoTeclado="numeric"
+                  />
+                </View>
+                <View style={estilos.flex}>
+                  <Campo
+                    rotulo="Valor (R$)"
+                    valor={p.valor}
+                    onChange={(v) => mudarParcela(i, 'valor', v)}
+                    tipoTeclado="decimal-pad"
+                  />
+                </View>
+              </View>
+            ))
+          : null}
+        {total > 0 && diferenca !== 0 ? (
+          <Text style={estilos.diferenca}>
+            {diferenca > 0 ? 'Faltam' : 'Sobram'} {reais(Math.abs(diferenca))} para fechar com o
+            total.
+          </Text>
+        ) : null}
+        {editadas ? (
+          <Pressable onPress={recalcular} accessibilityRole="button">
+            <Text style={estilos.recalcular}>Recalcular parcelas iguais</Text>
+          </Pressable>
+        ) : null}
 
         <View style={estilos.linha}>
           <Text style={[estilos.flex, estilos.apoio]}>Total</Text>
@@ -324,4 +530,7 @@ const estilos = criarEstilos(() => ({
   },
   parcelaAtiva: { borderColor: cores.acento, backgroundColor: cores.campo },
   parcelaTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.texto },
+  diferenca: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.erro },
+  recalcular: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
+  estornar: { alignSelf: 'flex-end', paddingVertical: espaco.xs },
 }))

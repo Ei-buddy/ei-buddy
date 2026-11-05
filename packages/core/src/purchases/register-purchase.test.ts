@@ -5,6 +5,7 @@ import { InMemoryAuditTrail } from '../audit/fakes.js'
 import type { ExecutionContext } from '../context.js'
 import { InMemoryPurchases } from './fakes.js'
 import {
+  cancelPurchase,
   custoMedio,
   dividirEmParcelas,
   listPurchases,
@@ -213,5 +214,101 @@ describe('entrada de mercadoria — NR-158', () => {
       dueDate: '2026-10-20',
     })
     expect(r.success).toBe(false)
+  })
+})
+
+describe('parcelas com vencimento e valor — achado do QA', () => {
+  it('cada parcela com a sua data e o seu valor', async () => {
+    const { compras, deps } = montar()
+
+    const compra = await registerPurchase(
+      deps,
+      ctx(),
+      entrada({
+        dueDate: undefined,
+        parcels: [
+          { dueDate: '2026-10-15', amountCents: 5000 },
+          { dueDate: '2026-11-03', amountCents: 7000 },
+        ],
+      }),
+    )
+
+    expect(compras.contas.map((c) => [c.dueDate, c.amountCents, c.occurrenceNumber])).toEqual([
+      ['2026-10-15', 5000, 1],
+      ['2026-11-03', 7000, 2],
+    ])
+    expect(compras.contas.every((c) => c.purchaseId === compra.id)).toBe(true)
+  })
+
+  it('parcelas que nao fecham com o total sao recusadas, e nada entra', async () => {
+    const { compras, deps } = montar()
+
+    const e = await erroDe(
+      registerPurchase(
+        deps,
+        ctx(),
+        entrada({ parcels: [{ dueDate: '2026-10-15', amountCents: 11_000 }] }),
+      ),
+    )
+
+    expect(isAppError(e) && e.code).toBe('VALIDATION_FAILED')
+    expect(isAppError(e) && e.message.replace(/\s/g, ' ')).toContain('R$ 110,00')
+    expect(compras.contas).toHaveLength(0)
+    expect(compras.produto('p-cafe')?.stockQuantity).toBe(10)
+  })
+
+  it('o fornecedor do cadastro tem de existir na loja', async () => {
+    const { compras, deps } = montar()
+    compras.cadastrarFornecedor({ id: 'f-1', companyId: 'emp-1', isActive: true })
+
+    const ok = await registerPurchase(deps, ctx(), entrada({ supplierId: 'f-1' }))
+    expect(ok.supplierId).toBe('f-1')
+
+    const e = await erroDe(registerPurchase(deps, ctx(), entrada({ supplierId: 'f-outra' })))
+    expect(isAppError(e) && e.code).toBe('NOT_FOUND')
+  })
+})
+
+describe('estorno da compra — achado do QA', () => {
+  it('devolve o estoque, cancela as contas e guarda o motivo', async () => {
+    const { compras, deps, trilha } = montar()
+    const compra = await registerPurchase(deps, ctx(), entrada({ installments: 2 }))
+
+    const estornada = await cancelPurchase(deps, ctx(), compra.id, { reason: 'Nota errada' })
+
+    expect(estornada).toMatchObject({ status: 'cancelled', cancelReason: 'Nota errada' })
+    expect(compras.produto('p-cafe')?.stockQuantity).toBe(10)
+    expect(compras.movimentos.at(-1)).toMatchObject({
+      quantityDelta: -10,
+      balanceAfter: 10,
+      reason: 'Estorno da compra',
+    })
+    expect(compras.contas.map((c) => c.status)).toEqual(['cancelled', 'cancelled'])
+    expect(trilha.daEmpresa('emp-1').at(-1)).toMatchObject({ action: 'cancelled' })
+  })
+
+  it('conta ja paga trava o estorno', async () => {
+    const { compras, deps } = montar()
+    const compra = await registerPurchase(deps, ctx(), entrada())
+    compras.simularBaixa(0, 1000)
+
+    const e = await erroDe(cancelPurchase(deps, ctx(), compra.id, { reason: 'Engano' }))
+
+    expect(isAppError(e) && e.code).toBe('CONFLICT')
+    expect(compras.produto('p-cafe')?.stockQuantity).toBe(20)
+  })
+
+  it('nao estorna duas vezes, nem compra de outra loja', async () => {
+    const { deps } = montar()
+    const compra = await registerPurchase(deps, ctx(), entrada())
+    await cancelPurchase(deps, ctx(), compra.id, { reason: 'Engano' })
+
+    const duas = await erroDe(cancelPurchase(deps, ctx(), compra.id, { reason: 'De novo' }))
+    expect(isAppError(duas) && duas.code).toBe('CONFLICT')
+
+    const outra = await erroDe(
+      cancelPurchase(deps, ctx({ companyId: 'emp-2' }), compra.id, { reason: 'Engano' }),
+    )
+    expect(isAppError(outra) && outra.code).toBe('NOT_FOUND')
   })
 })
