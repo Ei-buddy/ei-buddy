@@ -659,6 +659,7 @@ export { InMemoryCashRegister } from './cash/fakes.js'
 
 /* Entrada de mercadoria — NR-158. */
 export {
+  cancelPurchase,
   custoMedio,
   dividirEmParcelas,
   listPurchases,

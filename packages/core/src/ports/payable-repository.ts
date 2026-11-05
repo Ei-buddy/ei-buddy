@@ -23,6 +23,8 @@ export type NewPayable = {
   readonly recurrenceId: string | null
   readonly occurrenceNumber: number | null
   readonly occurrenceCount: number | null
+  /** A compra que gerou a conta — o estorno da compra a cancela (NR-192). */
+  readonly purchaseId?: string | null
   readonly createdBy: UserId
   readonly createdAt: Date
 }

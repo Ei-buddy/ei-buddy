@@ -1,5 +1,6 @@
-import { createPurchaseInputSchema } from '@na-regua/contracts'
+import { cancelPurchaseInputSchema, createPurchaseInputSchema } from '@na-regua/contracts'
 import {
+  cancelPurchase,
   listPurchases,
   type ListPurchasesDeps,
   registerPurchase,
@@ -29,4 +30,16 @@ export function registerComprasRoutes(app: FastifyInstance, deps: ComprasDeps): 
     const input = validate(createPurchaseInputSchema, request.body)
     return reply.code(201).send(await registerPurchase(deps, ctx, input))
   })
+
+  /* Estorno — achado do QA: devolve o estoque e cancela as contas a pagar. */
+  app.post(
+    '/compras/:id/estornar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+      const input = validate(cancelPurchaseInputSchema, request.body)
+      return reply.code(200).send(await cancelPurchase(deps, ctx, id, input))
+    },
+  )
 }

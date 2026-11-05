@@ -64,6 +64,32 @@ describe('compras — NR-158', () => {
     expect(r.statusCode).toBe(400)
   })
 
+  it('estorna a compra: o estoque volta e a segunda vez e 409', async () => {
+    const montado = await buildApp()
+    app = montado.app
+    const r = await app.inject({ method: 'POST', url: '/compras', payload: corpo })
+    const id = r.json().id as string
+
+    const sem = await app.inject({ method: 'POST', url: `/compras/${id}/estornar`, payload: {} })
+    expect(sem.statusCode).toBe(400)
+
+    const ok = await app.inject({
+      method: 'POST',
+      url: `/compras/${id}/estornar`,
+      payload: { reason: 'Nota lancada em dobro' },
+    })
+    expect(ok.statusCode).toBe(200)
+    expect(ok.json()).toMatchObject({ status: 'cancelled' })
+    expect(montado.compras.produto('p1')).toMatchObject({ stockQuantity: 4 })
+
+    const deNovo = await app.inject({
+      method: 'POST',
+      url: `/compras/${id}/estornar`,
+      payload: { reason: 'De novo' },
+    })
+    expect(deNovo.statusCode).toBe(409)
+  })
+
   it('perfil somente leitura e 403', async () => {
     app = (await buildApp({ ...PRINCIPAL, role: 'accountant' })).app
     const r = await app.inject({ method: 'POST', url: '/compras', payload: corpo })

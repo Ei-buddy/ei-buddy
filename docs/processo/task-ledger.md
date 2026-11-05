@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     157 |  326 |
-| ✅ Concluídas                 |     150 |  301 |
+| Total                         |     158 |  328 |
+| ✅ Concluídas                 |     151 |  303 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -398,6 +398,7 @@ voltam a ⬜.
 | NR-189 | Produto: CSOSN de 4 dígitos com a origem, EAN opcional e apagável na edição, histórico de estoque com a venda ou compra de origem                                                               |   🟢   | `contracts` `core` `db` `fiscal` `web` `mobile`               |   1 | —                                      | —    | RF-019, RF-046, RF-124                             |   ✅   |
 | NR-190 | Cliente: aviso de documento já cadastrado ao sair do CPF/CNPJ, CNPJ preenche razão social e endereço sozinho, Receita fora do ar não vira "CNPJ inexistente"                                    |   🟢   | `api` `web` `mobile`                                          |   1 | —                                      | —    | RF-009, RF-010                                     |   ✅   |
 | NR-191 | Cadastro de fornecedor completo (CNPJ/CPF, IE, contato, telefone, e-mail, endereço, ativo) com busca na Receita e por CEP, web e app                                                            |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   3 | —                                      | —    | RF-019                                             |   ✅   |
+| NR-192 | Entrada de mercadoria: fornecedor do cadastro, Enter lista produto e fornecedor, vencimento e valor de cada parcela, estorno da compra                                                          |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-055, RF-124                                     |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                             |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                      |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                                                                           |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -515,10 +516,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      81 |  136 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      82 |  138 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **326 dias-desenvolvedor** em 157 tarefas. Com 3 pessoas, isso é cerca
+Somando: **328 dias-desenvolvedor** em 158 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

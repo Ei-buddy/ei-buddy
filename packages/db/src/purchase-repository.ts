@@ -22,6 +22,10 @@ const numero = (valor: unknown): number => Number(valor)
 type LinhaCompra = {
   id: string
   supplier: string
+  supplier_id: string | null
+  status: 'active' | 'cancelled'
+  cancelled_at: Date | null
+  cancel_reason: string | null
   invoice_number: string | null
   notes: string | null
   total_cents: string | number
@@ -40,6 +44,10 @@ type LinhaItem = {
 const paraSaida = (c: LinhaCompra, itens: readonly LinhaItem[]): PurchaseOutput => ({
   id: c.id,
   supplier: c.supplier,
+  supplierId: c.supplier_id,
+  status: c.status,
+  cancelledAt: c.cancelled_at === null ? null : c.cancelled_at.toISOString(),
+  cancelReason: c.cancel_reason,
   invoiceNumber: c.invoice_number,
   notes: c.notes,
   totalCents: numero(c.total_cents),
@@ -89,6 +97,7 @@ function escopo(tx: TransactionSql, companyId: string): PurchaseTransaction {
         INSERT INTO purchases ${tx({
           company_id: companyId,
           supplier: c.supplier,
+          supplier_id: c.supplierId,
           invoice_number: c.invoiceNumber,
           notes: c.notes,
           total_cents: c.totalCents,
@@ -133,7 +142,7 @@ function escopo(tx: TransactionSql, companyId: string): PurchaseTransaction {
           kind: 'purchase',
           quantity_delta: m.quantityDelta,
           balance_after: m.balanceAfter,
-          reason: null,
+          reason: m.reason ?? null,
           sale_id: null,
           purchase_id: m.purchaseId,
           created_by: m.createdBy,
@@ -157,6 +166,7 @@ function escopo(tx: TransactionSql, companyId: string): PurchaseTransaction {
             recurrence_id: c.recurrenceId,
             occurrence_number: c.occurrenceNumber,
             occurrence_count: c.occurrenceCount,
+            purchase_id: c.purchaseId ?? null,
             created_by: c.createdBy,
             created_at: c.createdAt,
             updated_at: c.createdAt,
@@ -165,6 +175,77 @@ function escopo(tx: TransactionSql, companyId: string): PurchaseTransaction {
         RETURNING id
       `
       return linhas.length
+    },
+
+    findSupplier: async (_empresa, supplierId) => {
+      const [f] = await tx<{ id: string; is_active: boolean }[]>`
+        SELECT id, is_active FROM suppliers
+         WHERE id = ${supplierId} AND company_id = ${companyId} AND deleted_at IS NULL
+      `
+      return f === undefined ? undefined : { id: f.id, isActive: f.is_active }
+    },
+
+    findPurchase: async (_empresa, purchaseId) => {
+      const [c] = await tx<LinhaCompra[]>`
+        SELECT * FROM purchases
+         WHERE id = ${purchaseId} AND company_id = ${companyId}
+         FOR UPDATE
+      `
+      if (c === undefined) return undefined
+      const itens = await tx<LinhaItem[]>`
+        SELECT * FROM purchase_items
+         WHERE purchase_id = ${purchaseId} AND company_id = ${companyId}
+         ORDER BY description
+      `
+      return paraSaida(c, itens)
+    },
+
+    payablesOfPurchase: async (_empresa, purchaseId) => {
+      const linhas = await tx<
+        {
+          id: string
+          status: 'open' | 'partially_settled' | 'settled' | 'cancelled'
+          settled_amount_cents: string | number
+        }[]
+      >`
+        SELECT id, status, settled_amount_cents FROM payables
+         WHERE purchase_id = ${purchaseId} AND company_id = ${companyId}
+         FOR UPDATE
+      `
+      return linhas.map((l) => ({
+        id: l.id,
+        status: l.status,
+        settledAmountCents: numero(l.settled_amount_cents),
+      }))
+    },
+
+    cancelPayables: async (_empresa, ids, cancelledBy, cancelledAt) => {
+      await tx`
+        UPDATE payables
+           SET status = 'cancelled',
+               cancelled_at = ${cancelledAt},
+               cancelled_by = ${cancelledBy},
+               updated_at = now()
+         WHERE id = ANY(${ids as string[]}) AND company_id = ${companyId}
+      `
+    },
+
+    markPurchaseCancelled: async (_empresa, purchaseId, cancelledBy, cancelledAt, reason) => {
+      const [c] = await tx<LinhaCompra[]>`
+        UPDATE purchases
+           SET status = 'cancelled',
+               cancelled_at = ${cancelledAt},
+               cancelled_by = ${cancelledBy},
+               cancel_reason = ${reason}
+         WHERE id = ${purchaseId} AND company_id = ${companyId}
+        RETURNING *
+      `
+      const itens = await tx<LinhaItem[]>`
+        SELECT * FROM purchase_items
+         WHERE purchase_id = ${purchaseId} AND company_id = ${companyId}
+         ORDER BY description
+      `
+      return paraSaida(c!, itens)
     },
   }
 }

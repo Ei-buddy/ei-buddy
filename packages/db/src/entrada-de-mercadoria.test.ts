@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { createPurchaseInputSchema } from '@na-regua/contracts'
-import { registerPurchase, type ExecutionContext } from '@na-regua/core'
+import { cancelPurchase, registerPurchase, type ExecutionContext } from '@na-regua/core'
 import postgres, { type Sql } from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createInventoryHistory } from './inventory-repository.js'
@@ -154,6 +154,68 @@ describe.skipIf(!DATABASE_URL)('entrada de mercadoria — NR-158', () => {
     const lista = await createPurchaseQueries(sql).list(empresa, 10)
     expect(lista[0]).toMatchObject({ id: compra.id, installments: 2 })
     expect(lista[0]!.items).toHaveLength(2)
+  })
+
+  it('fornecedor do cadastro, parcelas escolhidas e estorno — achados do QA', async () => {
+    const cafe = await produto(5, 1000)
+    const fornecedor = randomUUID()
+    await withTenant(
+      sql,
+      empresa,
+      (tx) => tx`
+        INSERT INTO suppliers (id, company_id, name) VALUES (${fornecedor}, ${empresa}, 'Atacado Sul')
+      `,
+    )
+    const deps = { uow: createPurchaseUnitOfWork(sql), ids: { next: () => randomUUID() } }
+
+    const compra = await registerPurchase(
+      deps,
+      ctx(),
+      createPurchaseInputSchema.parse({
+        supplier: 'Atacado Sul',
+        supplierId: fornecedor,
+        items: [{ productId: cafe, quantity: 4, unitCostCents: 1000 }],
+        parcels: [
+          { dueDate: '2026-12-05', amountCents: 1500 },
+          { dueDate: '2026-12-20', amountCents: 2500 },
+        ],
+      }),
+    )
+    expect(compra).toMatchObject({ supplierId: fornecedor, status: 'active', installments: 2 })
+
+    const contas = async () =>
+      withTenant(
+        sql,
+        empresa,
+        (tx) => tx<{ amount_cents: string; due_date: string; status: string }[]>`
+          SELECT amount_cents, to_char(due_date, 'YYYY-MM-DD') AS due_date, status
+            FROM payables WHERE purchase_id = ${compra.id} ORDER BY due_date
+        `,
+      )
+    expect((await contas()).map((c) => [Number(c.amount_cents), c.due_date])).toEqual([
+      [1500, '2026-12-05'],
+      [2500, '2026-12-20'],
+    ])
+
+    const estornada = await cancelPurchase(deps, ctx(), compra.id, { reason: 'Nota errada' })
+    expect(estornada).toMatchObject({ status: 'cancelled', cancelReason: 'Nota errada' })
+    expect((await contas()).map((c) => c.status)).toEqual(['cancelled', 'cancelled'])
+
+    const [p] = await withTenant(
+      sql,
+      empresa,
+      (tx) => tx<{ stock: number }[]>`SELECT stock FROM products WHERE id = ${cafe}`,
+    )
+    expect(p?.stock).toBe(5)
+    const [estorno] = await withTenant(
+      sql,
+      empresa,
+      (tx) => tx<{ quantity_delta: number; reason: string }[]>`
+        SELECT quantity_delta, reason FROM inventory_movements
+         WHERE purchase_id = ${compra.id} ORDER BY seq DESC LIMIT 1
+      `,
+    )
+    expect(estorno).toMatchObject({ quantity_delta: -4, reason: 'Estorno da compra' })
   })
 
   it('linha de compra na trilha exige a compra de origem', async () => {
