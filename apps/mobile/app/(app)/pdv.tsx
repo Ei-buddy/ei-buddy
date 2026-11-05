@@ -62,8 +62,10 @@ type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: numbe
 
 type ClienteDaVenda = { id: string; nome: string }
 
+/* No balcao, "carteira" e o fiado — o botao ja dizia "Fiado", e a
+   confirmacao do fechamento dizia "Carteira". */
 const rotuloDaForma = (forma: FormaPagamento) =>
-  FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
+  forma === 'carteira' ? 'Fiado' : (FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma)
 
 const emTexto = (centavos: number) => (Math.max(centavos, 0) / 100).toFixed(2).replace('.', ',')
 
@@ -94,6 +96,8 @@ export default function Pdv() {
   const [parcelas, setParcelas] = useState(1)
   /** Nulo = uma forma so, pelo total. Com partes, a venda e dividida. */
   const [partes, setPartes] = useState<Parte[] | null>(null)
+  /** O que o cliente entregou em dinheiro, com uma forma so. Texto como digitado. */
+  const [recebido, setRecebido] = useState('')
   const [fechando, setFechando] = useState(false)
   /** O texto da confirmacao do fechamento; nulo = janela fechada. */
   const [confirmacao, setConfirmacao] = useState<string | null>(null)
@@ -117,13 +121,18 @@ export default function Pdv() {
   const total = totalCentavos / 100
   const quantidade = itens.reduce((acc, i) => acc + i.quantidade, 0)
 
+  /* Dinheiro como forma unica: quanto o cliente entregou, para o troco sair
+     sem precisar "dividir" — paridade com o PDV do web (RF-035). Vazio =
+     o valor exato. */
+  const recebidoCentavos = forma === 'dinheiro' ? centavosDoTexto(recebido) : null
   const pagamentos: Pagamento[] =
     partes === null
       ? [
           {
             id: 'p1',
             forma,
-            valor: total,
+            valor:
+              recebidoCentavos !== null && recebidoCentavos > 0 ? recebidoCentavos / 100 : total,
             status: 'confirmado',
             ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
           },
@@ -253,6 +262,7 @@ export default function Pdv() {
     setVencido(null)
     setDesconto(null)
     setPartes(null)
+    setRecebido('')
     setParcelas(1)
     setOrcamento(null)
   }
@@ -323,6 +333,10 @@ export default function Pdv() {
   function impedimento(): string | null {
     if (partes !== null && pagamentos.some((p) => p.valor <= 0)) {
       return 'Preencha o valor de cada forma de pagamento.'
+    }
+    if (partes === null && forma === 'dinheiro' && recebido.trim() !== '') {
+      if (recebidoCentavos === null) return 'Valor recebido inválido. Use o formato 50,00.'
+      if (falta > 0) return `O valor recebido é menor que o total (${formatMoney(total)}).`
     }
     if (falta > 0) return `Falta ${formatMoney(falta / 100)} para fechar.`
     /* So dinheiro vira troco (RF-035); a mais no cartao e erro de digitacao. */
@@ -539,6 +553,24 @@ export default function Pdv() {
 
               {forma === 'credito' ? <Parcelas valor={parcelas} onChange={setParcelas} /> : null}
 
+              {forma === 'dinheiro' ? (
+                <View style={estilos.parteLinha}>
+                  <Text style={estilos.ajusteRotulo}>Recebido</Text>
+                  <TextInput
+                    style={estilos.parteValor}
+                    value={recebido}
+                    onChangeText={setRecebido}
+                    keyboardType="decimal-pad"
+                    placeholder={emTexto(totalCentavos)}
+                    placeholderTextColor={cores.textoFraco}
+                    accessibilityLabel="Valor recebido em dinheiro"
+                  />
+                  {falta < 0 ? (
+                    <Text style={estilos.ajusteRotulo}>Troco: {formatMoney(-falta / 100)}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+
               <Pressable onPress={dividir} accessibilityRole="button">
                 <Text style={estilos.link}>Dividir em mais de uma forma</Text>
               </Pressable>
@@ -697,7 +729,7 @@ function SeletorDeForma({
             style={[estilos.formaTexto, valor === f.valor && estilos.formaTextoAtivo]}
             numberOfLines={1}
           >
-            {f.valor === 'carteira' ? 'Fiado' : f.rotulo}
+            {rotuloDaForma(f.valor)}
           </Text>
         </Pressable>
       ))}
