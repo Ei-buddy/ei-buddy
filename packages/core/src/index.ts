@@ -38,6 +38,17 @@ export type { AuditTrail, NewAuditEntry, TransactionalAuditTrail } from './ports
 export { adjustStock } from './inventory/adjust-stock.js'
 export type { AdjustStockDeps } from './inventory/adjust-stock.js'
 export { checkStock, checkStockByQuery, estaAbaixoDoMinimo } from './inventory/check-stock.js'
+export {
+  inicioDaJanela,
+  MESES_DA_JANELA,
+  suggestRestock,
+  sugestaoDeReposicao,
+} from './inventory/restock.js'
+export type {
+  CandidatoAReposicao,
+  RestockQueries,
+  SuggestRestockDeps,
+} from './inventory/restock.js'
 export type {
   CheckStockByQueryDeps,
   CheckStockByQueryResult,

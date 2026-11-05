@@ -367,6 +367,30 @@ describe.skipIf(!DATABASE_URL)('busca de cliente para fiado — NR-115 US3', () 
     expect(achados.map((c) => c.name).sort()).toEqual(['Maria Silva', 'Maria Souza'])
   })
 
+  it('busca sem acento, por palavra em qualquer ordem, e telefone pelos digitos', async () => {
+    /* Achado do QA: "melhore o mecanismo de busca colocando o nome do cliente". */
+    await criarCliente(empresaA, 'João da Silva Araújo', { phone: '41988887777' })
+    await criarCliente(empresaA, 'Joana Prado')
+
+    const nomes = async (termo: string) =>
+      (await repo.search(empresaA, { termo, limite: 5 })).map((c) => c.name)
+
+    expect(await nomes('joao silva')).toEqual(['João da Silva Araújo'])
+    expect(await nomes('ARAUJO joão')).toEqual(['João da Silva Araújo'])
+    expect(await nomes('(41) 98888-7777')).toEqual(['João da Silva Araújo'])
+    expect(await nomes('joao prado')).toEqual([])
+    /* A lista da tela usa a mesma regra. */
+    const lista = await repo.list(empresaA, {
+      termo: 'silva joao',
+      filtro: 'todos',
+      diasParaInativo: 60,
+      hoje: new Date('2026-11-05T12:00:00.000Z'),
+      offset: 0,
+      limite: 20,
+    })
+    expect(lista.clientes.map((c) => c.name)).toEqual(['João da Silva Araújo'])
+  })
+
   it('nao enxerga cliente de outra loja', async () => {
     await criarCliente(empresaB, 'Maria da loja B', { saldoCents: 9_000 })
 

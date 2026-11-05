@@ -33,6 +33,7 @@ const fontes = (sobrescreve: Partial<FontesDoAssistente>): FontesDoAssistente =>
   clientes: falhar,
   comprasDoCliente: falhar,
   pendenciasDoCliente: falhar,
+  reposicao: falhar,
   ...sobrescreve,
 })
 
@@ -251,5 +252,133 @@ describe('acoes apontam telas do app', () => {
     expect(texto(r)).toContain('#7')
     expect(texto(r)).toContain('Estornada')
     expect(texto(r)).not.toContain('#8')
+  })
+})
+
+describe('cliente cadastrado — achado do QA', () => {
+  const cliente = (id: string, nome: string) => ({
+    id,
+    nome,
+    documento: null,
+    celular: null,
+    email: null,
+    saldoFiado: 0,
+    ultimaCompra: null,
+    totalCompras: 0,
+    valorTotal: 0,
+    faltando: [],
+  })
+
+  /* "funciona desde que a pergunta tenha vindo do cadastro de clientes; no
+     assistente nao": sem a palavra "cliente" o nome nao era reconhecido. */
+  it.each([
+    ['O João Silva está cadastrado?', 'João Silva'],
+    ['Maria Souza é cliente?', 'Maria Souza'],
+    ['Tem o Pedro cadastrado?', 'Pedro'],
+    ['Existe cliente chamado Carla Dias?', 'Carla Dias'],
+    ['procure o cliente Ana', 'Ana'],
+    ['O cliente Ana Souza está cadastrado?', 'Ana Souza'],
+  ])('reconhece o nome em "%s"', async (pergunta, esperado) => {
+    let termo = ''
+    const r = await responder(
+      pergunta,
+      CONTEXTO_VAZIO,
+      fontes({
+        clientes: async (o) => {
+          termo = o.termo ?? ''
+          return { ok: true, dados: [cliente('c1', esperado)] }
+        },
+        comprasDoCliente: async () => ({ ok: true, dados: [] }),
+      }),
+      HOJE,
+    )
+
+    expect(termo).toBe(esperado)
+    expect(r.contexto.clienteId).toBe('c1')
+  })
+
+  it('responde que esta cadastrado', async () => {
+    const r = await responder(
+      'O João Silva está cadastrado?',
+      CONTEXTO_VAZIO,
+      fontes({
+        clientes: async () => ({ ok: true, dados: [cliente('c1', 'João da Silva')] }),
+        comprasDoCliente: async () => ({ ok: true, dados: [] }),
+      }),
+      HOJE,
+    )
+
+    expect(r.texto).toBe('Sim, João da Silva está cadastrado, com 0 compra(s).')
+  })
+
+  it('com mais de um, lista e pergunta qual — e nao escolhe o primeiro', async () => {
+    const r = await responder(
+      'A Maria está cadastrada?',
+      CONTEXTO_VAZIO,
+      fontes({
+        clientes: async () => ({
+          ok: true,
+          dados: [cliente('c1', 'Maria Silva'), cliente('c2', 'Maria Souza')],
+        }),
+      }),
+      HOJE,
+    )
+
+    expect(r.intencao).toBe('cliente_varios')
+    expect(r.contexto.clienteId).toBeNull()
+    expect(texto(r)).toContain('Maria Souza')
+  })
+
+  it('nao achou: oferece cadastrar', async () => {
+    const r = await responder(
+      'O Zeca está cadastrado?',
+      CONTEXTO_VAZIO,
+      fontes({ clientes: async () => ({ ok: true, dados: [] }) }),
+      HOJE,
+    )
+
+    expect(r.intencao).toBe('cliente_nao_encontrado')
+  })
+})
+
+describe('reposicao — media de 6 meses', () => {
+  it('lista o que o servidor sugeriu, com o negativo marcado', async () => {
+    const r = await responder(
+      'Quais produtos precisam de reposição de estoque',
+      CONTEXTO_VAZIO,
+      fontes({
+        reposicao: async () => ({
+          ok: true,
+          dados: [
+            {
+              productId: 'p1',
+              description: 'Café 500g',
+              unitOfMeasure: 'un',
+              stock: 2,
+              minStock: 0,
+              monthlyAverage: 10,
+              suggestedQuantity: 8,
+              reason: 'vendas' as const,
+            },
+            {
+              productId: 'p2',
+              description: 'Açúcar',
+              unitOfMeasure: 'kg',
+              stock: -3,
+              minStock: 0,
+              monthlyAverage: 0,
+              suggestedQuantity: 3,
+              reason: 'negativo' as const,
+            },
+          ],
+        }),
+      }),
+      HOJE,
+    )
+
+    expect(r.intencao).toBe('reposicao')
+    expect(texto(r)).toContain('Café 500g')
+    expect(texto(r)).toContain('8 un')
+    expect(texto(r)).toContain('3 kg (negativo)')
   })
 })
