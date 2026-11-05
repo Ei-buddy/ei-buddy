@@ -126,6 +126,10 @@
   white-space: nowrap;
 }
 
+.tituloPrincipal .tituloEmissao {
+  font-size: 11.5px;
+}
+
 .tituloVencimento {
   grid-area: vencimento;
   display: grid;
@@ -186,15 +190,28 @@
   gap: 14px;
 }
 
+/*
+ * Grade, e nao flex: o `.input` tem `width: 100%`, e num flex o select tomava
+ * a linha inteira e espremia o nome a 30px — o campo de nome "nao funcionava".
+ * O nome fica na linha dele: o cartao e estreito (meia tela) mesmo no desktop.
+ */
 .novoPlano {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
   margin-bottom: 18px;
 }
 
 .novoPlano > input {
-  flex: 1;
-  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.novoPlanoAjuda {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--app-muted);
+  line-height: 1.45;
 }
 
 .planos,
@@ -482,6 +499,16 @@
 .baixaCampo > span {
   font-size: 13px;
   color: var(--app-muted);
+}
+
+.baixaDica {
+  font-size: 12.5px;
+  color: var(--app-muted);
+}
+
+.baixaDica a {
+  color: var(--app-accent);
+  font-weight: 600;
 }
 
 .baixaInput {
@@ -822,4 +849,108 @@
 .blocoAcoes {
   display: flex;
   gap: 8px;
+}
+
+/* Extrato da conta bancaria — achado do QA. */
+.extratoBarra {
+  display: grid;
+  grid-template-columns: auto minmax(0, 220px) auto;
+  justify-content: start;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.extratoResumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.extratoResumo span {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--app-muted);
+}
+
+.extratoResumo strong {
+  font-size: 16px;
+  color: var(--app-text);
+}
+
+.extratoResumo .extratoEntrada,
+.extratoLinha .extratoEntrada {
+  color: var(--app-accent);
+}
+
+.extratoResumo .extratoSaida,
+.extratoLinha .extratoSaida {
+  color: var(--app-danger);
+}
+
+.extratoVazio {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.extratoLinhas {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.extratoLinha {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--app-border);
+  font-size: 14px;
+}
+
+.extratoData {
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
+.extratoDescricao {
+  display: grid;
+  min-width: 0;
+}
+
+.extratoDescricao strong,
+.extratoDescricao small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extratoDescricao small {
+  color: var(--app-muted);
+}
+
+.extratoSaldo {
+  min-width: 96px;
+  text-align: right;
+  color: var(--app-muted);
+}
+
+@media (max-width: 640px) {
+  .extratoLinha {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .extratoData {
+    grid-column: 1 / -1;
+  }
+
+  .extratoSaldo {
+    grid-column: 2;
+    min-width: 0;
+  }
 }

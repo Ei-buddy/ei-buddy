@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import type { AuthenticatedPrincipal } from '../plugins/execution-context.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
+import { ErroDeIntegracao } from '@na-regua/contracts'
+import { criarCadastroDeEmpresasFocusFalso } from '@na-regua/fiscal'
 import { type CredenciaisFiscaisDeps, registerFiscalRoutes } from './fiscal.js'
 
 /**
@@ -40,7 +42,25 @@ const CERTIFICADO = Buffer.from('pfx-de-mentira').toString('base64')
  */
 const TOKEN_DE_TESTE = ['token', 'de', 'teste', 'sem', 'valor'].join('-')
 
-function guardaEmMemoria() {
+type Endereco = {
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+  municipio: string
+  uf: string
+}
+
+const ENDERECO: Endereco = {
+  cep: '01310100',
+  logradouro: 'Avenida Paulista',
+  numero: '1000',
+  bairro: 'Bela Vista',
+  municipio: 'Sao Paulo',
+  uf: 'SP',
+}
+
+function guardaEmMemoria(endereco: Endereco = ENDERECO) {
   const gravado: Record<string, string | undefined> = {}
 
   const deps: CredenciaisFiscaisDeps = {
@@ -53,17 +73,50 @@ function guardaEmMemoria() {
           gravado.senha = e.senhaDoCertificado
           gravado.vence = e.certificadoVenceEm
         }
+        if (e.cscProducao !== undefined) {
+          gravado.cscProdId = e.cscProducao.id
+          gravado.cscProd = e.cscProducao.codigo
+        }
       },
       situacao: async () => ({
         temToken: gravado.token !== undefined,
         temCertificado: gravado.certificado !== undefined,
         certificadoVenceEm: gravado.vence ?? null,
+        temCscProducao: gravado.cscProd !== undefined,
+        temCscHomologacao: false,
+        focusSincronizadaEm: gravado.focusEm ?? null,
+        focusErro: gravado.focusErro ?? null,
       }),
+      dadosParaFocus: async () => ({
+        ...(gravado.focusId === undefined ? {} : { focusId: gravado.focusId }),
+        razaoSocial: 'Loja Teste LTDA',
+        cnpj: '12345678000195',
+        regime: 'simples_nacional',
+        endereco,
+        ...(gravado.certificado === undefined
+          ? {}
+          : { certificado: { base64: gravado.certificado, senha: gravado.senha ?? '' } }),
+        ...(gravado.cscProd === undefined
+          ? {}
+          : { cscProducao: { id: gravado.cscProdId ?? '', codigo: gravado.cscProd } }),
+      }),
+      registrarFocus: async (_id, r) => {
+        if (r.ok) {
+          gravado.focusId = r.empresa.focusId
+          gravado.token = r.empresa.tokenProducao
+          gravado.focusEm = '2026-10-21T12:00:00.000Z'
+          gravado.focusErro = undefined
+        } else {
+          gravado.focusErro = r.mensagem
+        }
+      },
     },
   }
 
   return { deps, gravado }
 }
+
+const SEM_FOCUS = { available: false, syncedAt: null, error: null }
 
 async function buildApp(comChave = true, principal: AuthenticatedPrincipal | null = PRINCIPAL) {
   const memoria = guardaEmMemoria()
@@ -96,6 +149,9 @@ describe('ler a configuracao', () => {
       hasToken: false,
       hasCertificate: false,
       certificateExpiresAt: null,
+      hasCscProduction: false,
+      hasCscHomologation: false,
+      focus: SEM_FOCUS,
     })
   })
 
@@ -144,6 +200,9 @@ describe('gravar', () => {
       hasToken: true,
       hasCertificate: true,
       certificateExpiresAt: '2027-03-15',
+      hasCscProduction: false,
+      hasCscHomologation: false,
+      focus: SEM_FOCUS,
     })
   })
 
@@ -249,5 +308,125 @@ describe('quem pode', () => {
     expect(
       (await app.inject({ method: 'GET', url: '/empresa/credenciais-fiscais' })).statusCode,
     ).toBe(401)
+  })
+})
+
+describe('cadastro na Focus como revenda — NR-183', () => {
+  const COMPLETO = {
+    certificateBase64: CERTIFICADO,
+    certificatePassword: 'senha',
+    certificateExpiresAt: '2027-03-15',
+    cscProduction: { id: '000001', code: 'CSC-DE-TESTE-123' },
+  }
+
+  async function comFocus(
+    cadastro: NonNullable<CredenciaisFiscaisDeps['cadastroFocus']>,
+    endereco?: Endereco,
+  ) {
+    const memoria = guardaEmMemoria(endereco)
+    const a = Fastify({ logger: false })
+    registerErrorHandler(a)
+    await registerRateLimit(a)
+    a.addHook('onRequest', async (request) => {
+      request.principal = PRINCIPAL
+    })
+    registerFiscalRoutes(a, { ...memoria.deps, cadastroFocus: cadastro })
+    return { app: a, memoria }
+  }
+
+  it('salvar certificado e CSC cadastra na Focus e guarda os tokens', async () => {
+    const focus = criarCadastroDeEmpresasFocusFalso()
+    const c = await comFocus(focus)
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: COMPLETO,
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(focus.chamadas).toHaveLength(1)
+    expect(focus.chamadas[0]).toMatchObject({
+      regimeTributario: 1,
+      cscProducao: { id: '1', codigo: 'CSC-DE-TESTE-123' },
+      certificado: { base64: CERTIFICADO, senha: 'senha' },
+    })
+    expect(r.json().focus).toEqual({
+      available: true,
+      syncedAt: '2026-10-21T12:00:00.000Z',
+      error: null,
+    })
+    expect(r.json().hasToken).toBe(true)
+    expect(JSON.stringify(r.json())).not.toContain('CSC-DE-TESTE-123')
+  })
+
+  it('a segunda vez atualiza a mesma empresa, com o id guardado', async () => {
+    const focus = criarCadastroDeEmpresasFocusFalso()
+    const c = await comFocus(focus)
+    app = c.app
+
+    await app.inject({ method: 'PUT', url: '/empresa/credenciais-fiscais', payload: COMPLETO })
+    await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: { cscProduction: { id: '2', code: 'CSC-NOVO-DE-TESTE' } },
+    })
+
+    expect(focus.chamadas[1]?.focusId).toBe('focus-12345678000195')
+  })
+
+  it('sem endereco da empresa, nem chama a Focus e diz o que falta', async () => {
+    const focus = criarCadastroDeEmpresasFocusFalso()
+    const c = await comFocus(focus, { ...ENDERECO, logradouro: '' })
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: COMPLETO,
+    })
+
+    expect(focus.chamadas).toHaveLength(0)
+    expect(r.json().focus.error).toMatch(/endereco completo/)
+  })
+
+  it('recusa da Focus aparece na tela, e a credencial continua guardada', async () => {
+    const c = await comFocus({
+      salvar: async () => ({ ok: false, mensagem: 'certificado nao abre' }),
+    })
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: COMPLETO,
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().hasCertificate).toBe(true)
+    expect(r.json().focus.error).toBe('certificado nao abre')
+  })
+
+  it('Focus fora do ar nao derruba o salvar: vira aviso para tentar de novo', async () => {
+    const c = await comFocus({
+      salvar: async () => {
+        throw new ErroDeIntegracao('fora do ar', {
+          provedor: 'focusnfe',
+          operacao: 'POST',
+          status: 503,
+        })
+      },
+    })
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: COMPLETO,
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().focus.error).toMatch(/salve de novo/)
   })
 })

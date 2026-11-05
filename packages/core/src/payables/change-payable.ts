@@ -3,9 +3,26 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { PayableTransaction, PayableUnitOfWork } from '../ports/payable-repository.js'
+import type { ChartOfAccountsRepository } from '../ports/chart-of-accounts.js'
 
 export type ChangePayableDeps = {
   readonly uow: PayableUnitOfWork
+  /** Para conferir que o plano de conta e DESTA loja. A api sempre liga. */
+  readonly accounts?: Pick<ChartOfAccountsRepository, 'findById'>
+}
+
+/** Existe e nao foi cancelado — o minimo para mexer na classificacao. */
+async function tituloVivo(
+  tx: PayableTransaction,
+  ctx: ExecutionContext,
+  id: string,
+): Promise<PayableOutput> {
+  const titulo = await tx.findById(ctx.companyId, id)
+  if (titulo === null) throw AppError.notFound('Conta a pagar não encontrada.')
+  if (titulo.status === 'cancelled') {
+    throw AppError.conflict('Esta conta já foi cancelada.')
+  }
+  return titulo
 }
 
 /**
@@ -21,11 +38,7 @@ async function tituloMutavel(
   ctx: ExecutionContext,
   id: string,
 ): Promise<PayableOutput> {
-  const titulo = await tx.findById(ctx.companyId, id)
-  if (titulo === null) throw AppError.notFound('Conta a pagar não encontrada.')
-  if (titulo.status === 'cancelled') {
-    throw AppError.conflict('Esta conta já foi cancelada.')
-  }
+  const titulo = await tituloVivo(tx, ctx, id)
   if (titulo.settledAmountCents > 0) {
     throw AppError.conflict(
       'Esta conta já tem pagamento registrado. Estorne a baixa antes de corrigir ou cancelar.',
@@ -43,8 +56,20 @@ export async function updatePayable(
 ): Promise<PayableOutput> {
   assertCanWrite(ctx)
 
+  /* A conta do plano tem de ser desta loja: a chave estrangeira confere que
+     ela existe, nao de quem e. */
+  if (input.accountId != null && deps.accounts !== undefined) {
+    const conta = await deps.accounts.findById(ctx.companyId, input.accountId)
+    if (conta === undefined) throw AppError.validation('Plano de conta não encontrado.')
+  }
+
+  /* Trocar so o plano de conta nao mexe em dinheiro: vale com baixa. */
+  const soClassificacao = Object.entries(input).every(
+    ([campo, valor]) => campo === 'accountId' || valor === undefined,
+  )
+
   return deps.uow.transaction(ctx.companyId, async (tx) => {
-    const antes = await tituloMutavel(tx, ctx, id)
+    const antes = soClassificacao ? await tituloVivo(tx, ctx, id) : await tituloMutavel(tx, ctx, id)
     const depois = await tx.update(ctx.companyId, id, input)
 
     await tx.record({
@@ -60,6 +85,7 @@ export async function updatePayable(
         description: antes.description,
         amountCents: antes.amountCents,
         dueDate: antes.dueDate,
+        accountId: antes.accountId,
       },
       after: { ...input },
     })

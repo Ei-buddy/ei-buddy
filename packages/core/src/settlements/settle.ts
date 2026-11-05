@@ -1,7 +1,8 @@
-import type {
-  SettlementOutput,
-  SettlePayableInput,
-  SettleReceivableInput,
+import {
+  CONTA_DINHEIRO_DO_CAIXA,
+  type SettlementOutput,
+  type SettlePayableInput,
+  type SettleReceivableInput,
 } from '@na-regua/contracts'
 import { aplicarBaixa, DomainError } from '@na-regua/domain'
 import { AppError } from '../app-error.js'
@@ -9,6 +10,7 @@ import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import { usuarioReal } from '../system-actor.js'
 import type { SettlementUnitOfWork } from '../ports/settlement-writers.js'
+import type { BankAccountRepository } from '../ports/bank-account-repository.js'
 import { mexeNoSaldoDoCliente } from './customer-balance.js'
 
 export type SettleDeps = {
@@ -21,6 +23,42 @@ export type SettleDeps = {
    * dependencias faria todo construtor montar uma que ninguem usa, e o proximo
    * leitor suporia que o caso de uso audita por ali.
    */
+  /**
+   * As contas bancarias da loja, para recusar baixa em conta que nao existe.
+   * Opcional so para os testes que nao falam de conta; a api sempre liga.
+   */
+  readonly bankAccounts?: Pick<BankAccountRepository, 'list'>
+}
+
+/**
+ * A conta da baixa tem de existir — achado do QA: "permitiu baixar uma conta
+ * em um banco inexistente". O saldo da conta bancaria e montado pelas baixas
+ * com o NOME dela; uma baixa num nome que nao e conta nenhuma some de todos os
+ * saldos e nunca concilia.
+ *
+ * Compara sem caixa e sem espaco nas pontas, como o saldo compara. Devolve o
+ * nome como esta cadastrado, para a baixa gravar a grafia da conta.
+ */
+async function contaCadastrada(
+  deps: SettleDeps,
+  ctx: ExecutionContext,
+  nome: string,
+): Promise<string> {
+  const procurado = nome.trim().toLocaleLowerCase('pt-BR')
+  if (procurado === CONTA_DINHEIRO_DO_CAIXA.toLocaleLowerCase('pt-BR')) {
+    return CONTA_DINHEIRO_DO_CAIXA
+  }
+  if (deps.bankAccounts === undefined) return nome
+
+  const contas = await deps.bankAccounts.list(ctx.companyId)
+  const achada = contas.find((c) => c.name.trim().toLocaleLowerCase('pt-BR') === procurado)
+  if (achada !== undefined) return achada.name
+
+  throw AppError.validation(
+    contas.length === 0
+      ? `Nenhuma conta bancária cadastrada. Cadastre a conta em Financeiro > Contas bancárias, ou escolha "${CONTA_DINHEIRO_DO_CAIXA}".`
+      : `A conta "${nome.trim()}" não está cadastrada. Escolha uma das contas da loja ou "${CONTA_DINHEIRO_DO_CAIXA}".`,
+  )
 }
 
 /**
@@ -35,6 +73,7 @@ export async function settlePayable(
   input: SettlePayableInput,
 ): Promise<SettlementOutput> {
   assertCanWrite(ctx)
+  const conta = await contaCadastrada(deps, ctx, input.bankAccount)
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findPayable(ctx.companyId, input.payableId)
@@ -52,7 +91,7 @@ export async function settlePayable(
       receivableId: null,
       amountCents: input.amountCents,
       method: null,
-      bankAccount: input.bankAccount,
+      bankAccount: conta,
       settledOn: input.settledOn,
       notes: input.notes ?? null,
       reversesId: null,
@@ -92,6 +131,8 @@ export async function settleReceivable(
   input: SettleReceivableInput,
 ): Promise<SettlementOutput> {
   assertCanWrite(ctx)
+  const conta =
+    input.bankAccount === undefined ? null : await contaCadastrada(deps, ctx, input.bankAccount)
 
   return deps.uow.transaction(ctx.companyId, async (tx) => {
     const titulo = await tx.findReceivable(ctx.companyId, input.receivableId)
@@ -108,7 +149,7 @@ export async function settleReceivable(
       receivableId: titulo.id,
       amountCents: input.amountCents,
       method: input.method,
-      bankAccount: input.bankAccount ?? null,
+      bankAccount: conta,
       settledOn: input.settledOn,
       notes: input.notes ?? null,
       reversesId: null,

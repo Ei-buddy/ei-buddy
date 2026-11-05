@@ -315,6 +315,45 @@ describe.skipIf(!DATABASE_URL)('privacidade — NR-086', () => {
       expect(linha?.id).toBe(id)
     })
 
+    /* O orcamento guarda o nome da proposta: ligado ao cliente, troca junto. */
+    it('o nome gravado nos orcamentos do cliente recebe o mesmo substituto', async () => {
+      const id = await criarCliente()
+      const outro = await criarCliente()
+      const orcamento = randomUUID()
+      const deOutro = randomUUID()
+      await withTenant(sql, empresa, async (tx) => {
+        await tx`
+          INSERT INTO quotes (id, company_id, number, customer_id, customer_name, valid_until, total_cents)
+          VALUES (${orcamento}, ${empresa}, (SELECT COALESCE(MAX(number), 0) + 1 FROM quotes WHERE company_id = ${empresa}),
+                  ${id}, 'Maria de Souza', '2026-12-31', 1000)
+        `
+        await tx`
+          INSERT INTO quotes (id, company_id, number, customer_id, customer_name, valid_until, total_cents)
+          VALUES (${deOutro}, ${empresa}, (SELECT COALESCE(MAX(number), 0) + 1 FROM quotes WHERE company_id = ${empresa}),
+                  ${outro}, 'Maria de Souza', '2026-12-31', 1000)
+        `
+      })
+
+      await titulares().anonymizeCustomer({
+        companyId: empresa,
+        customerId: id,
+        substitutes: { name: NOME_ANONIMIZADO },
+        anonymizedAt: new Date(),
+        anonymizedBy: usuario,
+      })
+
+      const linhas = await withTenant(
+        sql,
+        empresa,
+        (tx) => tx<{ id: string; customer_name: string }[]>`
+          SELECT id, customer_name FROM quotes WHERE id IN (${orcamento}, ${deOutro})
+        `,
+      )
+      const nomeDe = new Map(linhas.map((l) => [l.id, l.customer_name]))
+      expect(nomeDe.get(orcamento)).toBe(NOME_ANONIMIZADO)
+      expect(nomeDe.get(deOutro)).toBe('Maria de Souza')
+    })
+
     /* Falhar alto, e nao devolver um comprovante de operacao que nao houve. */
     it('recusa anonimizar duas vezes', async () => {
       const id = await criarCliente()
@@ -376,6 +415,7 @@ describe.skipIf(!DATABASE_URL)('privacidade — NR-086', () => {
         'inventory_movements',
         'purchases',
         'purchase_items',
+        'suppliers',
         'quotes',
         'quote_items',
         'appointments',

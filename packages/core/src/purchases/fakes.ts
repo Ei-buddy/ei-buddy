@@ -11,16 +11,28 @@ import type {
 } from '../ports/purchase-register.js'
 
 type Produto = PurchaseProductSnapshot & { readonly companyId: CompanyId }
+type Conta = NewPayable & {
+  id: string
+  status: 'open' | 'partially_settled' | 'settled' | 'cancelled'
+  settledAmountCents: number
+}
 type Estado = {
   produtos: Produto[]
   compras: (PurchaseOutput & { companyId: CompanyId })[]
   movimentos: NewPurchaseMovement[]
-  contas: NewPayable[]
+  contas: Conta[]
+  fornecedores: { id: string; companyId: CompanyId; isActive: boolean }[]
 }
 
 /** Entrada de mercadoria em memoria, com rollback de verdade — NR-158. */
 export class InMemoryPurchases implements PurchaseUnitOfWork, PurchaseQueries, IdGenerator {
-  private estado: Estado = { produtos: [], compras: [], movimentos: [], contas: [] }
+  private estado: Estado = {
+    produtos: [],
+    compras: [],
+    movimentos: [],
+    contas: [],
+    fornecedores: [],
+  }
   private seq = 0
   /** Liga para simular falha no fim da transacao. */
   falharNoFim = false
@@ -44,8 +56,22 @@ export class InMemoryPurchases implements PurchaseUnitOfWork, PurchaseQueries, I
     return this.estado.movimentos
   }
 
-  get contas(): readonly NewPayable[] {
+  get contas(): readonly Conta[] {
     return this.estado.contas
+  }
+
+  cadastrarFornecedor(f: { id: string; companyId: CompanyId; isActive: boolean }): void {
+    this.estado.fornecedores.push(f)
+  }
+
+  /** Simula um pagamento ja registrado na conta da compra. */
+  simularBaixa(contaIndex: number, cents: number): void {
+    const c = this.estado.contas[contaIndex]!
+    this.estado.contas[contaIndex] = {
+      ...c,
+      settledAmountCents: cents,
+      status: 'partially_settled',
+    }
   }
 
   async list(companyId: CompanyId, limite: number): Promise<readonly PurchaseOutput[]> {
@@ -72,6 +98,10 @@ export class InMemoryPurchases implements PurchaseUnitOfWork, PurchaseQueries, I
         const saida: PurchaseOutput = {
           id: `cmp-${this.seq}`,
           supplier: c.supplier,
+          supplierId: c.supplierId,
+          status: 'active',
+          cancelledAt: null,
+          cancelReason: null,
           invoiceNumber: c.invoiceNumber,
           notes: c.notes,
           totalCents: c.totalCents,
@@ -95,8 +125,39 @@ export class InMemoryPurchases implements PurchaseUnitOfWork, PurchaseQueries, I
         copia.movimentos.push(m)
       },
       insertPayables: async (contas) => {
-        copia.contas.push(...contas)
+        for (const c of contas) {
+          this.seq += 1
+          copia.contas.push({ ...c, id: `pag-${this.seq}`, status: 'open', settledAmountCents: 0 })
+        }
         return contas.length
+      },
+      findSupplier: async (empresa, id) =>
+        copia.fornecedores.find((f) => f.id === id && f.companyId === empresa),
+      findPurchase: async (empresa, id) => {
+        const c = copia.compras.find((x) => x.id === id && x.companyId === empresa)
+        if (c === undefined) return undefined
+        const { companyId: _c, ...saida } = c
+        return saida
+      },
+      payablesOfPurchase: async (_empresa, id) =>
+        copia.contas
+          .filter((c) => c.purchaseId === id)
+          .map((c) => ({ id: c.id, status: c.status, settledAmountCents: c.settledAmountCents })),
+      cancelPayables: async (_empresa, ids) => {
+        copia.contas = copia.contas.map((c) =>
+          ids.includes(c.id) ? { ...c, status: 'cancelled' as const } : c,
+        )
+      },
+      markPurchaseCancelled: async (empresa, id, _quem, quando, motivo) => {
+        const i = copia.compras.findIndex((x) => x.id === id && x.companyId === empresa)
+        copia.compras[i] = {
+          ...copia.compras[i]!,
+          status: 'cancelled',
+          cancelledAt: quando.toISOString(),
+          cancelReason: motivo,
+        }
+        const { companyId: _c, ...saida } = copia.compras[i]!
+        return saida
       },
     }
     try {

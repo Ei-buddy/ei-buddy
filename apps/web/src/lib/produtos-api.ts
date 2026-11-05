@@ -5,7 +5,8 @@
  *
  *  | Funcao                | Endpoint esperado              | Disparo           |
  *  |-----------------------|--------------------------------|-------------------|
- *  | salvarProduto         | POST/PUT /produtos[/:id]       | submit do form    |
+ *  | salvarProduto         | POST /produtos                 | submit do form    |
+ *  | atualizarProduto      | PATCH /produtos/:id            | salvar ficha      |
  *  | confirmarImportacao   | POST /produtos/importar        | importar planilha |
  *
  * CATEGORIA E FORNECEDOR SAIRAM DESTA LISTA — `carregarSugestoes` fala com
@@ -61,7 +62,7 @@ export type DadosProduto = {
   ncm: string
   /* Natureza da operacao — 5102 revenda comum, 5405 com ST ja recolhida. */
   cfop: string
-  /* CSOSN, 3 digitos — o produto atende Simples Nacional e MEI. */
+  /* CSOSN — 4 digitos com a origem (0102) ou 3 (102); Simples Nacional e MEI. */
   situacaoTributaria: string
   categoria: string
   fornecedor: string
@@ -120,7 +121,9 @@ export async function salvarProduto(
         credentials: 'same-origin',
         body: JSON.stringify({
           description: dados.descricao,
-          ...(dados.ean ? { barcode: dados.ean } : {}),
+          /* Na edicao, EAN apagado vai como `null` e o produto fica sem
+             codigo; no cadastro, vazio nem vai — o EAN e opcional. */
+          ...(dados.ean ? { barcode: dados.ean } : editando ? { barcode: null } : {}),
           ...(editando ? {} : { unitOfMeasure: 'un' }),
           /* A tela trabalha em reais; o contrato exige centavos inteiros
            (RNF-044). A conversao acontece AQUI, na borda, e nao no meio. */
@@ -180,6 +183,70 @@ export async function salvarProduto(
   }
 
   return { ok: true, id: editando ? dados.id! : corpo.id! }
+}
+
+/**
+ * Edita campos do produto — PATCH parcial.
+ *
+ * So envia o que veio preenchido. Preco/custo em reais na tela viram centavos
+ * na borda (RNF-044). Descricao 2–200 caracteres, alinhada ao contrato.
+ */
+export async function atualizarProduto(
+  id: string,
+  campos: {
+    readonly descricao?: string
+    readonly precoVenda?: number
+    readonly precoCusto?: number
+  },
+): Promise<
+  | { ok: true }
+  | {
+      ok: false
+      error: string
+      campos: Partial<Record<'descricao' | 'precoVenda' | 'precoCusto', string>>
+    }
+> {
+  const body: Record<string, unknown> = {}
+  if (campos.descricao !== undefined) body.description = campos.descricao.trim()
+  if (campos.precoVenda !== undefined) body.salePriceCents = Math.round(campos.precoVenda * 100)
+  if (campos.precoCusto !== undefined) body.costPriceCents = Math.round(campos.precoCusto * 100)
+
+  let resposta: Response
+  try {
+    resposta = await fetch(`/api/produtos/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    })
+  } catch {
+    return { ok: false, error: 'Sem conexao. Verifique sua internet.', campos: {} }
+  }
+
+  const corpo = (await resposta.json().catch(() => ({}))) as {
+    error?: { message?: string; fields?: { path?: string; message?: string }[] }
+  }
+
+  if (!resposta.ok) {
+    const mapa: Partial<Record<'descricao' | 'precoVenda' | 'precoCusto', string>> = {}
+    const CAMPO: Record<string, 'descricao' | 'precoVenda' | 'precoCusto'> = {
+      description: 'descricao',
+      salePriceCents: 'precoVenda',
+      costPriceCents: 'precoCusto',
+    }
+    for (const f of corpo.error?.fields ?? []) {
+      const campo = f.path === undefined ? undefined : CAMPO[f.path]
+      if (campo !== undefined && f.message) mapa[campo] ??= f.message
+    }
+    const primeiro = Object.values(mapa)[0]
+    return {
+      ok: false,
+      error: primeiro ?? corpo.error?.message ?? 'Nao foi possivel salvar. Tente de novo.',
+      campos: mapa,
+    }
+  }
+
+  return { ok: true }
 }
 
 /** O que o servidor recusou, linha a linha. */

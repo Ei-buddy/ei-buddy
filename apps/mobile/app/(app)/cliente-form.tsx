@@ -8,6 +8,7 @@ import Campo from '@/components/ui/Campo'
 import {
   atualizarCliente,
   buscarCliente,
+  listarClientes,
   salvarCliente,
   type CandidatoCliente,
   type DadosCliente,
@@ -114,12 +115,42 @@ export default function ClienteFormScreen() {
     }))
   }
 
-  async function preencherPeloCnpj() {
+  /** Cliente com o mesmo documento, achado ao sair do campo (achado do QA). */
+  const [existente, setExistente] = useState<{ id: string; nome: string } | null>(null)
+
+  /**
+   * Ao sair do CPF/CNPJ — achado do QA, o par do web: avisa ja se o documento
+   * tem cadastro, e o CNPJ busca sozinho a razao social e o endereco quando o
+   * resto ainda esta vazio.
+   */
+  async function aoSairDoDocumento() {
+    setExistente(null)
+    const digitos = documento.replace(/\D/g, '')
+    const valido =
+      (digitos.length === 11 && isValidCPF(digitos)) ||
+      (digitos.length === 14 && isValidCNPJ(digitos))
+    if (!valido) return
+
+    const r = await listarClientes({ termo: digitos })
+    if (r.ok) {
+      const achado = r.dados.clientes.find(
+        (c) => (c.documento ?? '').replace(/\D/g, '') === digitos && c.id !== id,
+      )
+      if (achado) setExistente({ id: achado.id, nome: achado.nome })
+    }
+
+    if (digitos.length === 14 && !editando && nome.trim() === '' && !endereco.logradouro.trim()) {
+      await preencherPeloCnpj(true)
+    }
+  }
+
+  /** `silencioso`: a busca automatica ao sair do campo nao abre alerta se falhar. */
+  async function preencherPeloCnpj(silencioso = false) {
     setBuscandoCnpj(true)
     const r = await buscarCnpj(documento)
     setBuscandoCnpj(false)
     if (!r.ok) {
-      Alert.alert('Não deu para buscar', r.erro)
+      if (!silencioso) Alert.alert('Não deu para buscar', r.erro)
       return
     }
     setNome(r.dados.razaoSocial)
@@ -212,7 +243,17 @@ export default function ClienteFormScreen() {
             onChange={(v) => setDocumento(mascaraDoDocumento(v))}
             tipoTeclado="numeric"
             dica="CPF, celular e endereço são obrigatórios. O CNPJ preenche a razão social e o endereço."
+            aoSair={() => void aoSairDoDocumento()}
           />
+          {existente ? (
+            <Text
+              style={estilos.existente}
+              accessibilityRole="link"
+              onPress={() => router.push({ pathname: '/cliente', params: { id: existente.id } })}
+            >
+              Já existe cliente com este documento: {existente.nome}. Toque para abrir a ficha.
+            </Text>
+          ) : null}
           {digitosDoc.length === 14 ? (
             <Botao
               variante="secundario"
@@ -347,6 +388,7 @@ const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  existente: { fontSize: fonte.pequeno, color: cores.atencao, fontWeight: peso.forte },
   secao: {
     marginTop: espaco.sm,
     fontSize: fonte.corpo,

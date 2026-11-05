@@ -157,6 +157,9 @@ function escopo(tx: TransactionSql): PayableTransaction {
             description = COALESCE(${mudancas.description ?? null}, description),
             amount_cents = COALESCE(${mudancas.amountCents ?? null}::bigint, amount_cents),
             due_date = COALESCE(${mudancas.dueDate ?? null}::date, due_date),
+            account_id = CASE WHEN ${mudancas.accountId !== undefined}::boolean
+                              THEN ${mudancas.accountId ?? null}::uuid
+                              ELSE account_id END,
             updated_at = now()
         WHERE id = ${id}
         RETURNING *
@@ -205,7 +208,11 @@ export function createPayableQueries(sql: Sql): PayableQueries {
               ? tx``
               : tx`WHERE status = ANY(${filtro.status as string[]})`
           }
-          ORDER BY due_date
+          ${
+            filtro.maisRecentes === undefined
+              ? tx`ORDER BY due_date`
+              : tx`ORDER BY due_date DESC, created_at DESC LIMIT ${filtro.maisRecentes}`
+          }
         `,
       )
       return linhas.map(paraSaida)

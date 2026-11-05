@@ -193,6 +193,107 @@ describe('webhook da Meta — RNF-028', () => {
   })
 })
 
+describe('presenca — lido e digitando', () => {
+  it('marcar lido manda status read, sem to e sem typing_indicator', async () => {
+    const m = metaFalsa({ status: 200, corpo: { success: true } })
+    await remetente({ fetchFalso: m.fetchFalso }).markRead('wamid.ABC')
+
+    expect(m.enviados).toHaveLength(1)
+    expect(m.enviados[0]?.url).toContain(`/${PHONE_ID}/messages`)
+    expect(m.enviados[0]?.corpo).toEqual({
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: 'wamid.ABC',
+    })
+  })
+
+  it('digitando acrescenta typing_indicator de texto', async () => {
+    const m = metaFalsa({ status: 200, corpo: { success: true } })
+    await remetente({ fetchFalso: m.fetchFalso }).showTyping('wamid.ABC')
+
+    expect(m.enviados[0]?.url).toContain(`/${PHONE_ID}/messages`)
+    expect(m.enviados[0]?.corpo).toEqual({
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: 'wamid.ABC',
+      typing_indicator: { type: 'text' },
+    })
+  })
+
+  it('erro HTTP de presenca nao lanca', async () => {
+    const { fetchFalso } = metaFalsa({
+      status: 400,
+      corpo: { error: { code: 131009, message: 'Parameter value is not valid' } },
+    })
+    const r = remetente({ fetchFalso })
+
+    /* Id invalido e recusa do provedor. A resposta em texto segue. */
+    await expect(r.markRead('wamid.invalido')).resolves.toBeUndefined()
+    await expect(r.showTyping('wamid.invalido')).resolves.toBeUndefined()
+  })
+
+  it('timeout de presenca nao lanca', async () => {
+    const fetchFalso: typeof globalThis.fetch = (_entrada, init) =>
+      new Promise((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal == null) return
+        if (signal.aborted) {
+          reject(signal.reason)
+          return
+        }
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      })
+
+    const r = criarRemetenteMeta({
+      phoneNumberId: PHONE_ID,
+      apiToken: 'token-de-teste',
+      fetch: fetchFalso,
+      timeoutMs: 20,
+    })
+
+    await expect(r.markRead('wamid.ABC')).resolves.toBeUndefined()
+  })
+
+  it('corpo sem success nao lanca', async () => {
+    const { fetchFalso } = metaFalsa({ status: 200, corpo: {} })
+    const r = remetente({ fetchFalso })
+
+    await expect(r.markRead('wamid.ABC')).resolves.toBeUndefined()
+    await expect(r.showTyping('wamid.ABC')).resolves.toBeUndefined()
+  })
+
+  it('falha de rede na presenca nao lanca', async () => {
+    const fetchFalso: typeof globalThis.fetch = async () => {
+      throw new TypeError('fetch failed')
+    }
+    const r = criarRemetenteMeta({
+      phoneNumberId: PHONE_ID,
+      apiToken: 'token-de-teste',
+      fetch: fetchFalso,
+    })
+
+    await expect(r.showTyping('wamid.ABC')).resolves.toBeUndefined()
+  })
+
+  it('lido e digitando nao consomem o mapa de idempotencia do sendText', async () => {
+    const m = metaFalsa()
+    const r = remetente({ fetchFalso: m.fetchFalso })
+
+    await r.markRead('wamid.1')
+    await r.showTyping('wamid.1')
+    await r.sendText(pedidoDeTexto({ idempotencyKey: 'chave-a' }))
+    await r.sendText(pedidoDeTexto({ idempotencyKey: 'chave-b' }))
+
+    const presenca = m.enviados.filter((e) => e.corpo.status === 'read')
+    const textos = m.enviados.filter((e) => e.corpo.type === 'text')
+
+    /* Outra chave ainda manda: o POST de presenca nao entra em `enviadas`. */
+    expect(presenca.every((e) => !('to' in e.corpo))).toBe(true)
+    expect(textos).toHaveLength(2)
+    expect(textos.map((e) => e.corpo.to)).toEqual(['5541999990000', '5541999990000'])
+  })
+})
+
 describe('handshake de verificacao', () => {
   it('devolve o challenge quando o token bate', () => {
     expect(

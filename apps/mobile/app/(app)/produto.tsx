@@ -227,6 +227,15 @@ export default function ProdutoScreen() {
                   <Text style={estilos.apoio}>
                     {formatDateTime(m.quando)} · saldo {m.saldoDepois}
                   </Text>
+                  {/* O lancamento que originou — achado do QA. */}
+                  {m.vendaNumero !== null ? (
+                    <Text style={estilos.origem}>Venda nº {m.vendaNumero}</Text>
+                  ) : m.compraFornecedor !== null ? (
+                    <Text style={estilos.origem}>
+                      Compra de {m.compraFornecedor}
+                      {m.compraNota ? ` · NF ${m.compraNota}` : ''}
+                    </Text>
+                  ) : null}
                 </View>
                 <Text
                   style={[estilos.delta, m.delta < 0 ? estilos.deltaSaida : estilos.deltaEntrada]}
@@ -289,6 +298,7 @@ const estilos = criarEstilos(() => ({
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1 },
   apoio: { fontSize: fonte.micro, color: cores.textoFraco },
+  origem: { fontSize: fonte.micro, color: cores.acento, fontWeight: peso.forte },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   link: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
   numeros: { flexDirection: 'row', gap: espaco.sm },

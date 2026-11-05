@@ -57,6 +57,15 @@ describe('loadStudioPresets', () => {
     expect(arquivo.presets[0]?.role).toBe('owner')
   })
 
+  it('aceita nome e fantasia opcionais no preset', () => {
+    const caminho = gravar({
+      presets: [{ ...ok.presets[0], userName: 'Ana Silva', companyName: 'Mercearia Sol' }],
+    })
+    const arquivo = loadStudioPresets(caminho)
+    expect(arquivo.presets[0]?.userName).toBe('Ana Silva')
+    expect(arquivo.presets[0]?.companyName).toBe('Mercearia Sol')
+  })
+
   it('recusa chave extra — schema .strict()', () => {
     const caminho = gravar({
       presets: [{ ...ok.presets[0], extra: true }],

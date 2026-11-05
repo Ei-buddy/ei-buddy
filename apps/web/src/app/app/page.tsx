@@ -225,16 +225,23 @@ export default async function VisaoGeralPage() {
           {painel.reposicao === null ? (
             <NaoCarregou oque="o estoque baixo" />
           ) : painel.reposicao.length === 0 ? (
-            <EmptyState title="Estoque em ordem" description="Nenhum produto abaixo do mínimo." />
+            <EmptyState
+              title="Estoque em ordem"
+              description="O estoque cobre a média de venda do mês."
+            />
           ) : (
             <ul className={styles.rows}>
               {painel.reposicao.map((produto) => (
-                <li key={produto.id} className={styles.row}>
+                <li key={produto.productId} className={styles.row}>
                   <span className={styles.rowMain}>
                     <strong>{produto.description}</strong>
-                    <span>mínimo {produto.minStock} un</span>
+                    <span>
+                      estoque {produto.stock} {produto.unitOfMeasure}
+                    </span>
                   </span>
-                  <span className={`${styles.rowValue} ${styles.alert}`}>{produto.stock} un</span>
+                  <span className={`${styles.rowValue} ${styles.alert}`}>
+                    comprar {produto.suggestedQuantity} {produto.unitOfMeasure}
+                  </span>
                 </li>
               ))}
             </ul>

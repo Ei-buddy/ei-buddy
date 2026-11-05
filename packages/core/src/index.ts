@@ -38,6 +38,17 @@ export type { AuditTrail, NewAuditEntry, TransactionalAuditTrail } from './ports
 export { adjustStock } from './inventory/adjust-stock.js'
 export type { AdjustStockDeps } from './inventory/adjust-stock.js'
 export { checkStock, checkStockByQuery, estaAbaixoDoMinimo } from './inventory/check-stock.js'
+export {
+  inicioDaJanela,
+  MESES_DA_JANELA,
+  suggestRestock,
+  sugestaoDeReposicao,
+} from './inventory/restock.js'
+export type {
+  CandidatoAReposicao,
+  RestockQueries,
+  SuggestRestockDeps,
+} from './inventory/restock.js'
 export type {
   CheckStockByQueryDeps,
   CheckStockByQueryResult,
@@ -273,7 +284,29 @@ export {
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
-export type { BankAccountRepository, NewBankAccount } from './ports/bank-account-repository.js'
+export {
+  createSupplier,
+  deleteSupplier,
+  FORNECEDORES_NA_LISTA,
+  getSupplier,
+  listSuppliers,
+  updateSupplier,
+} from './suppliers/manage-suppliers.js'
+export type { SupplierDeps } from './suppliers/manage-suppliers.js'
+export type {
+  EnderecoDoFornecedor,
+  NewSupplier,
+  SupplierPatch,
+  SupplierRepository,
+} from './ports/supplier-repository.js'
+export { InMemorySuppliers } from './suppliers/fakes.js'
+export { getBankAccountStatement } from './banking/bank-account-statement.js'
+export type { BankAccountStatementDeps } from './banking/bank-account-statement.js'
+export type {
+  BankAccountRepository,
+  MovimentoDaConta,
+  NewBankAccount,
+} from './ports/bank-account-repository.js'
 export { cancelSale } from './sales/cancel-sale.js'
 export type { CancelSaleDeps } from './sales/cancel-sale.js'
 export { returnSaleItems } from './sales/return-sale-items.js'
@@ -328,6 +361,7 @@ export type {
 } from './registration/register-customer.js'
 export {
   catalogSummary,
+  deleteProduct,
   findProductByBarcode,
   getProduct,
   importProducts,
@@ -346,6 +380,7 @@ export type {
   RegisterProductDeps,
   SearchProductsDeps,
 } from './registration/register-product.js'
+export { resolveCustomerRef, resolveProductRef } from './registration/resolve-ref.js'
 
 /* --- LGPD: exportacao e anonimizacao — NR-031 --- */
 export { anonymizeCustomer, NOME_ANONIMIZADO } from './privacy/anonymize-customer.js'
@@ -624,6 +659,7 @@ export { InMemoryCashRegister } from './cash/fakes.js'
 
 /* Entrada de mercadoria — NR-158. */
 export {
+  cancelPurchase,
   custoMedio,
   dividirEmParcelas,
   listPurchases,
@@ -640,7 +676,14 @@ export type {
   PurchaseUnitOfWork,
 } from './ports/purchase-register.js'
 /* Orcamento — NR-159. */
-export { cancelQuote, convertQuote, createQuote, getQuote, listQuotes } from './quotes/quotes.js'
+export {
+  cancelQuote,
+  convertQuote,
+  createQuote,
+  getQuote,
+  listQuotes,
+  updateQuote,
+} from './quotes/quotes.js'
 export type { QuoteDeps } from './quotes/quotes.js'
-export type { NewQuote, QuoteRepository } from './ports/quote-repository.js'
+export type { NewQuote, QuoteChanges, QuoteRepository } from './ports/quote-repository.js'
 export { InMemoryQuotes } from './quotes/fakes.js'

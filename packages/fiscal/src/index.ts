@@ -21,3 +21,18 @@ export { criarEmissorFocusNfe, FOCUS_NFE_URLS, reaisDeCentavos } from './focusnf
 export type { AmbienteFocusNfe, CredenciaisFocusNfe, FocusNfeOptions } from './focusnfe-issuer.js'
 export { InMemoryInvoiceStore } from './invoice-store.js'
 export type { InvoiceStore, NotaGuardada } from './invoice-store.js'
+
+/* Cadastro da empresa da loja na Focus, como revenda — NR-183. */
+export {
+  corpoDaEmpresa,
+  criarCadastroDeEmpresasFocus,
+  criarCadastroDeEmpresasFocusFalso,
+} from './focusnfe-empresas.js'
+export type {
+  CadastroDeEmpresasFocus,
+  CadastroDeEmpresasFocusOptions,
+  DadosDaEmpresaFocus,
+  EmpresaNaFocus,
+  RegimeTributarioFocus,
+  ResultadoDoCadastro,
+} from './focusnfe-empresas.js'

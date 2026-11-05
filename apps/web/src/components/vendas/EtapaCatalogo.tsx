@@ -31,6 +31,7 @@ export default function EtapaCatalogo({
   desconto,
   onItens,
   onDesconto,
+  clienteId,
   clienteNome,
   onVoltar,
   onAvancar,
@@ -40,6 +41,8 @@ export default function EtapaCatalogo({
   desconto: Desconto | null
   onItens: (itens: ItemCarrinho[]) => void
   onDesconto: (desconto: Desconto | null) => void
+  /** Nulo na venda sem cliente — e orcamento sem cliente nao se salva. */
+  clienteId: string | null
   clienteNome: string
   onVoltar: () => void
   onAvancar: () => void
@@ -50,6 +53,7 @@ export default function EtapaCatalogo({
   const [carrinhoAberto, setCarrinhoAberto] = useState(false)
   const [dandoDesconto, setDandoDesconto] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [confirmandoEstoque, setConfirmandoEstoque] = useState(false)
   const [salvandoOrcamento, setSalvandoOrcamento] = useState(false)
   const router = useRouter()
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
@@ -102,6 +106,16 @@ export default function EtapaCatalogo({
   const abatimento = valorDesconto(subtotal, desconto)
   const total = totalCarrinho(itens, desconto)
   const quantidadeTotal = itens.reduce((acc, i) => acc + i.quantidade, 0)
+  /* Linhas que passam do saldo — RF-028: avisa e pede a decisao do operador. */
+  const semEstoque = itens.filter((i) => i.quantidade > i.estoqueDisponivel)
+
+  function finalizar() {
+    if (semEstoque.length > 0) {
+      setConfirmandoEstoque(true)
+      return
+    }
+    onAvancar()
+  }
 
   /* ---------------------------------------------------------------- *
    * Carrinho
@@ -118,7 +132,7 @@ export default function EtapaCatalogo({
          sistema ainda nao registrou. Avisa e deixa seguir. */
       if (existente.quantidade + 1 > existente.estoqueDisponivel) {
         setToast({
-          msg: `Estoque de ${produto.descricao} é ${produto.estoque} un. Seguindo mesmo assim.`,
+          msg: `Estoque de ${produto.descricao} é ${existente.estoqueDisponivel} un.`,
           tone: 'error',
         })
       }
@@ -135,6 +149,13 @@ export default function EtapaCatalogo({
     if (quantidade <= 0) {
       onItens(itens.filter((i) => i.produtoId !== produtoId))
       return
+    }
+    const item = itens.find((i) => i.produtoId === produtoId)
+    if (item && quantidade > item.estoqueDisponivel && item.quantidade <= item.estoqueDisponivel) {
+      setToast({
+        msg: `Estoque de ${item.descricao} é ${item.estoqueDisponivel} un.`,
+        tone: 'error',
+      })
     }
     onItens(itens.map((i) => (i.produtoId === produtoId ? { ...i, quantidade } : i)))
   }
@@ -177,9 +198,17 @@ export default function EtapaCatalogo({
    * pelo WhatsApp.
    */
   async function salvarComoOrcamento() {
+    /* O orcamento exige o cliente do cadastro — achado do QA. */
+    if (clienteId === null) {
+      setToast({
+        msg: 'Para salvar como orçamento, volte e escolha o cliente.',
+        tone: 'error',
+      })
+      return
+    }
     setSalvandoOrcamento(true)
     const r = await criarOrcamento({
-      ...(clienteNome && clienteNome !== 'Venda sem cliente' ? { customerName: clienteNome } : {}),
+      customerId: clienteId,
       items: itens.map((i) => ({
         productId: i.produtoId,
         quantity: i.quantidade,
@@ -329,6 +358,11 @@ export default function EtapaCatalogo({
                   <span className={styles.itemNome}>
                     <strong>{i.descricao}</strong>
                     <span>{formatMoney(i.precoUnitario)} un</span>
+                    {i.quantidade > i.estoqueDisponivel ? (
+                      <span className={styles.itemSemEstoque} role="status">
+                        Estoque: {i.estoqueDisponivel} un.
+                      </span>
+                    ) : null}
                   </span>
 
                   <span className={styles.itemQuantidade}>
@@ -426,7 +460,7 @@ export default function EtapaCatalogo({
             </Button>
           </div>
 
-          <Button block onClick={onAvancar} disabled={itens.length === 0}>
+          <Button block onClick={finalizar} disabled={itens.length === 0}>
             Finalizar · {formatMoney(total)}
           </Button>
 
@@ -489,6 +523,28 @@ export default function EtapaCatalogo({
         />
       ) : null}
 
+      {confirmandoEstoque ? (
+        <ConfirmarDialog
+          titulo="Itens sem estoque suficiente"
+          descricao="A quantidade passa do saldo registrado. Se a mercadoria está no balcão, você pode vender mesmo assim — o estoque fica negativo até a próxima entrada."
+          rotuloConfirmar="Vender mesmo assim"
+          detalhe={
+            <ul className={styles.semEstoqueLista}>
+              {semEstoque.map((i) => (
+                <li key={i.produtoId}>
+                  {i.descricao}: vendendo {i.quantidade}, estoque {i.estoqueDisponivel}
+                </li>
+              ))}
+            </ul>
+          }
+          onConfirmar={() => {
+            setConfirmandoEstoque(false)
+            onAvancar()
+          }}
+          onCancelar={() => setConfirmandoEstoque(false)}
+        />
+      ) : null}
+
       {toast ? (
         <Toast message={toast.msg} tone={toast.tone} onClose={() => setToast(null)} />
       ) : null}
@@ -513,15 +569,35 @@ function DialogoDesconto({
 }) {
   const [tipo, setTipo] = useState<'percentual' | 'valor'>(atual?.tipo ?? 'percentual')
   const [quantia, setQuantia] = useState(atual ? String(atual.quantia).replace('.', ',') : '')
+  /*
+   * O total a cobrar, quando a pessoa o edita — QA: "10% de R$ 56,00 da R$ 50,40,
+   * mas o cliente paga R$ 51,00". Editado, ele manda: o desconto vira o VALOR
+   * que falta para chegar nele, e o percentual aparece so como referencia.
+   */
+  const [totalEditado, setTotalEditado] = useState<string | null>(null)
 
   const numero = reaisDoTexto(quantia)
-  const abatimento = valorDesconto(subtotal, { tipo, quantia: numero })
-  const novoTotal = subtotal - abatimento
+  const pelaRegra = valorDesconto(subtotal, { tipo, quantia: numero })
+  const totalDigitado = totalEditado === null ? null : reaisDoTexto(totalEditado)
+  const abatimento =
+    totalDigitado === null ? pelaRegra : Math.round((subtotal - totalDigitado) * 100) / 100
+  const novoTotal = Math.round((subtotal - abatimento) * 100) / 100
+  const percentualEquivalente = subtotal > 0 ? (abatimento / subtotal) * 100 : 0
 
   const invalido =
-    numero <= 0 ||
-    (tipo === 'percentual' && numero > 100) ||
-    (tipo === 'valor' && numero > subtotal)
+    totalDigitado !== null
+      ? totalDigitado <= 0 || totalDigitado >= subtotal
+      : numero <= 0 ||
+        (tipo === 'percentual' && numero > 100) ||
+        (tipo === 'valor' && numero > subtotal)
+
+  function aplicar() {
+    if (totalDigitado !== null) {
+      onAplicar({ tipo: 'valor', quantia: abatimento })
+      return
+    }
+    onAplicar({ tipo, quantia: numero })
+  }
 
   return (
     <div className={styles.dialogRoot}>
@@ -566,23 +642,52 @@ function DialogoDesconto({
           <input
             className={`${styles.input} ${styles.inputGrande}`}
             value={quantia}
-            onChange={(e) => setQuantia(e.target.value)}
+            onChange={(e) => {
+              setQuantia(e.target.value)
+              setTotalEditado(null)
+            }}
             placeholder={tipo === 'percentual' ? '10' : '0,00'}
             inputMode="decimal"
             autoFocus
           />
         </label>
 
+        <label className={styles.campo}>
+          <span>Total a cobrar (R$) — pode ajustar</span>
+          <input
+            className={styles.input}
+            aria-label="Total a cobrar"
+            value={
+              totalEditado ??
+              (numero > 0 && !invalido ? novoTotal.toFixed(2).replace('.', ',') : '')
+            }
+            onChange={(e) => setTotalEditado(e.target.value)}
+            placeholder={subtotal.toFixed(2).replace('.', ',')}
+            inputMode="decimal"
+          />
+        </label>
+
         <div className={styles.descontoPrevia}>
           <div>
             <span>Desconto</span>
-            <strong>{formatMoney(abatimento)}</strong>
+            <strong>
+              {formatMoney(abatimento)}
+              {totalDigitado !== null && abatimento > 0
+                ? ` (${percentualEquivalente.toFixed(2).replace('.', ',')}%)`
+                : ''}
+            </strong>
           </div>
           <div>
             <span>Novo total</span>
             <strong>{formatMoney(novoTotal)}</strong>
           </div>
         </div>
+
+        {totalDigitado !== null && (totalDigitado <= 0 || totalDigitado >= subtotal) ? (
+          <p className={styles.erro} role="alert">
+            O total com desconto precisa ficar entre R$ 0,01 e o subtotal ({formatMoney(subtotal)}).
+          </p>
+        ) : null}
 
         {tipo === 'percentual' && numero > 100 ? (
           <p className={styles.erro} role="alert">
@@ -605,7 +710,7 @@ function DialogoDesconto({
               Cancelar
             </Button>
           )}
-          <Button onClick={() => onAplicar({ tipo, quantia: numero })} disabled={invalido}>
+          <Button onClick={aplicar} disabled={invalido}>
             Aplicar
           </Button>
         </div>

@@ -208,7 +208,8 @@ Duas perguntas que costumavam ser confundidas, as duas respondidas:
    [ADR-0010](adr/0010-mastra-e-gpt-4o-mini.md) fica **revisada** por essa ADR.
 
 Contrato: [`integracoes/mastra.md`](../arquitetura/integracoes/mastra.md).
-O runtime continua dentro de `apps/api`. `AGENT_PROVIDER=fake` no local.
+O runtime continua dentro de `apps/api`. O assistente servido precisa de
+`OPENAI_API_KEY`; o dublê de teste é só `script()`.
 Factory, Workflow e Memory do Mastra **não** entram no caminho do lojista —
 só `Agent` + tools atrás de `processMessage`. **Studio** entra como harness
 de engenharia ([NR-121](../processo/task-ledger.md); revisão da

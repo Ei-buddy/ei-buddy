@@ -137,6 +137,7 @@ const bloqueado = createFakeMessageSender({
 | `recusas`               | mapa de número → motivo de recusa                                    |
 | `limitePorEmpresa`      | envios permitidos antes de `rate_limited`, **por empresa**           |
 | `falhaDeInfraestrutura` | **lança**, porque não é recusa de destinatário — é job para retentar |
+| `falhaDePresenca`       | lido ou digitando falham sem lançar; a resposta em texto segue       |
 
 `assinar()`, `corpoDeEntrada()` e `corpoDeRecibo()` são apoio de teste — não
 fazem parte da porta. `corpoDeEntrada` monta o corpo **aninhado** que o provedor
@@ -168,6 +169,20 @@ verificarContratoDoRemetente('FakeMessageSender', () => createFakeMessageSender(
 
 Ela não é exportada pelo `index.ts` de propósito — importa `vitest`, que é
 dependência de desenvolvimento.
+
+## Presença e texto da conversa
+
+`markRead` e `showTyping` são POST de melhor esforço no mesmo URL de mensagens
+do `sendText`, sem `to`. Falha, timeout ou id inválido não lançam e não
+impedem a resposta. O falso anota cada chamada em `sinais`, na ordem, com o
+id da mensagem e o tipo `read` ou `typing`.
+
+A pausa de 3 segundos que junta textos seguidos da lojista vive no processo
+da API — o mesmo limite de um processo do mapa de idempotência do envio.
+Duas instâncias podem partir a rajada. Não há variável de ambiente nova.
+
+`formatarTextoWhatsApp` e `dividirRespostaWhatsapp` só apresentam a resposta
+no WhatsApp. O assistente do aplicativo não passa por elas.
 
 ## Variáveis de ambiente
 

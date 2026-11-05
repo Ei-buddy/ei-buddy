@@ -23,6 +23,8 @@ export type PurchaseProductSnapshot = {
 export type NewPurchase = {
   readonly companyId: CompanyId
   readonly supplier: string
+  /** O fornecedor do cadastro (NR-191), quando a compra foi lancada por ele. */
+  readonly supplierId: string | null
   readonly invoiceNumber: string | null
   readonly notes: string | null
   readonly totalCents: number
@@ -44,8 +46,17 @@ export type NewPurchaseMovement = {
   readonly purchaseId: string
   readonly quantityDelta: number
   readonly balanceAfter: number
+  /** "Estorno da compra" no estorno; nulo na entrada. */
+  readonly reason?: string | null
   readonly createdBy: UserId
   readonly createdAt: Date
+}
+
+/** A conta a pagar de uma compra, no que o estorno precisa saber. */
+export type ContaDaCompra = {
+  readonly id: string
+  readonly status: 'open' | 'partially_settled' | 'settled' | 'cancelled'
+  readonly settledAmountCents: number
 }
 
 export type PurchaseTransaction = TransactionalAuditTrail & {
@@ -60,6 +71,27 @@ export type PurchaseTransaction = TransactionalAuditTrail & {
   ): Promise<void>
   insertMovement(movimento: NewPurchaseMovement): Promise<void>
   insertPayables(contas: readonly NewPayable[]): Promise<number>
+  /** O fornecedor do cadastro, desta loja e nao excluido — NR-191. */
+  findSupplier(
+    companyId: CompanyId,
+    supplierId: string,
+  ): Promise<{ readonly id: string; readonly isActive: boolean } | undefined>
+  /** Le e trava a compra — dois estornos ao mesmo tempo nao devolvem o estoque duas vezes. */
+  findPurchase(companyId: CompanyId, purchaseId: string): Promise<PurchaseOutput | undefined>
+  payablesOfPurchase(companyId: CompanyId, purchaseId: string): Promise<readonly ContaDaCompra[]>
+  cancelPayables(
+    companyId: CompanyId,
+    ids: readonly string[],
+    cancelledBy: UserId,
+    cancelledAt: Date,
+  ): Promise<void>
+  markPurchaseCancelled(
+    companyId: CompanyId,
+    purchaseId: string,
+    cancelledBy: UserId,
+    cancelledAt: Date,
+    reason: string,
+  ): Promise<PurchaseOutput>
 }
 
 export type PurchaseUnitOfWork = {

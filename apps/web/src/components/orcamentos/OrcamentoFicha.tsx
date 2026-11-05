@@ -16,6 +16,7 @@ import { Card, EmptyState, PageHeader } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import papel from '@/components/vendas/comprovante.module.css'
+import OrcamentoForm from './OrcamentoForm'
 
 const reais = (cents: number) => cents / 100
 
@@ -32,6 +33,8 @@ export default function OrcamentoFicha({ id }: { id: string }) {
   const [erro, setErro] = useState<string | null>(null)
   const [empresa, setEmpresa] = useState<EmpresaCarregada | null>(null)
   const [cancelando, setCancelando] = useState(false)
+  /* Achado do QA: "o abrir do orcamento deveria permitir o editar". */
+  const [editando, setEditando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
@@ -159,10 +162,13 @@ export default function OrcamentoFicha({ id }: { id: string }) {
               <Button variant="secondary" onClick={() => window.print()} disabled={texto === null}>
                 Imprimir
               </Button>
-              {aberto ? (
+              {aberto && !editando ? (
                 <>
                   <Button variant="danger" onClick={() => void cancelar()} disabled={cancelando}>
                     Cancelar
+                  </Button>
+                  <Button variant="secondary" onClick={() => setEditando(true)}>
+                    Editar
                   </Button>
                   <Button onClick={() => router.push(`/app/vendas/nova?orcamento=${orcamento.id}`)}>
                     Converter em venda
@@ -173,6 +179,21 @@ export default function OrcamentoFicha({ id }: { id: string }) {
           }
         />
       </div>
+
+      {editando && aberto ? (
+        <div className={papel.semImpressao}>
+          <OrcamentoForm
+            orcamento={orcamento}
+            aoSalvar={(o) => {
+              setOrcamento(o)
+              setEditando(false)
+              setToast({ msg: `Orçamento nº ${o.number} atualizado.`, tone: 'success' })
+            }}
+            aoErrar={(msg) => setToast({ msg, tone: 'error' })}
+            aoCancelar={() => setEditando(false)}
+          />
+        </div>
+      ) : null}
 
       <div className={papel.mesa}>
         <pre className={papel.papel} aria-label="Orçamento">

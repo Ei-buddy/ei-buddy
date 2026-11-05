@@ -13,6 +13,7 @@ import {
   buildCustosFixosDeps,
   buildCustosVariaveisDeps,
   buildCaixaDeps,
+  buildCadastroDeFornecedoresDeps,
   buildContasBancariasDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
@@ -54,6 +55,7 @@ import { registerConsultasRoutes } from './routes/consultas.js'
 import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
 import { registerCustosVariaveisRoutes } from './routes/custos-variaveis.js'
 import { registerContasBancariasRoutes } from './routes/contas-bancarias.js'
+import { registerCadastroDeFornecedoresRoutes } from './routes/cadastro-fornecedores.js'
 import { registerCaixaRoutes } from './routes/caixa.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
@@ -144,6 +146,7 @@ async function registrarRotas(): Promise<void> {
   registerCustosFixosRoutes(app, buildCustosFixosDeps())
   registerCustosVariaveisRoutes(app, buildCustosVariaveisDeps())
   registerContasBancariasRoutes(app, buildContasBancariasDeps())
+  registerCadastroDeFornecedoresRoutes(app, buildCadastroDeFornecedoresDeps())
   registerCaixaRoutes(app, buildCaixaDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
@@ -166,11 +169,12 @@ async function registrarRotas(): Promise<void> {
    */
   const motivoDoAgente = motivoDoAgenteIndisponivel()
   if (motivoDoAgente !== undefined) {
-    app.log.warn({ motivo: motivoDoAgente }, 'assistente desligado — ver AGENT_PROVIDER')
+    app.log.warn({ motivo: motivoDoAgente }, `assistente desligado — ${motivoDoAgente}`)
   }
   const agentDeps = await buildAgentDeps()
   registerAgentRoutes(app, agentDeps, motivoDoAgente)
-  registerWhatsAppWebhookRoutes(app, buildWhatsAppWebhookDeps(agentDeps))
+  const whatsappDeps = buildWhatsAppWebhookDeps(agentDeps)
+  registerWhatsAppWebhookRoutes(app, whatsappDeps)
   await montarStudio(app, {
     motivo: motivoDoAgente,
     runtime: agentDeps?.runtime ?? null,

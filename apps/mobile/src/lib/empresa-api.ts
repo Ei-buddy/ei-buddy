@@ -256,17 +256,58 @@ export const UFS = [
 /* Certificado digital — RF-004                                               */
 /* -------------------------------------------------------------------------- */
 
-export type SituacaoFiscal = { temCertificado: boolean; validoAte: string | null }
+export type SituacaoFiscal = {
+  temCertificado: boolean
+  validoAte: string | null
+  temCscProducao: boolean
+  temCscHomologacao: boolean
+  /** Cadastro da empresa na Focus NFe, feito pela EiBuddy como revenda — NR-183. */
+  focus: { disponivel: boolean; cadastradaEm: string | null; erro: string | null }
+}
+
+type SituacaoDaApi = {
+  hasCertificate: boolean
+  certificateExpiresAt: string | null
+  hasCscProduction?: boolean
+  hasCscHomologation?: boolean
+  focus?: { available: boolean; syncedAt: string | null; error: string | null }
+}
+
+const paraSituacao = (d: SituacaoDaApi): SituacaoFiscal => ({
+  temCertificado: d.hasCertificate,
+  validoAte: d.certificateExpiresAt,
+  temCscProducao: d.hasCscProduction ?? false,
+  temCscHomologacao: d.hasCscHomologation ?? false,
+  focus: {
+    disponivel: d.focus?.available ?? false,
+    cadastradaEm: d.focus?.syncedAt ?? null,
+    erro: d.focus?.error ?? null,
+  },
+})
 
 export async function carregarSituacaoFiscal(): Promise<Resultado<SituacaoFiscal>> {
-  const r = await chamarApi<{ hasCertificate: boolean; certificateExpiresAt: string | null }>(
-    '/empresa/credenciais-fiscais',
-  )
+  const r = await chamarApi<SituacaoDaApi>('/empresa/credenciais-fiscais')
   if (!r.ok) return { ok: false, erro: r.message }
-  return {
-    ok: true,
-    dados: { temCertificado: r.dados.hasCertificate, validoAte: r.dados.certificateExpiresAt },
-  }
+  return { ok: true, dados: paraSituacao(r.dados) }
+}
+
+/**
+ * Guarda o CSC da NFC-e e, no servidor, recadastra a empresa na Focus — o mesmo
+ * `PUT` do web (NR-183). So vai o ambiente preenchido.
+ */
+export async function salvarCsc(csc: {
+  producao?: { id: string; code: string }
+  homologacao?: { id: string; code: string }
+}): Promise<Resultado<SituacaoFiscal>> {
+  const r = await chamarApi<SituacaoDaApi>('/empresa/credenciais-fiscais', {
+    method: 'PUT',
+    body: {
+      ...(csc.producao === undefined ? {} : { cscProduction: csc.producao }),
+      ...(csc.homologacao === undefined ? {} : { cscHomologation: csc.homologacao }),
+    },
+  })
+  if (!r.ok) return { ok: false, erro: r.message }
+  return { ok: true, dados: paraSituacao(r.dados) }
 }
 
 /**
@@ -280,22 +321,16 @@ export async function enviarCertificado(
   senha: string,
   validoAte: string,
 ): Promise<Resultado<SituacaoFiscal>> {
-  const r = await chamarApi<{ hasCertificate: boolean; certificateExpiresAt: string | null }>(
-    '/empresa/credenciais-fiscais',
-    {
-      method: 'PUT',
-      body: {
-        certificateBase64: base64,
-        certificatePassword: senha,
-        certificateExpiresAt: validoAte,
-      },
+  const r = await chamarApi<SituacaoDaApi>('/empresa/credenciais-fiscais', {
+    method: 'PUT',
+    body: {
+      certificateBase64: base64,
+      certificatePassword: senha,
+      certificateExpiresAt: validoAte,
     },
-  )
+  })
   if (!r.ok) return { ok: false, erro: r.message }
-  return {
-    ok: true,
-    dados: { temCertificado: r.dados.hasCertificate, validoAte: r.dados.certificateExpiresAt },
-  }
+  return { ok: true, dados: paraSituacao(r.dados) }
 }
 
 /* -------------------------------------------------------------------------- */

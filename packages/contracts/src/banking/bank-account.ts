@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema } from '../common/primitives.js'
+import { dateSchema, idSchema } from '../common/primitives.js'
 
 /**
  * Conta bancaria da loja — RF-073, US-035.
@@ -41,3 +41,52 @@ export const bankAccountOutputSchema = z.object({
 })
 
 export type BankAccountOutput = z.infer<typeof bankAccountOutputSchema>
+
+/**
+ * Extrato da conta — achado do QA: "Bancos: ter um extrato das movimentacoes".
+ *
+ * O periodo e obrigatorio: extrato sem periodo e o historico inteiro da conta,
+ * que so cresce. A tela manda o mes.
+ */
+export const bankAccountStatementQuerySchema = z
+  .object({ from: dateSchema, to: dateSchema })
+  .strict()
+  .refine((q) => q.from <= q.to, { message: 'O início do período vem antes do fim.' })
+
+export type BankAccountStatementQuery = z.infer<typeof bankAccountStatementQuerySchema>
+
+/** Uma linha do extrato: uma baixa (ou o estorno dela) que citou a conta. */
+export const bankAccountStatementEntrySchema = z.object({
+  /** A baixa. */
+  id: idSchema,
+  /** A data da baixa (AAAA-MM-DD), a que casa com o extrato do banco. */
+  date: z.string(),
+  /** `receivable` entra, `payable` sai. */
+  kind: z.enum(['receivable', 'payable']),
+  /** Estorno de uma baixa: vem com o sinal contrario e desfaz a original. */
+  isReversal: z.boolean(),
+  description: z.string(),
+  /** Fornecedor ou cliente. Nulo no recebimento sem cliente identificado. */
+  counterparty: z.string().nullable(),
+  /** Com sinal: positivo entrou, negativo saiu. */
+  amountCents: z.number().int(),
+  /** O saldo da conta depois desta linha. */
+  balanceCents: z.number().int(),
+})
+
+export type BankAccountStatementEntry = z.infer<typeof bankAccountStatementEntrySchema>
+
+export const bankAccountStatementOutputSchema = z.object({
+  account: bankAccountOutputSchema,
+  from: z.string(),
+  to: z.string(),
+  /** O saldo no comeco do periodo: o inicial mais o que andou antes dele. */
+  openingCents: z.number().int(),
+  inflowCents: z.number().int(),
+  outflowCents: z.number().int(),
+  /** O saldo no fim do periodo. */
+  closingCents: z.number().int(),
+  entries: z.array(bankAccountStatementEntrySchema),
+})
+
+export type BankAccountStatementOutput = z.infer<typeof bankAccountStatementOutputSchema>

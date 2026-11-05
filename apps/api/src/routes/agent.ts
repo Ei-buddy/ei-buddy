@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
+import type { RotulosDoOperador } from '../rotulos-do-operador.js'
 
 /**
  * Canal HTTP do assistente — NR-060, FR-001b, sem WhatsApp.
@@ -11,12 +12,16 @@ import { validate } from '../plugins/validate.js'
  * Harness de engenharia: a mesma `processMessage` do webhook futuro. O
  * contexto vem da sessao autenticada da fixture (`channel: 'app'`), nunca de
  * `companyId` no body (schema strict so aceita `text` e `image`). Nao e canal de
- * produto do lojista nesta fatia — producao fica 503 ate NR-113 / NR-121,
- * salvo `AGENT_HARNESS=1` em staging.
+ * produto do lojista nesta fatia. Sem `OPENAI_API_KEY`, ou em producao sem
+ * `AGENT_HARNESS=1`, a rota responde 503 `UNAVAILABLE` e o processo segue.
  */
 
 export type AgentRouteDeps = {
   readonly runtime: AgentRuntime
+  readonly rotulosDoOperador?: (ids: {
+    readonly userId: string
+    readonly companyId: string
+  }) => Promise<RotulosDoOperador>
 }
 
 const MENSAGEM_HARNESS_DESLIGADO =
@@ -56,6 +61,10 @@ export function registerAgentRoutes(
     async (request, reply) => {
       const ctx = requireContext(request)
       const input = validate(agentMessageInputSchema, request.body)
+      const rotulos =
+        deps.rotulosDoOperador === undefined
+          ? {}
+          : await deps.rotulosDoOperador({ userId: ctx.userId, companyId: ctx.companyId })
 
       const mensagem: IncomingMessage = {
         text: input.text ?? '',
@@ -63,6 +72,7 @@ export function registerAgentRoutes(
         now: ctx.now,
         channel: 'app',
         ctx,
+        ...rotulos,
         ...(input.image === undefined
           ? {}
           : {

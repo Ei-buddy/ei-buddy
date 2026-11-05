@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ConfirmationDecision, ConfirmationStore, PendingConfirmation } from './types.js'
+import type { ConfirmationDecision, ConfirmationStore, PendingConfirmation } from '@na-regua/core'
 
 /**
  * Confirmacoes em memoria — fake de teste da NR-061.

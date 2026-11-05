@@ -71,6 +71,7 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
   inventory_movements: { tabela: 'inventory_movements', escopo: 'company_id' },
   purchases: { tabela: 'purchases', escopo: 'company_id' },
   purchase_items: { tabela: 'purchase_items', escopo: 'company_id' },
+  suppliers: { tabela: 'suppliers', escopo: 'company_id' },
   quotes: { tabela: 'quotes', escopo: 'company_id' },
   quote_items: { tabela: 'quote_items', escopo: 'company_id' },
   appointments: { tabela: 'appointments', escopo: 'company_id' },
@@ -493,6 +494,18 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
         await tx`
           UPDATE customer_contacts
              SET description = 'Conteudo removido a pedido do titular.'
+           WHERE customer_id = ${pedido.customerId}
+        `
+
+        /*
+         * O ORCAMENTO grava o nome do cliente como estava na proposta. Ligado
+         * ao cadastro, ele recebe o mesmo substituto: o titular nao pode
+         * sumir da ficha e continuar com nome e sobrenome na lista de
+         * orcamentos.
+         */
+        await tx`
+          UPDATE quotes
+             SET customer_name = ${s['name'] ?? ''}
            WHERE customer_id = ${pedido.customerId}
         `
 

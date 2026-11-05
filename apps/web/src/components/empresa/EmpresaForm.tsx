@@ -27,6 +27,7 @@ import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
 import { IconSearch } from '@/components/Icons'
 import CertificadoDigital from './CertificadoDigital'
+import EmissaoNfce from './EmissaoNfce'
 import ComandosWhatsApp from '@/components/app/ComandosWhatsApp'
 import styles from './empresa.module.css'
 
@@ -554,6 +555,11 @@ export default function EmpresaForm() {
         {/* ---------------- Certificado ---------------- */}
         <Card title="Certificado digital">
           <CertificadoDigital certificado={certificado} onChange={setCertificado} />
+        </Card>
+
+        {/* ---------------- NFC-e (Focus NFe) — NR-183 ---------------- */}
+        <Card title="Emissão de NFC-e">
+          <EmissaoNfce />
         </Card>
 
         <ComandosWhatsApp

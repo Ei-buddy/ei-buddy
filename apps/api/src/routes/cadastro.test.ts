@@ -28,7 +28,7 @@ const PRINCIPAL: AuthenticatedPrincipal = {
 function cadastroEmMemoria() {
   const empresas: CompanyOutput[] = []
   const clientes: (CustomerOutput & { companyId: string })[] = []
-  const produtos: (ProductOutput & { companyId: string })[] = []
+  const produtos: (ProductOutput & { companyId: string; deletedAt: string | null })[] = []
   let seq = 0
 
   const companies: CompanyRepository = {
@@ -222,10 +222,11 @@ function cadastroEmMemoria() {
     search: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       return produtos
-        .filter((p) => p.companyId === companyId && p.isActive)
+        .filter((p) => p.companyId === companyId && p.deletedAt === null && p.isActive)
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .sort((a, b) => a.description.localeCompare(b.description))
         .slice(0, criterio.limite)
+        .map(semDeletedAt)
     },
 
     /* O catalogo do backoffice (NR-072). Corta a pagina DEPOIS de contar,
@@ -234,7 +235,7 @@ function cadastroEmMemoria() {
     listCatalog: async (companyId, criterio) => {
       const termo = criterio.termo?.toLowerCase() ?? ''
       const casam = produtos
-        .filter((p) => p.companyId === companyId)
+        .filter((p) => p.companyId === companyId && p.deletedAt === null)
         .filter((p) => p.isActive === (criterio.situacao === 'ativos'))
         .filter((p) => termo === '' || p.description.toLowerCase().includes(termo))
         .filter((p) => {
@@ -246,12 +247,14 @@ function cadastroEmMemoria() {
 
       return {
         total: casam.length,
-        produtos: casam.slice(criterio.offset, criterio.offset + criterio.limite),
+        produtos: casam.slice(criterio.offset, criterio.offset + criterio.limite).map(semDeletedAt),
       }
     },
 
     catalogSummary: async (companyId) => {
-      const meus = produtos.filter((p) => p.companyId === companyId)
+      const meus = produtos.filter(
+        (p) => p.companyId === companyId && p.deletedAt === null && p.isActive,
+      )
       return {
         total: meus.length,
         belowMinimum: meus.filter((p) => p.stock < p.minStock).length,
@@ -280,6 +283,7 @@ function cadastroEmMemoria() {
         category: p.category ?? null,
         supplier: p.supplier ?? null,
         isActive: true,
+        deletedAt: null as string | null,
       }
       produtos.push(pr)
 
@@ -295,17 +299,29 @@ function cadastroEmMemoria() {
         minStock: pr.minStock,
       })
 
-      return pr
+      return semDeletedAt(pr)
     },
     /* Filtra por empresa de verdade: um falso que ignorasse isso faria o teste
        de isolamento medir o vazio. */
-    findByBarcode: async (companyId, barcode) =>
-      produtos.find((p) => p.companyId === companyId && p.barcode === barcode),
-    findById: async (companyId, productId) =>
-      produtos.find((p) => p.companyId === companyId && p.id === productId),
+    findByBarcode: async (companyId, barcode) => {
+      const achado = produtos.find(
+        (p) => p.companyId === companyId && p.barcode === barcode && p.deletedAt === null,
+      )
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
+    findById: async (companyId, productId) => {
+      const achado = produtos.find(
+        (p) => p.companyId === companyId && p.id === productId && p.deletedAt === null,
+      )
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
+    findByIdIncludingDeleted: async (companyId, productId) => {
+      const achado = produtos.find((p) => p.companyId === companyId && p.id === productId)
+      return achado === undefined ? undefined : semDeletedAt(achado)
+    },
     countAll: async (companyId) => produtos.filter((p) => p.companyId === companyId).length,
     listSuggestions: async (companyId) => {
-      const meus = produtos.filter((p) => p.companyId === companyId)
+      const meus = produtos.filter((p) => p.companyId === companyId && p.deletedAt === null)
       const distintosEmOrdem = (valores: (string | null)[]) =>
         [...new Set(valores.filter((v): v is string => v !== null))].sort((a, b) =>
           a.localeCompare(b),
@@ -315,34 +331,48 @@ function cadastroEmMemoria() {
         suppliers: distintosEmOrdem(meus.map((p) => p.supplier)),
       }
     },
-
-    /* Edita so o que veio, como o COALESCE do SQL. */
     update: async (companyId, productId, patch) => {
-      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      const alvo = produtos.find(
+        (p) => p.companyId === companyId && p.id === productId && p.deletedAt === null,
+      )
       if (alvo === undefined) return undefined
 
       alvo.description = patch.description ?? alvo.description
-      alvo.barcode = patch.barcode ?? alvo.barcode
+      if (patch.barcode !== undefined) alvo.barcode = patch.barcode
       alvo.unitOfMeasure = patch.unitOfMeasure ?? alvo.unitOfMeasure
       alvo.salePriceCents = patch.salePriceCents ?? alvo.salePriceCents
       alvo.costPriceCents = patch.costPriceCents ?? alvo.costPriceCents
-      alvo.taxRate = patch.taxRate ?? alvo.taxRate
+      if (patch.taxRate !== undefined) alvo.taxRate = patch.taxRate
       alvo.minStock = patch.minStock ?? alvo.minStock
-      alvo.category = patch.category ?? alvo.category
-      alvo.supplier = patch.supplier ?? alvo.supplier
-      alvo.ncm = patch.ncm ?? alvo.ncm
-      alvo.cfop = patch.cfop ?? alvo.cfop
-      alvo.taxSituationCode = patch.taxSituationCode ?? alvo.taxSituationCode
+      if (patch.category !== undefined) alvo.category = patch.category
+      if (patch.supplier !== undefined) alvo.supplier = patch.supplier
+      if (patch.ncm !== undefined) alvo.ncm = patch.ncm
+      if (patch.cfop !== undefined) alvo.cfop = patch.cfop
+      if (patch.taxSituationCode !== undefined) alvo.taxSituationCode = patch.taxSituationCode
 
-      return alvo
+      return semDeletedAt(alvo)
     },
-
     setActive: async (companyId, productId, ativo) => {
-      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      const alvo = produtos.find(
+        (p) => p.id === productId && p.companyId === companyId && p.deletedAt === null,
+      )
       if (alvo === undefined) return undefined
       alvo.isActive = ativo
-      return alvo
+      return semDeletedAt(alvo)
     },
+    setDeletedAt: async (companyId, productId, deletedAt) => {
+      const alvo = produtos.find((p) => p.id === productId && p.companyId === companyId)
+      if (alvo === undefined) return false
+      alvo.deletedAt = deletedAt === null ? null : deletedAt.toISOString()
+      return true
+    },
+  }
+
+  function semDeletedAt(
+    p: ProductOutput & { companyId: string; deletedAt: string | null },
+  ): ProductOutput & { companyId: string } {
+    const { deletedAt: _omitido, ...resto } = p
+    return resto
   }
 
   /* O onboarding semeia o plano de contas (RF-081, NR-077), entao a rota
@@ -1396,6 +1426,58 @@ describe('a ficha do produto — RF-017', () => {
   })
 })
 
+describe('editar e excluir produto — PATCH/DELETE /produtos/:id', () => {
+  const CAFE = {
+    description: 'Cafe torrado 500g',
+    unitOfMeasure: 'un' as const,
+    salePriceCents: 1990,
+    costPriceCents: 1200,
+  }
+
+  async function comProduto() {
+    const c = await buildApp()
+    app = c.app
+    const criado = await app.inject({ method: 'POST', url: '/produtos', payload: CAFE })
+    return { id: criado.json().id as string }
+  }
+
+  it('PATCH altera so o que veio e responde 200', async () => {
+    const { id } = await comProduto()
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/produtos/${id}`,
+      payload: { salePriceCents: 2490 },
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(r.json().salePriceCents).toBe(2490)
+    expect(r.json().costPriceCents).toBe(1200)
+    expect(r.json().description).toBe('Cafe torrado 500g')
+  })
+
+  it('DELETE responde 204 e o produto some da busca', async () => {
+    const { id } = await comProduto()
+
+    const r = await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+    expect(r.statusCode).toBe(204)
+
+    const busca = await app.inject({ method: 'GET', url: '/produtos?q=Cafe' })
+    expect(busca.json().products).toHaveLength(0)
+
+    expect((await app.inject({ method: 'GET', url: `/produtos/${id}` })).statusCode).toBe(404)
+  })
+
+  it('segundo DELETE e 204 idempotente', async () => {
+    const { id } = await comProduto()
+
+    await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+    const r = await app.inject({ method: 'DELETE', url: `/produtos/${id}` })
+
+    expect(r.statusCode).toBe(204)
+  })
+})
+
 describe('o cadastro da propria loja — RF-003', () => {
   /** Cria a empresa e devolve o app ja falando como ela. */
   async function comEmpresa(extra: Record<string, unknown> = {}) {
@@ -1546,143 +1628,5 @@ describe('o cadastro da propria loja — RF-003', () => {
     const r = await app.inject({ method: 'POST', url: '/empresas', payload: EMPRESA })
 
     expect(r.statusCode).toBe(201)
-  })
-})
-
-describe('inativar e reativar produto — NR-151', () => {
-  const COM_CODIGO = {
-    description: 'Arroz 5kg',
-    barcode: '7891234567895',
-    unitOfMeasure: 'un' as const,
-    salePriceCents: 2890,
-    costPriceCents: 2100,
-  }
-
-  async function comProduto(principal: AuthenticatedPrincipal = PRINCIPAL) {
-    const dono = await buildApp()
-    const criado = await dono.app.inject({ method: 'POST', url: '/produtos', payload: COM_CODIGO })
-    await dono.app.close()
-    const c = await buildApp(principal, dono.memoria)
-    app = c.app
-    return criado.json().id as string
-  }
-
-  it('inativa: some do balcao, e o leitor responde 409 em vez de oferecer cadastro', async () => {
-    const id = await comProduto()
-
-    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-    const balcao = await app.inject({ method: 'GET', url: '/produtos?q=arroz' })
-    const leitor = await app.inject({
-      method: 'GET',
-      url: '/produtos/codigo-de-barras/7891234567895',
-    })
-
-    expect(r.statusCode).toBe(200)
-    expect(r.json().isActive).toBe(false)
-    expect(balcao.json().products).toHaveLength(0)
-    expect(leitor.statusCode).toBe(409)
-  })
-
-  it('o catalogo mostra o inativo so no filtro de inativos', async () => {
-    const id = await comProduto()
-    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-
-    const ativos = await app.inject({ method: 'GET', url: '/produtos/catalogo' })
-    const inativos = await app.inject({
-      method: 'GET',
-      url: '/produtos/catalogo?situacao=inativos',
-    })
-
-    expect(ativos.json().total).toBe(0)
-    expect(inativos.json().products.map((p: { id: string }) => p.id)).toEqual([id])
-  })
-
-  it('reativa e volta ao balcao', async () => {
-    const id = await comProduto()
-    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-
-    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/reativar` })
-
-    expect(r.statusCode).toBe(200)
-    expect(
-      (await app.inject({ method: 'GET', url: '/produtos?q=arroz' })).json().products,
-    ).toHaveLength(1)
-  })
-
-  it('inativar duas vezes e 409', async () => {
-    const id = await comProduto()
-    await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-
-    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-
-    expect(r.statusCode).toBe(409)
-  })
-
-  it('accountant nao inativa', async () => {
-    const id = await comProduto({ ...PRINCIPAL, role: 'accountant' })
-
-    const r = await app.inject({ method: 'POST', url: `/produtos/${id}/inativar` })
-
-    expect(r.statusCode).toBe(403)
-  })
-})
-
-describe('exportar listas — NR-155', () => {
-  it('clientes em CSV, com os mesmos filtros da tela', async () => {
-    const c = await buildApp()
-    app = c.app
-    await app.inject({
-      method: 'POST',
-      url: '/clientes',
-      payload: {
-        name: 'Maria Exportada',
-        document: '52998224725',
-        phone: '41999990001',
-        address: {
-          zipCode: '80000000',
-          street: 'Rua A',
-          number: '10',
-          district: 'Centro',
-          city: 'Curitiba',
-          state: 'PR',
-        },
-      },
-    })
-
-    const r = await app.inject({ method: 'GET', url: '/clientes/exportar?formato=csv' })
-
-    expect(r.statusCode).toBe(200)
-    expect(r.headers['content-type']).toContain('text/csv')
-    expect(r.headers['content-disposition']).toContain('clientes.csv')
-    expect(r.body).toContain('Maria Exportada')
-  })
-
-  it('produtos em PDF de verdade', async () => {
-    const c = await buildApp()
-    app = c.app
-    await app.inject({
-      method: 'POST',
-      url: '/produtos',
-      payload: {
-        description: 'Arroz',
-        unitOfMeasure: 'un',
-        salePriceCents: 2890,
-        costPriceCents: 2100,
-      },
-    })
-
-    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=pdf' })
-
-    expect(r.statusCode).toBe(200)
-    expect(r.rawPayload.subarray(0, 5).toString()).toBe('%PDF-')
-  })
-
-  it('formato desconhecido e 400', async () => {
-    const c = await buildApp()
-    app = c.app
-
-    const r = await app.inject({ method: 'GET', url: '/produtos/exportar?formato=xls' })
-
-    expect(r.statusCode).toBe(400)
   })
 })

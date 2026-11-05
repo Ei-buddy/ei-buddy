@@ -1,6 +1,7 @@
 import type { InvoiceIssueResult } from '@na-regua/contracts'
 import {
   cancelSaleInvoiceInputSchema,
+  ErroDeIntegracao,
   updateFiscalCredentialsInputSchema,
 } from '@na-regua/contracts'
 import {
@@ -11,7 +12,8 @@ import {
   requestInvoice,
   type RequestInvoiceDeps,
 } from '@na-regua/core'
-import type { FastifyInstance } from 'fastify'
+import type { CadastroDeEmpresasFocus, DadosDaEmpresaFocus, EmpresaNaFocus } from '@na-regua/fiscal'
+import type { FastifyInstance, FastifyBaseLogger } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
@@ -44,13 +46,121 @@ export type CredenciaisFiscaisDeps = {
       readonly certificadoBase64?: string
       readonly senhaDoCertificado?: string
       readonly certificadoVenceEm?: string
+      readonly cscProducao?: { readonly id: string; readonly codigo: string }
+      readonly cscHomologacao?: { readonly id: string; readonly codigo: string }
       readonly atualizadoPor: string
     }): Promise<void>
     situacao(companyId: string): Promise<{
       readonly temToken: boolean
       readonly temCertificado: boolean
       readonly certificadoVenceEm: string | null
+      readonly temCscProducao: boolean
+      readonly temCscHomologacao: boolean
+      readonly focusSincronizadaEm: string | null
+      readonly focusErro: string | null
     }>
+    dadosParaFocus(
+      companyId: string,
+    ): Promise<
+      (Omit<DadosDaEmpresaFocus, 'regimeTributario'> & { readonly regime: string }) | undefined
+    >
+    registrarFocus(
+      companyId: string,
+      resultado:
+        | { readonly ok: true; readonly empresa: EmpresaNaFocus }
+        | { readonly ok: false; readonly mensagem: string },
+    ): Promise<void>
+  }
+  /**
+   * A conta de REVENDA da EiBuddy na Focus — NR-183. Ausente quando o servidor
+   * nao tem `FOCUS_REVENDA_TOKEN`: as credenciais continuam sendo gravadas, e
+   * a tela diz que o cadastro na Focus ainda nao esta disponivel.
+   */
+  readonly cadastroFocus?: CadastroDeEmpresasFocus
+}
+
+/**
+ * Leva a empresa para a Focus depois de salvar — NR-183.
+ *
+ * O desfecho fica GRAVADO (tokens ou a mensagem), e nao so na resposta: a tela
+ * de Empresa mostra "cadastrada na Focus em ..." ou o motivo da recusa em
+ * qualquer visita, nao so no momento de salvar.
+ *
+ * Falta de dado na loja (endereco, certificado) vira mensagem antes de chamar a
+ * Focus: a recusa dela diria "campo logradouro obrigatorio", e a nossa diz o
+ * que preencher e onde. Falha de infraestrutura (Focus fora do ar, token da
+ * revenda recusado) tambem vira mensagem — o certificado ja foi guardado, e
+ * salvar de novo tenta de novo.
+ */
+async function sincronizarComFocus(
+  deps: CredenciaisFiscaisDeps,
+  companyId: string,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const cadastro = deps.cadastroFocus
+  if (cadastro === undefined) return
+
+  const dados = await deps.fiscalCredentials.dadosParaFocus(companyId)
+  if (dados === undefined) return
+
+  const falta: string[] = []
+  const e = dados.endereco
+  if ([e.cep, e.logradouro, e.numero, e.bairro, e.municipio, e.uf].some((v) => v.trim() === '')) {
+    falta.push('o endereco completo da empresa (CEP, rua, numero, bairro, cidade e UF)')
+  }
+  if (dados.focusId === undefined && dados.certificado === undefined) {
+    falta.push('o certificado digital A1 e a senha')
+  }
+  if (
+    dados.focusId === undefined &&
+    dados.cscProducao === undefined &&
+    dados.cscHomologacao === undefined
+  ) {
+    falta.push('o CSC da NFC-e (ID e codigo, gerados no site da SEFAZ)')
+  }
+  if (falta.length > 0) {
+    await deps.fiscalCredentials.registrarFocus(companyId, {
+      ok: false,
+      mensagem: `Para cadastrar na Focus NFe, falta ${falta.join(' e ')}.`,
+    })
+    return
+  }
+
+  const { regime, ...resto } = dados
+  try {
+    const r = await cadastro.salvar({
+      ...resto,
+      /* Simples Nacional e 1; os regimes normais (presumido, real) sao 3. */
+      regimeTributario: regime === 'simples_nacional' ? 1 : 3,
+    })
+    await deps.fiscalCredentials.registrarFocus(companyId, r)
+  } catch (erro) {
+    if (!(erro instanceof ErroDeIntegracao)) throw erro
+    log.error({ err: erro, companyId }, 'cadastro na Focus NFe falhou por infraestrutura')
+    await deps.fiscalCredentials.registrarFocus(companyId, {
+      ok: false,
+      mensagem:
+        'Nao deu para falar com a Focus NFe agora. Os dados foram guardados; salve de novo em alguns minutos.',
+    })
+  }
+}
+
+/** A situacao como a tela le — sem segredo nenhum. */
+function paraTela(
+  s: Awaited<ReturnType<CredenciaisFiscaisDeps['fiscalCredentials']['situacao']>>,
+  focusDisponivel: boolean,
+) {
+  return {
+    hasToken: s.temToken,
+    hasCertificate: s.temCertificado,
+    certificateExpiresAt: s.certificadoVenceEm,
+    hasCscProduction: s.temCscProducao,
+    hasCscHomologation: s.temCscHomologacao,
+    focus: {
+      available: focusDisponivel,
+      syncedAt: s.focusSincronizadaEm,
+      error: s.focusErro,
+    },
   }
 }
 
@@ -188,11 +298,7 @@ export function registerFiscalRoutes(
 
     const s = await deps.fiscalCredentials.situacao(ctx.companyId)
 
-    return reply.code(200).send({
-      hasToken: s.temToken,
-      hasCertificate: s.temCertificado,
-      certificateExpiresAt: s.certificadoVenceEm,
-    })
+    return reply.code(200).send(paraTela(s, deps.cadastroFocus !== undefined))
   })
 
   /**
@@ -233,16 +339,25 @@ export function registerFiscalRoutes(
               certificadoVenceEm: input.certificateExpiresAt!,
             }
           : {}),
+        ...(input.cscProduction === undefined
+          ? {}
+          : { cscProducao: { id: input.cscProduction.id, codigo: input.cscProduction.code } }),
+        ...(input.cscHomologation === undefined
+          ? {}
+          : {
+              cscHomologacao: {
+                id: input.cscHomologation.id,
+                codigo: input.cscHomologation.code,
+              },
+            }),
         atualizadoPor: ctx.userId,
       })
 
+      await sincronizarComFocus(deps, ctx.companyId, request.log)
+
       const s = await deps.fiscalCredentials.situacao(ctx.companyId)
 
-      return reply.code(200).send({
-        hasToken: s.temToken,
-        hasCertificate: s.temCertificado,
-        certificateExpiresAt: s.certificadoVenceEm,
-      })
+      return reply.code(200).send(paraTela(s, deps.cadastroFocus !== undefined))
     },
   )
 }

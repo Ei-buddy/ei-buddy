@@ -25,13 +25,13 @@ export type ContaPadrao = {
 export const PLANO_DE_CONTAS_PADRAO: readonly ContaPadrao[] = [
   /* Receita */
   { name: 'Venda de mercadoria', type: 'revenue' },
-  { name: 'Prestacao de servico', type: 'revenue' },
+  { name: 'Prestação de serviço', type: 'revenue' },
   { name: 'Outras receitas', type: 'revenue' },
 
   /* Deducoes da receita */
   { name: 'Impostos sobre venda', type: 'deduction' },
-  { name: 'Taxas de cartao', type: 'deduction' },
-  { name: 'Devolucoes e cancelamentos', type: 'deduction' },
+  { name: 'Taxas de cartão', type: 'deduction' },
+  { name: 'Devoluções e cancelamentos', type: 'deduction' },
 
   /* Custo */
   { name: 'Custo da mercadoria vendida', type: 'cost' },
@@ -39,9 +39,9 @@ export const PLANO_DE_CONTAS_PADRAO: readonly ContaPadrao[] = [
 
   /* Despesa */
   { name: 'Aluguel', type: 'expense' },
-  { name: 'Energia, agua e internet', type: 'expense' },
-  { name: 'Salarios e encargos', type: 'expense' },
+  { name: 'Energia, água e internet', type: 'expense' },
+  { name: 'Salários e encargos', type: 'expense' },
   { name: 'Marketing', type: 'expense' },
-  { name: 'Manutencao e limpeza', type: 'expense' },
+  { name: 'Manutenção e limpeza', type: 'expense' },
   { name: 'Outras despesas', type: 'expense' },
 ]

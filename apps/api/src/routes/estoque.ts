@@ -1,5 +1,12 @@
 import { adjustStockInputSchema } from '@na-regua/contracts'
-import { adjustStock, type AdjustStockDeps, checkStock, type CheckStockDeps } from '@na-regua/core'
+import {
+  adjustStock,
+  type AdjustStockDeps,
+  checkStock,
+  type CheckStockDeps,
+  suggestRestock,
+  type SuggestRestockDeps,
+} from '@na-regua/core'
 import type { InventoryMovementOutput } from '@na-regua/contracts'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -20,7 +27,8 @@ import { validate } from '../plugins/validate.js'
  */
 
 export type EstoqueDeps = CheckStockDeps &
-  AdjustStockDeps & {
+  AdjustStockDeps &
+  SuggestRestockDeps & {
     /**
      * A trilha do produto. Fora das portas de `core` de proposito: e leitura de
      * apresentacao, e nenhum caso de uso depende dela.
@@ -38,6 +46,16 @@ export type EstoqueDeps = CheckStockDeps &
 export const MOVIMENTOS_POR_PAGINA = 50
 
 export function registerEstoqueRoutes(app: FastifyInstance, deps: EstoqueDeps): void {
+  /**
+   * O que precisa repor — achado do QA: a pergunta do assistente so olhava o
+   * estoque minimo. A regra e a da venda (media de seis meses menos o
+   * estoque), e o minimo e o negativo continuam valendo. Ver `suggestRestock`.
+   */
+  app.get('/estoque/reposicao', async (request, reply) => {
+    const ctx = requireContext(request)
+    return reply.code(200).send(await suggestRestock(deps, ctx))
+  })
+
   /**
    * O saldo de um produto — RF-022.
    *

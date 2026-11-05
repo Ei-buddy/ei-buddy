@@ -218,13 +218,21 @@ export default function PlanoDeContasView() {
       <div className={styles.duasColunas}>
         {/* --- Planos --- */}
         <Card title="Plano de contas">
+          {/* QA: "Plano de contas — como cadastrar um?". A tela dizia so
+              "Nome da conta"; o tipo e o que decide onde ela cai no DRE. */}
+          <p className={styles.novoPlanoAjuda}>
+            Para criar uma conta, digite o nome (ex.: Aluguel, Embalagens), escolha o tipo e toque
+            em Criar. O tipo decide onde ela entra no DRE: receita soma, dedução, custo e despesa
+            diminuem o resultado. Depois, use a conta nas contas a pagar e a receber.
+          </p>
           <form onSubmit={criarPlano} className={styles.novoPlano}>
             <input
               className={styles.input}
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
-              placeholder="Nome da conta"
+              placeholder="Nome da conta (ex.: Aluguel)"
               aria-label="Nome da conta"
+              maxLength={80}
             />
             <select
               className={styles.input}

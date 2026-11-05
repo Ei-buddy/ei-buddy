@@ -157,6 +157,78 @@ describe('baixa em conta a pagar — RF-059', () => {
   })
 })
 
+describe('a conta da baixa tem de existir', () => {
+  /* Achado do QA: "permitiu baixar uma conta em um banco inexistente". */
+  const contas = (nomes: string[]) => ({
+    list: async () =>
+      nomes.map((name, i) => ({
+        id: `conta-${i}`,
+        name,
+        bank: null,
+        agency: null,
+        accountNumber: null,
+        openingBalanceCents: 0,
+        openingDate: '2026-01-01',
+        balanceCents: 0,
+      })),
+  })
+
+  it('recusa baixa em conta que nao esta cadastrada', async () => {
+    const c = cenario()
+    const deps = { ...c.deps, bankAccounts: contas(['Itau 1234']) }
+
+    const erro = await settlePayable(deps, contexto(), {
+      ...baixaPagar,
+      bankAccount: 'Banco Inventado',
+      amountCents: 1_000,
+    }).catch((e: unknown) => e)
+
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+    expect(c.uow.tituloDe('pay-1')?.status).toBe('open')
+  })
+
+  it('aceita a conta sem diferenciar maiusculas e grava o nome cadastrado', async () => {
+    const c = cenario()
+    const deps = { ...c.deps, bankAccounts: contas(['Itau 1234']) }
+
+    const baixa = await settlePayable(deps, contexto(), {
+      ...baixaPagar,
+      bankAccount: '  itau 1234 ',
+      amountCents: 1_000,
+    })
+
+    expect(baixa.bankAccount).toBe('Itau 1234')
+  })
+
+  it('dinheiro do caixa vale sem cadastro, mesmo sem conta nenhuma', async () => {
+    const c = cenario()
+    const deps = { ...c.deps, bankAccounts: contas([]) }
+
+    const baixa = await settlePayable(deps, contexto(), {
+      ...baixaPagar,
+      bankAccount: 'dinheiro do caixa',
+      amountCents: 1_000,
+    })
+
+    expect(baixa.bankAccount).toBe('Dinheiro do caixa')
+  })
+
+  it('no recebimento a conta e opcional, mas se vier tem de existir', async () => {
+    const c = cenario()
+    const deps = { ...c.deps, bankAccounts: contas(['Nubank']) }
+
+    await expect(
+      settleReceivable(deps, contexto(), { ...baixaReceber, amountCents: 1_000 }),
+    ).resolves.toBeDefined()
+    const erro = await settleReceivable(deps, contexto(), {
+      ...baixaReceber,
+      bankAccount: 'Banco X',
+      amountCents: 1_000,
+    }).catch((e: unknown) => e)
+    expect(isAppError(erro) && erro.code).toBe('VALIDATION_FAILED')
+  })
+})
+
 describe('baixa em recebivel — RF-066', () => {
   it('o saldo do cliente diminui — US-032', async () => {
     const c = cenario()

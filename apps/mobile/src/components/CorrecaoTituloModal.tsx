@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import {
   cancelarTitulo,
@@ -7,6 +7,7 @@ import {
   type TipoDeTitulo,
   type Titulo,
 } from '@/lib/financeiro-api'
+import { carregarPlano, type ContaContabil } from '@/lib/contabilidade-api'
 import { dataDoTexto, formatDate, mascaraData } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
@@ -35,7 +36,8 @@ export default function CorrecaoTituloModal({
   onFechar,
 }: {
   tipo: TipoDeTitulo
-  modo: 'corrigir' | 'cancelar'
+  /** `classificar`: so o plano de conta — vale em conta ja paga. */
+  modo: 'corrigir' | 'cancelar' | 'classificar'
   titulo: Titulo
   onFeito: (mensagem: string) => void
   onFechar: () => void
@@ -48,6 +50,15 @@ export default function CorrecaoTituloModal({
   const [valor, setValor] = useState(paraTexto(titulo.valorCents))
   const [vencimento, setVencimento] = useState(formatDate(titulo.vencimento))
   const [motivo, setMotivo] = useState('')
+  const classificar = modo === 'classificar'
+  const [plano, setPlano] = useState<string | null>(titulo.accountId)
+  const [planos, setPlanos] = useState<ContaContabil[] | null>(null)
+
+  /* O plano de conta na correcao — achado do QA, par do web. */
+  useEffect(() => {
+    if (!pagar || cancelar) return
+    void carregarPlano().then((r) => setPlanos(r.ok ? r.dados.accounts : []))
+  }, [pagar, cancelar])
 
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -68,6 +79,24 @@ export default function CorrecaoTituloModal({
         return
       }
       onFeito('Lançamento cancelado.')
+      return
+    }
+
+    const planoMudou = pagar && plano !== titulo.accountId
+
+    if (classificar) {
+      if (!planoMudou) {
+        onFechar()
+        return
+      }
+      setSalvando(true)
+      const r = await corrigirTitulo(tipo, titulo.id, { accountId: plano })
+      setSalvando(false)
+      if (!r.ok) {
+        setErro(r.message)
+        return
+      }
+      onFeito('Plano de conta atualizado.')
       return
     }
 
@@ -95,6 +124,7 @@ export default function CorrecaoTituloModal({
     if (descricao.trim() !== titulo.descricao) mudancas.description = descricao.trim()
     if (cents !== titulo.valorCents) mudancas.amountCents = cents
     if (data !== titulo.vencimento) mudancas.dueDate = data
+    if (planoMudou) mudancas.accountId = plano
 
     if (Object.keys(mudancas).length === 0) {
       onFechar()
@@ -123,10 +153,19 @@ export default function CorrecaoTituloModal({
         <View style={estilos.folha}>
           <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
             <Text style={estilos.titulo}>
-              {cancelar ? 'Cancelar lançamento' : 'Corrigir lançamento'}
+              {cancelar
+                ? 'Cancelar lançamento'
+                : classificar
+                  ? 'Plano de conta'
+                  : 'Corrigir lançamento'}
             </Text>
 
-            {cancelar ? (
+            {classificar ? (
+              <Text style={estilos.apoio}>
+                {titulo.contraparte} · {titulo.descricao}. A conta já tem pagamento, então só a
+                classificação muda — ela decide onde a conta entra no DRE.
+              </Text>
+            ) : cancelar ? (
               <>
                 <Text style={estilos.apoio}>
                   {titulo.contraparte} · {titulo.descricao}. O lançamento sai das contas em aberto,
@@ -173,6 +212,27 @@ export default function CorrecaoTituloModal({
               </>
             )}
 
+            {pagar && !cancelar ? (
+              <View style={estilos.planos}>
+                <Text style={estilos.apoio}>Plano de conta</Text>
+                <View style={estilos.chips}>
+                  {[{ id: null, name: 'Sem classificação' }, ...(planos ?? [])].map((c) => (
+                    <Pressable
+                      key={c.id ?? 'nenhum'}
+                      onPress={() => setPlano(c.id)}
+                      style={[estilos.chip, plano === c.id && estilos.chipAtivo]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: plano === c.id }}
+                    >
+                      <Text style={[estilos.chipTexto, plano === c.id && estilos.chipTextoAtivo]}>
+                        {c.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {erro !== null ? (
               <Text style={estilos.erro} accessibilityRole="alert">
                 {erro}
@@ -218,6 +278,18 @@ const estilos = criarEstilos(() => ({
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
+  planos: { gap: espaco.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
+  chip: {
+    ...vidro.peca,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: espaco.md,
+    borderRadius: raio.pill,
+  },
+  chipAtivo: { ...vidro.ativo },
+  chipTexto: { fontSize: fonte.micro, color: cores.texto },
+  chipTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
   linha: { flexDirection: 'row', gap: espaco.md },
   flex: { flex: 1 },
 }))

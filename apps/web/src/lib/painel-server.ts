@@ -79,8 +79,15 @@ type Agrupadas = {
   grupos: { faixa: string; payables?: Titulo[]; receivables?: Titulo[]; totalCents: number }[]
 }
 
-type Catalogo = {
-  products: { id: string; description: string; stock: number; minStock: number }[]
+/** `GET /estoque/reposicao` — a mesma regra do assistente (achado do QA). */
+type Reposicao = {
+  items: {
+    productId: string
+    description: string
+    unitOfMeasure: string
+    stock: number
+    suggestedQuantity: number
+  }[]
 }
 
 type ResumoDoCatalogo = { total: number }
@@ -104,7 +111,8 @@ export type Painel = {
   readonly aPagar: { readonly totalCents: number; readonly vencidas: number } | null
   readonly aReceber: { readonly totalCents: number } | null
   readonly vencimentos: readonly Titulo[] | null
-  readonly reposicao: Catalogo['products'] | null
+  /** Os cinco que mais faltam, pela media de venda de seis meses. */
+  readonly reposicao: Reposicao['items'] | null
   /** Nulo = nao deu para saber. Alimenta o checklist inicial — ver ChecklistInicial. */
   readonly totalProdutos: number | null
   readonly totalClientes: number | null
@@ -215,7 +223,7 @@ export async function carregarPainel(agora: Date = new Date()): Promise<Painel> 
         chamarApi<PaginaDeVendas>('/sales?pageSize=4', { token }),
         chamarApi<Agrupadas>('/contas-a-pagar', { token }),
         chamarApi<Agrupadas>('/contas-a-receber', { token }),
-        chamarApi<Catalogo>('/produtos/catalogo?stock=baixo&pageSize=5', { token }),
+        chamarApi<Reposicao>('/estoque/reposicao', { token }),
         /* So para o total — o mesmo numero que alimenta o sino de avisos
            (`avisos-api.ts`), aqui pelo caminho do servidor. */
         chamarApi<ResumoDoCatalogo>('/produtos/resumo', { token }),
@@ -265,7 +273,7 @@ export async function carregarPainel(agora: Date = new Date()): Promise<Painel> 
     vencimentos: aPagar.ok
       ? aPagar.dados.grupos.flatMap((g) => g.payables ?? []).slice(0, 4)
       : null,
-    reposicao: catalogo.ok ? catalogo.dados.products : null,
+    reposicao: catalogo.ok ? catalogo.dados.items.slice(0, 5) : null,
     totalProdutos: resumo.ok ? resumo.dados.total : null,
     totalClientes: clientes.ok ? clientes.dados.total : null,
   }

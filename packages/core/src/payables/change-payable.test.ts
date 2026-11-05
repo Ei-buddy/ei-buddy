@@ -79,6 +79,37 @@ describe('corrigir conta a pagar — NR-150', () => {
     expect(e.code).toBe('CONFLICT')
   })
 
+  it('troca o plano de conta mesmo com pagamento registrado', async () => {
+    /* Classificar nao mexe em dinheiro, so em onde a conta cai no DRE. */
+    const { d, id } = await comConta()
+    d.pag.simularBaixa(id, 10_000)
+    const accounts = {
+      findById: async (_e: string, contaId: string) =>
+        contaId === 'plano-aluguel'
+          ? { id: contaId, name: 'Aluguel', type: 'expense' as const, isDefault: false }
+          : undefined,
+    }
+
+    const nova = await updatePayable({ ...d, accounts }, contexto(), id, {
+      accountId: 'plano-aluguel',
+    })
+    expect(nova.accountId).toBe('plano-aluguel')
+
+    const tirada = await updatePayable({ ...d, accounts }, contexto(), id, { accountId: null })
+    expect(tirada.accountId).toBeNull()
+  })
+
+  it('recusa plano de conta que nao e da loja', async () => {
+    const { d, id } = await comConta()
+    const accounts = { findById: async () => undefined }
+
+    const e = await erroDe(
+      updatePayable({ ...d, accounts }, contexto(), id, { accountId: 'de-outra-loja' }),
+    )
+
+    expect(e.code).toBe('VALIDATION_FAILED')
+  })
+
   it('nao acha conta de outra empresa', async () => {
     const { d, id } = await comConta()
 

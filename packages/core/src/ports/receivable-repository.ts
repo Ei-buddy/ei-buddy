@@ -34,6 +34,8 @@ export type ReceivableQueries = {
       readonly status: readonly ReceivableStatus[]
       /** So os deste cliente — a ficha do cliente (RF-072). */
       readonly customerId?: string
+      /** So os N de vencimento mais recente, do mais novo para o mais antigo. */
+      readonly maisRecentes?: number
     },
   ): Promise<readonly ReceivableOutput[]>
 }

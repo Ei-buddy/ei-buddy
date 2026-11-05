@@ -13,6 +13,7 @@ import { centavosDoTexto } from '@/lib/valor'
 import { Card, EmptyState, Field, FormGrid, Input, PageHeader } from '@/components/ui/UI'
 import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
+import ExtratoContaBancaria from './ExtratoContaBancaria'
 import styles from './financeiro.module.css'
 
 const hoje = () => new Date().toISOString().slice(0, 10)
@@ -36,6 +37,8 @@ export default function ContasBancariasView() {
   const [salvando, setSalvando] = useState(false)
   /* Editar usa o mesmo formulario do cadastro — NR-152. */
   const [editando, setEditando] = useState<ContaBancaria | null>(null)
+  /* O extrato aberto — achado do QA ("Bancos: ter um extrato"). */
+  const [vendoExtrato, setVendoExtrato] = useState<ContaBancaria | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   const carregar = useCallback(async () => {
@@ -174,6 +177,9 @@ export default function ContasBancariasView() {
                 </span>
                 <strong>{formatMoney(c.balanceCents / 100)}</strong>
                 <span className={styles.contaBancariaAcoes}>
+                  <Button variant="secondary" size="sm" onClick={() => setVendoExtrato(c)}>
+                    Extrato
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => editar(c)}>
                     Editar
                   </Button>
@@ -186,6 +192,14 @@ export default function ContasBancariasView() {
           </ul>
         )}
       </Card>
+
+      {vendoExtrato !== null ? (
+        <ExtratoContaBancaria
+          key={vendoExtrato.id}
+          conta={vendoExtrato}
+          onFechar={() => setVendoExtrato(null)}
+        />
+      ) : null}
 
       <Card title={editando === null ? 'Cadastrar conta' : `Editar ${editando.name}`}>
         <form onSubmit={cadastrar} noValidate>

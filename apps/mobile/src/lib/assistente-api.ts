@@ -202,6 +202,20 @@ export type FontesDoAssistente = {
   }) => Promise<Resultado<ClienteDaLista[]>>
   comprasDoCliente: (id: string) => Promise<Resultado<CompraCliente[]>>
   pendenciasDoCliente: (id: string) => Promise<Resultado<PendenciaCliente[]>>
+  /** O que repor, pela media de venda de seis meses — achado do QA. */
+  reposicao: () => Promise<Resultado<SugestaoDeReposicao[]>>
+}
+
+/** Uma linha da sugestao de reposicao (`GET /estoque/reposicao`). */
+export type SugestaoDeReposicao = {
+  productId: string
+  description: string
+  unitOfMeasure: string
+  stock: number
+  minStock: number
+  monthlyAverage: number
+  suggestedQuantity: number
+  reason: 'vendas' | 'minimo' | 'negativo'
 }
 
 type Grupos<K extends string, T> = { grupos: Record<K, T[]>[] }
@@ -242,6 +256,10 @@ export const FONTES_REAIS: FontesDoAssistente = {
   },
   comprasDoCliente,
   pendenciasDoCliente,
+  reposicao: async () => {
+    const r = await chamarApi<{ items: SugestaoDeReposicao[] }>('/estoque/reposicao')
+    return r.ok ? { ok: true, dados: r.dados.items } : { ok: false, erro: r.message }
+  },
 }
 
 /* -------------------------------------------------------------------------- */
@@ -262,13 +280,39 @@ function normalizar(texto: string): string {
 function nomeCitado(texto: string): string | null {
   /* Fim de palavra por espaco/pontuacao, e nao `\b`: o `\b` do JavaScript nao
      reconhece letra acentuada como letra, e "está" nunca fechava o nome —
-     "Ana Souza está" ia para a busca (achado na rodada de uso). O nome fica
-     com o acento original: a busca do banco (ILIKE) nao ignora acento. */
-  const m =
-    /cliente\s+(.+?)(?:\s+(?:esta|está|deve|devendo|comprou|foi)(?=\s|[?!.,]|$)|\?|$)/i.exec(texto)
-  const nome = m?.[1]?.trim() ?? ''
-  if (nome.length < 2 || /^x$/i.test(nome) || /^(dizendo|para|que)\b/i.test(nome)) return null
-  return nome
+     "Ana Souza está" ia para a busca (achado na rodada de uso). A busca do
+     banco ignora acento e casa palavra por palavra. */
+  const FIM = String.raw`(?=\s|[?!.,]|$)`
+  const padroes = [
+    /* "o cliente Joao esta devendo", "cliente Maria é ..." */
+    new RegExp(
+      String.raw`cliente\s+(?:chamad[oa]\s+)?(.+?)(?:\s+(?:esta|está|é|e|deve|devendo|comprou|foi|tem)${FIM}|[?!.]|$)`,
+      'i',
+    ),
+    /* Achado do QA: "O Joao está cadastrado?", "Maria Souza é cliente?" — sem
+       a palavra "cliente" antes do nome a pergunta caia em "qual cliente?". */
+    new RegExp(
+      String.raw`^\s*(?:(?:o|a)\s+)?(.+?)\s+(?:esta|está|é|e)\s+(?:cadastrad[oa]|cliente)`,
+      'i',
+    ),
+    /* "tem o Joao cadastrado?", "existe cliente chamado Joao?" */
+    new RegExp(
+      String.raw`(?:tem|existe|há|ha)\s+(?:(?:o|a|um|uma)\s+)?(?:cliente\s+)?(?:chamad[oa]\s+)?(.+?)(?:\s+cadastrad[oa])?\s*[?!.]*$`,
+      'i',
+    ),
+    /* "procure o Joao", "buscar cliente Maria" */
+    new RegExp(
+      String.raw`(?:procur[ea]r?|busc[ae]r?|ach[ea]r?)\s+(?:(?:o|a)\s+)?(?:cliente\s+)?(.+?)\s*[?!.]*$`,
+      'i',
+    ),
+  ]
+  for (const p of padroes) {
+    const nome = (p.exec(texto)?.[1] ?? '').trim().replace(/[?!.,]+$/, '')
+    if (nome.length < 2 || /^x$/i.test(nome)) continue
+    if (/^(dizendo|para|que|algum|alguem|alguém|cliente|clientes)\b/i.test(nome)) continue
+    return nome
+  }
+  return null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -324,6 +368,18 @@ const emAberto = <T extends { amountCents: number; settledAmountCents: number; s
 
 const saldoDe = (t: { amountCents: number; settledAmountCents: number }): number =>
   t.amountCents - t.settledAmountCents
+
+/*
+ * "Esta cadastrado" presumia o genero ("A cliente Marta esta cadastrado?") e
+ * "compra(s)" soava de formulario — achado do teste ponta a ponta. A lista do
+ * cliente vem com no maximo 20 vendas (`comprasDoCliente`): de 20 em diante,
+ * o numero exato nao e conhecido aqui, e a frase nao inventa.
+ */
+export function resumoDasCompras(n: number): string {
+  if (n === 0) return 'ainda sem compras'
+  if (n === 1) return 'com 1 compra'
+  return n >= 20 ? 'com 20 compras ou mais' : `com ${n} compras`
+}
 
 const NAO_CONSEGUI = 'Não consegui consultar os dados agora. Tente de novo em instantes.'
 
@@ -392,7 +448,10 @@ export async function responder(
       [abrir('Abrir o plano de contas?', '/plano-de-contas')],
     )
   }
-  if (t.includes('cadastr') && !t.includes('esta cadastrad')) {
+  /* Pedido de CADASTRAR ("cadastrar cliente", "quero cadastrar"), e nao a
+     pergunta "o Fulano esta cadastrado?" — que tambem contem "cadastr" e caia
+     aqui (achado do QA). */
+  if (/cadastr(ar|e|o)\b|novo cadastro/.test(t) && !/cadastrad[oa]/.test(t)) {
     return r(
       'cadastrar_cliente',
       'O cadastro abre no formulário completo, com busca de CPF e CEP.',
@@ -487,7 +546,7 @@ export async function responder(
     const { faturamento, liquido, quantidade } = h.dados.resumo
     return r(
       'faturamento',
-      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, imposto e taxa de cartão.`,
+      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, taxa de cartão e imposto das notas emitidas.`,
       [
         {
           tipo: 'indicador',
@@ -499,7 +558,7 @@ export async function responder(
           tipo: 'indicador',
           rotulo: 'Faturamento líquido hoje',
           valor: formatMoney(liquido),
-          apoio: 'sem desconto, imposto e taxa de cartão',
+          apoio: 'sem desconto, taxa de cartão e imposto das notas',
         },
         ...(f.ok
           ? [
@@ -814,25 +873,36 @@ export async function responder(
     )
   }
 
-  if (t.includes('reposic') || t.includes('estoque')) {
-    const c = await fontes.catalogo('baixo')
+  if (t.includes('reposic') || t.includes('estoque') || t.includes('repor')) {
+    /* Achado do QA: a pergunta so olhava o estoque minimo — produto sem minimo
+       e produto negativo nunca apareciam. A regra agora e do servidor: o que
+       vendeu nos ultimos seis meses / 6, menos o estoque (e o minimo e o
+       negativo continuam valendo). */
+    const c = await fontes.reposicao()
     if (!c.ok) return r('reposicao', NAO_CONSEGUI)
     return r(
       'reposicao',
       c.dados.length === 0
-        ? 'Nenhum produto abaixo do estoque mínimo.'
-        : `${c.dados.length} produto(s) no mínimo ou abaixo dele.`,
+        ? 'Nenhum produto precisa de reposição: o estoque cobre a média de venda do mês.'
+        : `${c.dados.length} produto(s) para repor, pela média de venda dos últimos 6 meses.`,
       c.dados.length === 0
         ? []
         : [
             {
-              tipo: 'lista',
+              tipo: 'tabela',
               titulo: 'Precisa repor',
-              itens: c.dados.map((p) => ({
-                rotulo: p.descricao,
-                valor: `${p.estoque} em estoque · mínimo ${p.estoqueMinimo}`,
-                destaque: p.estoque <= 0,
-              })),
+              colunas: ['Produto', 'Estoque', 'Média/mês', 'Comprar'],
+              linhas: c.dados.map((p) => [
+                p.description,
+                String(p.stock),
+                p.monthlyAverage.toLocaleString('pt-BR'),
+                `${p.suggestedQuantity} ${p.unitOfMeasure}` +
+                  (p.reason === 'negativo'
+                    ? ' (negativo)'
+                    : p.reason === 'minimo'
+                      ? ' (mínimo)'
+                      : ''),
+              ]),
             },
           ],
     )
@@ -894,17 +964,37 @@ export async function responder(
     t.includes('o que ela comprou') ||
     t.includes('ultima compra') ||
     t.includes('devendo') ||
-    t.includes('esta cadastrad')
+    t.includes('esta cadastrad') ||
+    t.includes('e cliente')
 
   if (falaDeCliente) {
     if (nome !== null) {
       const achados = await fontes.clientes({ termo: nome })
       if (!achados.ok) return r('cliente', NAO_CONSEGUI)
-      const cliente = achados.dados[0]
-      if (cliente === undefined) {
+      if (achados.dados.length === 0) {
         return r('cliente_nao_encontrado', `Não achei nenhum cliente com "${nome}".`, [
           { tipo: 'confirmacao', pergunta: 'Quer cadastrar?', acao: 'abrir_cadastro_cliente' },
         ])
+      }
+      /* Mais de um com o nome: escolher o primeiro em silencio respondia sobre
+         o cliente errado. So segue direto quando o nome bate inteiro. */
+      const exato = achados.dados.filter((c) => normalizar(c.nome) === normalizar(nome))
+      const cliente = achados.dados.length === 1 ? achados.dados[0] : exato[0]
+      if (cliente === undefined || exato.length > 1) {
+        return r(
+          'cliente_varios',
+          t.includes('cadastrad') || t.includes('e cliente')
+            ? `Sim, achei ${achados.dados.length} clientes com "${nome}". De qual você quer saber?`
+            : `Achei ${achados.dados.length} clientes com "${nome}". De qual você está falando?`,
+          [
+            {
+              tipo: 'lista',
+              titulo: 'Clientes encontrados',
+              itens: achados.dados.slice(0, 8).map((c) => ({ rotulo: c.nome, valor: '' })),
+            },
+            { tipo: 'texto', texto: 'Repita a pergunta com o nome completo.' },
+          ],
+        )
       }
       ctx.clienteId = cliente.id
       ctx.clienteNome = cliente.nome
@@ -943,11 +1033,11 @@ export async function responder(
     const compras = await fontes.comprasDoCliente(ctx.clienteId)
     if (!compras.ok) return r('compras_cliente', NAO_CONSEGUI)
 
-    if (t.includes('esta cadastrad')) {
+    if (t.includes('cadastrad') || t.includes('e cliente')) {
       return r(
         'resumo_cliente',
-        `${nomeDoCliente} está cadastrado, com ${compras.dados.length} compra(s).`,
-        [{ tipo: 'texto', texto: 'Pergunte, por exemplo: o que ele comprou?' }],
+        `Sim, encontrei ${nomeDoCliente} no cadastro, ${resumoDasCompras(compras.dados.length)}.`,
+        [{ tipo: 'texto', texto: 'Pergunte, por exemplo: qual foi a última compra?' }],
       )
     }
 

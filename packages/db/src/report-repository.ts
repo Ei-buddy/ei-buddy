@@ -1,6 +1,7 @@
 import type { CustomerRank, ProductRank } from '@na-regua/contracts'
 import type { MesFaturado, Ranking, ReportRepository } from '@na-regua/core'
 import type { Sql, TransactionSql } from 'postgres'
+import { liquidoComNota } from './imposto-da-venda.js'
 import { withTenant } from './tenant.js'
 
 /**
@@ -37,10 +38,11 @@ import { withTenant } from './tenant.js'
 /**
  * O liquido da venda sem a parte devolvida, na mesma proporcao do bruto.
  * Fragmento aninhado do postgres.js (e nao texto interpolado, que viraria
- * parametro). Bruto zero nao divide: devolve o liquido inteiro.
+ * parametro). Bruto zero nao divide: devolve o liquido inteiro. O imposto so
+ * entra com nota emitida — ver `imposto-da-venda.ts`.
  */
 const liquidoSemDevolucao = (tx: TransactionSql) =>
-  tx`(s.net_amount_cents - COALESCE(ROUND(s.net_amount_cents * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
+  tx`(${liquidoComNota(tx)} - COALESCE(ROUND(${liquidoComNota(tx)} * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
 
 /** bigint volta como texto no driver; `count` tambem. */
 const numero = (v: unknown): number => Number(v)

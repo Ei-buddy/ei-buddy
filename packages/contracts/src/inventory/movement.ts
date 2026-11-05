@@ -85,6 +85,16 @@ export const inventoryMovementOutputSchema = z.object({
   /** Preenchido quando a causa e uma venda, para a trilha fechar com ela. */
   saleId: idSchema.nullable(),
   /**
+   * O lancamento que originou o movimento, para a ficha do produto mostrar
+   * e abrir — achado do QA: "no historico do produto poder ver o lancamento
+   * que o originou, quando uma compra ou venda". So a trilha (`byProduct`)
+   * preenche; quem grava o movimento nao precisa.
+   */
+  saleNumber: z.number().int().nullable().optional(),
+  purchaseId: idSchema.nullable().optional(),
+  purchaseSupplier: z.string().nullable().optional(),
+  purchaseInvoiceNumber: z.string().nullable().optional(),
+  /**
    * Sempre presente, e sem FK para `users` — a mesma regra da `audit_log`.
    *
    * Guardar o id de quem fez, sem referencia viva, e o que permite a pessoa

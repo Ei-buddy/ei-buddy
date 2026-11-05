@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { cancelarTitulo, corrigirTitulo, type CorrecaoDeTitulo } from '@/lib/financeiro-api'
+import { carregarPlano, type ContaContabil } from '@/lib/contabilidade-api'
 import { centavosDoTexto } from '@/lib/valor'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
@@ -18,6 +19,8 @@ export type TituloCorrigivel = {
   descricao: string
   vencimento: string
   valorCents: number
+  /** O plano de conta atual — so a pagar tem. */
+  accountId?: string | null
 }
 
 const paraTexto = (cents: number) => (cents / 100).toFixed(2).replace('.', ',')
@@ -40,7 +43,8 @@ export default function CorrecaoTitulo({
   onFechar,
 }: {
   tipo: 'pagar' | 'receber'
-  modo: 'corrigir' | 'cancelar'
+  /** `classificar`: so o plano de conta — vale em conta ja paga. */
+  modo: 'corrigir' | 'cancelar' | 'classificar'
   titulo: TituloCorrigivel
   onFeito: (mensagem: string) => void
   onFechar: () => void
@@ -53,6 +57,15 @@ export default function CorrecaoTitulo({
   const [valor, setValor] = useState(paraTexto(titulo.valorCents))
   const [vencimento, setVencimento] = useState(titulo.vencimento)
   const [motivo, setMotivo] = useState('')
+  const [plano, setPlano] = useState(titulo.accountId ?? '')
+  const [planos, setPlanos] = useState<ContaContabil[] | null>(null)
+
+  /* O plano de conta na correcao — achado do QA: "quando for corrigir o contas
+     a pagar ter como atribuir a um plano de contas". */
+  useEffect(() => {
+    if (!pagar || modo === 'cancelar') return
+    void carregarPlano().then((r) => setPlanos(r.ok ? r.dados.accounts : []))
+  }, [pagar, modo])
 
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -90,6 +103,24 @@ export default function CorrecaoTitulo({
       return
     }
 
+    const planoMudou = pagar && plano !== (titulo.accountId ?? '')
+
+    if (modo === 'classificar') {
+      if (!planoMudou) {
+        onFechar()
+        return
+      }
+      setSalvando(true)
+      const r = await corrigirTitulo(tipo, titulo.id, { accountId: plano === '' ? null : plano })
+      setSalvando(false)
+      if (!r.ok) {
+        setErro(r.erro)
+        return
+      }
+      onFeito('Plano de conta atualizado.')
+      return
+    }
+
     const cents = centavosDoTexto(valor)
     if (cents === null || cents <= 0) {
       setErro('Informe um valor maior que zero.')
@@ -113,6 +144,7 @@ export default function CorrecaoTitulo({
     if (descricao.trim() !== titulo.descricao) mudancas.description = descricao.trim()
     if (cents !== titulo.valorCents) mudancas.amountCents = cents
     if (vencimento !== titulo.vencimento) mudancas.dueDate = vencimento
+    if (planoMudou) mudancas.accountId = plano === '' ? null : plano
 
     if (Object.keys(mudancas).length === 0) {
       onFechar()
@@ -150,7 +182,11 @@ export default function CorrecaoTitulo({
       >
         <header className={styles.dialogCabecalho}>
           <h2 id="correcao-titulo" className={styles.dialogTitulo}>
-            {cancelar ? 'Cancelar lançamento' : 'Corrigir lançamento'}
+            {cancelar
+              ? 'Cancelar lançamento'
+              : modo === 'classificar'
+                ? 'Plano de conta'
+                : 'Corrigir lançamento'}
           </h2>
           <button
             type="button"
@@ -186,6 +222,11 @@ export default function CorrecaoTitulo({
                 />
               </label>
             </>
+          ) : modo === 'classificar' ? (
+            <p className={styles.baixaRestante}>
+              {titulo.contraparte} · {titulo.descricao}. A conta já tem pagamento, então só a
+              classificação muda — ela decide onde a conta entra no DRE.
+            </p>
           ) : (
             <>
               <LegendaObrigatorio />
@@ -251,6 +292,26 @@ export default function CorrecaoTitulo({
             </>
           )}
 
+          {pagar && !cancelar ? (
+            <label className={styles.campo}>
+              <span>Plano de conta</span>
+              <select
+                className={styles.input}
+                value={plano}
+                onChange={(e) => setPlano(e.target.value)}
+                aria-label="Plano de conta"
+                disabled={planos === null}
+              >
+                <option value="">{planos === null ? 'Carregando...' : 'Sem classificação'}</option>
+                {(planos ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           {erro !== null ? (
             <p className={styles.baixaErro} role="alert">
               {erro}
@@ -269,6 +330,8 @@ export default function CorrecaoTitulo({
                 </>
               ) : cancelar ? (
                 'Cancelar lançamento'
+              ) : modo === 'classificar' ? (
+                'Salvar plano de conta'
               ) : (
                 'Salvar correção'
               )}

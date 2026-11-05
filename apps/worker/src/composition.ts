@@ -111,7 +111,7 @@ function montarEmissor(): ConsumerDeps['invoices'] {
 
   return criarEmissorFocusNfe({
     ambiente: env.FISCAL_AMBIENTE,
-    credenciais: createFiscalCredentials(sql, chave),
+    credenciais: createFiscalCredentials(sql, chave, { ambiente: env.FISCAL_AMBIENTE }),
     store: createInvoiceStore(sql),
   })
 }

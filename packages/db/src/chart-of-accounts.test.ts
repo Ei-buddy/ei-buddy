@@ -103,6 +103,7 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
       await withTenant(sql, empresa, async (tx) => {
         await tx`DELETE FROM payables`
         await tx`DELETE FROM receivables WHERE sale_id IS NOT NULL`
+        await tx`DELETE FROM invoices`
         await tx`DELETE FROM sale_items`
         await tx`DELETE FROM sales`
         await tx`DELETE FROM receivables`
@@ -224,7 +225,7 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
     })
 
     it('o historico vem da mais usada para a menos', async () => {
-      const energia = await repo.findByName(empresaA, 'Energia, agua e internet')
+      const energia = await repo.findByName(empresaA, 'Energia, água e internet')
       const outras = await repo.findByName(empresaA, 'Outras despesas')
 
       for (const _ of [1, 2, 3]) {
@@ -277,7 +278,12 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
     /* Achado do QA: sem a venda, o DRE nao tinha imposto, tarifa nem custo da
        mercadoria (margem bruta 100%), e a parcela do credito vencendo no mes
        seguinte levava a receita junto. */
-    it('a venda entra na data dela, com imposto, custo e tarifa; o recebivel dela nao', async () => {
+    /** Uma venda de R$ 100 com R$ 5,70 de imposto previsto, e a nota se `nota`. */
+    async function vendaNoDia(
+      numero: number,
+      dia: string,
+      nota: 'authorized' | 'cancelled' | null,
+    ) {
       const venda = randomUUID()
       await withTenant(sql, empresaB, async (tx) => {
         await tx`
@@ -285,27 +291,53 @@ describe.skipIf(!DATABASE_URL)('plano de contas e DRE — NR-077', () => {
             (id, company_id, number, status, gross_amount_cents, discount_cents,
              tax_amount_cents, card_fee_amount_cents, cost_amount_cents, net_amount_cents,
              created_at)
-          VALUES (${venda}, ${empresaB}, 1, 'settled', 10000, 500,
-                  570, 300, 6000, 8630, '2027-01-10T15:00:00Z')
+          VALUES (${venda}, ${empresaB}, ${numero}, 'settled', 10000, 500,
+                  570, 300, 6000, 8630, ${`${dia}T15:00:00Z`})
         `
         await tx`
           INSERT INTO receivables
             (company_id, sale_id, origin, description, amount_cents, net_amount_cents, due_date)
-          VALUES (${empresaB}, ${venda}, 'sale', 'Parcela 2/2', 4750, 4750, '2027-01-20')
+          VALUES (${empresaB}, ${venda}, 'sale', 'Parcela 2/2', 4750, 4750, ${dia})
         `
+        if (nota !== null) {
+          const chave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join('')
+          await tx`
+            INSERT INTO invoices
+              (company_id, sale_id, access_key, number, series, status, cancelled_at)
+            VALUES (${empresaB}, ${venda}, ${chave}, ${numero}, 1, ${nota},
+                    ${nota === 'cancelled' ? `${dia}T18:00:00Z` : null})
+          `
+        }
       })
+    }
+
+    const porConta = (lancamentos: Awaited<ReturnType<typeof repo.entriesBetween>>) =>
+      Object.fromEntries(lancamentos.map((l) => [l.accountName, [l.accountType, l.amountCents]]))
+
+    it('a venda com nota entra na data dela, com imposto, custo e tarifa; o recebivel dela nao', async () => {
+      await vendaNoDia(1, '2027-01-10', 'authorized')
 
       const lancamentos = await repo.entriesBetween(empresaB, '2027-01-01', '2027-01-31')
 
-      expect(
-        Object.fromEntries(lancamentos.map((l) => [l.accountName, [l.accountType, l.amountCents]])),
-      ).toEqual({
+      expect(porConta(lancamentos)).toEqual({
         vendas: ['revenue', 10000],
         descontos: ['deduction', 500],
         impostos: ['deduction', 570],
         cmv: ['cost', 6000],
         tarifas_cartao: ['expense', 300],
       })
+    })
+
+    it('sem nota emitida (ou com a nota cancelada) a venda nao tem imposto', async () => {
+      /* Imposto sobre a venda so nasce com a nota: o previsto na venda nao e
+         deducao enquanto ela nao sai. */
+      await vendaNoDia(2, '2027-03-10', null)
+      await vendaNoDia(3, '2027-03-11', 'cancelled')
+
+      const lancamentos = await repo.entriesBetween(empresaB, '2027-03-01', '2027-03-31')
+
+      expect(lancamentos.filter((l) => l.accountName === 'impostos')).toHaveLength(0)
+      expect(lancamentos.filter((l) => l.accountName === 'vendas')).toHaveLength(2)
     })
 
     it('a data nao recua um dia por causa de fuso', async () => {

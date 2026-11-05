@@ -92,7 +92,7 @@ describe('editar o plano — RF-082', () => {
 
   it('renomear conta do plano padrao e PERMITIDO', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
 
     const r = await renameAccount(c.deps, contexto(), {
       accountId: energia.id,
@@ -104,7 +104,7 @@ describe('editar o plano — RF-082', () => {
 
   it('renomear para um nome que ja existe e recusado', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
 
     await expect(
       renameAccount(c.deps, contexto(), { accountId: energia.id, name: 'Aluguel' }),
@@ -218,7 +218,7 @@ describe('classificar — RF-083', () => {
 describe('sugerir pelo historico — RF-084', () => {
   it('sugere a conta mais usada pela mesma contraparte', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
     c.accounts.registrarHistorico('empresa-1', 'payable', 'Copel', energia.id, 11)
 
     const s = await suggestAccount(c.deps, contexto(), {
@@ -232,7 +232,7 @@ describe('sugerir pelo historico — RF-084', () => {
 
   it('a confianca sai em pontos', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
     const outras = c.accounts.contaPorNome('empresa-1', 'Outras despesas')!
     c.accounts.registrarHistorico('empresa-1', 'payable', 'Copel', energia.id, 8)
     c.accounts.registrarHistorico('empresa-1', 'payable', 'Copel', outras.id, 2)
@@ -274,7 +274,7 @@ describe('sugerir pelo historico — RF-084', () => {
 
   it('nao mistura historico de outra empresa', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
     c.accounts.registrarHistorico('empresa-2', 'payable', 'Copel', energia.id, 9)
 
     const s = await suggestAccount(c.deps, contexto(), {
@@ -288,7 +288,7 @@ describe('sugerir pelo historico — RF-084', () => {
   /* Somente leitura nao e sem acesso. */
   it('accountant recebe sugestao', async () => {
     const c = cenario()
-    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, agua e internet')!
+    const energia = c.accounts.contaPorNome('empresa-1', 'Energia, água e internet')!
     c.accounts.registrarHistorico('empresa-1', 'payable', 'Copel', energia.id, 3)
 
     const s = await suggestAccount(c.deps, contexto({ role: 'accountant' }), {

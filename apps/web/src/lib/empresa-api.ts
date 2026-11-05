@@ -195,6 +195,10 @@ export type SituacaoFiscal = {
   hasToken: boolean
   hasCertificate: boolean
   certificateExpiresAt: string | null
+  hasCscProduction: boolean
+  hasCscHomologation: boolean
+  /** Cadastro da empresa na Focus NFe, feito pela EiBuddy como revenda — NR-183. */
+  focus: { available: boolean; syncedAt: string | null; error: string | null }
 }
 
 async function chamarFiscal(
@@ -227,6 +231,21 @@ export const carregarSituacaoFiscal = () => chamarFiscal()
 /** Guarda o token do emissor. */
 export const salvarTokenFiscal = (focusToken: string) =>
   chamarFiscal({ method: 'PUT', body: JSON.stringify({ focusToken }) })
+
+export type Csc = { id: string; code: string }
+
+/**
+ * Guarda o CSC da NFC-e e, no servidor, recadastra a empresa na Focus — NR-183.
+ * So vai o ambiente preenchido: o outro fica como estava.
+ */
+export const salvarCsc = (csc: { producao?: Csc; homologacao?: Csc }) =>
+  chamarFiscal({
+    method: 'PUT',
+    body: JSON.stringify({
+      ...(csc.producao === undefined ? {} : { cscProduction: csc.producao }),
+      ...(csc.homologacao === undefined ? {} : { cscHomologation: csc.homologacao }),
+    }),
+  })
 
 export type UploadResult = { ok: true; certificado: Certificado } | { ok: false; error: string }
 

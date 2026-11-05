@@ -141,3 +141,65 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Fornecedor do cadastro, parcelas e estorno — achados do QA. */
+.escolhido {
+  color: var(--app-accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.semFornecedor {
+  padding: 9px 10px;
+  color: var(--app-muted);
+  font-size: 13.5px;
+}
+
+.semFornecedor a {
+  color: var(--app-accent);
+  font-weight: 600;
+}
+
+.parcelas {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.parcela {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 140px);
+  align-items: center;
+  gap: 8px;
+}
+
+.parcela > span {
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
+.parcelasRodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--app-muted);
+}
+
+.diferenca {
+  color: var(--app-danger);
+  font-weight: 600;
+}
+
+.compraAcoes {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.motivo {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--app-muted);
+}

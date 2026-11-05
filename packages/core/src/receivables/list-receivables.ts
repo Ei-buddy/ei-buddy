@@ -3,6 +3,7 @@ import type { ReceivableOutput } from '@na-regua/contracts'
 import { type FaixaDeVencimento, faixaDeVencimento } from '@na-regua/domain'
 import type { ExecutionContext } from '../context.js'
 import type { ReceivableQueries } from '../ports/receivable-repository.js'
+import { QUITADAS_NA_LISTA } from '../payables/list-payables.js'
 
 export type ListReceivablesDeps = { readonly receivables: ReceivableQueries }
 
@@ -25,6 +26,11 @@ export type ReceivablesAgrupadas = {
    * percorrer a estrutura convida cada tela a responder de um jeito.
    */
   readonly temVencidas: boolean
+  /**
+   * Os quitados mais recentes, do mais novo para o mais antigo — o filtro
+   * "Recebidos" da tela. Fora dos grupos e do total, como em `listPayables`.
+   */
+  readonly quitadas: readonly ReceivableOutput[]
 }
 
 /** A ordem em que o lojista quer ver, e nao a alfabetica. */
@@ -49,10 +55,15 @@ export async function listReceivables(
   /** So os do cliente — a ficha do cliente mostra as pendencias dele (RF-072). */
   filtro: { readonly customerId?: string } = {},
 ): Promise<ReceivablesAgrupadas> {
-  const lidos = await deps.receivables.list(ctx.companyId, {
-    status: ['open', 'partially_settled'],
-    ...(filtro.customerId === undefined ? {} : { customerId: filtro.customerId }),
-  })
+  const doCliente = filtro.customerId === undefined ? {} : { customerId: filtro.customerId }
+  const [lidos, quitadas] = await Promise.all([
+    deps.receivables.list(ctx.companyId, { status: ['open', 'partially_settled'], ...doCliente }),
+    deps.receivables.list(ctx.companyId, {
+      status: ['settled'],
+      ...doCliente,
+      maisRecentes: QUITADAS_NA_LISTA,
+    }),
+  ])
 
   /* Na visao do CLIENTE, parcela de cartao nao e divida dele: quem paga e a
      operadora. Na lista geral da loja ela continua, porque e dinheiro a entrar. */
@@ -86,6 +97,10 @@ export async function listReceivables(
     grupos,
     totalCents: grupos.reduce((soma, g) => soma + g.totalCents, 0),
     temVencidas: grupos.find((g) => g.faixa === 'overdue')!.receivables.length > 0,
+    quitadas:
+      filtro.customerId === undefined
+        ? quitadas
+        : quitadas.filter((r) => !r.description.startsWith(PREFIXO_RECEBIVEL_DE_CARTAO)),
   }
 }
 

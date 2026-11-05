@@ -22,6 +22,7 @@ import {
   getWhatsappConsent,
   type CustomerContactDeps,
   deleteCustomer,
+  deleteProduct,
   getCompany,
   getCustomer,
   getProduct,
@@ -632,4 +633,22 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
 
     return reply.code(200).send(produto)
   })
+
+  /**
+   * Soft-delete do produto — sai da busca vigente, linha permanece.
+   *
+   * 204 sem corpo: a tela ja sabe que volta para a lista.
+   */
+  app.delete(
+    '/produtos/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await deleteProduct(deps, ctx, id)
+
+      return reply.code(204).send()
+    },
+  )
 }

@@ -21,6 +21,8 @@ export default function Campo({
   tipoTeclado = 'default',
   autoCap = 'sentences',
   editavel = true,
+  aoSair,
+  aoConfirmar,
 }: {
   rotulo: string
   valor: string
@@ -32,6 +34,10 @@ export default function Campo({
   tipoTeclado?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'decimal-pad'
   autoCap?: 'none' | 'sentences' | 'words' | 'characters'
   editavel?: boolean
+  /** Ao tirar o foco — ex.: conferir se o CPF ja tem cadastro. */
+  aoSair?: () => void
+  /** O "Enter" do teclado — ex.: mostrar a lista de produtos. */
+  aoConfirmar?: () => void
 }) {
   const [visivel, setVisivel] = useState(false)
 
@@ -51,6 +57,10 @@ export default function Campo({
           autoCapitalize={autoCap}
           autoCorrect={false}
           editable={editavel}
+          {...(aoSair === undefined ? {} : { onBlur: aoSair })}
+          {...(aoConfirmar === undefined
+            ? {}
+            : { onSubmitEditing: aoConfirmar, returnKeyType: 'search' as const })}
           accessibilityLabel={rotulo}
         />
 

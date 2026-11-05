@@ -60,10 +60,12 @@ import { criarEstilos } from '@/theme/estilos'
 /** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
 type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
 
-type ClienteDaVenda = { id: string; nome: string; saldoFiado: number }
+type ClienteDaVenda = { id: string; nome: string }
 
+/* No balcao, "carteira" e o fiado — o botao ja dizia "Fiado", e a
+   confirmacao do fechamento dizia "Carteira". */
 const rotuloDaForma = (forma: FormaPagamento) =>
-  FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
+  forma === 'carteira' ? 'Fiado' : (FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma)
 
 const emTexto = (centavos: number) => (Math.max(centavos, 0) / 100).toFixed(2).replace('.', ',')
 
@@ -94,6 +96,8 @@ export default function Pdv() {
   const [parcelas, setParcelas] = useState(1)
   /** Nulo = uma forma so, pelo total. Com partes, a venda e dividida. */
   const [partes, setPartes] = useState<Parte[] | null>(null)
+  /** O que o cliente entregou em dinheiro, com uma forma so. Texto como digitado. */
+  const [recebido, setRecebido] = useState('')
   const [fechando, setFechando] = useState(false)
   /** O texto da confirmacao do fechamento; nulo = janela fechada. */
   const [confirmacao, setConfirmacao] = useState<string | null>(null)
@@ -117,13 +121,18 @@ export default function Pdv() {
   const total = totalCentavos / 100
   const quantidade = itens.reduce((acc, i) => acc + i.quantidade, 0)
 
+  /* Dinheiro como forma unica: quanto o cliente entregou, para o troco sair
+     sem precisar "dividir" — paridade com o PDV do web (RF-035). Vazio =
+     o valor exato. */
+  const recebidoCentavos = forma === 'dinheiro' ? centavosDoTexto(recebido) : null
   const pagamentos: Pagamento[] =
     partes === null
       ? [
           {
             id: 'p1',
             forma,
-            valor: total,
+            valor:
+              recebidoCentavos !== null && recebidoCentavos > 0 ? recebidoCentavos / 100 : total,
             status: 'confirmado',
             ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
           },
@@ -163,6 +172,12 @@ export default function Pdv() {
         r.dados.discountCents > 0 ? { tipo: 'valor', quantia: r.dados.discountCents / 100 } : null,
       )
       setOrcamento(r.dados)
+      /* O cliente do orcamento ja vem escolhido — achado do QA ("ao confirmar
+         a venda ja trazer o cliente informado no orcamento"). O antigo, que
+         so tinha o nome, continua pedindo o cliente. */
+      if (r.dados.customerId !== null) {
+        setCliente({ id: r.dados.customerId, nome: r.dados.customerName ?? 'Cliente' })
+      }
       if (ativos.length < r.dados.items.length) {
         Alert.alert('Orçamento', 'Produtos que foram inativados ficaram fora do carrinho.')
       }
@@ -247,6 +262,7 @@ export default function Pdv() {
     setVencido(null)
     setDesconto(null)
     setPartes(null)
+    setRecebido('')
     setParcelas(1)
     setOrcamento(null)
   }
@@ -256,9 +272,15 @@ export default function Pdv() {
    * desconto, e a lista de orcamentos abre para compartilhar — NR-164.
    */
   async function salvarComoOrcamento() {
+    /* O orcamento exige o cliente do cadastro — achado do QA. */
+    if (cliente === null) {
+      Alert.alert('Orçamento', 'Escolha o cliente para salvar como orçamento.')
+      setEscolhendoCliente(true)
+      return
+    }
     setSalvandoOrcamento(true)
     const r = await criarOrcamento({
-      ...(cliente === null ? {} : { customerName: cliente.nome }),
+      customerId: cliente.id,
       items: itens.map((i) => ({
         productId: i.produtoId,
         quantity: i.quantidade,
@@ -311,6 +333,10 @@ export default function Pdv() {
   function impedimento(): string | null {
     if (partes !== null && pagamentos.some((p) => p.valor <= 0)) {
       return 'Preencha o valor de cada forma de pagamento.'
+    }
+    if (partes === null && forma === 'dinheiro' && recebido.trim() !== '') {
+      if (recebidoCentavos === null) return 'Valor recebido inválido. Use o formato 50,00.'
+      if (falta > 0) return `O valor recebido é menor que o total (${formatMoney(total)}).`
     }
     if (falta > 0) return `Falta ${formatMoney(falta / 100)} para fechar.`
     /* So dinheiro vira troco (RF-035); a mais no cartao e erro de digitacao. */
@@ -386,6 +412,13 @@ export default function Pdv() {
       temFiado && vencido !== null && vencido > 0
         ? `\nAtenção: ${cliente?.nome} tem ${formatMoney(vencido)} vencido.`
         : null,
+      /* RF-028: passar do saldo e decisao do operador — o app mostra antes. */
+      ...itens
+        .filter((i) => i.quantidade > i.estoqueDisponivel)
+        .map(
+          (i) =>
+            `\nSem estoque suficiente: ${i.descricao} (vendendo ${i.quantidade}, estoque ${i.estoqueDisponivel}).`,
+        ),
     ].filter((l) => l !== null)
 
     setConfirmacao(linhas.join('\n'))
@@ -430,6 +463,9 @@ export default function Pdv() {
                   {item.descricao}
                 </Text>
                 <Text style={estilos.itemUnitario}>{formatMoney(item.precoUnitario)} un</Text>
+                {item.quantidade > item.estoqueDisponivel ? (
+                  <Text style={estilos.itemSemEstoque}>Estoque: {item.estoqueDisponivel} un.</Text>
+                ) : null}
               </View>
 
               <View style={estilos.contador}>
@@ -516,6 +552,24 @@ export default function Pdv() {
               <SeletorDeForma valor={forma} onChange={setForma} />
 
               {forma === 'credito' ? <Parcelas valor={parcelas} onChange={setParcelas} /> : null}
+
+              {forma === 'dinheiro' ? (
+                <View style={estilos.parteLinha}>
+                  <Text style={estilos.ajusteRotulo}>Recebido</Text>
+                  <TextInput
+                    style={estilos.parteValor}
+                    value={recebido}
+                    onChangeText={setRecebido}
+                    keyboardType="decimal-pad"
+                    placeholder={emTexto(totalCentavos)}
+                    placeholderTextColor={cores.textoFraco}
+                    accessibilityLabel="Valor recebido em dinheiro"
+                  />
+                  {falta < 0 ? (
+                    <Text style={estilos.ajusteRotulo}>Troco: {formatMoney(-falta / 100)}</Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               <Pressable onPress={dividir} accessibilityRole="button">
                 <Text style={estilos.link}>Dividir em mais de uma forma</Text>
@@ -630,7 +684,7 @@ export default function Pdv() {
         <SeletorCliente
           onEscolher={(c) => {
             setVencido(null)
-            setCliente({ id: c.id, nome: c.nome, saldoFiado: c.saldoFiado })
+            setCliente({ id: c.id, nome: c.nome })
             setEscolhendoCliente(false)
           }}
           onFechar={() => setEscolhendoCliente(false)}
@@ -675,7 +729,7 @@ function SeletorDeForma({
             style={[estilos.formaTexto, valor === f.valor && estilos.formaTextoAtivo]}
             numberOfLines={1}
           >
-            {f.valor === 'carteira' ? 'Fiado' : f.rotulo}
+            {rotuloDaForma(f.valor)}
           </Text>
         </Pressable>
       ))}
@@ -764,6 +818,7 @@ const estilos = criarEstilos(() => ({
   },
   itemInfo: { flex: 1, gap: 2 },
   itemNome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
+  itemSemEstoque: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
   itemUnitario: { fontSize: fonte.micro, color: cores.textoFraco },
 
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },
@@ -908,9 +963,11 @@ function ResumoDaVenda({ venda, onFechar }: { venda: VendaRegistrada; onFechar: 
 
       <LinhaResumo rotulo="Bruto" centavos={venda.brutoCentavos} />
       <LinhaResumo rotulo="Custo" centavos={venda.custoCentavos} />
-      <LinhaResumo rotulo="Imposto" centavos={venda.impostoCentavos} />
+      {/* O imposto da venda so nasce com a nota: aqui e a previsao, e o
+          historico e o DRE so o descontam quando a nota sai. */}
+      <LinhaResumo rotulo="Imposto previsto na nota" centavos={venda.impostoCentavos} />
       <LinhaResumo rotulo="Tarifa de cartão" centavos={venda.tarifaCentavos} />
-      <LinhaResumo rotulo="Líquido" centavos={venda.liquidoCentavos} destaque />
+      <LinhaResumo rotulo="Líquido com a nota" centavos={venda.liquidoCentavos} destaque />
 
       <Text style={estilos.resumoMargem}>
         {/* Ponto e virgula na margem: 12,4% e 12,6% sao diferentes na conta do

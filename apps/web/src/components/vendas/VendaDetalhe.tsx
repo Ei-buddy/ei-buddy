@@ -201,7 +201,11 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
           hint="sem imposto e taxa de cartão"
           tone={estornada ? 'warning' : 'positive'}
         />
-        <Stat label="Imposto" value={formatMoney(venda.imposto)} />
+        <Stat
+          label="Imposto"
+          value={formatMoney(venda.imposto)}
+          hint={venda.imposto > 0 ? 'da nota emitida' : 'só com nota emitida'}
+        />
       </div>
 
       <div className={styles.detalheGrid}>
