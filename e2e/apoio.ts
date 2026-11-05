@@ -16,6 +16,18 @@ export function cnpjNovo(): string {
   return base.join('')
 }
 
+/** CPF valido e unico: o cadastro de cliente exige o documento (DEC-025). */
+export function cpfNovo(): string {
+  const base = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10))
+  const dv = (n: number[]) => {
+    const resto = n.reduce((a, d, i) => a + d * (n.length + 1 - i), 0) % 11
+    return resto < 2 ? 0 : 11 - resto
+  }
+  base.push(dv(base))
+  base.push(dv(base))
+  return base.join('')
+}
+
 /** EAN-13 valido e unico — o leitor confere o tamanho. */
 export function eanNovo(): string {
   const d = [7, 8, 9, ...Array.from({ length: 9 }, () => Math.floor(Math.random() * 10))]
@@ -61,5 +73,29 @@ export async function produtoNovo(
     data: { unitOfMeasure: 'un', costPriceCents: Math.round(dados.salePriceCents * 0.6), ...dados },
   })
   if (!r.ok()) throw new Error(`produto ${r.status()}: ${await r.text()}`)
+  return (await r.json()) as { id: string }
+}
+
+/** Cliente pela api — preparacao. Documento e endereco vao juntos: o cadastro os exige. */
+export async function clienteNovo(
+  request: APIRequestContext,
+  nome: string,
+): Promise<{ id: string }> {
+  const r = await request.post('/api/clientes', {
+    data: {
+      name: nome,
+      document: cpfNovo(),
+      phone: '41988887777',
+      address: {
+        zipCode: '80010000',
+        street: 'Rua XV de Novembro',
+        number: '100',
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+      },
+    },
+  })
+  if (!r.ok()) throw new Error(`cliente ${r.status()}: ${await r.text()}`)
   return (await r.json()) as { id: string }
 }

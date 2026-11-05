@@ -86,8 +86,30 @@ export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string
   /** O orcamento que esta virando venda — NR-159. */
   const [orcamento, setOrcamento] = useState<Orcamento | null>(null)
 
-  /* Com `?orcamento=`, o carrinho chega montado com os precos prometidos. O
-     cliente e o pagamento continuam escolhidos aqui, como em qualquer venda. */
+  /** Escolhe o cliente e confere se ele tem conta vencida — RF-072. */
+  const escolherCliente = useCallback((c: ClienteVenda) => {
+    setCliente(c)
+    setEtapa(2)
+    setDividaVencida(null)
+    /* Venda de balcao sem cliente (`id` nulo) nao tem divida a conferir. */
+    const id = c?.id ?? null
+    if (id !== null) {
+      void pendenciasDoCliente(id).then((r) => {
+        if (!r.ok) return
+        const vencidas = r.dados.filter((p) => p.status === 'vencido')
+        if (vencidas.length === 0) return
+        setDividaVencida({
+          valor: vencidas.reduce((acc, p) => acc + p.valor, 0),
+          desde: vencidas.map((p) => p.vencimento).sort()[0]!,
+        })
+      })
+    }
+  }, [])
+
+  /* Com `?orcamento=`, o carrinho chega montado com os precos prometidos e o
+     cliente do orcamento ja escolhido — achado do QA ("ao confirmar a venda
+     ja trazer o cliente informado no orcamento"). O orcamento antigo, que so
+     tinha o nome digitado, ainda pede o cliente aqui. */
   useEffect(() => {
     if (orcamentoId === null) return
     let cancelado = false
@@ -116,18 +138,24 @@ export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string
         setDesconto({ tipo: 'valor', quantia: r.dados.discountCents / 100 })
       }
       setOrcamento(r.dados)
+      const comCliente = r.dados.customerId !== null
+      if (comCliente) {
+        escolherCliente({ id: r.dados.customerId, nome: r.dados.customerName ?? 'Cliente' })
+      }
       setToast({
         msg:
           ativos.length < r.dados.items.length
             ? `Orçamento nº ${r.dados.number} carregado, sem os produtos que foram inativados.`
-            : `Orçamento nº ${r.dados.number} carregado. Escolha o cliente para seguir.`,
+            : comCliente
+              ? `Orçamento nº ${r.dados.number} carregado para ${r.dados.customerName}. Confira os itens e siga para o pagamento.`
+              : `Orçamento nº ${r.dados.number} carregado. Escolha o cliente para seguir.`,
         tone: ativos.length < r.dados.items.length ? 'error' : 'success',
       })
     })
     return () => {
       cancelado = true
     }
-  }, [orcamentoId])
+  }, [orcamentoId, escolherCliente])
 
   const total = useMemo(() => totalCarrinho(itens, desconto), [itens, desconto])
 
@@ -230,29 +258,7 @@ export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string
       </ol>
 
       {/* ============ Etapa 1: cliente ============ */}
-      {etapa === 1 ? (
-        <EtapaCliente
-          selecionado={cliente}
-          onSelecionar={(c) => {
-            setCliente(c)
-            setEtapa(2)
-            setDividaVencida(null)
-            /* Venda de balcao sem cliente (`id` nulo) nao tem divida a conferir. */
-            const id = c?.id ?? null
-            if (id !== null) {
-              void pendenciasDoCliente(id).then((r) => {
-                if (!r.ok) return
-                const vencidas = r.dados.filter((p) => p.status === 'vencido')
-                if (vencidas.length === 0) return
-                setDividaVencida({
-                  valor: vencidas.reduce((acc, p) => acc + p.valor, 0),
-                  desde: vencidas.map((p) => p.vencimento).sort()[0]!,
-                })
-              })
-            }
-          }}
-        />
-      ) : null}
+      {etapa === 1 ? <EtapaCliente selecionado={cliente} onSelecionar={escolherCliente} /> : null}
 
       {etapa === 2 && dividaVencida !== null && cliente !== null ? (
         <p className={styles.aviso} role="alert">
@@ -268,6 +274,7 @@ export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string
           desconto={desconto}
           onItens={setItens}
           onDesconto={setDesconto}
+          clienteId={cliente?.id ?? null}
           clienteNome={cliente?.nome ?? 'Venda sem cliente'}
           onVoltar={() => setEtapa(1)}
           onAvancar={() => setEtapa(3)}

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
@@ -12,13 +12,17 @@ import {
   carregarOrcamentos,
   compartilharOrcamento,
   criarOrcamento,
+  editarOrcamento,
   mandarPeloWhatsApp,
   ROTULO_SITUACAO,
   vencido,
+  type NovoOrcamento as NovoOrcamentoDados,
   type Orcamento,
 } from '@/lib/orcamentos-api'
+import { listarClientes, type ClienteDaLista } from '@/lib/clientes-api'
 import { listarCatalogo, type ProdutoDoCatalogo } from '@/lib/produtos-api'
 import { centavosDoTexto } from '@/lib/valor'
+import { maskDocumento } from '@/lib/validation'
 import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -26,7 +30,13 @@ const reais = (cents: number) => formatMoney(cents / 100)
 const emTexto = (v: number) => v.toFixed(2).replace('.', ',')
 const daquiA = (dias: number) => formatDate(diaLocal(new Date(Date.now() + dias * 86_400_000)))
 
-type Linha = { produto: ProdutoDoCatalogo; quantidade: string; preco: string }
+type Linha = {
+  produtoId: string
+  descricao: string
+  estoque: number
+  quantidade: string
+  preco: string
+}
 
 /**
  * Orcamentos — NR-159, o par da tela do web: proposta ao cliente sem baixar
@@ -38,6 +48,9 @@ export default function OrcamentosScreen() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[] | undefined>(undefined)
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState<string | null>(null)
+  /* Achado do QA: "o abrir do orcamento deveria permitir o editar". */
+  const [editando, setEditando] = useState<Orcamento | null>(null)
+  const rolagem = useRef<ScrollView>(null)
 
   const carregar = useCallback(async () => {
     const r = await carregarOrcamentos()
@@ -74,8 +87,24 @@ export default function OrcamentosScreen() {
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <Cabecalho titulo="Orçamentos" subtitulo="Proposta ao cliente" />
-      <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
-        <NovoOrcamento aoCriar={carregar} />
+      <ScrollView
+        ref={rolagem}
+        contentContainerStyle={estilos.conteudo}
+        keyboardShouldPersistTaps="handled"
+      >
+        {editando ? (
+          <FormOrcamento
+            key={editando.id}
+            orcamento={editando}
+            aoSalvar={async () => {
+              setEditando(null)
+              await carregar()
+            }}
+            aoCancelar={() => setEditando(null)}
+          />
+        ) : (
+          <FormOrcamento aoSalvar={carregar} />
+        )}
 
         <Cartao titulo="Orçamentos">
           {erro !== null ? (
@@ -163,6 +192,15 @@ export default function OrcamentosScreen() {
                             Cancelar
                           </Botao>
                           <Botao
+                            variante="secundario"
+                            onPress={() => {
+                              setEditando(o)
+                              rolagem.current?.scrollTo({ y: 0, animated: true })
+                            }}
+                          >
+                            Editar
+                          </Botao>
+                          <Botao
                             onPress={() =>
                               router.push({ pathname: '/pdv', params: { orcamento: o.id } })
                             }
@@ -183,12 +221,39 @@ export default function OrcamentosScreen() {
   )
 }
 
-function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
-  const [cliente, setCliente] = useState('')
-  const [validade, setValidade] = useState(daquiA(7))
-  const [desconto, setDesconto] = useState('')
-  const [obs, setObs] = useState('')
-  const [linhas, setLinhas] = useState<Linha[]>([])
+function FormOrcamento({
+  orcamento,
+  aoSalvar,
+  aoCancelar,
+}: {
+  orcamento?: Orcamento
+  aoSalvar: () => Promise<void>
+  aoCancelar?: () => void
+}) {
+  const editando = orcamento !== undefined
+  /* O cliente e obrigatorio e vem do cadastro — achado do QA. */
+  const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(
+    orcamento?.customerId ? { id: orcamento.customerId, nome: orcamento.customerName ?? '' } : null,
+  )
+  const [buscaCliente, setBuscaCliente] = useState('')
+  const [clientes, setClientes] = useState<ClienteDaLista[] | null>(null)
+  const [listaAberta, setListaAberta] = useState(false)
+  const [validade, setValidade] = useState(orcamento ? formatDate(orcamento.validUntil) : daquiA(7))
+  const [desconto, setDesconto] = useState(
+    orcamento && orcamento.discountCents > 0 ? emTexto(orcamento.discountCents / 100) : '',
+  )
+  const [obs, setObs] = useState(orcamento?.notes ?? '')
+  const [linhas, setLinhas] = useState<Linha[]>(
+    orcamento
+      ? orcamento.items.map((i) => ({
+          produtoId: i.productId,
+          descricao: i.description,
+          estoque: i.stock,
+          quantidade: String(i.quantity),
+          preco: emTexto(i.unitPriceCents / 100),
+        }))
+      : [],
+  )
   const [busca, setBusca] = useState('')
   const [achados, setAchados] = useState<ProdutoDoCatalogo[]>([])
   const [salvando, setSalvando] = useState(false)
@@ -198,24 +263,65 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
     if (termo.length < 2) return
     const t = setTimeout(() => {
       void listarCatalogo({ termo }).then((r) =>
-        setAchados(r.ok ? r.dados.produtos.slice(0, 8) : []),
+        setAchados(r.ok ? r.dados.produtos.filter((p) => p.ativo).slice(0, 8) : []),
       )
     }, 250)
     return () => clearTimeout(t)
   }, [busca])
 
+  /* A lista de clientes abre com Enter ou digitacao, e segue a digitacao
+     depois de ela parar, como no PDV. */
+  useEffect(() => {
+    if (!listaAberta) return
+    const t = setTimeout(() => {
+      void listarClientes({ termo: buscaCliente.trim() }).then((r) =>
+        setClientes(r.ok ? r.dados.clientes.slice(0, 6) : []),
+      )
+    }, 250)
+    return () => clearTimeout(t)
+  }, [buscaCliente, listaAberta])
+
+  /** Enter no cliente mostra os cadastrados; com um so, ele ja e o escolhido. */
+  function mostrarClientes() {
+    if (listaAberta && clientes?.length === 1) return escolherCliente(clientes[0]!)
+    setListaAberta(true)
+  }
+
+  function escolherCliente(c: ClienteDaLista) {
+    setCliente({ id: c.id, nome: c.nome })
+    setBuscaCliente('')
+    setListaAberta(false)
+    setClientes(null)
+  }
+
+  /** Enter no produto mostra a lista; com um achado so, ele ja entra. */
+  async function listarProdutos() {
+    if (achados.length === 1) return incluir(achados[0]!)
+    const r = await listarCatalogo({ termo: busca.trim() })
+    setAchados(r.ok ? r.dados.produtos.filter((p) => p.ativo).slice(0, 12) : [])
+  }
+
   function incluir(p: ProdutoDoCatalogo) {
     setLinhas((atual) =>
-      atual.some((l) => l.produto.id === p.id)
+      atual.some((l) => l.produtoId === p.id)
         ? atual
-        : [...atual, { produto: p, quantidade: '1', preco: emTexto(p.precoVenda) }],
+        : [
+            ...atual,
+            {
+              produtoId: p.id,
+              descricao: p.descricao,
+              estoque: p.estoque,
+              quantidade: '1',
+              preco: emTexto(p.precoVenda),
+            },
+          ],
     )
     setBusca('')
     setAchados([])
   }
 
   const mudar = (id: string, campo: 'quantidade' | 'preco', valor: string) =>
-    setLinhas((atual) => atual.map((l) => (l.produto.id === id ? { ...l, [campo]: valor } : l)))
+    setLinhas((atual) => atual.map((l) => (l.produtoId === id ? { ...l, [campo]: valor } : l)))
 
   const subtotal = linhas.reduce((soma, l) => {
     const q = Number.parseInt(l.quantidade, 10)
@@ -224,7 +330,8 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
   }, 0)
   const descontoCents = desconto.trim() === '' ? 0 : (centavosDoTexto(desconto) ?? 0)
 
-  async function criar() {
+  async function salvar() {
+    if (cliente === null) return Alert.alert('Orçamento', 'Escolha o cliente do orçamento.')
     if (linhas.length === 0) return Alert.alert('Orçamento', 'Inclua pelo menos um produto.')
     const data = dataDoTexto(validade)
     if (data === null) return Alert.alert('Orçamento', 'Validade inválida. Use DD/MM/AAAA.')
@@ -233,12 +340,12 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
       const quantity = Number.parseInt(l.quantidade, 10)
       const unitPriceCents = centavosDoTexto(l.preco)
       if (!Number.isFinite(quantity) || quantity < 1) {
-        return Alert.alert('Orçamento', `Quantidade inválida em "${l.produto.descricao}".`)
+        return Alert.alert('Orçamento', `Quantidade inválida em "${l.descricao}".`)
       }
       if (unitPriceCents === null || unitPriceCents < 0) {
-        return Alert.alert('Orçamento', `Preço inválido em "${l.produto.descricao}".`)
+        return Alert.alert('Orçamento', `Preço inválido em "${l.descricao}".`)
       }
-      itens.push({ productId: l.produto.id, quantity, unitPriceCents })
+      itens.push({ productId: l.produtoId, quantity, unitPriceCents })
     }
     if (desconto.trim() !== '' && centavosDoTexto(desconto) === null) {
       return Alert.alert('Orçamento', 'Desconto inválido.')
@@ -247,39 +354,86 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
       return Alert.alert('Orçamento', 'O desconto não pode passar do total.')
     }
 
-    setSalvando(true)
-    const r = await criarOrcamento({
-      ...(cliente.trim() ? { customerName: cliente.trim() } : {}),
+    const dados: NovoOrcamentoDados = {
+      customerId: cliente.id,
       items: itens,
       validUntil: data,
       ...(descontoCents > 0 ? { discountCents: descontoCents } : {}),
       ...(obs.trim() ? { notes: obs.trim() } : {}),
-    })
+    }
+    setSalvando(true)
+    const r = editando ? await editarOrcamento(orcamento.id, dados) : await criarOrcamento(dados)
     setSalvando(false)
-    if (!r.ok) return Alert.alert('Não deu para criar', r.erro)
+    if (!r.ok) return Alert.alert(editando ? 'Não deu para salvar' : 'Não deu para criar', r.erro)
 
     Alert.alert(
-      'Orçamento criado',
+      editando ? 'Orçamento atualizado' : 'Orçamento criado',
       `Orçamento nº ${r.dados.number} — ${reais(r.dados.totalCents)}.`,
     )
-    setCliente('')
-    setDesconto('')
-    setObs('')
-    setLinhas([])
-    setValidade(daquiA(7))
-    await aoCriar()
+    if (!editando) {
+      setCliente(null)
+      setDesconto('')
+      setObs('')
+      setLinhas([])
+      setValidade(daquiA(7))
+    }
+    await aoSalvar()
   }
 
   return (
-    <Cartao titulo="Novo orçamento">
+    <Cartao titulo={editando ? `Editar orçamento nº ${orcamento.number}` : 'Novo orçamento'}>
       <View style={estilos.form}>
-        <Campo
-          rotulo="Cliente"
-          valor={cliente}
-          onChange={setCliente}
-          dica="opcional"
-          placeholder="Nome de quem pediu"
-        />
+        {cliente ? (
+          <View style={estilos.escolhido}>
+            <View style={estilos.flex}>
+              <Text style={estilos.apoio}>Cliente *</Text>
+              <Text style={estilos.nome}>{cliente.nome}</Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                setCliente(null)
+                setListaAberta(true)
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.trocar}>Trocar</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Campo
+            rotulo="Cliente *"
+            valor={buscaCliente}
+            onChange={(v) => {
+              setBuscaCliente(v)
+              setListaAberta(true)
+            }}
+            placeholder="Nome ou CPF/CNPJ"
+            dica="Enter mostra os cadastrados"
+            aoConfirmar={mostrarClientes}
+          />
+        )}
+        {cliente === null && listaAberta && clientes !== null
+          ? clientes.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => escolherCliente(c)}
+                style={estilos.achado}
+                accessibilityRole="button"
+              >
+                <Text style={estilos.nome}>{c.nome}</Text>
+                <Text style={estilos.apoio}>
+                  {c.documento
+                    ? maskDocumento(c.documento, c.documento.length > 11 ? 'juridica' : 'fisica')
+                    : (c.celular ?? 'sem documento')}
+                </Text>
+              </Pressable>
+            ))
+          : null}
+        {cliente === null && listaAberta && clientes?.length === 0 ? (
+          <Text style={estilos.apoio}>
+            Nenhum cliente com esse nome. Cadastre em Clientes e busque de novo.
+          </Text>
+        ) : null}
         <Campo
           rotulo="Válido até *"
           valor={validade}
@@ -295,6 +449,8 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
             if (v.trim().length < 2) setAchados([])
           }}
           placeholder="Nome, código ou código de barras"
+          dica="Enter mostra a lista"
+          aoConfirmar={() => void listarProdutos()}
         />
         {achados.map((p) => (
           <Pressable
@@ -314,11 +470,11 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
           <Text style={estilos.apoio}>Nenhum produto incluído.</Text>
         ) : (
           linhas.map((l) => (
-            <View key={l.produto.id} style={estilos.item}>
+            <View key={l.produtoId} style={estilos.item}>
               <View style={estilos.linha}>
-                <Text style={[estilos.flex, estilos.nome]}>{l.produto.descricao}</Text>
+                <Text style={[estilos.flex, estilos.nome]}>{l.descricao}</Text>
                 <Pressable
-                  onPress={() => setLinhas((a) => a.filter((x) => x.produto.id !== l.produto.id))}
+                  onPress={() => setLinhas((a) => a.filter((x) => x.produtoId !== l.produtoId))}
                   accessibilityRole="button"
                 >
                   <Text style={estilos.remover}>Remover</Text>
@@ -329,7 +485,7 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
                   <Campo
                     rotulo="Qtd."
                     valor={l.quantidade}
-                    onChange={(v) => mudar(l.produto.id, 'quantidade', v)}
+                    onChange={(v) => mudar(l.produtoId, 'quantidade', v)}
                     tipoTeclado="numeric"
                   />
                 </View>
@@ -337,7 +493,7 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
                   <Campo
                     rotulo="Preço un. (R$)"
                     valor={l.preco}
-                    onChange={(v) => mudar(l.produto.id, 'preco', v)}
+                    onChange={(v) => mudar(l.produtoId, 'preco', v)}
                     tipoTeclado="decimal-pad"
                   />
                 </View>
@@ -366,9 +522,14 @@ function NovoOrcamento({ aoCriar }: { aoCriar: () => Promise<void> }) {
           <Text style={[estilos.flex, estilos.apoio]}>Total</Text>
           <Text style={estilos.total}>{reais(Math.max(subtotal - descontoCents, 0))}</Text>
         </View>
-        <Botao onPress={() => void criar()} carregando={salvando} largura>
-          Criar orçamento
+        <Botao onPress={() => void salvar()} carregando={salvando} largura>
+          {editando ? 'Salvar alterações' : 'Criar orçamento'}
         </Botao>
+        {aoCancelar ? (
+          <Botao variante="secundario" onPress={aoCancelar} largura>
+            Descartar alterações
+          </Botao>
+        ) : null}
       </View>
     </Cartao>
   )
@@ -384,6 +545,17 @@ const estilos = criarEstilos(() => ({
   apoio: { fontSize: fonte.pequeno, color: cores.textoFraco },
   total: { fontSize: fonte.corpo, fontWeight: peso.pesado, color: cores.texto },
   remover: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
+  trocar: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
+  escolhido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco.md,
+    padding: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.md,
+    backgroundColor: cores.campo,
+  },
   achado: {
     padding: espaco.md,
     borderWidth: 1,

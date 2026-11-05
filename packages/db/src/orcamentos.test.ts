@@ -23,6 +23,8 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
   let usuario: string
   let produtoA: string
   let produtoB: string
+  let cliente: string
+  let outroCliente: string
   let repo: ReturnType<typeof createQuoteRepository>
 
   async function produto(nome: string): Promise<string> {
@@ -40,8 +42,19 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
     return id
   }
 
+  async function criarCliente(nome: string): Promise<string> {
+    const id = randomUUID()
+    await withTenant(
+      sql,
+      empresa,
+      (tx) => tx`INSERT INTO customers (id, company_id, name) VALUES (${id}, ${empresa}, ${nome})`,
+    )
+    return id
+  }
+
   const novo = (itens: string[]) => ({
     companyId: empresa,
+    customerId: cliente,
     customerName: 'Joana',
     validUntil: '2026-10-20',
     notes: null,
@@ -81,6 +94,8 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
     })
     produtoA = await produto('Tinta')
     produtoB = await produto('Rolo')
+    cliente = await criarCliente('Joana')
+    outroCliente = await criarCliente('Pedro')
   }, 60_000)
 
   afterAll(async () => {
@@ -146,5 +161,76 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
   it('venda inexistente ou de outra loja nao existe', async () => {
     expect(await repo.saleExists(empresa, randomUUID())).toBe(false)
     expect(await repo.saleExists(empresa, 'x')).toBe(false)
+  })
+
+  it('guarda o cliente do cadastro e o devolve na leitura', async () => {
+    const q = await repo.create(novo([produtoA]))
+    expect(q).toMatchObject({ customerId: cliente, customerName: 'Joana' })
+    expect((await repo.findById(empresa, q.id))?.customerId).toBe(cliente)
+    expect((await repo.list(empresa, 50)).find((x) => x.id === q.id)?.customerId).toBe(cliente)
+  })
+
+  it('acha so cliente vivo da loja', async () => {
+    expect(await repo.findCustomer(empresa, cliente)).toEqual({ id: cliente, name: 'Joana' })
+    expect(await repo.findCustomer(empresa, 'nao-e-uuid')).toBeNull()
+    expect(await repo.findCustomer(randomUUID(), cliente)).toBeNull()
+
+    const apagado = await criarCliente('Apagado')
+    await withTenant(
+      sql,
+      empresa,
+      (tx) => tx`UPDATE customers SET deleted_at = now() WHERE id = ${apagado}`,
+    )
+    expect(await repo.findCustomer(empresa, apagado)).toBeNull()
+  })
+
+  it('edita o aberto trocando cliente, itens e valores; numero fica', async () => {
+    const q = await repo.create(novo([produtoA, produtoB]))
+    const editado = await repo.update(empresa, q.id, {
+      customerId: outroCliente,
+      customerName: 'Pedro',
+      validUntil: '2026-11-30',
+      notes: 'Entrega na obra',
+      discountCents: 100,
+      totalCents: 5900,
+      items: [{ productId: produtoB, description: 'Rolo', quantity: 3, unitPriceCents: 2000 }],
+    })
+    expect(editado).toMatchObject({
+      id: q.id,
+      number: q.number,
+      status: 'open',
+      customerId: outroCliente,
+      customerName: 'Pedro',
+      validUntil: '2026-11-30',
+      notes: 'Entrega na obra',
+      discountCents: 100,
+      totalCents: 5900,
+    })
+    expect(editado?.items).toHaveLength(1)
+    expect(editado?.items[0]).toMatchObject({ productId: produtoB, quantity: 3 })
+
+    const lido = await repo.findById(empresa, q.id)
+    expect(lido?.items.map((i) => i.productId)).toEqual([produtoB])
+  })
+
+  it('nao edita fechado, de outra loja ou id invalido', async () => {
+    const mudancas = {
+      customerId: cliente,
+      customerName: 'Joana',
+      validUntil: '2026-11-30',
+      notes: null,
+      discountCents: 0,
+      totalCents: 2000,
+      items: [{ productId: produtoA, description: 'Tinta', quantity: 1, unitPriceCents: 2000 }],
+    }
+    const q = await repo.create(novo([produtoA, produtoB]))
+    await repo.close(empresa, q.id, { status: 'cancelled', saleId: null, closedAt: new Date() })
+    expect(await repo.update(empresa, q.id, mudancas)).toBeNull()
+    /* Os itens do cancelado ficam como estavam. */
+    expect((await repo.findById(empresa, q.id))?.items).toHaveLength(2)
+
+    const aberto = await repo.create(novo([produtoA]))
+    expect(await repo.update(randomUUID(), aberto.id, mudancas)).toBeNull()
+    expect(await repo.update(empresa, 'x', mudancas)).toBeNull()
   })
 })

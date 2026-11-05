@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
-import { aceitarCookies, lojaNova, produtoNovo } from './apoio'
+import { aceitarCookies, clienteNovo, lojaNova, produtoNovo } from './apoio'
 
 /**
  * Fluxo 4 — a operacao do dia alem da venda (NR-170): entrada de mercadoria
@@ -56,31 +56,42 @@ test('entrada de mercadoria soma ao estoque, faz o custo medio e lanca as parcel
   await expect(page.getByText(/Compra de mercadoria NF 4321/).first()).toBeVisible()
 })
 
-test('orcamento nao mexe no estoque e vira venda pelo PDV', async ({ page }) => {
+test('orcamento nao mexe no estoque, edita e vira venda com o cliente', async ({ page }) => {
   await lojaNova(page.request)
   const produto = await produtoNovo(page.request, {
     description: 'Tinta E2E 18L',
     salePriceCents: 30000,
     stock: 5,
   })
+  const joana = await clienteNovo(page.request, 'Joana E2E')
 
   await page.goto('/app/orcamentos')
   await aceitarCookies(page)
+  /* Cliente do cadastro: digitar (ou Enter) abre a lista dos cadastrados. */
   await page.locator('#orcamento-cliente').fill('Joana E2E')
+  await page.getByRole('button', { name: /Joana E2E/ }).click()
+  await expect(page.getByRole('button', { name: 'Trocar' })).toBeVisible()
+  /* O produto tambem: digitar mostra os achados. */
   await page.locator('#orcamento-busca').fill('Tinta E2E')
   await page.getByRole('button', { name: /Tinta E2E 18L/ }).click()
-  await page.getByLabel('Quantidade de Tinta E2E 18L').fill('2')
+  await page.getByLabel('Quantidade de Tinta E2E 18L').fill('3')
   await page.getByLabel('Preço unitário de Tinta E2E 18L').fill('280,00')
   await page.getByRole('button', { name: 'Criar orçamento' }).click()
   await expect(page.getByText('Orçamento nº 1 criado.')).toBeVisible()
   expect((await lerProduto(page.request, produto.id)).stock).toBe(5)
 
+  /* Aberto, o orcamento edita: duas latas em vez de tres. */
   await page.getByRole('link', { name: 'Abrir' }).first().click()
   await expect(page.getByLabel('Orçamento')).toContainText('TOTAL')
-  await page.getByRole('button', { name: 'Converter em venda' }).click()
-  await expect(page.getByText(/Orçamento nº 1 carregado/)).toBeVisible()
+  await page.getByRole('button', { name: 'Editar' }).click()
+  await page.getByLabel('Quantidade de Tinta E2E 18L').fill('2')
+  await page.getByRole('button', { name: 'Salvar alterações' }).click()
+  await expect(page.getByText('Orçamento nº 1 atualizado.')).toBeVisible()
+  await expect(page.getByLabel('Orçamento')).toContainText('560,00')
 
-  await page.getByRole('button', { name: /Seguir sem identificar/ }).click()
+  /* Vira venda ja com o cliente: o PDV pula a etapa de escolher. */
+  await page.getByRole('button', { name: 'Converter em venda' }).click()
+  await expect(page.getByText(/Orçamento nº 1 carregado para Joana E2E/)).toBeVisible()
   await page.getByRole('button', { name: /^Finalizar · R\$\s?560,00/ }).click()
   await page.getByRole('button', { name: /Pix/ }).click()
   await page.getByRole('button', { name: 'Confirmar recebimento em Pix' }).click()
@@ -93,6 +104,11 @@ test('orcamento nao mexe no estoque e vira venda pelo PDV', async ({ page }) => 
   }
   expect(lista.quotes[0]).toMatchObject({ status: 'converted' })
   expect(lista.quotes[0]!.saleId).not.toBeNull()
+  /* A venda saiu no nome da Joana, sem ninguem escolher o cliente de novo. */
+  const vendas = (await (
+    await page.request.get(`/api/vendas/historico?customerId=${joana.id}`)
+  ).json()) as { sales: { id: string; customerId: string | null }[] }
+  expect(vendas.sales.map((v) => v.id)).toEqual([lista.quotes[0]!.saleId])
 })
 
 test('caixa abre com troco, soma a venda em dinheiro e fecha batendo', async ({ page }) => {

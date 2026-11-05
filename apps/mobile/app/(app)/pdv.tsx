@@ -60,7 +60,7 @@ import { criarEstilos } from '@/theme/estilos'
 /** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
 type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
 
-type ClienteDaVenda = { id: string; nome: string; saldoFiado: number }
+type ClienteDaVenda = { id: string; nome: string }
 
 const rotuloDaForma = (forma: FormaPagamento) =>
   FORMAS.find((f) => f.valor === forma)?.rotulo ?? forma
@@ -163,6 +163,12 @@ export default function Pdv() {
         r.dados.discountCents > 0 ? { tipo: 'valor', quantia: r.dados.discountCents / 100 } : null,
       )
       setOrcamento(r.dados)
+      /* O cliente do orcamento ja vem escolhido — achado do QA ("ao confirmar
+         a venda ja trazer o cliente informado no orcamento"). O antigo, que
+         so tinha o nome, continua pedindo o cliente. */
+      if (r.dados.customerId !== null) {
+        setCliente({ id: r.dados.customerId, nome: r.dados.customerName ?? 'Cliente' })
+      }
       if (ativos.length < r.dados.items.length) {
         Alert.alert('Orçamento', 'Produtos que foram inativados ficaram fora do carrinho.')
       }
@@ -256,9 +262,15 @@ export default function Pdv() {
    * desconto, e a lista de orcamentos abre para compartilhar — NR-164.
    */
   async function salvarComoOrcamento() {
+    /* O orcamento exige o cliente do cadastro — achado do QA. */
+    if (cliente === null) {
+      Alert.alert('Orçamento', 'Escolha o cliente para salvar como orçamento.')
+      setEscolhendoCliente(true)
+      return
+    }
     setSalvandoOrcamento(true)
     const r = await criarOrcamento({
-      ...(cliente === null ? {} : { customerName: cliente.nome }),
+      customerId: cliente.id,
       items: itens.map((i) => ({
         productId: i.produtoId,
         quantity: i.quantidade,
@@ -640,7 +652,7 @@ export default function Pdv() {
         <SeletorCliente
           onEscolher={(c) => {
             setVencido(null)
-            setCliente({ id: c.id, nome: c.nome, saldoFiado: c.saldoFiado })
+            setCliente({ id: c.id, nome: c.nome })
             setEscolhendoCliente(false)
           }}
           onFechar={() => setEscolhendoCliente(false)}

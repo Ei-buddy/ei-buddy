@@ -5,7 +5,9 @@ import type { CompanyId, UserId } from '../context.js'
 
 export type NewQuote = {
   readonly companyId: CompanyId
-  readonly customerName: string | null
+  readonly customerId: string
+  /** O nome como esta no cadastro agora: o orcamento guarda o que foi proposto a quem. */
+  readonly customerName: string
   readonly validUntil: string
   readonly notes: string | null
   readonly discountCents: number
@@ -20,14 +22,21 @@ export type NewQuote = {
   readonly createdAt: Date
 }
 
+/** O que muda na edicao: tudo menos numero, autor e data de criacao. */
+export type QuoteChanges = Omit<NewQuote, 'companyId' | 'createdBy' | 'createdAt'>
+
 export type QuoteRepository = {
   /** Produtos da empresa entre os ids pedidos. Os de outra loja nao voltam. */
   findProducts(
     companyId: CompanyId,
     ids: readonly string[],
   ): Promise<readonly { id: string; description: string; isActive: boolean }[]>
+  /** Cliente ativo (nao apagado) da empresa; `null` se nao existe aqui. */
+  findCustomer(companyId: CompanyId, id: string): Promise<{ id: string; name: string } | null>
   /** Grava com o proximo numero da loja. */
   create(orcamento: NewQuote): Promise<QuoteOutput>
+  /** Troca cliente, itens e valores SO se ainda estiver aberto; `null` quando ja nao estava. */
+  update(companyId: CompanyId, id: string, mudancas: QuoteChanges): Promise<QuoteOutput | null>
   list(companyId: CompanyId, limite: number): Promise<readonly QuoteOutput[]>
   findById(companyId: CompanyId, id: string): Promise<QuoteOutput | null>
   saleExists(companyId: CompanyId, saleId: string): Promise<boolean>

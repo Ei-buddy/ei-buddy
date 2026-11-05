@@ -497,6 +497,18 @@ export function createDataSubjectRepository(sql: Sql): DataSubjectRepository {
            WHERE customer_id = ${pedido.customerId}
         `
 
+        /*
+         * O ORCAMENTO grava o nome do cliente como estava na proposta. Ligado
+         * ao cadastro, ele recebe o mesmo substituto: o titular nao pode
+         * sumir da ficha e continuar com nome e sobrenome na lista de
+         * orcamentos.
+         */
+        await tx`
+          UPDATE quotes
+             SET customer_name = ${s['name'] ?? ''}
+           WHERE customer_id = ${pedido.customerId}
+        `
+
         const [contagens] = await tx<{ vendas: string; recebiveis: string; notas: string }[]>`
           SELECT
             (SELECT count(*) FROM sales WHERE customer_id = ${pedido.customerId})::text AS vendas,

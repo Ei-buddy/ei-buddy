@@ -1,4 +1,8 @@
-import { convertQuoteInputSchema, createQuoteInputSchema } from '@na-regua/contracts'
+import {
+  convertQuoteInputSchema,
+  createQuoteInputSchema,
+  updateQuoteInputSchema,
+} from '@na-regua/contracts'
 import {
   cancelQuote,
   convertQuote,
@@ -6,6 +10,7 @@ import {
   getQuote,
   listQuotes,
   type QuoteDeps,
+  updateQuote,
 } from '@na-regua/core'
 import type { FastifyInstance } from 'fastify'
 import { requireContext } from '../plugins/execution-context.js'
@@ -39,6 +44,17 @@ export function registerOrcamentosRoutes(app: FastifyInstance, deps: OrcamentosD
     const input = validate(createQuoteInputSchema, request.body)
     return reply.code(201).send(await createQuote(deps, ctx, input))
   })
+
+  /* Edicao do orcamento aberto: troca tudo — cliente, itens, validade e desconto. */
+  app.put<ComId>(
+    '/orcamentos/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const input = validate(updateQuoteInputSchema, request.body)
+      return reply.code(200).send(await updateQuote(deps, ctx, request.params.id, input))
+    },
+  )
 
   app.post<ComId>(
     '/orcamentos/:id/cancelar',
