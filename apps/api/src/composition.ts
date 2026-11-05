@@ -818,6 +818,7 @@ export function buildBaixasDeps(): BaixasDeps {
   return {
     uow: createSettlementUnitOfWork(sql),
     settlements: createSettlementQueries(sql),
+    bankAccounts: createBankAccountRepository(sql),
   }
 }
 

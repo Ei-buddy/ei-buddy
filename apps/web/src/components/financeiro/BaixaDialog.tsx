@@ -1,14 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { formatMoney, hoje } from '@/lib/format'
 import {
   type DadosDaBaixa,
   FORMAS_DE_RECEBIMENTO,
   type FormaDeRecebimento,
-  NOMES_BANCOS,
 } from '@/lib/financeiro-api'
 import { listarContasBancarias } from '@/lib/contas-bancarias-api'
+import { CONTA_DINHEIRO_DO_CAIXA } from '@/lib/financeiro-api'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
@@ -66,18 +67,20 @@ export default function BaixaDialog({
   /* As contas da LOJA (RF-073). Sem nenhuma cadastrada, a lista volta a ser a
      de sugestoes genericas — a baixa nao pode travar por falta de cadastro. */
   const [contasDaLoja, setContasDaLoja] = useState<string[] | null>(null)
+  /* Falhou ao listar: a baixa nao trava, o campo vira texto e o servidor
+     confere o nome. */
+  const [listaFalhou, setListaFalhou] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void listarContasBancarias().then((r) => {
       const nomes = r.ok ? r.dados.map((c) => c.name) : []
+      setListaFalhou(!r.ok)
       setContasDaLoja(nomes)
       /* Uma conta so: ja vem escolhida. */
       if (nomes.length === 1) setConta(nomes[0]!)
     })
   }, [])
-
-  const sugestoes = contasDaLoja !== null && contasDaLoja.length > 0 ? contasDaLoja : NOMES_BANCOS
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -212,23 +215,46 @@ export default function BaixaDialog({
           </label>
 
           {pagar ? (
+            /*
+             * Lista, e nao texto livre — achado do QA: "permitiu baixar uma
+             * conta em um banco inexistente". O saldo de cada conta bancaria
+             * soma as baixas pelo nome dela; um nome que nao e conta nenhuma
+             * some do saldo e nunca concilia. O servidor confere de novo.
+             */
             <label className={styles.baixaCampo}>
               <span>Conta de onde saiu</span>
-              <input
-                className={styles.baixaInput}
-                value={conta}
-                onChange={(e) => setConta(e.target.value)}
-                placeholder="Ex.: Banco do Brasil"
-                list="baixa-contas"
-                maxLength={140}
-              />
-              {/* `datalist` e nao `select`: a lista de bancos ajuda, mas a conta
-                  pode ser uma que nao esta nela — e a api aceita texto livre. */}
-              <datalist id="baixa-contas">
-                {sugestoes.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
+              {listaFalhou ? (
+                <input
+                  className={styles.baixaInput}
+                  value={conta}
+                  onChange={(e) => setConta(e.target.value)}
+                  placeholder="Nome da conta cadastrada"
+                  maxLength={140}
+                />
+              ) : (
+                <select
+                  className={styles.baixaInput}
+                  value={conta}
+                  onChange={(e) => setConta(e.target.value)}
+                  disabled={contasDaLoja === null}
+                >
+                  <option value="">
+                    {contasDaLoja === null ? 'Carregando contas...' : 'Escolha a conta'}
+                  </option>
+                  {(contasDaLoja ?? []).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value={CONTA_DINHEIRO_DO_CAIXA}>{CONTA_DINHEIRO_DO_CAIXA}</option>
+                </select>
+              )}
+              {contasDaLoja !== null && contasDaLoja.length === 0 && !listaFalhou ? (
+                <small className={styles.baixaDica}>
+                  Nenhuma conta bancária cadastrada.{' '}
+                  <Link href="/app/financeiro/contas-bancarias">Cadastrar conta</Link>
+                </small>
+              ) : null}
             </label>
           ) : (
             <>

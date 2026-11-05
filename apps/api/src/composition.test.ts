@@ -43,6 +43,8 @@ const { db, storePostgres } = vi.hoisted(() => {
       createSettlementUnitOfWork: vi.fn(vazio),
       createSettlementQueries: vi.fn(vazio),
       createSettlementTotals: vi.fn(vazio),
+      /* NR-186: a baixa confere a conta bancaria contra as contas da loja. */
+      createBankAccountRepository: vi.fn(vazio),
       /* NR-119: e a agenda, pelo mesmo motivo. */
       createAppointmentRepository: vi.fn(vazio),
       createCustomerChargeRepository: vi.fn(vazio),
@@ -393,12 +395,18 @@ describe('buildAgentUseCases — casos de uso de core com o contexto autenticado
 
   it('consultas chamam core com o mesmo ctx — NR-115', async () => {
     coreConsultas.checkStock.mockResolvedValue({ productId: 'p-1' })
-    coreConsultas.listPayables.mockResolvedValue({ grupos: [], totalCents: 0, temVencidas: false })
+    coreConsultas.listPayables.mockResolvedValue({
+      grupos: [],
+      totalCents: 0,
+      temVencidas: false,
+      quitadas: [],
+    })
     coreConsultas.listSales.mockResolvedValue({ summary: {} })
     coreConsultas.listReceivables.mockResolvedValue({
       grupos: [],
       totalCents: 0,
       temVencidas: false,
+      quitadas: [],
     })
     coreConsultas.buildDre.mockResolvedValue({})
     const { buildAgentUseCases } = await carregar()

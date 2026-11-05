@@ -5,6 +5,14 @@ import { paymentMethodSchema } from '../sale/sale.js'
 /** Baixa, baixa parcial e estorno — RF-059, RF-060, RF-066, RF-067. */
 
 /**
+ * A "conta" de quem pagou com o dinheiro da gaveta. Nao e conta bancaria e nao
+ * precisa de cadastro: a baixa de conta a pagar exige dizer de onde o dinheiro
+ * saiu, e da gaveta e uma resposta valida. Qualquer outro nome tem de ser uma
+ * conta cadastrada — achado do QA: a baixa aceitava banco que nao existia.
+ */
+export const CONTA_DINHEIRO_DO_CAIXA = 'Dinheiro do caixa'
+
+/**
  * Baixa de conta a pagar — RF-059.
  *
  * `settledOn` e `bankAccount` sao exigidos pelo requisito, e os dois pelo mesmo

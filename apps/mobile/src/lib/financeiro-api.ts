@@ -40,9 +40,10 @@ export const NOMES_BANCOS = [
  * As contas da LOJA — RF-073 (`GET /contas-bancarias`). A baixa as oferece no
  * lugar das sugestoes genericas quando existe ao menos uma.
  */
-export async function nomesDasContasDaLoja(): Promise<string[]> {
+export async function nomesDasContasDaLoja(): Promise<string[] | null> {
   const r = await chamarApi<{ accounts: { name: string }[] }>('/contas-bancarias')
-  return r.ok ? r.dados.accounts.map((c) => c.name) : []
+  /* Nulo = nao deu para saber; vazio = a loja nao cadastrou nenhuma. */
+  return r.ok ? r.dados.accounts.map((c) => c.name) : null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -81,6 +82,10 @@ export type Titulo = {
   status: StatusTitulo
   /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
   mutavel: boolean
+  /** Quando foi lancado (ISO) — a "emissao" que o QA pediu na lista. */
+  emissao: string
+  /** O plano de conta — so a pagar; nulo sem classificacao. */
+  accountId: string | null
 }
 
 export type ListaDeTitulos = {
@@ -100,6 +105,8 @@ type PagarDaApi = {
   settledAmountCents: number
   dueDate: string
   status: string
+  accountId: string | null
+  createdAt: string
 }
 
 type ReceberDaApi = {
@@ -111,6 +118,7 @@ type ReceberDaApi = {
   settledAmountCents: number
   dueDate: string
   status: string
+  createdAt: string
 }
 
 /**
@@ -136,25 +144,32 @@ export async function listarContasPagar(): Promise<Resposta<ListaDeTitulos>> {
     grupos: GrupoDaApi<{ payables: PagarDaApi[] }>[]
     totalCents: number
     temVencidas: boolean
+    /* As quitadas vem fora dos grupos — sem elas a sanfona "Pagos" ficava vazia. */
+    quitadas?: PagarDaApi[]
   }>('/contas-a-pagar')
 
   if (!r.ok) return r
 
+  const paraTitulo = (p: PagarDaApi): Titulo => ({
+    id: p.id,
+    contraparte: p.supplier,
+    descricao: p.description,
+    vencimento: p.dueDate,
+    valorCents: p.amountCents,
+    baixadoCents: p.settledAmountCents,
+    status: paraStatus(p.status),
+    mutavel: p.settledAmountCents === 0,
+    emissao: p.createdAt,
+    accountId: p.accountId,
+  })
+
   return {
     ok: true,
     dados: {
-      titulos: r.dados.grupos.flatMap((g) =>
-        g.payables.map((p) => ({
-          id: p.id,
-          contraparte: p.supplier,
-          descricao: p.description,
-          vencimento: p.dueDate,
-          valorCents: p.amountCents,
-          baixadoCents: p.settledAmountCents,
-          status: paraStatus(p.status),
-          mutavel: p.settledAmountCents === 0,
-        })),
-      ),
+      titulos: [
+        ...r.dados.grupos.flatMap((g) => g.payables.map(paraTitulo)),
+        ...(r.dados.quitadas ?? []).map(paraTitulo),
+      ],
       totalCents: r.dados.totalCents,
       temVencidos: r.dados.temVencidas,
     },
@@ -167,28 +182,34 @@ export async function listarContasReceber(): Promise<Resposta<ListaDeTitulos>> {
     grupos: GrupoDaApi<{ receivables: ReceberDaApi[] }>[]
     totalCents: number
     temVencidas: boolean
+    quitadas?: ReceberDaApi[]
   }>('/contas-a-receber')
 
   if (!r.ok) return r
 
+  const paraTitulo = (rec: ReceberDaApi): Titulo => ({
+    id: rec.id,
+    /* Venda sem identificar o cliente e caminho normal no balcao: o
+       rotulo diz isso em vez de deixar a linha sem contraparte. */
+    contraparte: rec.customerName ?? 'Cliente não identificado',
+    descricao: rec.description,
+    vencimento: rec.dueDate,
+    valorCents: rec.amountCents,
+    baixadoCents: rec.settledAmountCents,
+    status: paraStatus(rec.status),
+    /* O que veio de venda se resolve na venda (cancelar ou devolver). */
+    mutavel: rec.saleId === null && rec.settledAmountCents === 0,
+    emissao: rec.createdAt,
+    accountId: null,
+  })
+
   return {
     ok: true,
     dados: {
-      titulos: r.dados.grupos.flatMap((g) =>
-        g.receivables.map((rec) => ({
-          id: rec.id,
-          /* Venda sem identificar o cliente e caminho normal no balcao: o
-             rotulo diz isso em vez de deixar a linha sem contraparte. */
-          contraparte: rec.customerName ?? 'Cliente não identificado',
-          descricao: rec.description,
-          vencimento: rec.dueDate,
-          valorCents: rec.amountCents,
-          baixadoCents: rec.settledAmountCents,
-          status: paraStatus(rec.status),
-          /* O que veio de venda se resolve na venda (cancelar ou devolver). */
-          mutavel: rec.saleId === null && rec.settledAmountCents === 0,
-        })),
-      ),
+      titulos: [
+        ...r.dados.grupos.flatMap((g) => g.receivables.map(paraTitulo)),
+        ...(r.dados.quitadas ?? []).map(paraTitulo),
+      ],
       totalCents: r.dados.totalCents,
       temVencidos: r.dados.temVencidas,
     },
@@ -307,6 +328,8 @@ export type CorrecaoDeTitulo = {
   description?: string
   amountCents?: number
   dueDate?: string
+  /** Plano de conta — so a pagar. `null` tira a classificacao. */
+  accountId?: string | null
 }
 
 export const corrigirTitulo = (

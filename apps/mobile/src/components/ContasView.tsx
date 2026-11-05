@@ -91,9 +91,10 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
    */
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
-  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
-    null,
-  )
+  const [mudando, setMudando] = useState<{
+    linha: Linha
+    modo: 'corrigir' | 'cancelar' | 'classificar'
+  } | null>(null)
   const [processando, setProcessando] = useState(false)
   const [erroDoDialogo, setErroDoDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -269,6 +270,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                     }}
                     onEstornar={() => setEstornando(l)}
                     onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onClassificar={
+                      pagar ? () => setMudando({ linha: l, modo: 'classificar' }) : undefined
+                    }
                     onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
@@ -293,6 +297,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                     }}
                     onEstornar={() => setEstornando(l)}
                     onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onClassificar={
+                      pagar ? () => setMudando({ linha: l, modo: 'classificar' }) : undefined
+                    }
                     onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
@@ -316,6 +323,9 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                     }}
                     onEstornar={() => setEstornando(l)}
                     onCorrigir={() => setMudando({ linha: l, modo: 'corrigir' })}
+                    onClassificar={
+                      pagar ? () => setMudando({ linha: l, modo: 'classificar' }) : undefined
+                    }
                     onCancelar={() => setMudando({ linha: l, modo: 'cancelar' })}
                   />
                 ))
@@ -403,12 +413,15 @@ function LinhaTitulo({
   onEstornar,
   onCorrigir,
   onCancelar,
+  onClassificar,
 }: {
   linha: Linha
   onBaixar: () => void
   onEstornar: () => void
   onCorrigir: () => void
   onCancelar: () => void
+  /** So a pagar: o plano de conta, que muda mesmo com baixa. */
+  onClassificar?: (() => void) | undefined
 }) {
   const saldoCents = linha.valorCents - linha.baixadoCents
   const quitado = linha.status === 'pago'
@@ -432,6 +445,9 @@ function LinhaTitulo({
           </Text>
           <Text style={estilos.tituloApoio} numberOfLines={1}>
             {linha.descricao}
+          </Text>
+          <Text style={estilos.tituloApoio} numberOfLines={1}>
+            Emissão {formatDate(linha.emissao.slice(0, 10))}
           </Text>
         </View>
         <Text style={estilos.tituloValor}>
@@ -465,6 +481,14 @@ function LinhaTitulo({
                 <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Cancelar</Text>
               </Pressable>
             </>
+          ) : onClassificar !== undefined ? (
+            <Pressable
+              onPress={onClassificar}
+              style={[estilos.acao, estilos.acaoSecundaria]}
+              accessibilityRole="button"
+            >
+              <Text style={[estilos.acaoTexto, estilos.acaoTextoSecundario]}>Plano</Text>
+            </Pressable>
           ) : null}
           <Pressable
             onPress={quitado || linha.baixadoCents > 0 ? onEstornar : onBaixar}

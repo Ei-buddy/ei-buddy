@@ -30,6 +30,11 @@ export type NewPayable = {
 export type PayableFilter = {
   /** Vazio traz todas. */
   readonly status?: readonly PayableStatus[]
+  /**
+   * So as N de vencimento mais recente, da mais nova para a mais antiga. E o
+   * que a lista de quitadas usa: o historico de pagas so cresce.
+   */
+  readonly maisRecentes?: number
 }
 
 /*
@@ -79,6 +84,8 @@ export type PayableChanges = {
   readonly description?: string | undefined
   readonly amountCents?: number | undefined
   readonly dueDate?: string | undefined
+  /** `null` tira a classificacao; ausente nao mexe. */
+  readonly accountId?: string | null | undefined
 }
 
 export type PayableUnitOfWork = {

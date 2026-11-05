@@ -167,7 +167,7 @@ export function criarLojaDeTeste(
         averageTicketCents: 2_500,
       },
     }),
-    listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
+    listReceivables: async () => ({ grupos: [], totalCents: 0, temVencidas: false, quitadas: [] }),
     checkStock: async (ctx, input) => {
       const p = daEmpresa(produtos, ctx).find((x) => x.id === input.productId)
       if (p === undefined) throw AppError.notFound('Produto nao encontrado.')
@@ -191,7 +191,7 @@ export function criarLojaDeTeste(
         walletBalanceCents: c.walletBalanceCents,
       }
     },
-    listPayables: async () => ({ grupos: [], totalCents: 0, temVencidas: false }),
+    listPayables: async () => ({ grupos: [], totalCents: 0, temVencidas: false, quitadas: [] }),
     searchCustomers: async (ctx, input) =>
       daEmpresa(clientes, ctx).filter((c) => casa(input.termo ?? '', c.name, c.phone)),
     searchProducts: async (ctx, input) =>

@@ -42,7 +42,7 @@ export type Sugestao = {
  * Sugere a conta a partir do historico da mesma contraparte — RF-084.
  *
  * O ganho e mecanico: a conta de luz chega todo mes, do mesmo fornecedor, e vai
- * sempre para "Energia, agua e internet". Fazer o lojista escolher doze vezes
+ * sempre para "Energia, água e internet". Fazer o lojista escolher doze vezes
  * por ano a mesma coisa e como ele para de classificar.
  *
  * **Sugere, nao classifica.** Aplicar sozinha economizaria um toque e criaria

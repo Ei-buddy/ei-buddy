@@ -60,6 +60,8 @@ function paraLinhaAPagar(c: ContaAPagar, nomeDaConta: (accountId: string | null)
     /* A classificacao e id de conta (NR-077) — o plano vem carregado junto
        com a lista, exatamente para resolver o nome aqui. */
     classificacao: nomeDaConta(c.accountId),
+    accountId: c.accountId,
+    emissao: c.createdAt,
     mutavel: c.settledAmountCents === 0,
   }
 }
@@ -91,6 +93,8 @@ function paraLinhaAReceber(c: ContaAReceber): Linha {
     valorBaixadoCents: c.settledAmountCents,
     status: statusDaApi(c.status, c.dueDate),
     classificacao: c.installmentCount > 1 ? `${c.installmentNumber}/${c.installmentCount}` : '',
+    accountId: null,
+    emissao: c.createdAt,
     /* O que veio de venda se resolve na venda (cancelar ou devolver). */
     mutavel: c.saleId === null && c.settledAmountCents === 0,
   }
@@ -115,6 +119,10 @@ type Linha = {
   status: StatusTitulo
   /** Plano de conta (pagar) ou parcela (receber). */
   classificacao: string
+  /** O id do plano de conta — so a pagar. */
+  accountId: string | null
+  /** Quando o titulo foi lancado (ISO). Achado do QA: faltava a coluna de emissao. */
+  emissao: string
   /** Pode corrigir e cancelar — NR-150. Sem baixa e, no a receber, avulso. */
   mutavel: boolean
 }
@@ -174,9 +182,12 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       const nomes = new Map(planos.ok ? planos.dados.accounts.map((c) => [c.id, c.name]) : [])
       const nomeDaConta = (accountId: string | null) =>
         accountId === null ? '' : (nomes.get(accountId) ?? '')
-      setLinhas(
-        r.dados.grupos.flatMap((g) => g.payables.map((p) => paraLinhaAPagar(p, nomeDaConta))),
-      )
+      /* As quitadas vem a parte (o filtro "Pagos"): a api as manda fora dos
+         grupos, porque grupo e total falam do que ainda falta pagar. */
+      setLinhas([
+        ...r.dados.grupos.flatMap((g) => g.payables.map((p) => paraLinhaAPagar(p, nomeDaConta))),
+        ...(r.dados.quitadas ?? []).map((p) => paraLinhaAPagar(p, nomeDaConta)),
+      ])
       setQuitadoNoMes(r.dados.settledThisMonth ?? null)
       return
     }
@@ -188,7 +199,10 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       return
     }
     setErroCarga(null)
-    setLinhas(r.dados.grupos.flatMap((g) => g.receivables.map(paraLinhaAReceber)))
+    setLinhas([
+      ...r.dados.grupos.flatMap((g) => g.receivables.map(paraLinhaAReceber)),
+      ...(r.dados.quitadas ?? []).map(paraLinhaAReceber),
+    ])
     setQuitadoNoMes(r.dados.settledThisMonth ?? null)
   }, [pagar])
 
@@ -223,9 +237,10 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
   const [lancando, setLancando] = useState(false)
   const [baixando, setBaixando] = useState<Linha | null>(null)
   const [estornando, setEstornando] = useState<Linha | null>(null)
-  const [mudando, setMudando] = useState<{ linha: Linha; modo: 'corrigir' | 'cancelar' } | null>(
-    null,
-  )
+  const [mudando, setMudando] = useState<{
+    linha: Linha
+    modo: 'corrigir' | 'cancelar' | 'classificar'
+  } | null>(null)
   const [processando, setProcessando] = useState(false)
   /* Nao ha `processandoEstorno`: o `EstornoDialog` cuida do proprio ciclo —
      ele carrega o historico, escolhe a baixa e confirma. O que volta para ca e
@@ -512,7 +527,10 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                   <div className={styles.tituloPrincipal}>
                     <strong>{l.contraparte}</strong>
                     <span>
-                      {l.descricao} · {l.classificacao || '—'}
+                      {l.descricao} · {l.classificacao || (pagar ? 'Sem plano de conta' : '—')}
+                    </span>
+                    <span className={styles.tituloEmissao}>
+                      Emissão {formatDate(l.emissao.slice(0, 10))}
                     </span>
                   </div>
 
@@ -554,6 +572,15 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
                           Cancelar
                         </Button>
                       </>
+                    ) : null}
+                    {pagar && !l.mutavel ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMudando({ linha: l, modo: 'classificar' })}
+                      >
+                        Plano de conta
+                      </Button>
                     ) : null}
                     {quitado || l.valorBaixadoCents > 0 ? (
                       <Button variant="secondary" size="sm" onClick={() => setEstornando(l)}>
@@ -644,6 +671,7 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
             descricao: mudando.linha.descricao,
             vencimento: mudando.linha.vencimento,
             valorCents: mudando.linha.valorCents,
+            accountId: mudando.linha.accountId,
           }}
           onFeito={(msg) => {
             setMudando(null)

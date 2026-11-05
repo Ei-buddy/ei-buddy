@@ -126,6 +126,10 @@
   white-space: nowrap;
 }
 
+.tituloPrincipal .tituloEmissao {
+  font-size: 11.5px;
+}
+
 .tituloVencimento {
   grid-area: vencimento;
   display: grid;
@@ -186,15 +190,28 @@
   gap: 14px;
 }
 
+/*
+ * Grade, e nao flex: o `.input` tem `width: 100%`, e num flex o select tomava
+ * a linha inteira e espremia o nome a 30px — o campo de nome "nao funcionava".
+ * O nome fica na linha dele: o cartao e estreito (meia tela) mesmo no desktop.
+ */
 .novoPlano {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
   margin-bottom: 18px;
 }
 
 .novoPlano > input {
-  flex: 1;
-  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.novoPlanoAjuda {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--app-muted);
+  line-height: 1.45;
 }
 
 .planos,
@@ -482,6 +499,16 @@
 .baixaCampo > span {
   font-size: 13px;
   color: var(--app-muted);
+}
+
+.baixaDica {
+  font-size: 12.5px;
+  color: var(--app-muted);
+}
+
+.baixaDica a {
+  color: var(--app-accent);
+  font-weight: 600;
 }
 
 .baixaInput {
