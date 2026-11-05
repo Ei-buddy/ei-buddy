@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     161 |  332 |
-| ✅ Concluídas                 |     154 |  307 |
+| Total                         |     162 |  333 |
+| ✅ Concluídas                 |     155 |  308 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -402,6 +402,7 @@ voltam a ⬜.
 | NR-193 | Orçamento: cliente do cadastro obrigatório, Enter lista cliente e produto, edição do orçamento aberto, venda já com o cliente do orçamento                                                      |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | —                                                  |   ✅   |
 | NR-194 | PDV web: forma "Fiado" como no app, exige cliente identificado e explica limite e contas a receber (aviso desatualizado da carteira removido)                                                   |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-195 | PDV do app: valor recebido em dinheiro com troco sem precisar dividir, e "Fiado" na confirmação do fechamento (paridade com o web)                                                              |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-196 | Assistente (web e app): "cliente está cadastrado?" responde sem presumir gênero e sem "compra(s)"; acima de 20 vendas não inventa o número                                                      |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                             |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                      |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                                                                           |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -519,10 +520,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      85 |  142 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      86 |  143 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **332 dias-desenvolvedor** em 161 tarefas. Com 3 pessoas, isso é cerca
+Somando: **333 dias-desenvolvedor** em 162 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

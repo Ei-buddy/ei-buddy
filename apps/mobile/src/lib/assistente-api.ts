@@ -369,6 +369,18 @@ const emAberto = <T extends { amountCents: number; settledAmountCents: number; s
 const saldoDe = (t: { amountCents: number; settledAmountCents: number }): number =>
   t.amountCents - t.settledAmountCents
 
+/*
+ * "Esta cadastrado" presumia o genero ("A cliente Marta esta cadastrado?") e
+ * "compra(s)" soava de formulario — achado do teste ponta a ponta. A lista do
+ * cliente vem com no maximo 20 vendas (`comprasDoCliente`): de 20 em diante,
+ * o numero exato nao e conhecido aqui, e a frase nao inventa.
+ */
+export function resumoDasCompras(n: number): string {
+  if (n === 0) return 'ainda sem compras'
+  if (n === 1) return 'com 1 compra'
+  return n >= 20 ? 'com 20 compras ou mais' : `com ${n} compras`
+}
+
 const NAO_CONSEGUI = 'Não consegui consultar os dados agora. Tente de novo em instantes.'
 
 const abrir = (pergunta: string, rota: string): BlocoResposta => ({
@@ -1024,8 +1036,8 @@ export async function responder(
     if (t.includes('cadastrad') || t.includes('e cliente')) {
       return r(
         'resumo_cliente',
-        `Sim, ${nomeDoCliente} está cadastrado, com ${compras.dados.length} compra(s).`,
-        [{ tipo: 'texto', texto: 'Pergunte, por exemplo: o que ele comprou?' }],
+        `Sim, encontrei ${nomeDoCliente} no cadastro, ${resumoDasCompras(compras.dados.length)}.`,
+        [{ tipo: 'texto', texto: 'Pergunte, por exemplo: qual foi a última compra?' }],
       )
     }
 

@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
    ate o armazenamento do aparelho. */
 vi.mock('./api', () => ({ chamarApi: vi.fn() }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {} }))
-import { CONTEXTO_VAZIO, responder, type FontesDoAssistente } from './assistente-api'
+import {
+  CONTEXTO_VAZIO,
+  responder,
+  resumoDasCompras,
+  type FontesDoAssistente,
+} from './assistente-api'
 
 /**
  * As perguntas prontas respondem com os dados da LOJA.
@@ -308,7 +313,7 @@ describe('cliente cadastrado — achado do QA', () => {
       HOJE,
     )
 
-    expect(r.texto).toBe('Sim, João da Silva está cadastrado, com 0 compra(s).')
+    expect(r.texto).toBe('Sim, encontrei João da Silva no cadastro, ainda sem compras.')
   })
 
   it('com mais de um, lista e pergunta qual — e nao escolhe o primeiro', async () => {
@@ -380,5 +385,15 @@ describe('reposicao — media de 6 meses', () => {
     expect(texto(r)).toContain('Café 500g')
     expect(texto(r)).toContain('8 un')
     expect(texto(r)).toContain('3 kg (negativo)')
+  })
+})
+
+describe('resumo das compras do cliente', () => {
+  it('fala natural, sem "compra(s)", e nao inventa numero acima da lista', () => {
+    expect(resumoDasCompras(0)).toBe('ainda sem compras')
+    expect(resumoDasCompras(1)).toBe('com 1 compra')
+    expect(resumoDasCompras(7)).toBe('com 7 compras')
+    /* A lista do cliente vem com no maximo 20 vendas. */
+    expect(resumoDasCompras(20)).toBe('com 20 compras ou mais')
   })
 })
