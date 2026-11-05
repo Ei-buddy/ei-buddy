@@ -286,6 +286,7 @@ export default function PdvWizard({ orcamentoId = null }: { orcamentoId?: string
       {etapa === 3 ? (
         <EtapaPagamento
           total={total}
+          temCliente={(cliente?.id ?? null) !== null}
           pagamentos={pagamentos}
           onPagamentos={setPagamentos}
           onVoltar={() => setEtapa(2)}
