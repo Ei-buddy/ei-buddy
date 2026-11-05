@@ -1,5 +1,5 @@
 import type { QuoteOutput } from '@na-regua/contracts'
-import type { QuoteRepository } from '@na-regua/core'
+import type { QuoteChanges, QuoteRepository } from '@na-regua/core'
 import type { Sql, TransactionSql } from 'postgres'
 import { withTenant } from './tenant.js'
 
@@ -20,6 +20,7 @@ const ehUuid = (v: string) =>
 type LinhaOrcamento = {
   id: string
   number: number
+  customer_id: string | null
   customer_name: string | null
   status: string
   valid_until: Date | string
@@ -57,6 +58,7 @@ const paraSaida = (
 ): QuoteOutput => ({
   id: o.id,
   number: o.number,
+  customerId: o.customer_id,
   customerName: o.customer_name,
   status: o.status as QuoteOutput['status'],
   validUntil: paraDia(o.valid_until),
@@ -112,6 +114,27 @@ async function comItens(
   )
 }
 
+async function gravarItens(
+  tx: TransactionSql,
+  companyId: string,
+  quoteId: string,
+  itens: QuoteChanges['items'],
+): Promise<void> {
+  await tx`
+    INSERT INTO quote_items ${tx(
+      itens.map((i, n) => ({
+        company_id: companyId,
+        quote_id: quoteId,
+        product_id: i.productId,
+        position: n + 1,
+        description: i.description,
+        quantity: i.quantity,
+        unit_price_cents: i.unitPriceCents,
+      })),
+    )}
+  `
+}
+
 export function createQuoteRepository(sql: Sql): QuoteRepository {
   return {
     findProducts: (companyId, ids) =>
@@ -123,6 +146,17 @@ export function createQuoteRepository(sql: Sql): QuoteRepository {
         `
         return linhas.map((l) => ({ id: l.id, description: l.description, isActive: l.is_active }))
       }),
+
+    findCustomer: async (companyId, id) => {
+      if (!ehUuid(id)) return null
+      return withTenant(sql, companyId, async (tx) => {
+        const [c] = await tx<{ id: string; name: string }[]>`
+          SELECT id, name FROM customers
+           WHERE company_id = ${companyId} AND id = ${id} AND deleted_at IS NULL
+        `
+        return c ?? null
+      })
+    },
 
     create: (q) =>
       withTenant(sql, q.companyId, async (tx) => {
@@ -136,6 +170,7 @@ export function createQuoteRepository(sql: Sql): QuoteRepository {
           INSERT INTO quotes ${tx({
             company_id: q.companyId,
             number: seq!.proximo,
+            customer_id: q.customerId,
             customer_name: q.customerName,
             valid_until: q.validUntil,
             notes: q.notes,
@@ -146,22 +181,34 @@ export function createQuoteRepository(sql: Sql): QuoteRepository {
           })}
           RETURNING *
         `
-        await tx`
-          INSERT INTO quote_items ${tx(
-            q.items.map((i, n) => ({
-              company_id: q.companyId,
-              quote_id: o!.id,
-              product_id: i.productId,
-              position: n + 1,
-              description: i.description,
-              quantity: i.quantity,
-              unit_price_cents: i.unitPriceCents,
-            })),
-          )}
-        `
+        await gravarItens(tx, q.companyId, o!.id, q.items)
         const [saida] = await comItens(tx, q.companyId, [o!])
         return saida!
       }),
+
+    /* Itens trocados inteiros: a edicao e a proposta nova, na ordem nova. O
+       `status = 'open'` no WHERE e a guarda contra quem fechou no meio. */
+    update: async (companyId, id, q) => {
+      if (!ehUuid(id)) return null
+      return withTenant(sql, companyId, async (tx) => {
+        const [o] = await tx<LinhaOrcamento[]>`
+          UPDATE quotes
+             SET customer_id = ${q.customerId},
+                 customer_name = ${q.customerName},
+                 valid_until = ${q.validUntil},
+                 notes = ${q.notes},
+                 discount_cents = ${q.discountCents},
+                 total_cents = ${q.totalCents}
+           WHERE company_id = ${companyId} AND id = ${id} AND status = 'open'
+          RETURNING *
+        `
+        if (o === undefined) return null
+        await tx`DELETE FROM quote_items WHERE company_id = ${companyId} AND quote_id = ${id}`
+        await gravarItens(tx, companyId, id, q.items)
+        const [saida] = await comItens(tx, companyId, [o])
+        return saida ?? null
+      })
+    },
 
     list: (companyId, limite) =>
       withTenant(sql, companyId, async (tx) => {

@@ -1,9 +1,14 @@
-import type { ConvertQuoteInput, CreateQuoteInput, QuoteOutput } from '@na-regua/contracts'
+import type {
+  ConvertQuoteInput,
+  CreateQuoteInput,
+  QuoteOutput,
+  UpdateQuoteInput,
+} from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
-import type { QuoteRepository } from '../ports/quote-repository.js'
+import type { QuoteChanges, QuoteRepository } from '../ports/quote-repository.js'
 
 /**
  * Orcamento — NR-159.
@@ -18,12 +23,22 @@ export type QuoteDeps = {
   readonly audit: AuditTrail
 }
 
-export async function createQuote(
+/**
+ * Confere cliente, produtos e desconto, e monta o que sera gravado — o mesmo
+ * para criar e para editar: um orcamento editado nao pode escapar de uma regra
+ * que o novo cumpre.
+ */
+async function montar(
   deps: QuoteDeps,
   ctx: ExecutionContext,
-  input: CreateQuoteInput,
-): Promise<QuoteOutput> {
-  assertCanWrite(ctx)
+  input: CreateQuoteInput | UpdateQuoteInput,
+): Promise<QuoteChanges> {
+  const cliente = await deps.quotes.findCustomer(ctx.companyId, input.customerId)
+  if (cliente === null) {
+    throw AppError.validation('Escolha um cliente cadastrado para o orçamento.', [
+      { path: 'customerId', message: 'Cliente não encontrado.' },
+    ])
+  }
 
   const produtos = await deps.quotes.findProducts(
     ctx.companyId,
@@ -47,10 +62,9 @@ export async function createQuote(
     ])
   }
 
-  const nome = input.customerName?.trim()
-  const orcamento = await deps.quotes.create({
-    companyId: ctx.companyId,
-    customerName: nome ? nome : null,
+  return {
+    customerId: cliente.id,
+    customerName: cliente.name.slice(0, 120),
     validUntil: input.validUntil,
     notes: input.notes ? input.notes : null,
     discountCents: desconto,
@@ -61,6 +75,20 @@ export async function createQuote(
       quantity: i.quantity,
       unitPriceCents: i.unitPriceCents,
     })),
+  }
+}
+
+export async function createQuote(
+  deps: QuoteDeps,
+  ctx: ExecutionContext,
+  input: CreateQuoteInput,
+): Promise<QuoteOutput> {
+  assertCanWrite(ctx)
+
+  const dados = await montar(deps, ctx, input)
+  const orcamento = await deps.quotes.create({
+    ...dados,
+    companyId: ctx.companyId,
     createdBy: ctx.userId,
     createdAt: ctx.now,
   })
@@ -78,6 +106,48 @@ export async function createQuote(
   })
 
   return orcamento
+}
+
+/**
+ * Edita o orcamento ABERTO — achado do QA ("o abrir do orcamento deveria
+ * permitir o editar"). O que virou venda ou foi cancelado fica como foi.
+ */
+export async function updateQuote(
+  deps: QuoteDeps,
+  ctx: ExecutionContext,
+  id: string,
+  input: UpdateQuoteInput,
+): Promise<QuoteOutput> {
+  assertCanWrite(ctx)
+  const antes = await getQuote(deps, ctx, id)
+  if (antes.status !== 'open') {
+    throw AppError.conflict(
+      antes.status === 'converted'
+        ? 'Este orçamento já virou venda e não pode ser editado.'
+        : 'Este orçamento foi cancelado e não pode ser editado.',
+    )
+  }
+
+  const dados = await montar(deps, ctx, input)
+  const depois = await deps.quotes.update(ctx.companyId, id, dados)
+  /* Entre ler e gravar, outra pessoa fechou: o banco so edita o que esta aberto. */
+  if (depois === null) {
+    throw AppError.conflict('Este orçamento acabou de ser fechado por outra pessoa.')
+  }
+
+  await deps.audit.record({
+    companyId: ctx.companyId,
+    entity: 'Quote',
+    entityId: id,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { customerId: antes.customerId, totalCents: antes.totalCents },
+    after: { customerId: depois.customerId, totalCents: depois.totalCents },
+  })
+
+  return depois
 }
 
 export async function listQuotes(

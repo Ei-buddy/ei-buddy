@@ -25,9 +25,14 @@ export const quoteItemInputSchema = z
   })
   .strict()
 
-export const createQuoteInputSchema = z
+/*
+ * O cliente e obrigatorio e vem do cadastro — achado do QA. O nome solto de
+ * antes nao chegava a venda: o PDV pedia o cliente de novo, e "Joao" e "joao
+ * da silva" viravam duas pessoas. O nome gravado sai do cadastro, no servidor.
+ */
+const quoteFieldsSchema = z
   .object({
-    customerName: z.string().trim().max(120, 'Nome muito longo.').optional(),
+    customerId: idSchema,
     items: z
       .array(quoteItemInputSchema)
       .min(1, 'Inclua pelo menos um produto.')
@@ -41,7 +46,19 @@ export const createQuoteInputSchema = z
   })
   .strict()
 
+export const createQuoteInputSchema = quoteFieldsSchema
+
 export type CreateQuoteInput = z.infer<typeof createQuoteInputSchema>
+
+/**
+ * Edicao do orcamento ABERTO — achado do QA ("o abrir do orcamento deveria
+ * permitir o editar"). Substitui tudo: cliente, itens, validade, desconto e
+ * observacao. Convertido ou cancelado nao muda — ja virou venda ou foi
+ * recusado, e o registro e o que foi proposto.
+ */
+export const updateQuoteInputSchema = quoteFieldsSchema
+
+export type UpdateQuoteInput = z.infer<typeof updateQuoteInputSchema>
 
 export const convertQuoteInputSchema = z.object({ saleId: idSchema }).strict()
 
@@ -64,6 +81,8 @@ export type QuoteItemOutput = z.infer<typeof quoteItemOutputSchema>
 export const quoteOutputSchema = z.object({
   id: idSchema,
   number: z.number().int(),
+  /** Nulo nos orcamentos anteriores ao cadastro obrigatorio, que so tinham o nome. */
+  customerId: idSchema.nullable(),
   customerName: z.string().nullable(),
   status: quoteStatusSchema,
   validUntil: z.string(),

@@ -22,6 +22,8 @@ export type ItemDoOrcamento = {
 export type Orcamento = {
   id: string
   number: number
+  /** Nulo nos orcamentos antigos, que so tinham o nome digitado. */
+  customerId: string | null
   customerName: string | null
   status: 'open' | 'converted' | 'cancelled'
   validUntil: string
@@ -35,8 +37,9 @@ export type Orcamento = {
   createdAt: string
 }
 
+/** O cliente e obrigatorio e vem do cadastro: o nome sai de la, no servidor. */
 export type NovoOrcamento = {
-  customerName?: string
+  customerId: string
   items: { productId: string; quantity: number; unitPriceCents: number }[]
   validUntil: string
   discountCents?: number
@@ -64,6 +67,12 @@ export const carregarOrcamento = async (id: string) =>
 
 export const criarOrcamento = async (o: NovoOrcamento) =>
   resultado(await chamarApi<Orcamento>('/orcamentos', { method: 'POST', body: o }))
+
+/** Edita o orcamento aberto — substitui cliente, itens, validade e desconto. */
+export const editarOrcamento = async (id: string, o: NovoOrcamento) =>
+  resultado(
+    await chamarApi<Orcamento>(`/orcamentos/${encodeURIComponent(id)}`, { method: 'PUT', body: o }),
+  )
 
 export const cancelarOrcamento = async (id: string) =>
   resultado(

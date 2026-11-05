@@ -1,6 +1,6 @@
 import type { QuoteOutput } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
-import type { NewQuote, QuoteRepository } from '../ports/quote-repository.js'
+import type { NewQuote, QuoteChanges, QuoteRepository } from '../ports/quote-repository.js'
 
 type Produto = {
   id: string
@@ -15,12 +15,17 @@ type Produto = {
 /** Orcamentos em memoria, com numero por loja e fechamento so de aberto — NR-159. */
 export class InMemoryQuotes implements QuoteRepository {
   private readonly produtos: Produto[] = []
+  private readonly clientes: { id: string; companyId: CompanyId; name: string }[] = []
   private readonly orcamentos: (QuoteOutput & { companyId: CompanyId })[] = []
   private readonly vendas: { id: string; companyId: CompanyId; numero: number }[] = []
   private seq = 0
 
   cadastrar(p: Produto): void {
     this.produtos.push(p)
+  }
+
+  cadastrarCliente(c: { id: string; companyId: CompanyId; name: string }): void {
+    this.clientes.push(c)
   }
 
   registrarVenda(id: string, companyId: CompanyId, numero = this.vendas.length + 1): void {
@@ -33,12 +38,31 @@ export class InMemoryQuotes implements QuoteRepository {
       .map((p) => ({ id: p.id, description: p.description, isActive: p.isActive }))
   }
 
+  async findCustomer(companyId: CompanyId, id: string) {
+    const c = this.clientes.find((x) => x.companyId === companyId && x.id === id)
+    return c === undefined ? null : { id: c.id, name: c.name }
+  }
+
+  private itens(q: QuoteChanges): QuoteOutput['items'] {
+    return q.items.map((i) => {
+      const p = this.produtos.find((x) => x.id === i.productId)!
+      return {
+        ...i,
+        code: p.code ?? 'P-1',
+        costPriceCents: p.costPriceCents ?? 0,
+        stock: p.stock ?? 0,
+        isActive: p.isActive,
+      }
+    })
+  }
+
   async create(q: NewQuote): Promise<QuoteOutput> {
     this.seq += 1
     const numero = this.orcamentos.filter((o) => o.companyId === q.companyId).length + 1
     const saida: QuoteOutput = {
       id: `orc-${this.seq}`,
       number: numero,
+      customerId: q.customerId,
       customerName: q.customerName,
       status: 'open',
       validUntil: q.validUntil,
@@ -47,16 +71,7 @@ export class InMemoryQuotes implements QuoteRepository {
       totalCents: q.totalCents,
       saleId: null,
       saleNumber: null,
-      items: q.items.map((i) => {
-        const p = this.produtos.find((x) => x.id === i.productId)!
-        return {
-          ...i,
-          code: p.code ?? 'P-1',
-          costPriceCents: p.costPriceCents ?? 0,
-          stock: p.stock ?? 0,
-          isActive: p.isActive,
-        }
-      }),
+      items: this.itens(q),
       createdAt: q.createdAt.toISOString(),
     }
     this.orcamentos.push({ ...saida, companyId: q.companyId })
@@ -76,6 +91,24 @@ export class InMemoryQuotes implements QuoteRepository {
 
   async saleExists(companyId: CompanyId, saleId: string) {
     return this.vendas.some((v) => v.companyId === companyId && v.id === saleId)
+  }
+
+  async update(companyId: CompanyId, id: string, q: QuoteChanges) {
+    const i = this.orcamentos.findIndex(
+      (o) => o.companyId === companyId && o.id === id && o.status === 'open',
+    )
+    if (i < 0) return null
+    this.orcamentos[i] = {
+      ...this.orcamentos[i]!,
+      customerId: q.customerId,
+      customerName: q.customerName,
+      validUntil: q.validUntil,
+      notes: q.notes,
+      discountCents: q.discountCents,
+      totalCents: q.totalCents,
+      items: this.itens(q),
+    }
+    return this.orcamentos[i]!
   }
 
   async close(

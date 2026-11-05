@@ -31,6 +31,7 @@ export default function EtapaCatalogo({
   desconto,
   onItens,
   onDesconto,
+  clienteId,
   clienteNome,
   onVoltar,
   onAvancar,
@@ -40,6 +41,8 @@ export default function EtapaCatalogo({
   desconto: Desconto | null
   onItens: (itens: ItemCarrinho[]) => void
   onDesconto: (desconto: Desconto | null) => void
+  /** Nulo na venda sem cliente — e orcamento sem cliente nao se salva. */
+  clienteId: string | null
   clienteNome: string
   onVoltar: () => void
   onAvancar: () => void
@@ -195,9 +198,17 @@ export default function EtapaCatalogo({
    * pelo WhatsApp.
    */
   async function salvarComoOrcamento() {
+    /* O orcamento exige o cliente do cadastro — achado do QA. */
+    if (clienteId === null) {
+      setToast({
+        msg: 'Para salvar como orçamento, volte e escolha o cliente.',
+        tone: 'error',
+      })
+      return
+    }
     setSalvandoOrcamento(true)
     const r = await criarOrcamento({
-      ...(clienteNome && clienteNome !== 'Venda sem cliente' ? { customerName: clienteNome } : {}),
+      customerId: clienteId,
       items: itens.map((i) => ({
         productId: i.produtoId,
         quantity: i.quantidade,

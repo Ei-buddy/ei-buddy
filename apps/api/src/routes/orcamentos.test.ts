@@ -19,6 +19,9 @@ async function buildApp(principal: AuthenticatedPrincipal = PRINCIPAL) {
   })
   const quotes = new InMemoryQuotes()
   quotes.cadastrar({ id: 'p1', companyId: 'empresa-1', description: 'Tinta', isActive: true })
+  quotes.cadastrar({ id: 'p2', companyId: 'empresa-1', description: 'Rolo', isActive: true })
+  quotes.cadastrarCliente({ id: 'c1', companyId: 'empresa-1', name: 'Joana Lima' })
+  quotes.cadastrarCliente({ id: 'c2', companyId: 'empresa-1', name: 'Pedro Alves' })
   quotes.registrarVenda('v1', 'empresa-1')
   registerOrcamentosRoutes(app, { quotes, audit: new InMemoryAuditTrail() })
   return app
@@ -30,7 +33,7 @@ afterEach(async () => {
 })
 
 const corpo = {
-  customerName: 'Joana',
+  customerId: 'c1',
   items: [{ productId: 'p1', quantity: 2, unitPriceCents: 5000 }],
   validUntil: '2026-10-20',
 }
@@ -68,5 +71,52 @@ describe('orcamentos — NR-159', () => {
   it('orcamento inexistente e 404', async () => {
     app = await buildApp()
     expect((await app.inject({ method: 'GET', url: '/orcamentos/nada' })).statusCode).toBe(404)
+  })
+
+  it('sem cliente e 400; cliente que nao e da loja tambem', async () => {
+    app = await buildApp()
+    const { customerId: _, ...semCliente } = corpo
+    expect(
+      (await app.inject({ method: 'POST', url: '/orcamentos', payload: semCliente })).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/orcamentos',
+          payload: { ...corpo, customerId: 'outro' },
+        })
+      ).statusCode,
+    ).toBe(400)
+  })
+
+  it('edita o aberto com PUT; convertido e 409', async () => {
+    app = await buildApp()
+    const id = (await app.inject({ method: 'POST', url: '/orcamentos', payload: corpo })).json().id
+    const editado = await app.inject({
+      method: 'PUT',
+      url: `/orcamentos/${id}`,
+      payload: {
+        ...corpo,
+        customerId: 'c2',
+        items: [{ productId: 'p2', quantity: 4, unitPriceCents: 1000 }],
+      },
+    })
+    expect(editado.statusCode).toBe(200)
+    expect(editado.json()).toMatchObject({
+      id,
+      customerId: 'c2',
+      customerName: 'Pedro Alves',
+      totalCents: 4000,
+    })
+
+    await app.inject({
+      method: 'POST',
+      url: `/orcamentos/${id}/converter`,
+      payload: { saleId: 'v1' },
+    })
+    expect(
+      (await app.inject({ method: 'PUT', url: `/orcamentos/${id}`, payload: corpo })).statusCode,
+    ).toBe(409)
   })
 })

@@ -91,6 +91,41 @@
   font-size: 18px;
 }
 
+.clienteEscolhido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-inset);
+}
+
+.clienteEscolhido strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semCliente {
+  padding: 9px 10px;
+  color: var(--app-muted);
+  font-size: 13.5px;
+}
+
+.semCliente a {
+  color: var(--app-accent);
+  font-weight: 600;
+}
+
+.botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .lista {
   display: grid;
   gap: 4px;
