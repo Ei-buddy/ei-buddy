@@ -487,7 +487,7 @@ export async function responder(
     const { faturamento, liquido, quantidade } = h.dados.resumo
     return r(
       'faturamento',
-      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, imposto e taxa de cartão.`,
+      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, taxa de cartão e imposto das notas emitidas.`,
       [
         {
           tipo: 'indicador',
@@ -499,7 +499,7 @@ export async function responder(
           tipo: 'indicador',
           rotulo: 'Faturamento líquido hoje',
           valor: formatMoney(liquido),
-          apoio: 'sem desconto, imposto e taxa de cartão',
+          apoio: 'sem desconto, taxa de cartão e imposto das notas',
         },
         ...(f.ok
           ? [

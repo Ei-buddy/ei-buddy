@@ -192,7 +192,7 @@ export default function HistoricoVendas() {
         <Stat
           label="Faturamento líquido"
           value={resumo ? formatMoney(resumo.liquido) : '—'}
-          hint="sem desconto, imposto e taxa de cartão"
+          hint="sem desconto, devolução, taxa de cartão e imposto da nota emitida"
           tone="positive"
         />
         <Stat

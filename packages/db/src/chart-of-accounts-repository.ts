@@ -6,6 +6,7 @@ import type {
   NewAccount,
 } from '@na-regua/core'
 import type { Sql } from 'postgres'
+import { impostoComNota } from './imposto-da-venda.js'
 import { withTenant } from './tenant.js'
 
 /**
@@ -322,7 +323,7 @@ export function createChartOfAccountsRepository(
               ('descontos', 'deduction', s.discount_cents),
               ('devolucoes', 'deduction', s.returned_amount_cents),
               ('impostos', 'deduction',
-                 ROUND(s.tax_amount_cents * (s.gross_amount_cents - s.returned_amount_cents)::numeric
+                 ROUND(${impostoComNota(tx)} * (s.gross_amount_cents - s.returned_amount_cents)::numeric
                        / NULLIF(s.gross_amount_cents, 0))::bigint),
               ('cmv', 'cost', s.cost_amount_cents - dev.custo_devolvido),
               ('tarifas_cartao', 'expense', s.card_fee_amount_cents)

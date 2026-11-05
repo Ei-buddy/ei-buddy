@@ -122,6 +122,7 @@ describe.skipIf(!DATABASE_URL)('historico de vendas — NR-027', () => {
     for (const empresa of [empresaA, empresaB].filter(Boolean)) {
       await withTenant(sql, empresa, async (tx) => {
         await tx`DELETE FROM payments`
+        await tx`DELETE FROM invoices`
         await tx`DELETE FROM sale_items`
         await tx`DELETE FROM sales`
         await tx`DELETE FROM customers`
@@ -269,6 +270,64 @@ describe.skipIf(!DATABASE_URL)('historico de vendas — NR-027', () => {
     /* E nao entra no faturamento: ela nao aconteceu. */
     expect(r.resumo.salesCount).toBe(0)
     expect(r.resumo.netCents).toBe(0)
+  })
+
+  it('o imposto previsto so sai do liquido quando a venda tem nota', async () => {
+    /* R$ 100 cobrados, R$ 6 de imposto previsto: gravado 9.400 de liquido. */
+    const venda = async (dia: string) => {
+      const id = randomUUID()
+      await withTenant(
+        sql,
+        empresaA,
+        (tx) => tx`
+          INSERT INTO sales
+            (id, company_id, number, gross_amount_cents, discount_cents,
+             tax_amount_cents, net_amount_cents, created_at)
+          VALUES (${id}, ${empresaA}, ${proximoNumero++}, 10000, 0, 600, 9400, ${dia})
+        `,
+      )
+      return id
+    }
+    const semNota = await venda('2026-11-03T15:00:00.000Z')
+    const comNota = await venda('2026-11-04T15:00:00.000Z')
+    await withTenant(
+      sql,
+      empresaA,
+      (tx) => tx`
+        INSERT INTO invoices (company_id, sale_id, access_key, number, series, status)
+        VALUES (${empresaA}, ${comNota}, ${'3'.repeat(44)}, 1, 1, 'authorized')
+      `,
+    )
+
+    const r = await repo.list(empresaA, { ...pagina, from: '2026-11-01', to: '2026-11-30' })
+    const porId = new Map(r.vendas.map((v) => [v.id, v]))
+
+    /* Sem nota nao ha imposto: o liquido e o que foi cobrado. */
+    expect(porId.get(semNota)).toMatchObject({ taxAmountCents: 0, netAmountCents: 10000 })
+    expect(porId.get(comNota)).toMatchObject({ taxAmountCents: 600, netAmountCents: 9400 })
+    expect(r.resumo).toMatchObject({ salesCount: 2, grossCents: 20000, netCents: 19400 })
+  })
+
+  it('a venda devolvida inteira sai dos totais; a parcial abate o devolvido', async () => {
+    const venda = async (dia: string, status: string, devolvido: number) => {
+      await withTenant(
+        sql,
+        empresaA,
+        (tx) => tx`
+          INSERT INTO sales
+            (company_id, number, status, gross_amount_cents, discount_cents,
+             net_amount_cents, returned_amount_cents, created_at)
+          VALUES (${empresaA}, ${proximoNumero++}, ${status}, 10000, 0, 10000, ${devolvido}, ${dia})
+        `,
+      )
+    }
+    await venda('2026-12-02T15:00:00.000Z', 'returned', 10000)
+    await venda('2026-12-03T15:00:00.000Z', 'settled', 2500)
+
+    const r = await repo.list(empresaA, { ...pagina, from: '2026-12-01', to: '2026-12-31' })
+
+    expect(r.total).toBe(2)
+    expect(r.resumo).toMatchObject({ salesCount: 1, grossCents: 7500, netCents: 7500 })
   })
 
   it('periodo sem venda devolve resumo zerado, e nao erro', async () => {
