@@ -386,6 +386,13 @@ export default function Pdv() {
       temFiado && vencido !== null && vencido > 0
         ? `\nAtenção: ${cliente?.nome} tem ${formatMoney(vencido)} vencido.`
         : null,
+      /* RF-028: passar do saldo e decisao do operador — o app mostra antes. */
+      ...itens
+        .filter((i) => i.quantidade > i.estoqueDisponivel)
+        .map(
+          (i) =>
+            `\nSem estoque suficiente: ${i.descricao} (vendendo ${i.quantidade}, estoque ${i.estoqueDisponivel}).`,
+        ),
     ].filter((l) => l !== null)
 
     setConfirmacao(linhas.join('\n'))
@@ -430,6 +437,9 @@ export default function Pdv() {
                   {item.descricao}
                 </Text>
                 <Text style={estilos.itemUnitario}>{formatMoney(item.precoUnitario)} un</Text>
+                {item.quantidade > item.estoqueDisponivel ? (
+                  <Text style={estilos.itemSemEstoque}>Estoque: {item.estoqueDisponivel} un.</Text>
+                ) : null}
               </View>
 
               <View style={estilos.contador}>
@@ -764,6 +774,7 @@ const estilos = criarEstilos(() => ({
   },
   itemInfo: { flex: 1, gap: 2 },
   itemNome: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.texto },
+  itemSemEstoque: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
   itemUnitario: { fontSize: fonte.micro, color: cores.textoFraco },
 
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco.sm },

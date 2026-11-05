@@ -485,6 +485,19 @@
   color: var(--app-muted);
 }
 
+.itemNome .itemSemEstoque {
+  color: var(--app-danger);
+  font-weight: 600;
+}
+
+.semEstoqueLista {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
 .itemQuantidade {
   grid-area: qtd;
   display: flex;

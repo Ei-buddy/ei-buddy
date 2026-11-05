@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { listarClientes, type ClienteDaLista } from '@/lib/clientes-api'
 import { listarCatalogo, type ProdutoDoCatalogo } from '@/lib/produtos-api'
-import type { Desconto, TipoDesconto } from '@/lib/vendas-api'
+import { valorDesconto, type Desconto, type TipoDesconto } from '@/lib/vendas-api'
 import { centavosDoTexto } from '@/lib/valor'
 import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
@@ -242,10 +242,24 @@ export function DescontoModal({
   const [tipo, setTipo] = useState<TipoDesconto>(atual?.tipo ?? 'percentual')
   const [texto, setTexto] = useState(atual ? String(atual.quantia).replace('.', ',') : '')
 
+  /* Total a cobrar editavel, como no web: 10% de R$ 56,00 da R$ 50,40, e o
+     lojista pode cobrar R$ 51,00 — o desconto vira o valor que falta. */
+  const [totalTexto, setTotalTexto] = useState<string | null>(null)
+
   const centavos = centavosDoTexto(texto)
   const quantia = centavos === null ? null : centavos / 100
+  const pelaRegra =
+    quantia === null ? 0 : valorDesconto(subtotal, { tipo, quantia: Math.max(0, quantia) })
+  const totalCentavos = totalTexto === null ? null : centavosDoTexto(totalTexto)
+  const abatimento =
+    totalCentavos === null ? pelaRegra : Math.round(subtotal * 100 - totalCentavos) / 100
+  const novoTotal = Math.round((subtotal - abatimento) * 100) / 100
   const invalido =
-    quantia === null || quantia < 0 || (tipo === 'percentual' ? quantia > 100 : quantia > subtotal)
+    totalTexto !== null
+      ? totalCentavos === null || totalCentavos <= 0 || totalCentavos >= Math.round(subtotal * 100)
+      : quantia === null ||
+        quantia < 0 ||
+        (tipo === 'percentual' ? quantia > 100 : quantia > subtotal)
 
   return (
     <Folha titulo="Desconto" onFechar={onFechar}>
@@ -273,7 +287,10 @@ export function DescontoModal({
       <Campo
         rotulo={tipo === 'percentual' ? 'Percentual de desconto' : 'Valor do desconto'}
         valor={texto}
-        onChange={setTexto}
+        onChange={(v) => {
+          setTexto(v)
+          setTotalTexto(null)
+        }}
         tipoTeclado="decimal-pad"
         placeholder={tipo === 'percentual' ? 'Ex.: 10' : 'Ex.: 5,00'}
         erro={
@@ -286,6 +303,29 @@ export function DescontoModal({
         dica={`Subtotal: ${formatMoney(subtotal)}`}
       />
 
+      <Campo
+        rotulo="Total a cobrar — pode ajustar"
+        valor={
+          totalTexto ??
+          (quantia !== null && quantia > 0 && !invalido
+            ? novoTotal.toFixed(2).replace('.', ',')
+            : '')
+        }
+        onChange={setTotalTexto}
+        tipoTeclado="decimal-pad"
+        placeholder={subtotal.toFixed(2).replace('.', ',')}
+        erro={
+          totalTexto !== null && invalido
+            ? `Entre R$ 0,01 e o subtotal (${formatMoney(subtotal)}).`
+            : null
+        }
+        dica={
+          abatimento > 0
+            ? `Desconto de ${formatMoney(abatimento)} (${((abatimento / subtotal) * 100).toFixed(2).replace('.', ',')}%).`
+            : undefined
+        }
+      />
+
       <View style={estilos.acoes}>
         {atual !== null ? (
           <Botao variante="secundario" onPress={() => onAplicar(null)} largura>
@@ -293,7 +333,13 @@ export function DescontoModal({
           </Botao>
         ) : null}
         <Botao
-          onPress={() => quantia !== null && onAplicar(quantia > 0 ? { tipo, quantia } : null)}
+          onPress={() => {
+            if (totalTexto !== null) {
+              onAplicar(abatimento > 0 ? { tipo: 'valor', quantia: abatimento } : null)
+              return
+            }
+            if (quantia !== null) onAplicar(quantia > 0 ? { tipo, quantia } : null)
+          }}
           desabilitado={invalido}
           largura
         >

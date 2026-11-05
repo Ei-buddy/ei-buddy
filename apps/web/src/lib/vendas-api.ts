@@ -69,8 +69,13 @@ export function valorDesconto(subtotal: number, desconto: Desconto | null): numb
   const bruto =
     desconto.tipo === 'percentual' ? (subtotal * desconto.quantia) / 100 : desconto.quantia
 
+  /* Em CENTAVOS: 10% de R$ 33,33 sao R$ 3,333, e sem arredondar a tela mostrava
+     um valor e o servidor gravava outro (achado do QA). Meio centavo arredonda
+     para cima, como na calculadora do balcao. */
+  const centavos = Math.round(Number((bruto * 100).toFixed(6)))
+
   /* Nunca deixa o desconto passar do subtotal — total negativo nao existe. */
-  return Math.min(bruto, subtotal)
+  return Math.min(centavos / 100, subtotal)
 }
 
 export function totalCarrinho(itens: ItemCarrinho[], desconto: Desconto | null): number {

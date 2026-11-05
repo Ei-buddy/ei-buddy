@@ -49,6 +49,10 @@ export default function EtapaPagamento({
 
   const restante = Math.max(0, total - confirmado)
   const quitado = restante <= 0.01
+  /* So dinheiro vira troco (RF-035): o cliente da R$ 50 numa compra de R$ 30.
+     O servidor abate o troco do pagamento em dinheiro, e o comprovante mostra
+     recebido e troco. A mais no cartao e erro de digitacao, e e recusado. */
+  const troco = Math.max(0, Math.round((confirmado - total) * 100) / 100)
   const liquido = valorLiquido(pagamentos)
   const taxaTotal = pagamentos
     .filter((p) => p.status === 'confirmado')
@@ -70,10 +74,14 @@ export default function EtapaPagamento({
       setToast({ msg: 'Informe um valor maior que zero.', tone: 'error' })
       return
     }
-    if (valor > restante + 0.01) {
-      setToast({ msg: 'O valor é maior que o restante a pagar.', tone: 'error' })
+    if (valor > restante + 0.01 && forma !== 'dinheiro') {
+      setToast({
+        msg: 'O valor é maior que o restante a pagar. Só pagamento em dinheiro pode ter troco.',
+        tone: 'error',
+      })
       return
     }
+    const trocoDeste = forma === 'dinheiro' ? Math.max(0, valor - restante) : 0
 
     const novo: Pagamento = {
       id: `pg-${Date.now()}`,
@@ -93,7 +101,10 @@ export default function EtapaPagamento({
       setCobrando(novo)
     } else {
       setToast({
-        msg: `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
+        msg:
+          trocoDeste > 0.009
+            ? `Dinheiro: ${formatMoney(valor)} recebido. Troco: ${formatMoney(trocoDeste)}.`
+            : `${formaAtual.rotulo}${novo.parcelas ? ` em ${novo.parcelas}x` : ''}: ${formatMoney(valor)} recebido.`,
         tone: 'success',
       })
     }
@@ -137,7 +148,11 @@ export default function EtapaPagamento({
           {!quitado ? (
             <>
               <label className={styles.campo}>
-                <span>Valor — deixe em branco para pagar tudo ({formatMoney(restante)})</span>
+                <span>
+                  {forma === 'dinheiro'
+                    ? `Valor recebido — deixe em branco para pagar tudo (${formatMoney(restante)}). Se o cliente der mais, o troco aparece no resumo.`
+                    : `Valor — deixe em branco para pagar tudo (${formatMoney(restante)}). Para dividir, lance uma parte e depois escolha outra forma.`}
+                </span>
                 <input
                   className={`${styles.input} ${styles.inputGrande}`}
                   value={valorParcial}
@@ -204,6 +219,12 @@ export default function EtapaPagamento({
                 {formatMoney(restante)}
               </strong>
             </div>
+            {troco > 0 ? (
+              <div className={`${styles.resumoLinha} ${styles.resumoTotal}`}>
+                <span>Troco</span>
+                <strong>{formatMoney(troco)}</strong>
+              </div>
+            ) : null}
           </div>
 
           {pagamentos.length > 0 ? (
