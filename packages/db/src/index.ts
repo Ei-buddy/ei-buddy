@@ -100,6 +100,9 @@ export {
   createInventoryUnitOfWork,
 } from './inventory-repository.js'
 
+/* Cadastro de fornecedor — NR-191. */
+export { createSupplierRepository } from './supplier-repository.js'
+
 /* Sugestao de reposicao pela venda dos ultimos seis meses — achado do QA. */
 export { createRestockQueries } from './restock-queries.js'
 

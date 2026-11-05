@@ -30,6 +30,8 @@ export const exportCollectionSchema = z.enum([
   'inventory_movements',
   'purchases',
   'purchase_items',
+  /* O cadastro de fornecedor — NR-191. Dado da loja, e a compra aponta para ele. */
+  'suppliers',
   'quotes',
   'quote_items',
   'appointments',

@@ -92,6 +92,7 @@ import {
   createCrmRepository,
   createInventoryHistory,
   createRestockQueries,
+  createSupplierRepository,
   createInventoryQueries,
   createInventoryUnitOfWork,
   createPurchaseQueries,
@@ -169,6 +170,7 @@ import type { ContasBancariasDeps } from './routes/contas-bancarias.js'
 import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
+import type { CadastroDeFornecedoresDeps } from './routes/cadastro-fornecedores.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
@@ -905,6 +907,15 @@ export function buildContasBancariasDeps(): ContasBancariasDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     bankAccounts: createBankAccountRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Cadastro de fornecedor — NR-191. */
+export function buildCadastroDeFornecedoresDeps(): CadastroDeFornecedoresDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    suppliers: createSupplierRepository(sql),
     audit: createAuditTrail(sql),
   }
 }

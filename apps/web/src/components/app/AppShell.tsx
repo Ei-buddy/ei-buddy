@@ -80,6 +80,8 @@ const navItems: NavItem[] = [
   { href: '/app/clientes', label: 'Clientes', icon: IconUsers },
   { href: '/app/produtos', label: 'Produtos', icon: IconBox },
   { href: '/app/compras', label: 'Entrada de mercadoria', icon: IconTruck },
+  /* O cadastro — NR-191. "Conexoes" e a busca de fornecedor por proximidade. */
+  { href: '/app/cadastros/fornecedores', label: 'Fornecedores', icon: IconClipboard },
   { href: '/app/fornecedores', label: 'Conexões', icon: IconStore },
   {
     href: '/app/financeiro',

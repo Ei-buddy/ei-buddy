@@ -284,6 +284,22 @@ export {
   listBankAccounts,
 } from './banking/manage-bank-accounts.js'
 export type { BankAccountDeps } from './banking/manage-bank-accounts.js'
+export {
+  createSupplier,
+  deleteSupplier,
+  FORNECEDORES_NA_LISTA,
+  getSupplier,
+  listSuppliers,
+  updateSupplier,
+} from './suppliers/manage-suppliers.js'
+export type { SupplierDeps } from './suppliers/manage-suppliers.js'
+export type {
+  EnderecoDoFornecedor,
+  NewSupplier,
+  SupplierPatch,
+  SupplierRepository,
+} from './ports/supplier-repository.js'
+export { InMemorySuppliers } from './suppliers/fakes.js'
 export { getBankAccountStatement } from './banking/bank-account-statement.js'
 export type { BankAccountStatementDeps } from './banking/bank-account-statement.js'
 export type {
