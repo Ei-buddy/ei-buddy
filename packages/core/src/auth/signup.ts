@@ -12,6 +12,12 @@ import type {
 } from '../ports/partner-application-repository.js'
 import type { CompanyRepository } from '../ports/registration-repositories.js'
 import { checkCoupon } from '../subscriptions/preview-coupon.js'
+import {
+  donoDoCelular,
+  MSG_CELULAR_EM_USO,
+  MSG_CNPJ_EM_USO,
+  MSG_EMAIL_EM_USO,
+} from './phone-variants.js'
 
 /**
  * Cadastro de conta — NR-014, RF-001, RF-002.
@@ -77,9 +83,17 @@ export async function signup(
    * A mensagem fala do que fazer, e nao de quem ja tem o cadastro.
    */
   if (await deps.companies.cnpjTaken(input.cnpj)) {
-    throw AppError.conflict(
-      'Este CNPJ já tem cadastro. Se a empresa é sua, peça acesso a quem administra a conta.',
-    )
+    throw AppError.conflict(MSG_CNPJ_EM_USO, [{ path: 'cnpj', message: MSG_CNPJ_EM_USO }])
+  }
+
+  /*
+   * E-mail conferido no NOSSO cadastro antes da credencial — achado do QA.
+   * O provedor tambem recusa e-mail repetido (abaixo), mas so depois de o
+   * CNPJ e o celular passarem; conferir aqui da a mesma resposta na mesma
+   * ordem que a tela ve ao sair do campo.
+   */
+  if ((await deps.users.findByEmail(input.email)) !== undefined) {
+    throw AppError.conflict(MSG_EMAIL_EM_USO, [{ path: 'email', message: MSG_EMAIL_EM_USO }])
   }
 
   /*
@@ -90,13 +104,11 @@ export async function signup(
    * "erro" e o banco guardava meia conta. Na nova tentativa, o e-mail ja
    * estava "em uso", e a pessoa ficava presa fora do cadastro.
    *
-   * A mensagem do telefone nao confirma que a conta existe — mesmo cuidado do
-   * e-mail, logo abaixo.
+   * O celular e obrigatorio e vale nos dois formatos (oito ou nove digitos):
+   * o mesmo numero escrito do jeito antigo nao abre segunda conta.
    */
-  if (input.phone !== undefined && (await deps.users.findByPhone(input.phone)) !== undefined) {
-    throw AppError.conflict(
-      'Não foi possível usar este telefone. Se a conta é sua, entre por "Acessar minha conta".',
-    )
+  if ((await donoDoCelular(deps.users, input.phone)) !== undefined) {
+    throw AppError.conflict(MSG_CELULAR_EM_USO, [{ path: 'phone', message: MSG_CELULAR_EM_USO }])
   }
 
   if (
@@ -123,18 +135,13 @@ export async function signup(
 
   const identidade = await deps.registrar.register(
     { identifier: input.email, secret: input.secret },
-    { email: input.email, phone: input.phone ?? null },
+    { email: input.email, phone: input.phone },
   )
 
-  /*
-   * `undefined` e "este e-mail ja tem credencial". Nao e erro de sistema, e a
-   * mensagem NAO confirma que a conta existe — dizer "ja cadastrado" a quem
-   * digitou um e-mail alheio transformaria o formulario em consultor de contas.
-   */
+  /* `undefined` e "este e-mail ja tem credencial" no provedor — conta antiga
+     sem linha nossa, ou corrida com outro cadastro. Mesma recusa do e-mail. */
   if (identidade === undefined) {
-    throw AppError.conflict(
-      'Não foi possível usar este e-mail. Se a conta é sua, entre por "Acessar minha conta".',
-    )
+    throw AppError.conflict(MSG_EMAIL_EM_USO, [{ path: 'email', message: MSG_EMAIL_EM_USO }])
   }
 
   const empresa = await deps.companies.create({
@@ -142,7 +149,7 @@ export async function signup(
     tradeName: input.legalName,
     cnpj: input.cnpj,
     email: input.email,
-    phone: input.phone ?? '',
+    phone: input.phone,
     createdAt: agora,
   })
 
@@ -152,7 +159,7 @@ export async function signup(
     companyId: empresa.id,
     name: input.name,
     email: input.email,
-    phone: input.phone ?? null,
+    phone: input.phone,
     role: 'owner',
     createdAt: agora,
   })

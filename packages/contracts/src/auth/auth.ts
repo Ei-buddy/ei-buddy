@@ -169,7 +169,13 @@ export const signupInputSchema = z
     /* Quem vai operar. */
     name: nameSchema,
     email: emailSchema,
-    phone: phoneSchema.optional(),
+    /*
+     * Obrigatorio — achado do QA: o celular e uma das tres coisas que nao se
+     * repetem entre contas (com o e-mail e o CNPJ). Opcional, a trava de
+     * celular repetido so valia para quem escolhia informar; o app deixava
+     * em branco e a mesma pessoa abria quantas contas quisesse.
+     */
+    phone: phoneSchema,
     /**
      * O segredo vai para o PROVEDOR de identidade, nunca para o nosso banco.
      *
@@ -217,6 +223,33 @@ export const signupInputSchema = z
   .strict()
 
 export type SignupInput = z.infer<typeof signupInputSchema>
+
+/**
+ * Conferencia antecipada do cadastro — achado do QA.
+ *
+ * A tela pergunta ao sair do campo se o e-mail, o CNPJ ou o celular ja estao
+ * em uso, para a pessoa saber na primeira etapa, e nao depois de preencher
+ * tudo e aceitar os termos. O cadastro confere de novo ao gravar.
+ */
+export const signupAvailabilityInputSchema = z
+  .object({
+    email: emailSchema.optional(),
+    cnpj: cnpjSchema.optional(),
+    phone: phoneSchema.optional(),
+  })
+  .strict()
+  .refine((v) => v.email !== undefined || v.cnpj !== undefined || v.phone !== undefined, {
+    message: 'Informe o e-mail, o CNPJ ou o celular.',
+  })
+
+export type SignupAvailabilityInput = z.infer<typeof signupAvailabilityInputSchema>
+
+export const signupAvailabilityOutputSchema = z.object({
+  /** Vazio = tudo livre. Um item por campo ja em uso, com a mensagem da tela. */
+  conflicts: z.array(z.object({ field: z.enum(['email', 'cnpj', 'phone']), message: z.string() })),
+})
+
+export type SignupAvailabilityOutput = z.infer<typeof signupAvailabilityOutputSchema>
 
 /**
  * Super Admin — ADR-0007, RF-131.

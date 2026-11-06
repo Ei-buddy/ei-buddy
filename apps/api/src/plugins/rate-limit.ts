@@ -40,6 +40,15 @@ export const LIMITE_DE_ESCRITA = { max: 120, timeWindow: '1 minute' }
  */
 export const LIMITE_DE_AUTENTICACAO = { max: 10, timeWindow: '1 minute' }
 
+/**
+ * Conferencia antecipada do cadastro — achado do QA.
+ *
+ * A tela pergunta ao sair do e-mail, do CNPJ e do celular, e de novo no
+ * "Continuar": quatro chamadas por tentativa. Trinta por minuto deixam a pessoa
+ * corrigir varias vezes; varrer a base a esse ritmo levaria anos.
+ */
+export const LIMITE_DE_CONFERENCIA_DO_CADASTRO = { max: 30, timeWindow: '1 minute' }
+
 export async function registerRateLimit(app: FastifyInstance, redis?: Redis): Promise<void> {
   await app.register(rateLimit, {
     /*

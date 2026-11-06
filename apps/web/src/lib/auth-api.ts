@@ -102,6 +102,37 @@ export type SignupData = {
   couponName?: string
 }
 
+/** Os campos que nao se repetem entre contas — achado do QA. */
+export type CampoUnicoDoCadastro = 'email' | 'cnpj' | 'phone'
+
+/**
+ * O e-mail, o CNPJ ou o celular ja estao em uso? — achado do QA.
+ *
+ * Devolve a mensagem por campo em uso (vazio = tudo livre), ou `null` quando
+ * nao deu para conferir agora (rede, limite de requisicoes). Nulo nao trava a
+ * pessoa: o cadastro confere tudo de novo ao gravar.
+ */
+export async function conferirCadastro(campos: {
+  email?: string
+  cnpj?: string
+  phone?: string
+}): Promise<Partial<Record<CampoUnicoDoCadastro, string>> | null> {
+  try {
+    const r = await fetch('/api/auth/signup/disponibilidade', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(campos),
+    })
+    if (!r.ok) return null
+    const corpo = (await r.json()) as {
+      conflicts: { field: CampoUnicoDoCadastro; message: string }[]
+    }
+    return Object.fromEntries(corpo.conflicts.map((c) => [c.field, c.message]))
+  } catch {
+    return null
+  }
+}
+
 /**
  * Cria a conta — NR-014, RF-001, RF-002.
  *
@@ -122,7 +153,8 @@ export async function createAccount(
       body: JSON.stringify({
         name: data.nome,
         email: data.email,
-        ...(data.telefone.trim() === '' ? {} : { phone: data.telefone }),
+        /* Obrigatorio e unico entre contas — achado do QA. */
+        phone: data.telefone,
         secret: data.senha,
         legalName: data.razaoSocial,
         cnpj: data.cnpj,

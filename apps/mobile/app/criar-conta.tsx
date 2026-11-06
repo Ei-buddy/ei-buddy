@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   KeyboardAvoidingView,
   Linking,
@@ -11,7 +11,14 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { partnerAccountFieldsSchema } from '@na-regua/contracts'
-import { conferirCupom, criarConta, type DadosDaConta, type ResultadoDoCupom } from '@/lib/auth-api'
+import {
+  conferirCadastro,
+  conferirCupom,
+  criarConta,
+  type CampoUnicoDoCadastro,
+  type DadosDaConta,
+  type ResultadoDoCupom,
+} from '@/lib/auth-api'
 import {
   maskCNPJ,
   maskPhone,
@@ -19,6 +26,7 @@ import {
   validateEmail,
   validateName,
   validatePassword,
+  validatePhone,
 } from '@/lib/validation'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
@@ -64,6 +72,47 @@ export default function CriarConta() {
   const [erro, setErro] = useState<string | null>(null)
   const [conferindo, setConferindo] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  /* E-mail, CNPJ e celular ja em uso, por campo — achado do QA. */
+  const [emUso, setEmUso] = useState<Partial<Record<CampoUnicoDoCadastro, string>>>({})
+  /* O valor de cada campo na hora em que a resposta chega: so marca o campo
+     se a pessoa nao o mudou enquanto a conferencia andava. */
+  const atuais = useRef({ email: '', cnpj: '', phone: '' })
+
+  /** Pergunta ao servidor e marca os campos em uso. Devolve se algum esta. */
+  async function conferirUnicos(campos: {
+    email?: string
+    cnpj?: string
+    phone?: string
+  }): Promise<boolean> {
+    const conflitos = await conferirCadastro(campos)
+    if (conflitos === null) return false
+    setEmUso((atual) => {
+      const novo = { ...atual }
+      for (const campo of ['email', 'cnpj', 'phone'] as const) {
+        if (campos[campo] === undefined || atuais.current[campo] !== campos[campo]) continue
+        if (conflitos[campo]) novo[campo] = conflitos[campo]
+        else delete novo[campo]
+      }
+      return novo
+    })
+    return Boolean(conflitos.email || conflitos.cnpj || conflitos.phone)
+  }
+
+  /** Ao sair do campo: confere so se o valor ja e valido. */
+  function aoSairDe(campo: CampoUnicoDoCadastro, valor: string) {
+    const valido =
+      campo === 'email'
+        ? validateEmail(valor) === null
+        : campo === 'cnpj'
+          ? validateCNPJ(valor) === null
+          : validatePhone(valor) === null
+    if (valido) void conferirUnicos({ [campo]: valor })
+  }
+
+  function mudou(campo: CampoUnicoDoCadastro, valor: string) {
+    atuais.current = { ...atuais.current, [campo]: valor }
+    if (emUso[campo]) setEmUso((atual) => ({ ...atual, [campo]: undefined }))
+  }
 
   async function conferir() {
     setConferindo(true)
@@ -91,6 +140,7 @@ export default function CriarConta() {
     const problema =
       validateName(nome) ??
       validateEmail(email) ??
+      validatePhone(celular) ??
       validatePassword(senha) ??
       validateCNPJ(cnpj) ??
       (razaoSocial.trim().length < 2 ? 'Informe a razão social.' : null) ??
@@ -105,6 +155,12 @@ export default function CriarConta() {
     }
     setErro(null)
     setEnviando(true)
+    /* Antes de criar: e-mail, CNPJ e celular nao podem estar em uso. */
+    if (await conferirUnicos({ email, cnpj, phone: celular })) {
+      setEnviando(false)
+      setErro('Algum dado já está em uso por outra conta. Veja o aviso no campo.')
+      return
+    }
     const r = await criarConta({
       nome,
       email,
@@ -163,15 +219,26 @@ export default function CriarConta() {
           <Campo
             rotulo="E-mail"
             valor={email}
-            onChange={setEmail}
+            onChange={(v) => {
+              setEmail(v)
+              mudou('email', v)
+            }}
             tipoTeclado="email-address"
             autoCap="none"
+            erro={emUso.email ?? null}
+            aoSair={() => aoSairDe('email', email)}
           />
           <Campo
-            rotulo="Celular com DDD (opcional)"
+            rotulo="Celular com DDD"
             valor={celular}
-            onChange={(v) => setCelular(maskPhone(v))}
+            onChange={(v) => {
+              const mascarado = maskPhone(v)
+              setCelular(mascarado)
+              mudou('phone', mascarado)
+            }}
             tipoTeclado="phone-pad"
+            erro={emUso.phone ?? null}
+            aoSair={() => aoSairDe('phone', celular)}
           />
           <Campo
             rotulo="Senha"
@@ -186,8 +253,14 @@ export default function CriarConta() {
           <Campo
             rotulo="CNPJ"
             valor={cnpj}
-            onChange={(v) => setCnpj(maskCNPJ(v))}
+            onChange={(v) => {
+              const mascarado = maskCNPJ(v)
+              setCnpj(mascarado)
+              mudou('cnpj', mascarado)
+            }}
             tipoTeclado="numeric"
+            erro={emUso.cnpj ?? null}
+            aoSair={() => aoSairDe('cnpj', cnpj)}
           />
           <Campo rotulo="Razão social" valor={razaoSocial} onChange={setRazaoSocial} />
 

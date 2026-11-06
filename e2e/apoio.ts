@@ -54,6 +54,8 @@ export async function lojaNova(request: APIRequestContext): Promise<{ cnpj: stri
     data: {
       name: 'Dona E2E',
       email: `e2e-${cnpj}@teste.local`,
+      /* Celular obrigatorio e unico no cadastro: derivado do CNPJ, que ja e unico. */
+      phone: `419${cnpj.slice(0, 8)}`,
       secret: 'Senha-e2e-forte-123',
       legalName: 'Loja E2E Ficticia LTDA',
       cnpj,

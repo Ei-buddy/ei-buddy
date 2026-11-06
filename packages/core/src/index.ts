@@ -500,6 +500,10 @@ export type { ListAppointmentRangeDeps, RangeAgenda } from './schedule/list-appo
 /* Cadastro de conta — NR-014, RF-001, RF-002. */
 export { signup } from './auth/signup.js'
 export type { SignupDeps } from './auth/signup.js'
+/* Cadastro sem repetir e-mail, CNPJ e celular — achado do QA. */
+export { checkSignupAvailability } from './auth/signup-availability.js'
+export type { SignupAvailabilityDeps } from './auth/signup-availability.js'
+export { variantesDoCelular } from './auth/phone-variants.js'
 export type { IdentityRegistrar } from './ports/identity.js'
 export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
 export { changePhone, currentPhone } from './auth/change-phone.js'
