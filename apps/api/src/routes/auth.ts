@@ -8,6 +8,7 @@ import {
   passwordResetInputSchema,
   passwordResetRequestSchema,
   selectCompanyInputSchema,
+  signupAvailabilityInputSchema,
   signupInputSchema,
 } from '@na-regua/contracts'
 import {
@@ -18,6 +19,7 @@ import {
   changePassword,
   changePhone,
   type ChangePhoneDeps,
+  checkSignupAvailability,
   currentPhone,
   checkCoupon,
   type LoginMeta,
@@ -35,7 +37,7 @@ import {
   type MyAccountDeps,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { LIMITE_DE_AUTENTICACAO } from '../plugins/rate-limit.js'
+import { LIMITE_DE_AUTENTICACAO, LIMITE_DE_CONFERENCIA_DO_CADASTRO } from '../plugins/rate-limit.js'
 import { lerToken } from '../plugins/session.js'
 import { validate } from '../plugins/validate.js'
 
@@ -124,6 +126,22 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
       /* 201: criou pessoa, loja e vinculo. E ja devolve a sessao aberta — quem
          acabou de cadastrar quer usar o sistema, nao digitar tudo de novo. */
       return reply.code(201).send(sessao)
+    },
+  )
+
+  /**
+   * O e-mail, o CNPJ ou o celular ja estao em uso? — achado do QA.
+   *
+   * PUBLICA como o cadastro: a tela pergunta na primeira etapa, ao sair do
+   * campo, para a pessoa nao descobrir so no fim, depois de aceitar os termos.
+   * So le; o cadastro confere de novo ao gravar.
+   */
+  app.post(
+    '/auth/signup/disponibilidade',
+    { config: { rateLimit: LIMITE_DE_CONFERENCIA_DO_CADASTRO } },
+    async (request, reply) => {
+      const input = validate(signupAvailabilityInputSchema, request.body)
+      return reply.code(200).send(await checkSignupAvailability(deps, input))
     },
   )
 

@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   COBRANCA_DA_ASSINATURA_DISPONIVEL,
+  conferirCadastro,
   createAccount,
   createPixCharge,
   fetchPixChargeStatus,
@@ -102,6 +103,14 @@ export default function SignupFlow() {
   const [aceitou, setAceitou] = useState(false)
   const [criando, setCriando] = useState(false)
   const [erroCriacao, setErroCriacao] = useState<string | null>(null)
+  /* Conferindo no servidor se e-mail, CNPJ e celular estao livres — achado do QA. */
+  const [conferindo, setConferindo] = useState(false)
+  /* O valor ATUAL de cada campo: a resposta da conferencia so marca o erro se
+     a pessoa nao mudou o campo enquanto ela chegava. */
+  const atuais = useRef({ email, cnpj, telefone })
+  useEffect(() => {
+    atuais.current = { email, cnpj, telefone }
+  }, [email, cnpj, telefone])
 
   /* Envolvida em useCallback porque o CobrancaPix a usa como dependencia
      de efeito: uma funcao nova a cada render regeraria a cobranca. */
@@ -118,7 +127,42 @@ export default function SignupFlow() {
    * Etapa 1 — dados da conta
    * ---------------------------------------------------------------- */
 
-  function submitDados(event: FormEvent) {
+  /**
+   * E-mail, CNPJ e celular nao se repetem entre contas — achado do QA.
+   *
+   * Pergunta ao servidor ao sair de cada campo e de novo no "Continuar", para
+   * a pessoa saber JA na primeira etapa, e nao depois de aceitar os termos.
+   * Sem resposta (rede, limite), segue: o cadastro confere tudo ao gravar.
+   * Devolve se algum campo enviado esta em uso.
+   */
+  async function conferirUnicos(campos: {
+    email?: string
+    cnpj?: string
+    telefone?: string
+  }): Promise<boolean> {
+    const conflitos = await conferirCadastro({
+      ...(campos.email === undefined ? {} : { email: campos.email }),
+      ...(campos.cnpj === undefined ? {} : { cnpj: campos.cnpj }),
+      ...(campos.telefone === undefined ? {} : { phone: campos.telefone }),
+    })
+    if (conflitos === null) return false
+    if (campos.email !== undefined && atuais.current.email === campos.email && conflitos.email) {
+      setEmailError(conflitos.email)
+    }
+    if (campos.cnpj !== undefined && atuais.current.cnpj === campos.cnpj && conflitos.cnpj) {
+      setCnpjError(conflitos.cnpj)
+    }
+    if (
+      campos.telefone !== undefined &&
+      atuais.current.telefone === campos.telefone &&
+      conflitos.phone
+    ) {
+      setTelefoneError(conflitos.phone)
+    }
+    return Boolean(conflitos.email || conflitos.cnpj || conflitos.phone)
+  }
+
+  async function submitDados(event: FormEvent) {
     event.preventDefault()
 
     const erros = {
@@ -149,6 +193,11 @@ export default function SignupFlow() {
     setPartnerMessageError(erros.partnerMessage)
 
     if (Object.values(erros).some(Boolean)) return
+
+    setConferindo(true)
+    const emUso = await conferirUnicos({ email, cnpj, telefone })
+    setConferindo(false)
+    if (emUso) return
     setStep(2)
   }
 
@@ -234,7 +283,11 @@ export default function SignupFlow() {
                 setEmail(v)
                 if (emailError) setEmailError(validateEmail(v))
               }}
-              onBlur={() => setEmailError(validateEmail(email))}
+              onBlur={() => {
+                const erro = validateEmail(email)
+                setEmailError(erro)
+                if (erro === null) void conferirUnicos({ email })
+              }}
               error={emailError}
               type="email"
               inputMode="email"
@@ -263,7 +316,11 @@ export default function SignupFlow() {
                 setCnpj(mascarado)
                 if (cnpjError) setCnpjError(validateCNPJ(mascarado))
               }}
-              onBlur={() => setCnpjError(validateCNPJ(cnpj))}
+              onBlur={() => {
+                const erro = validateCNPJ(cnpj)
+                setCnpjError(erro)
+                if (erro === null) void conferirUnicos({ cnpj })
+              }}
               error={cnpjError}
               inputMode="numeric"
               placeholder="00.000.000/0000-00"
@@ -336,7 +393,11 @@ export default function SignupFlow() {
                 setTelefone(masked)
                 if (telefoneError) setTelefoneError(validatePhone(masked))
               }}
-              onBlur={() => setTelefoneError(validatePhone(telefone))}
+              onBlur={() => {
+                const erro = validatePhone(telefone)
+                setTelefoneError(erro)
+                if (erro === null) void conferirUnicos({ telefone })
+              }}
               error={telefoneError}
               type="tel"
               inputMode="tel"
@@ -375,7 +436,9 @@ export default function SignupFlow() {
               autoComplete="new-password"
             />
 
-            <SubmitButton>Continuar</SubmitButton>
+            <SubmitButton loading={conferindo} loadingLabel="Conferindo...">
+              Continuar
+            </SubmitButton>
           </form>
 
           <FormFooter>

@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { agentReplySchema } from '@na-regua/contracts'
 import { registerCustomer, type RegisterCustomerDeps } from '@na-regua/core'
 import { createAgentRuntime, type AgentUseCases } from '@na-regua/agent'
@@ -8,6 +9,12 @@ import {
 } from '@na-regua/agent/test-support'
 import { createConfirmationStore, getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
+
+/* Celular unico por chamada: o cadastro exige e nao aceita repetido. */
+function celularDeTeste(): string {
+  return `41${randomInt(900_000_000, 999_999_999)}`
+}
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
@@ -48,6 +55,7 @@ const CNPJ = cnpjValido(String(agoraMs).slice(-12))
 const CADASTRO = {
   name: 'Operadora NR-061 Restart',
   email: `dona-nr061@${CNPJ}.local`,
+  phone: celularDeTeste(),
   secret: 'senha-de-teste',
   legalName: 'Barbearia Confirmacao Persistente LTDA',
   cnpj: CNPJ,

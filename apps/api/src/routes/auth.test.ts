@@ -12,7 +12,11 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { requireContext } from '../plugins/execution-context.js'
-import { LIMITE_DE_AUTENTICACAO, registerRateLimit } from '../plugins/rate-limit.js'
+import {
+  LIMITE_DE_AUTENTICACAO,
+  LIMITE_DE_CONFERENCIA_DO_CADASTRO,
+  registerRateLimit,
+} from '../plugins/rate-limit.js'
 import { lerToken, registerSession } from '../plugins/session.js'
 import { type AuthRouteDeps, registerAuthRoutes } from './auth.js'
 
@@ -520,6 +524,38 @@ describe('cadastro de conta — NR-014, RF-001', () => {
 
     expect(r.statusCode).toBe(409)
     expect(r.body).not.toContain('Mercearia da Ana')
+    /* O campo vem apontado: a tela marca o CNPJ, e nao um aviso solto. */
+    expect(r.json().error.fields).toEqual([{ path: 'cnpj', message: expect.any(String) }])
+  })
+
+  it('celular e obrigatorio — sem ele, 400', async () => {
+    const c = await buildApp()
+    app = c.app
+    const { phone: _, ...semCelular } = CADASTRO
+    const r = await app.inject({ method: 'POST', url: '/auth/signup', payload: semCelular })
+    expect(r.statusCode).toBe(400)
+  })
+
+  it('conferencia antecipada: aponta o CNPJ ja usado, sem sessao, com limite proprio', async () => {
+    const c = await buildApp()
+    app = c.app
+    await app.inject({ method: 'POST', url: '/auth/signup', payload: CADASTRO })
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/auth/signup/disponibilidade',
+      payload: { cnpj: '11.222.333/0001-81', email: 'nova@loja.local' },
+    })
+    expect(r.statusCode).toBe(200)
+    expect(r.json().conflicts).toEqual([{ field: 'cnpj', message: expect.any(String) }])
+    expect(r.headers['x-ratelimit-limit']).toBe(String(LIMITE_DE_CONFERENCIA_DO_CADASTRO.max))
+
+    const vazio = await app.inject({
+      method: 'POST',
+      url: '/auth/signup/disponibilidade',
+      payload: {},
+    })
+    expect(vazio.statusCode).toBe(400)
   })
 })
 

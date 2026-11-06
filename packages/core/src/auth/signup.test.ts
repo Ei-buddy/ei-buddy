@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { signupInputSchema } from '@na-regua/contracts'
 import { PLANO_DE_CONTAS_PADRAO } from '../accounting/default-chart.js'
 import { InMemoryChartOfAccounts } from '../accounting/fakes.js'
 import { isAppError } from '../app-error.js'
@@ -55,9 +56,16 @@ function cenario() {
   }
 
   /* O diretorio nao tem falso proprio: o minimo que o caso de uso usa. */
-  const criados: { id: string; name: string; companyId: string; phone: string | null }[] = []
+  const criados: {
+    id: string
+    name: string
+    companyId: string
+    email: string | null
+    phone: string | null
+  }[] = []
   const users = {
     findByPhone: async (phone: string) => criados.find((u) => u.phone === phone),
+    findByEmail: async (email: string) => criados.find((u) => u.email === email),
     createUserWithAccess: async (c: {
       companyId: string
       name: string
@@ -65,7 +73,13 @@ function cenario() {
       phone: string | null
     }) => {
       const usuario = { id: `usr-${criados.length + 1}`, name: c.name, isActive: true }
-      criados.push({ id: usuario.id, name: c.name, companyId: c.companyId, phone: c.phone })
+      criados.push({
+        id: usuario.id,
+        name: c.name,
+        companyId: c.companyId,
+        email: c.email,
+        phone: c.phone,
+      })
       return usuario
     },
   }
@@ -174,16 +188,32 @@ describe('cadastro de conta', () => {
     expect(orfa).toBeUndefined()
   })
 
-  it('e-mail ja usado e recusado sem confirmar que a conta existe', async () => {
+  it('e-mail ja usado e recusado com aviso claro, no campo do e-mail', async () => {
     const c = cenario()
     await signup(c.deps, entrada, AGORA)
 
-    const erro = await pegaErro(() => signup(c.deps, { ...entrada, cnpj: '11444777000161' }, AGORA))
+    const erro = await pegaErro(() =>
+      signup(c.deps, { ...entrada, cnpj: '11444777000161', phone: '41988887777' }, AGORA),
+    )
 
-    /* Dizer "ja cadastrado" a quem digitou um e-mail alheio transformaria o
-       formulario num consultor de contas. */
+    /* Achado do QA: a recusa precisa ser clara. A vaga de antes dava a mesma
+       informacao a quem testasse; o limite da rota e que impede varrer. */
     expect(isAppError(erro) && erro.code).toBe('CONFLICT')
-    expect((erro as Error).message).not.toMatch(/ja cadastrad|ja existe/i)
+    expect((erro as Error).message).toMatch(/Já existe uma conta com este e-mail/)
+    expect(isAppError(erro) && erro.fields[0]?.path).toBe('email')
+  })
+
+  it('e-mail com outra caixa ou espacos e o mesmo e-mail', async () => {
+    const c = cenario()
+    await signup(c.deps, entrada, AGORA)
+    const repetido = signupInputSchema.parse({
+      ...entrada,
+      email: '  ANA@Mercearia.LOCAL ',
+      cnpj: '11444777000161',
+      phone: '41988887777',
+    })
+    const erro = await pegaErro(() => signup(c.deps, repetido, AGORA))
+    expect(isAppError(erro) && erro.fields[0]?.path).toBe('email')
   })
 
   it('e-mail ja usado nao cria a segunda empresa', async () => {
@@ -221,7 +251,33 @@ describe('cadastro de conta', () => {
 
     /* Era um 500 do indice unico de `users`, com a credencial ja criada. */
     expect(erro).toMatchObject({ code: 'CONFLICT' })
+    expect(isAppError(erro) && erro.fields[0]?.path).toBe('phone')
     expect(c.criados).toHaveLength(1)
+  })
+
+  it('o mesmo celular no formato antigo, de oito digitos, tambem e recusado', async () => {
+    const c = cenario()
+    await signup(c.deps, { ...entrada, phone: '41999990000' }, AGORA)
+
+    /* (41) 9999-0000 e (41) 99999-0000 sao o mesmo WhatsApp. */
+    const erro = await pegaErro(() =>
+      signup(
+        c.deps,
+        { ...entrada, email: 'outra@loja.local', cnpj: '11444777000161', phone: '4199990000' },
+        AGORA,
+      ),
+    )
+    expect(isAppError(erro) && erro.fields[0]?.path).toBe('phone')
+    /* Recusado ANTES da credencial: o e-mail novo nao ficou preso no provedor. */
+    expect(
+      await c.provider.verify({ identifier: 'outra@loja.local', secret: entrada.secret }),
+    ).toBeUndefined()
+    expect(c.criados).toHaveLength(1)
+  })
+
+  it('celular e obrigatorio no cadastro', () => {
+    const { phone: _, ...semCelular } = entrada
+    expect(signupInputSchema.safeParse(semCelular).success).toBe(false)
   })
 
   describe('aceite dos documentos legais — RF-02, LGPD art. 8 §1', () => {
@@ -261,7 +317,7 @@ describe('cadastro de conta', () => {
         ...entrada,
         email,
         cnpj,
-        phone: undefined,
+        phone: `4198${cnpj.slice(0, 7)}`,
         account: {
           type: 'parceiro' as const,
           pixKey: '41999990000',
@@ -341,7 +397,7 @@ describe('cadastro de conta', () => {
         ...entrada,
         email,
         cnpj,
-        phone: undefined,
+        phone: `4198${cnpj.slice(0, 7)}`,
         account: {
           type: 'parceiro' as const,
           pixKey: '41999990000',
