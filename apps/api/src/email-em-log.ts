@@ -1,4 +1,4 @@
-import type { EmailSender } from '@na-regua/core'
+import type { EmailSender, EmailTester } from '@na-regua/core'
 
 /**
  * E-mail FALSO: escreve no log em vez de enviar — NR-014.
@@ -11,8 +11,18 @@ import type { EmailSender } from '@na-regua/core'
  * redefinicao em log e senha trocavel lida por quem tiver acesso aos logs. Fica
  * so o aviso de que nada foi enviado.
  */
-export function criarEmailEmLog(producao: boolean): EmailSender {
+export function criarEmailEmLog(producao: boolean): EmailSender & EmailTester {
   return {
+    mode: 'log',
+
+    /* O teste diz o que falta, em vez de fingir que enviou — achado do QA. */
+    test: async () => ({
+      ok: false,
+      reason:
+        'O servidor está sem SMTP configurado (modo "só log"): nenhum e-mail sai. ' +
+        'No deploy, falta o secret SMTP_PASSWORD (senha de app do Gmail) no ambiente.',
+    }),
+
     send: async (mensagem) => {
       if (producao) {
         console.warn(

@@ -37,6 +37,7 @@ import {
   checkRedis,
   env,
   shutdown,
+  modoDoEmail,
 } from './composition.js'
 import { registerErrorHandler } from './plugins/error-handler.js'
 import { buildLoggerOptions, generateRequestId, registerLogging } from './plugins/logging.js'
@@ -102,6 +103,12 @@ app.get('/health', async (_request, reply) => {
     status: ok ? 'ok' : 'degraded',
     uptimeSeconds: Math.round(process.uptime()),
     checks: { database, redis },
+    /*
+     * Como o e-mail sai — achado do QA. `log` = nada e enviado, so escrito
+     * no log. Nao derruba a saude (o resto funciona), mas fica a vista de
+     * quem abre o /health em vez de so no log do servidor.
+     */
+    email: modoDoEmail(),
   })
 })
 

@@ -121,6 +121,8 @@ const itensDaPlataforma: NavItem[] = [
   { href: '/app/plataforma/cargos', label: 'Cargos e Super Admin', icon: IconShield },
   { href: '/app/plataforma/lista-vip', label: 'Lista de espera', icon: IconList },
   { href: '/app/plataforma/parceiros', label: 'Parceiros', icon: IconHeart },
+  /* Envio de teste — achado do QA: os e-mails nao saiam e ninguem via. */
+  { href: '/app/plataforma/email', label: 'E-mail', icon: IconBell },
 ]
 
 /** Cadeado exibido ao lado dos modulos restritos. */

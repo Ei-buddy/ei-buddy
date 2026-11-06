@@ -31,6 +31,8 @@ import {
   type RespostaListaVip,
   type ResumoDaListaVip,
   type UsuarioDaPlataforma,
+  enviarEmailDeTeste,
+  type ResultadoDoTesteDeEmail,
 } from '@/lib/plataforma-api'
 import { atualizarEmpresaAtiva } from '@/lib/session'
 import { formatDateTime } from '@/lib/format'
@@ -38,13 +40,14 @@ import { maskCNPJ, maskPhone } from '@/lib/validation'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
-type Aba = 'empresas' | 'usuarios' | 'lista' | 'parceiros'
+type Aba = 'empresas' | 'usuarios' | 'lista' | 'parceiros' | 'email'
 
 const ABAS: [Aba, string][] = [
   ['empresas', 'Empresas'],
   ['usuarios', 'Usuários'],
   ['lista', 'Lista de espera'],
   ['parceiros', 'Parceiros'],
+  ['email', 'E-mail'],
 ]
 
 /** O motivo da recusa vai para o pedido; o web pede 10 caracteres. */
@@ -151,8 +154,10 @@ export default function Plataforma() {
           <Usuarios />
         ) : aba === 'lista' ? (
           <ListaDeEspera />
-        ) : (
+        ) : aba === 'parceiros' ? (
           <Parceiros />
+        ) : (
+          <TesteDeEmail />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -420,6 +425,65 @@ function Usuarios() {
   )
 }
 
+/**
+ * Envio de teste de e-mail — achado do QA, o par do web: mostra o modo do
+ * servidor e o motivo exato quando o e-mail nao sai.
+ */
+function TesteDeEmail() {
+  const [destino, setDestino] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [resultado, setResultado] = useState<ResultadoDoTesteDeEmail | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function enviar() {
+    if (destino.trim() === '') return setErro('Informe um e-mail para receber o teste.')
+    setEnviando(true)
+    setErro(null)
+    setResultado(null)
+    const r = await enviarEmailDeTeste(destino)
+    setEnviando(false)
+    if (!r.ok) return setErro(r.erro)
+    setResultado(r.dados)
+  }
+
+  return (
+    <Cartao titulo="Enviar e-mail de teste">
+      <Text style={estilos.apoio}>
+        Confira se a redefinição de senha e os avisos de Parceiro estão saindo.
+      </Text>
+      <Campo
+        rotulo="Enviar para"
+        valor={destino}
+        onChange={setDestino}
+        tipoTeclado="email-address"
+        autoCap="none"
+        placeholder="voce@empresa.com.br"
+      />
+      <Botao onPress={() => void enviar()} carregando={enviando} largura>
+        Enviar teste
+      </Botao>
+      {erro !== null ? (
+        <Text style={estilos.erro} accessibilityRole="alert">
+          {erro}
+        </Text>
+      ) : null}
+      {resultado !== null ? (
+        <View style={estilos.resultadoEmail}>
+          <Text style={estilos.apoio}>
+            Modo do servidor:{' '}
+            {resultado.mode === 'smtp' ? 'SMTP (envia de verdade)' : 'só log (não envia)'}
+          </Text>
+          <Text style={resultado.sent ? estilos.apoio : estilos.erro}>
+            {resultado.sent
+              ? `Enviado. Confira a caixa de entrada de ${destino} — e o spam, na primeira vez.`
+              : `O e-mail não saiu. Motivo: ${resultado.reason ?? 'desconhecido'}`}
+          </Text>
+        </View>
+      ) : null}
+    </Cartao>
+  )
+}
+
 function ListaDeEspera() {
   const [resumo, setResumo] = useState<ResumoDaListaVip | null>(null)
   const [respostas, setRespostas] = useState<RespostaListaVip[] | null>(null)
@@ -669,7 +733,8 @@ const estilos = criarEstilos(() => ({
     backgroundColor: cores.atencaoFundo,
   },
   faixaTexto: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.atencao },
-  abasRolagem: { flexGrow: 0, marginTop: espaco.md },
+  // flexShrink 0: sem isso a lista longa abaixo espreme a faixa ate sumir.
+  abasRolagem: { flexGrow: 0, flexShrink: 0, marginTop: espaco.md },
   abas: { flexDirection: 'row', gap: espaco.sm, paddingHorizontal: espaco.lg },
   aba: {
     paddingHorizontal: espaco.lg,
@@ -701,6 +766,7 @@ const estilos = criarEstilos(() => ({
   apoio: { fontSize: fonte.micro, color: cores.textoFraco },
   texto: { fontSize: fonte.pequeno, color: cores.texto },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
+  resultadoEmail: { gap: espaco.xs, marginTop: espaco.sm },
   link: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.acento },
   linkPerigo: { fontSize: fonte.pequeno, fontWeight: peso.forte, color: cores.erro },
   formulario: { gap: espaco.sm, marginTop: espaco.sm },

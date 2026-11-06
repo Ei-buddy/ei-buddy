@@ -59,10 +59,13 @@ import type { OrcamentosDeps } from './routes/orcamentos.js'
 import type { CaixaDeps } from './routes/caixa.js'
 import type { ComprasDeps } from './routes/compras.js'
 import type {
+  EmailSender,
+  EmailTester,
   IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
+  PartnerApplicantNotice,
   PartnerApplicationAlert,
   PasswordSetter,
 } from '@na-regua/core'
@@ -396,6 +399,10 @@ export function buildAuthDeps(): AuthRouteDeps {
      */
     partners: createPartnerApplicationRepository(sql),
     ...comAvisoDeParceiro(),
+    /* Confirmacao e decisao por e-mail a quem se candidata — achado do QA. */
+    applicantNotice: montarAvisosAoCandidato(),
+    /* Envio de teste do Super Admin, com o motivo da falha — achado do QA. */
+    emailTester: montarEnvioDeEmail(),
 
     /*
      * Prova de aceite dos documentos legais — RF-02/RF-03, migration 0015.
@@ -606,7 +613,83 @@ function comAvisoDeParceiro(): { partnerAlert?: PartnerApplicationAlert } {
   return aviso === undefined ? {} : { partnerAlert: aviso }
 }
 
-function montarEnvioDeEmail() {
+/*
+ * Um envio so para o processo inteiro: cada chamada antiga abria um transporte
+ * SMTP proprio. O modo (`smtp` | `log`) sai daqui para o `/health` e para o
+ * teste do Super Admin — achado do QA: ninguem via que o servidor estava sem
+ * SMTP, e os e-mails so iam para o log.
+ */
+let envioDeEmail: (EmailSender & EmailTester) | undefined
+
+export function modoDoEmail(): 'smtp' | 'log' {
+  return montarEnvioDeEmail().mode
+}
+
+function montarEnvioDeEmail(): EmailSender & EmailTester {
+  envioDeEmail ??= criarEnvioDeEmail()
+  return envioDeEmail
+}
+
+/**
+ * Os e-mails a quem se candidata a Parceiro — achado do QA. Antes so quem
+ * aprova recebia aviso; quem se candidatava nao sabia de nada, nem da decisao.
+ */
+function montarAvisosAoCandidato(): PartnerApplicantNotice {
+  const email = montarEnvioDeEmail()
+  const entrar = `${env.WEB_URL}/login`
+  const assinatura = ['', 'Equipe EiBuddy']
+  return {
+    recebida: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Recebemos sua candidatura de Parceiro EiBuddy',
+        text: [
+          'Olá!',
+          '',
+          `Recebemos a candidatura de ${c.companyName} para ser Parceiro EiBuddy.`,
+          c.couponCode === null ? '' : `Cupom pedido: ${c.couponCode}.`,
+          'Vamos analisar e avisamos por e-mail assim que houver uma resposta.',
+          'Enquanto isso, sua conta já funciona normalmente.',
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+    aprovada: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Sua conta de Parceiro EiBuddy foi aprovada',
+        text: [
+          'Boa notícia!',
+          '',
+          `A candidatura de ${c.companyName} para Parceiro EiBuddy foi aprovada.`,
+          c.couponCode === null
+            ? 'Seu cupom de indicação já está ativo.'
+            : `Seu cupom de indicação ${c.couponCode} já está ativo: quem usar ganha o desconto e a indicação fica no seu nome.`,
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+    recusada: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Sua candidatura de Parceiro EiBuddy não foi aprovada',
+        text: [
+          'Olá!',
+          '',
+          `A candidatura de ${c.companyName} para Parceiro EiBuddy não foi aprovada desta vez.`,
+          c.note === null ? '' : `Motivo: ${c.note}`,
+          'Você pode corrigir os dados e reenviar a candidatura pela sua conta.',
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+  }
+}
+
+function criarEnvioDeEmail(): EmailSender & EmailTester {
   const producao = env.NODE_ENV === 'production'
 
   if (env.EMAIL_PROVIDER !== 'smtp') return criarEmailEmLog(producao)

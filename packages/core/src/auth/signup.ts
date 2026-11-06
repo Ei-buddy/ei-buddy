@@ -7,6 +7,7 @@ import type { CouponRepository } from '../ports/coupon-repository.js'
 import type { IdentityRegistrar, SessionIssuer, UserDirectory } from '../ports/identity.js'
 import type { LegalConsentRepository } from '../ports/legal-consent-repository.js'
 import type {
+  PartnerApplicantNotice,
   PartnerApplicationAlert,
   PartnerApplicationRepository,
 } from '../ports/partner-application-repository.js'
@@ -59,6 +60,8 @@ export type SignupDeps = {
   readonly partners: PartnerApplicationRepository
   /** Avisa quem aprova que chegou candidatura — NR-114. Opcional: sem ele, so a fila do painel. */
   readonly partnerAlert?: PartnerApplicationAlert
+  /** Confirma a candidatura a quem se candidatou — achado do QA. Opcional como o aviso. */
+  readonly applicantNotice?: PartnerApplicantNotice
   /** Prova de aceite dos Termos e da Politica — RF-02, LGPD art. 8 §1. */
   readonly legalConsents: LegalConsentRepository
   /** Cupom de quem indicou — RF-114. So chamada quando vem `referralCode`. */
@@ -196,7 +199,7 @@ export async function signup(
    * Perder o cadastro inteiro por causa da candidatura seria pior.
    */
   if (input.account?.type === 'parceiro') {
-    await deps.partners.submit({
+    const candidatura = await deps.partners.submit({
       ownerUserId: usuario.id,
       ownerCompanyId: empresa.id,
       pixKey: input.account.pixKey,
@@ -213,6 +216,15 @@ export async function signup(
         email: input.email,
         couponCode: input.account.couponCode ?? null,
         message: input.account.message,
+      })
+      .catch(() => undefined)
+
+    /* E a quem se candidatou: "recebemos, vamos analisar" — achado do QA. */
+    await deps.applicantNotice
+      ?.recebida({
+        companyName: input.legalName,
+        email: input.email,
+        couponCode: candidatura.couponCode,
       })
       .catch(() => undefined)
   }
