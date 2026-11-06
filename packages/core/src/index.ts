@@ -640,10 +640,15 @@ export type { ResendPartnerApplicationDeps } from './partners/resend-partner-app
 export { getMyPartnerApplication } from './partners/my-partner-application.js'
 export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
 export type {
+  PartnerApplicantNotice,
   PartnerApplicationAlert,
   PartnerApplicationRepository,
 } from './ports/partner-application-repository.js'
 export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'
+
+/* Envio de teste de e-mail pelo Super Admin — achado do QA. */
+export { sendTestEmail } from './email/test-email.js'
+export type { EmailTester, TestEmailDeps } from './email/test-email.js'
 
 /* Consentimento dos documentos legais — RF-02, RF-03, LGPD art. 8 §1. */
 export { pendingLegalAcceptance, recordLegalAcceptance } from './legal/legal-consent.js'

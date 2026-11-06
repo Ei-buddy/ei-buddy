@@ -180,3 +180,14 @@ export const recusarParceiro = (partnerId: string, note: string) =>
     method: 'POST',
     body: { note: note.trim() },
   })
+
+/** Resultado do envio de teste de e-mail — achado do QA, o par do web. */
+export type ResultadoDoTesteDeEmail = {
+  /** `log` = o servidor nao manda e-mail nenhum, so escreve no log. */
+  mode: 'smtp' | 'log'
+  sent: boolean
+  reason: string | null
+}
+
+export const enviarEmailDeTeste = (to: string) =>
+  pedir<ResultadoDoTesteDeEmail>('/admin/email-teste', { method: 'POST', body: { to: to.trim() } })

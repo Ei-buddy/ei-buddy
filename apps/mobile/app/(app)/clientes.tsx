@@ -368,7 +368,7 @@ const estilos = criarEstilos(() => ({
     fontSize: fonte.corpo,
   },
 
-  filtrosRolagem: { flexGrow: 0 },
+  filtrosRolagem: { flexGrow: 0, flexShrink: 0 },
   filtros: { flexDirection: 'row', gap: espaco.sm, paddingHorizontal: espaco.lg },
   chip: {
     paddingHorizontal: espaco.lg,

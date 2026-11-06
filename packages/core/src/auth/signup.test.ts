@@ -344,6 +344,23 @@ describe('cadastro de conta', () => {
         ])
       })
 
+      it('confirma a candidatura a quem se candidatou — achado do QA', async () => {
+        const c = cenario()
+        const recebidas: { email: string; couponCode: string | null }[] = []
+        const deps = {
+          ...(c.deps as object),
+          applicantNotice: {
+            recebida: async (i: { email: string; couponCode: string | null }) => {
+              recebidas.push({ email: i.email, couponCode: i.couponCode })
+            },
+            aprovada: async () => {},
+            recusada: async () => {},
+          },
+        } as never
+        await signup(deps, comoParceiro('ana@loja.local', '11444777000161'), AGORA)
+        expect(recebidas).toEqual([{ email: 'ana@loja.local', couponCode: 'ANA10' }])
+      })
+
       it('lojista comum nao gera aviso', async () => {
         const c = cenario()
         const avisos: unknown[] = []

@@ -2,6 +2,7 @@ import {
   enterCompanyInputSchema,
   grantPlatformAdminInputSchema,
   platformUserQuerySchema,
+  testEmailInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
@@ -12,6 +13,8 @@ import {
   listPlatformAdmins,
   listPlatformCompanies,
   listPlatformUsers,
+  sendTestEmail,
+  type EmailTester,
   type IdentityRegistrar,
   type PlatformAdminAccess,
   type SessionClaims,
@@ -36,6 +39,8 @@ export type AdminRouteDeps = {
   readonly sessions: SessionIssuer
   readonly users: UserDirectory
   readonly registrar: IdentityRegistrar
+  /** Envio de teste com o motivo da falha — achado do QA. */
+  readonly emailTester: EmailTester
 }
 
 function sessaoOuFalha(request: FastifyRequest): SessionClaims {
@@ -69,6 +74,18 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRouteDeps):
     const pagina = await listPlatformUsers(usoDeps, sessao.userId, input)
 
     return reply.code(200).send(pagina)
+  })
+
+  /**
+   * Envio de teste de e-mail — achado do QA ("os e-mails nao funcionam").
+   *
+   * Responde 200 mesmo quando o e-mail nao sai: o resultado do teste e a
+   * resposta (`sent`, `mode`, `reason`), e nao um erro da rota.
+   */
+  app.post('/admin/email-teste', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const input = validate(testEmailInputSchema, request.body)
+    return reply.code(200).send(await sendTestEmail(deps, sessao.userId, input))
   })
 
   /**

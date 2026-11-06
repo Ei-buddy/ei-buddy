@@ -1,0 +1,30 @@
+/* E-mail da plataforma — achado do QA. */
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.form > :first-child {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.resultado {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.resultado p {
+  margin: 0;
+}
+
+.alerta {
+  margin: 12px 0 0;
+  color: var(--app-danger, #c0392b);
+  font-size: 14px;
+}

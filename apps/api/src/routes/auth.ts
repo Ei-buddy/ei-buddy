@@ -35,6 +35,7 @@ import {
   type ResetPasswordDeps,
   myAccount,
   type MyAccountDeps,
+  type TestEmailDeps,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { LIMITE_DE_AUTENTICACAO, LIMITE_DE_CONFERENCIA_DO_CADASTRO } from '../plugins/rate-limit.js'
@@ -82,7 +83,9 @@ export type AuthRouteDeps = AuthDeps &
   Omit<RequestPasswordResetDeps, 'users'> &
   ResetPasswordDeps &
   Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'> &
-  Pick<MyAccountDeps, 'editor'>
+  Pick<MyAccountDeps, 'editor'> &
+  /* Envio de teste do Super Admin (`/admin/email-teste`) — mesma composicao. */
+  Pick<TestEmailDeps, 'emailTester'>
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**

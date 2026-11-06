@@ -1,4 +1,4 @@
-import type { EmailSender } from '@na-regua/core'
+import type { EmailSender, EmailTester } from '@na-regua/core'
 import nodemailer from 'nodemailer'
 import { motivoDoErro } from './motivo-do-erro.js'
 
@@ -34,11 +34,20 @@ export type ConfiguracaoSmtp = {
   readonly password?: string | undefined
 }
 
-export function criarEmailSmtp(config: ConfiguracaoSmtp): EmailSender {
+export function criarEmailSmtp(config: ConfiguracaoSmtp): EmailSender & EmailTester {
   const transporte = nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
+    /*
+     * Limites curtos — achado do QA. O padrao do nodemailer espera ate 2 min
+     * para conectar: com a porta bloqueada no servidor, o pedido de nova
+     * senha e o teste do Super Admin ficavam pendurados em vez de mostrar o
+     * motivo ("connect ETIMEDOUT").
+     */
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
     /*
      * Sem `auth` quando nao ha usuario: servidor de teste (Mailpit) e relay
      * interno costumam aceitar sem autenticacao, e mandar `{ user: undefined }`
@@ -50,6 +59,31 @@ export function criarEmailSmtp(config: ConfiguracaoSmtp): EmailSender {
   })
 
   return {
+    mode: 'smtp',
+
+    /*
+     * O teste NAO engole a falha — achado do QA. O motivo volta para o Super
+     * Admin ("535 Username and Password not accepted", "connect ETIMEDOUT"):
+     * e o que diz se o problema e a senha de app, a porta ou o remetente.
+     */
+    test: async (destino) => {
+      try {
+        await transporte.sendMail({
+          from: config.from,
+          to: destino,
+          subject: 'Teste de e-mail do EiBuddy',
+          text: [
+            'Este é um e-mail de teste do EiBuddy.',
+            '',
+            'Se ele chegou, a redefinição de senha e os avisos de Parceiro também chegam.',
+          ].join('\n'),
+        })
+        return { ok: true }
+      } catch (erro) {
+        return { ok: false, reason: motivoDoErro(erro) }
+      }
+    },
+
     send: async (mensagem) => {
       try {
         await transporte.sendMail({
