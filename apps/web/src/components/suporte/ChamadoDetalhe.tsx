@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose, IconUpload } from '@/components/Icons'
 import styles from './suporte.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /**
  * Conversa do chamado.
@@ -38,18 +39,7 @@ export default function ChamadoDetalhe({
   const ref = useRef<HTMLDivElement>(null)
   const fimRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onFechar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onFechar])
+  useDialogo(ref, onFechar)
 
   /* Abrir o chamado zera o contador de respostas nao lidas. */
   const [jaMarcou, setJaMarcou] = useState(false)

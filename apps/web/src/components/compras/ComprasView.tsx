@@ -11,6 +11,7 @@ import {
   type Compra,
 } from '@/lib/compras-api'
 import { type FornecedorCadastrado, listarFornecedores } from '@/lib/fornecedores-cadastro-api'
+import { enterVaiParaOProximoCampo } from '@/lib/teclado'
 import { formatCentavos, formatDate, formatDateTime, hoje } from '@/lib/format'
 import { centavosDoTexto } from '@/lib/valor'
 import {
@@ -370,7 +371,9 @@ function NovaCompra({
 
   return (
     <Card title="Nova entrada">
-      <form onSubmit={registrar} noValidate>
+      {/* Enter passa para o proximo campo; registrar e so no botao — achado
+          do QA: "um Enter em qualquer campo esta finalizando a compra". */}
+      <form onSubmit={registrar} onKeyDown={enterVaiParaOProximoCampo} noValidate>
         <LegendaObrigatorio />
         <FormGrid>
           <Field label="Fornecedor" obrigatorio span={6} hint="Enter mostra os cadastrados">
