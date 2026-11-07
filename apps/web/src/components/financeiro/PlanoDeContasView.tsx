@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   carregarCustosFixos,
   criarCustoFixo,
@@ -21,7 +21,17 @@ import {
   ROTULO_DO_TIPO,
   type TipoDeConta,
 } from '@/lib/contabilidade-api'
-import { formatMoney, mesDeHoje } from '@/lib/format'
+import { formatDate, formatMoney, hoje } from '@/lib/format'
+import {
+  anoEMes,
+  anosDoSeletor,
+  competencia,
+  competenciaPorExtenso,
+  NOMES_DOS_MESES,
+  primeiroMesDoAno,
+  vencimentoNoMes,
+} from '@/lib/competencia'
+import { useDialogo } from '@/components/app/useDialogo'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
@@ -56,6 +66,7 @@ export default function PlanoDeContasView() {
   const [formAberto, setFormAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<CustoFixo | null>(null)
   const [gerando, setGerando] = useState(false)
+  const [gerarAberto, setGerarAberto] = useState(false)
   const [processando, setProcessando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
@@ -161,11 +172,13 @@ export default function PlanoDeContasView() {
     setToast({ msg: 'Custo fixo excluido.', tone: 'success' })
   }
 
-  async function gerarContas() {
+  /**
+   * Gera as contas a pagar no mes e ano escolhidos — achado do QA: "perguntar
+   * para qual mes e ano". A janela vem com o mes atual marcado.
+   */
+  async function gerarContas(competenciaEscolhida: string) {
     setGerando(true)
-    /* O mes corrente, e nao um fixo: gerar as contas do custo fixo num mes ja
-       fechado joga lancamento no passado e desarruma o DRE daquele mes. */
-    const r = await gerarContasDeCustosFixos(mesDeHoje())
+    const r = await gerarContasDeCustosFixos(competenciaEscolhida)
     setGerando(false)
 
     if (!r.ok) {
@@ -173,11 +186,13 @@ export default function PlanoDeContasView() {
       return
     }
 
+    setGerarAberto(false)
+    const quando = competenciaPorExtenso(competenciaEscolhida)
     setToast({
       msg:
         r.dados.jaExistiam > 0
-          ? `${r.dados.geradas} conta(s) gerada(s). ${r.dados.jaExistiam} ja existiam neste mes e foram puladas.`
-          : `${r.dados.geradas} conta(s) a pagar gerada(s) para este mes.`,
+          ? `${r.dados.geradas} conta(s) gerada(s) para ${quando}. ${r.dados.jaExistiam} já existiam nesse mês e foram puladas.`
+          : `${r.dados.geradas} conta(s) a pagar gerada(s) para ${quando}.`,
       tone: 'success',
     })
   }
@@ -188,7 +203,7 @@ export default function PlanoDeContasView() {
         title="Plano de contas"
         subtitle="Estrutura de receitas e despesas, e custos fixos e variáveis do negócio"
         actions={
-          <Button onClick={gerarContas} disabled={gerando || custos.length === 0}>
+          <Button onClick={() => setGerarAberto(true)} disabled={gerando || custos.length === 0}>
             {gerando ? (
               <>
                 <Spinner size={15} />
@@ -453,10 +468,13 @@ export default function PlanoDeContasView() {
         <FormCustoFixo
           custo={editando}
           contas={contas}
-          onSalvo={(salvo) => {
+          onSalvo={(salvo, continuar) => {
             setCustos((atual) =>
               editando ? atual.map((c) => (c.id === salvo.id ? salvo : c)) : [...atual, salvo],
             )
+            /* Cadastro em sequencia — achado do QA: a janela fica aberta, limpa,
+               para o proximo. O aviso vem dentro dela. */
+            if (continuar) return
             setFormAberto(false)
             setEditando(null)
             setToast({
@@ -468,6 +486,15 @@ export default function PlanoDeContasView() {
             setFormAberto(false)
             setEditando(null)
           }}
+        />
+      ) : null}
+
+      {gerarAberto ? (
+        <GerarContasDialog
+          custos={custos}
+          gerando={gerando}
+          onGerar={(c) => void gerarContas(c)}
+          onCancelar={() => setGerarAberto(false)}
         />
       ) : null}
 
@@ -523,10 +550,18 @@ function FormCustoFixo({
   custo: CustoFixo | null
   /** O plano de contas DE VERDADE, ja carregado pela tela. */
   contas: ContaContabil[]
-  onSalvo: (custo: CustoFixo) => void
+  /** `continuar`: cadastro em sequencia, a janela fica aberta. */
+  onSalvo: (custo: CustoFixo, continuar: boolean) => void
   onCancelar: () => void
 }) {
   const [nome, setNome] = useState(custo?.nome ?? '')
+  /* Novo custo ja vem com "continuar" marcado: quem abre o cadastro costuma
+     ter varios para lancar (aluguel, energia, internet, contador...). */
+  const [continuar, setContinuar] = useState(custo === null)
+  const [ultimoSalvo, setUltimoSalvo] = useState<string | null>(null)
+  const nomeRef = useRef<HTMLInputElement>(null)
+  /* Plano de contas em ordem alfabetica — achado do QA. */
+  const contasEmOrdem = planoNaTela(contas, 'todos', 'nome')
   const [dia, setDia] = useState(String(custo?.diaVencimento ?? ''))
   const [valor, setValor] = useState(custo ? String(custo.valorCents / 100).replace('.', ',') : '')
   const [contaId, setContaId] = useState(custo?.planoContasId ?? '')
@@ -554,7 +589,16 @@ function FormCustoFixo({
       return
     }
 
-    onSalvo(r.dados)
+    const seguir = custo === null && continuar
+    onSalvo(r.dados, seguir)
+    if (seguir) {
+      setUltimoSalvo(r.dados.nome)
+      setNome('')
+      setDia('')
+      setValor('')
+      setContaId('')
+      nomeRef.current?.focus()
+    }
   }
 
   return (
@@ -584,6 +628,7 @@ function FormCustoFixo({
               onChange={(e) => setNome(e.target.value)}
               placeholder="Aluguel do ponto"
               autoFocus
+              ref={nomeRef}
             />
           </label>
 
@@ -620,13 +665,30 @@ function FormCustoFixo({
               aria-label="Plano de conta"
             >
               <option value="">Sem classificação</option>
-              {contas.map((c) => (
+              {contasEmOrdem.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
           </label>
+
+          {custo === null ? (
+            <label className={styles.continuar}>
+              <input
+                type="checkbox"
+                checked={continuar}
+                onChange={(e) => setContinuar(e.target.checked)}
+              />
+              Continuar cadastrando depois de salvar
+            </label>
+          ) : null}
+
+          {ultimoSalvo !== null ? (
+            <p className={styles.salvoNaSequencia} role="status">
+              “{ultimoSalvo}” cadastrado. Pode lançar o próximo.
+            </p>
+          ) : null}
 
           {erro ? (
             <p className={styles.baixaErro} role="alert">
@@ -636,7 +698,7 @@ function FormCustoFixo({
 
           <div className={styles.dialogAcoes}>
             <Button variant="secondary" onClick={onCancelar} disabled={salvando}>
-              Cancelar
+              {ultimoSalvo !== null ? 'Fechar' : 'Cancelar'}
             </Button>
             <Button type="submit" disabled={salvando}>
               {salvando ? (
@@ -644,12 +706,148 @@ function FormCustoFixo({
                   <Spinner size={15} />
                   Salvando...
                 </>
+              ) : custo === null && continuar ? (
+                'Salvar e continuar'
               ) : (
                 'Salvar'
               )}
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================== *
+ * Gerar contas a pagar — mes e ano (achado do QA)
+ * ================================================================== */
+
+/**
+ * "Perguntar para qual mes e ano, trazer os campos preenchidos com os meses e
+ * o ano a partir desse, como se fosse um seletor." A janela abre no mes atual;
+ * os seletores so oferecem do mes atual em diante, e a previa mostra cada
+ * conta com o vencimento daquele mes ANTES de gerar.
+ */
+function GerarContasDialog({
+  custos,
+  gerando,
+  onGerar,
+  onCancelar,
+}: {
+  custos: CustoFixo[]
+  gerando: boolean
+  onGerar: (competencia: string) => void
+  onCancelar: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useDialogo(ref, onCancelar, gerando)
+
+  const dia = hoje()
+  const atual = anoEMes(dia)
+  const [ano, setAno] = useState(atual.ano)
+  const [mes, setMes] = useState(atual.mes)
+  const escolhida = competencia(ano, mes)
+  const total = custos.reduce((acc, c) => acc + c.valorCents, 0)
+
+  return (
+    <div className={styles.dialogRoot}>
+      <button
+        type="button"
+        className={styles.dialogBackdrop}
+        onClick={() => !gerando && onCancelar()}
+        aria-label="Fechar"
+        tabIndex={-1}
+      />
+      <div
+        ref={ref}
+        className={`${styles.dialogPainel} ${styles.dialogLargo}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gerar-titulo"
+        tabIndex={-1}
+      >
+        <header className={styles.dialogCabecalho}>
+          <h2 id="gerar-titulo" className={styles.dialogTitulo}>
+            Gerar contas a pagar
+          </h2>
+        </header>
+
+        <p className={styles.gerarAjuda}>
+          Escolha o mês: cada custo fixo vira uma conta a pagar com vencimento no dia dele, nesse
+          mês. Gerar de novo no mesmo mês não duplica.
+        </p>
+
+        <div className={styles.formLinha}>
+          <label className={styles.campo}>
+            <span>Mês</span>
+            <select
+              className={styles.input}
+              value={mes}
+              onChange={(e) => setMes(Number(e.target.value))}
+              aria-label="Mês"
+            >
+              {NOMES_DOS_MESES.map((nome, i) =>
+                i + 1 >= primeiroMesDoAno(dia, ano) ? (
+                  <option key={nome} value={i + 1}>
+                    {nome}
+                  </option>
+                ) : null,
+              )}
+            </select>
+          </label>
+          <label className={styles.campo}>
+            <span>Ano</span>
+            <select
+              className={styles.input}
+              value={ano}
+              onChange={(e) => {
+                const novo = Number(e.target.value)
+                setAno(novo)
+                /* Voltou para o ano atual com um mes que ja passou: o mes atual. */
+                setMes((m) => Math.max(m, primeiroMesDoAno(dia, novo)))
+              }}
+              aria-label="Ano"
+            >
+              {anosDoSeletor(dia).map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <ul className={styles.gerarPrevia} aria-label="Contas que serão geradas">
+          {custos.map((c) => (
+            <li key={c.id}>
+              <span>{c.nome}</span>
+              <span>vence {formatDate(vencimentoNoMes(c.diaVencimento, escolhida))}</span>
+              <strong>{formatMoney(c.valorCents / 100)}</strong>
+            </li>
+          ))}
+          <li className={styles.gerarTotal}>
+            <span>Total de {competenciaPorExtenso(escolhida)}</span>
+            <span />
+            <strong>{formatMoney(total / 100)}</strong>
+          </li>
+        </ul>
+
+        <div className={styles.dialogAcoes}>
+          <Button variant="secondary" onClick={onCancelar} disabled={gerando}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onGerar(escolhida)} disabled={gerando || custos.length === 0}>
+            {gerando ? (
+              <>
+                <Spinner size={15} />
+                Gerando...
+              </>
+            ) : (
+              `Gerar ${custos.length} ${custos.length === 1 ? 'conta' : 'contas'}`
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )
