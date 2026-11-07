@@ -245,6 +245,13 @@ export function criarLojaDeTeste(
       expensesCents: 1_000,
       resultCents: 5_000,
       grossMarginPoints: 60,
+      discountsCents: 0,
+      netSalesCents: 10_000,
+      variableCostsCents: 4_000,
+      contributionMarginCents: 6_000,
+      contributionMarginPoints: 60,
+      operatingExpensesCents: 1_000,
+      operatingResultCents: 5_000,
       lines: [],
     }),
     sendCustomerCharge: async (ctx, input) => {

@@ -3,7 +3,7 @@ import { BRAND } from '@/content/site'
 import DreView from '@/components/financeiro/DreView'
 
 export const metadata: Metadata = {
-  title: `DRE simplificado — ${BRAND}`,
+  title: `DRE — ${BRAND}`,
   description: 'Receita, custo, despesa e resultado do período.',
 }
 

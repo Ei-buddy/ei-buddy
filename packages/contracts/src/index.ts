@@ -9,6 +9,7 @@
  * comprar fiado" e `core`.
  */
 export * from './accounting/account.js'
+export * from './accounting/dre-gerencial.js'
 export * from './agent/message.js'
 export * from './agent/send-charge.js'
 export * from './audit/entry.js'

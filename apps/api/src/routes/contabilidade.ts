@@ -4,6 +4,7 @@ import {
   deleteAccountInputSchema,
   dreInputSchema,
   exportPeriodInputSchema,
+  linhasDoDreGerencial,
   renameAccountInputSchema,
   suggestAccountInputSchema,
 } from '@na-regua/contracts'
@@ -154,27 +155,12 @@ export function registerContabilidadeRoutes(app: FastifyInstance, deps: Contabil
     const { formato, from, to } = validate(exportPeriodInputSchema, request.query ?? {})
     const d = await buildDre(deps, ctx, { from, to })
 
-    const ROTULO_TIPO: Record<string, string> = {
-      revenue: 'Receita',
-      deduction: 'Dedução',
-      cost: 'Custo',
-      expense: 'Despesa',
-    }
-    const linhas: { rotulo: string; valor: string }[] = [
-      { rotulo: 'Receita bruta', valor: reais(d.grossRevenueCents) },
-      { rotulo: '(-) Deduções', valor: reais(d.deductionsCents) },
-      { rotulo: '= Receita líquida', valor: reais(d.netRevenueCents) },
-      { rotulo: '(-) Custos', valor: reais(d.costCents) },
-      { rotulo: '= Lucro bruto', valor: reais(d.grossProfitCents) },
-      { rotulo: '(-) Despesas', valor: reais(d.expensesCents) },
-      { rotulo: '= Resultado', valor: reais(d.resultCents) },
-      { rotulo: '', valor: '' },
-      { rotulo: 'Por conta', valor: '' },
-      ...d.lines.map((l) => ({
-        rotulo: `${ROTULO_TIPO[l.type] ?? l.type} · ${l.accountName}`,
-        valor: reais(l.amountCents),
-      })),
-    ]
+    /* As MESMAS linhas da tela (web e app) — achado do QA, o DRE no formato
+       da margem de contribuicao. A conta que compoe a linha vem recuada. */
+    const linhas = linhasDoDreGerencial(d).map((l) => ({
+      rotulo: `${l.nivel === 'detalhe' ? '    ' : ''}${l.nivel === 'total' ? '= ' : ''}${l.rotulo}${l.nota ? ` (${l.nota})` : ''}`,
+      valor: reais(l.valorCents),
+    }))
 
     return enviarTabela(
       reply,

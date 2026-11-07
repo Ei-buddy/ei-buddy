@@ -203,8 +203,9 @@ describe('o DRE — RF-085, RF-086', () => {
       grossRevenueCents: 0,
       resultCents: 0,
       grossMarginPoints: null,
-      lines: [],
     })
+    /* So as linhas fixas do formato gerencial (impostos e tarifas), zeradas. */
+    expect(r.json().lines.map((l: { amountCents: number }) => l.amountCents)).toEqual([0, 0])
   })
 
   it('soma o periodo e devolve as linhas que o compoem', async () => {
@@ -242,8 +243,62 @@ describe('o DRE — RF-085, RF-086', () => {
       grossRevenueCents: 100_000,
       expensesCents: 30_000,
       resultCents: 70_000,
+      /* O formato gerencial (achado do QA) sai junto, com o mesmo resultado. */
+      netSalesCents: 100_000,
+      contributionMarginCents: 100_000,
+      operatingExpensesCents: 30_000,
+      operatingResultCents: 70_000,
     })
-    expect(r.json().lines).toHaveLength(2)
+    const comMovimento = r
+      .json()
+      .lines.filter((l: { entryCount: number }) => l.entryCount > 0)
+      .map((l: { group: string }) => l.group)
+    expect(comMovimento).toEqual(['sales', 'expenses'])
+  })
+
+  it('a exportacao sai no formato da margem de contribuicao', async () => {
+    const c = await buildApp()
+    app = c.app
+    c.accounts.semearPadrao(EMPRESA)
+    const venda = c.accounts.contaPorNome(EMPRESA, 'Venda de mercadoria')!
+    const aluguel = c.accounts.contaPorNome(EMPRESA, 'Aluguel')!
+    c.accounts.adicionarLancamento(EMPRESA, {
+      entryKind: 'receivable',
+      entryId: 'rec-1',
+      accountId: venda.id,
+      accountName: venda.name,
+      accountType: 'revenue',
+      amountCents: 100_000,
+      occurredOn: '2026-09-10',
+    })
+    c.accounts.adicionarLancamento(EMPRESA, {
+      entryKind: 'payable',
+      entryId: 'pag-1',
+      accountId: aluguel.id,
+      accountName: aluguel.name,
+      accountType: 'expense',
+      amountCents: 30_000,
+      occurredOn: '2026-09-12',
+    })
+
+    const r = await app.inject({
+      method: 'GET',
+      url: '/relatorios/dre/exportar?formato=csv&from=2026-09-01&to=2026-09-30',
+    })
+
+    expect(r.statusCode).toBe(200)
+    const texto = r.body
+    const ordem = [
+      'Vendas brutas',
+      '(−) Descontos',
+      '= Venda líquida',
+      '(−) Custos variáveis',
+      '= Margem de contribuição',
+      '(−) Aluguel',
+      '= Resultado operacional',
+    ].map((rotulo) => texto.indexOf(rotulo))
+    expect(ordem.every((i) => i >= 0)).toBe(true)
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem)
   })
 })
 

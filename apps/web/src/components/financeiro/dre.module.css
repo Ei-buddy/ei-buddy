@@ -140,3 +140,31 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ===================== DRE gerencial (NR-204) ===================== */
+
+/* O traco do formato pedido: comeca um bloco novo. */
+.linhaSepara th,
+.linhaSepara td {
+  border-top: 1px solid var(--app-border);
+}
+
+/* A conta que compoe a linha de cima: recuada e mais discreta. */
+.linhaDetalhe th,
+.linhaDetalhe td {
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.linhaDetalhe th {
+  padding-left: 22px;
+}
+
+.nota,
+.contagem {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--app-muted);
+}

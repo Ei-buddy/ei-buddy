@@ -105,3 +105,80 @@ function margemEmPontos(lucroBruto: Money, receitaBruta: Money): number | null {
   const razao = Number(lucroBruto.cents) / Number(receitaBruta.cents)
   return Math.round(razao * 100 * 100) / 100
 }
+
+/**
+ * Em que bloco do DRE gerencial cada lancamento entra — achado do QA, que pediu
+ * o DRE no formato da margem de contribuicao.
+ */
+export type GrupoDoDre = 'vendas' | 'descontos' | 'custos_variaveis' | 'despesas'
+
+export type LancamentoGerencial = {
+  readonly grupo: GrupoDoDre
+  /** Sempre positivo: o SINAL vem do grupo, nao do valor. */
+  readonly amountCents: number
+}
+
+export type DreGerencial = {
+  readonly vendasBrutas: Money
+  /** Descontos concedidos e devolucoes. */
+  readonly descontos: Money
+  readonly vendaLiquida: Money
+  /** Imposto sobre a venda, tarifa de cartao, custo da mercadoria: crescem com a venda. */
+  readonly custosVariaveis: Money
+  readonly margemDeContribuicao: Money
+  /** Margem de contribuicao sobre a venda liquida, em pontos. `null` sem venda. */
+  readonly margemDeContribuicaoPontos: number | null
+  /** As contas de despesa do plano: aluguel, energia, folha. */
+  readonly despesas: Money
+  readonly resultadoOperacional: Money
+}
+
+/**
+ * DRE gerencial — o formato pedido pelo QA:
+ *
+ *     Vendas brutas
+ *     (-) Descontos
+ *     = Venda liquida
+ *     (-) Custos variaveis (impostos, tarifas de cartao, mercadoria)
+ *     = Margem de contribuicao
+ *     (-) cada conta de despesa do plano
+ *     = Resultado operacional
+ *
+ * Os MESMOS lancamentos do `calcularDre`, so reagrupados: o resultado
+ * operacional e sempre igual ao resultado do DRE contabil. Quem decide o grupo
+ * de cada lancamento e `core`, que conhece o plano de contas da empresa.
+ */
+export function calcularDreGerencial(lancamentos: readonly LancamentoGerencial[]): DreGerencial {
+  for (const l of lancamentos) {
+    if (!Number.isInteger(l.amountCents) || l.amountCents < 0) {
+      throw new DomainError(
+        'INVALID_DRE_ENTRY',
+        'Lancamento do DRE precisa ter valor inteiro e nao negativo.',
+      )
+    }
+  }
+
+  const somaDe = (grupo: GrupoDoDre): Money =>
+    Money.sum(
+      lancamentos.filter((l) => l.grupo === grupo).map((l) => Money.fromCents(l.amountCents)),
+    )
+
+  const vendasBrutas = somaDe('vendas')
+  const descontos = somaDe('descontos')
+  const custosVariaveis = somaDe('custos_variaveis')
+  const despesas = somaDe('despesas')
+
+  const vendaLiquida = vendasBrutas.subtract(descontos)
+  const margemDeContribuicao = vendaLiquida.subtract(custosVariaveis)
+
+  return {
+    vendasBrutas,
+    descontos,
+    vendaLiquida,
+    custosVariaveis,
+    margemDeContribuicao,
+    margemDeContribuicaoPontos: margemEmPontos(margemDeContribuicao, vendaLiquida),
+    despesas,
+    resultadoOperacional: margemDeContribuicao.subtract(despesas),
+  }
+}
