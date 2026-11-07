@@ -20,16 +20,29 @@ function classesFor({ variant = 'primary', size = 'md', block, className = '' }:
     .join(' ')
 }
 
+/**
+ * `type="button"` por padrao — achado do QA. O `<button>` do HTML nasce
+ * `submit`: dentro de um formulario, o Enter num campo "clica" o PRIMEIRO
+ * botao de envio — e o primeiro era o Cancelar. O Enter fechava o cadastro de
+ * custo fixo sem salvar, e o mesmo acontecia em oito formularios (agenda, PDV,
+ * CRM, conta bancaria, titulo, correcao, suporte). Quem envia diz
+ * `type="submit"`, como todos os botoes de salvar ja diziam.
+ */
 export function Button({
   children,
   variant,
   size,
   block,
   className,
+  type = 'button',
   ...rest
 }: CommonProps & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...rest} className={classesFor({ children, variant, size, block, className })}>
+    <button
+      {...rest}
+      type={type}
+      className={classesFor({ children, variant, size, block, className })}
+    >
       {children}
     </button>
   )
