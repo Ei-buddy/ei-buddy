@@ -589,17 +589,24 @@ export async function responder(
     const x = d.dados
     return r(
       'dre',
-      `DRE de ${rotuloDoMes(hoje.slice(0, 7))}: resultado de ${centavos(x.resultCents)}.`,
+      `DRE de ${rotuloDoMes(hoje.slice(0, 7))}: resultado operacional de ${centavos(x.operatingResultCents)}.`,
       [
         {
           tipo: 'lista',
           titulo: `DRE ${rotuloDoMes(hoje.slice(0, 7))}`,
           itens: [
-            { rotulo: 'Receita bruta', valor: centavos(x.grossRevenueCents) },
-            { rotulo: 'Deduções', valor: centavos(-x.deductionsCents) },
-            { rotulo: 'Custo', valor: centavos(-x.costCents) },
-            { rotulo: 'Despesas', valor: centavos(-x.expensesCents) },
-            { rotulo: 'Resultado', valor: centavos(x.resultCents), destaque: true },
+            /* O formato da margem de contribuicao, como a tela do DRE (NR-204). */
+            { rotulo: 'Vendas brutas', valor: centavos(x.grossRevenueCents) },
+            { rotulo: 'Descontos', valor: centavos(-x.discountsCents) },
+            { rotulo: 'Venda líquida', valor: centavos(x.netSalesCents) },
+            { rotulo: 'Custos variáveis', valor: centavos(-x.variableCostsCents) },
+            { rotulo: 'Margem de contribuição', valor: centavos(x.contributionMarginCents) },
+            { rotulo: 'Despesas', valor: centavos(-x.operatingExpensesCents) },
+            {
+              rotulo: 'Resultado operacional',
+              valor: centavos(x.operatingResultCents),
+              destaque: true,
+            },
           ],
         },
         abrir('Abrir o DRE completo?', '/dre'),

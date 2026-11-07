@@ -1,3 +1,4 @@
+import type { DreLine, DreOutput } from '@na-regua/contracts'
 import { chamarApi } from './api'
 
 /**
@@ -15,28 +16,9 @@ import { chamarApi } from './api'
 
 export type TipoDeConta = 'revenue' | 'deduction' | 'cost' | 'expense'
 
-export type LinhaDoDre = {
-  readonly accountId: string | null
-  readonly accountName: string
-  readonly type: TipoDeConta
-  readonly amountCents: number
-  readonly entryCount: number
-}
-
-export type Dre = {
-  readonly from: string
-  readonly to: string
-  readonly grossRevenueCents: number
-  readonly deductionsCents: number
-  readonly netRevenueCents: number
-  readonly costCents: number
-  readonly grossProfitCents: number
-  readonly expensesCents: number
-  readonly resultCents: number
-  /** Pontos por cem (18 = 18%). Nulo quando nao houve receita. */
-  readonly grossMarginPoints: number | null
-  readonly lines: readonly LinhaDoDre[]
-}
+/** O DRE como a api devolve — o contrato e a fonte. */
+export type LinhaDoDre = DreLine
+export type Dre = DreOutput
 
 export type Resultado<T> =
   { readonly ok: true; readonly dados: T } | { readonly ok: false; readonly erro: string }

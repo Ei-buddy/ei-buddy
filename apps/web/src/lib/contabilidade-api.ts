@@ -1,3 +1,4 @@
+import type { DreLine, DreOutput } from '@na-regua/contracts'
 import { pedir, type Resultado } from './http'
 
 /**
@@ -16,29 +17,12 @@ export type ContaContabil = {
   isDefault: boolean
 }
 
-export type LinhaDoDre = {
-  accountId: string | null
-  accountName: string
-  type: TipoDeConta
-  amountCents: number
-  /** Quantos lancamentos compoem a linha — o "clique para detalhar". */
-  entryCount: number
-}
-
-export type Dre = {
-  from: string
-  to: string
-  grossRevenueCents: number
-  deductionsCents: number
-  netRevenueCents: number
-  costCents: number
-  grossProfitCents: number
-  expensesCents: number
-  resultCents: number
-  /** Pontos por cem (18 = 18%). Nulo quando nao houve receita. */
-  grossMarginPoints: number | null
-  lines: LinhaDoDre[]
-}
+/**
+ * O DRE como a api devolve — o contrato e a fonte, para a tela nao desenhar um
+ * campo que a api deixou de mandar (ou deixar de desenhar um que chegou).
+ */
+export type LinhaDoDre = DreLine
+export type Dre = DreOutput
 
 /** O rotulo de cada tipo, num lugar so. */
 export const ROTULO_DO_TIPO: Record<TipoDeConta, string> = {

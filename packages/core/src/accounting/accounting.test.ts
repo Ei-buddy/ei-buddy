@@ -1,3 +1,4 @@
+import type { DreOutput } from '@na-regua/contracts'
 import { describe, expect, it } from 'vitest'
 import { isAppError } from '../app-error.js'
 import { InMemoryAuditTrail } from '../audit/fakes.js'
@@ -41,6 +42,9 @@ const lanc = (
   occurredOn: '2026-09-10',
   ...over,
 })
+
+/** As linhas que vieram de lancamento — sem as fixas zeradas (impostos e tarifas). */
+const comMovimento = (dre: DreOutput) => dre.lines.filter((l) => l.entryCount > 0)
 
 describe('plano de contas padrao — RF-081', () => {
   it('cobre os quatro tipos do DRE', () => {
@@ -353,11 +357,123 @@ describe('DRE do periodo — RF-085, RF-086', () => {
         ['Vendas', 10_000],
         ['Impostos sobre vendas', 600],
         ['Custo das mercadorias vendidas', 6_000],
-        ['Tarifas de cartao', 300],
+        ['Tarifas de cartão', 300],
       ]),
     )
     expect(dre.resultCents).toBe(3_100)
     expect(dre.grossMarginPoints).not.toBe(100)
+  })
+
+  /**
+   * DRE gerencial — achado do QA: "Vendas Bruta, Desconto, Venda Liquida /
+   * Custos Variaveis, Impostos, Tarifas de Cartao / Margem de Contribuicao /
+   * (-) Plano de Conta / Resultado Operacional".
+   */
+  it('monta o formato da margem de contribuicao, com o mesmo resultado', async () => {
+    const venda = (
+      accountName: string,
+      accountType: LancamentoClassificado['accountType'],
+      amountCents: number,
+    ) =>
+      lanc({
+        entryKind: 'sale',
+        entryId: 'v1',
+        accountId: null,
+        accountName,
+        accountType,
+        amountCents,
+      })
+    const c = comLancamentos(
+      venda('vendas', 'revenue', 10_000),
+      venda('descontos', 'deduction', 500),
+      venda('devolucoes', 'deduction', 200),
+      venda('impostos', 'deduction', 600),
+      venda('cmv', 'cost', 5_000),
+      venda('tarifas_cartao', 'expense', 300),
+      lanc({
+        accountId: 'acc-1',
+        accountName: 'Aluguel',
+        accountType: 'expense',
+        amountCents: 1_500,
+      }),
+      lanc({
+        accountId: 'acc-2',
+        accountName: 'Energia',
+        accountType: 'expense',
+        amountCents: 400,
+      }),
+      lanc({
+        accountId: 'acc-3',
+        accountName: 'Frete sobre compra',
+        accountType: 'cost',
+        amountCents: 100,
+      }),
+      lanc({
+        accountId: 'acc-4',
+        accountName: 'Outras receitas',
+        accountType: 'revenue',
+        amountCents: 1_000,
+      }),
+    )
+
+    const dre = await buildDre(c.deps, contexto(), periodo)
+
+    expect(dre.grossRevenueCents).toBe(11_000)
+    expect(dre.discountsCents).toBe(700)
+    expect(dre.netSalesCents).toBe(10_300)
+    /* imposto 600 + tarifa 300 + mercadoria 5.000 + frete 100 */
+    expect(dre.variableCostsCents).toBe(6_000)
+    expect(dre.contributionMarginCents).toBe(4_300)
+    /* 4.300 / 10.300 = 41,747...% */
+    expect(dre.contributionMarginPoints).toBe(41.75)
+    expect(dre.operatingExpensesCents).toBe(1_900)
+    expect(dre.operatingResultCents).toBe(2_400)
+    expect(dre.operatingResultCents).toBe(dre.resultCents)
+
+    expect(dre.lines.map((l) => [l.group, l.accountName])).toEqual([
+      ['sales', 'Vendas'],
+      ['sales', 'Outras receitas'],
+      ['discounts', 'Descontos concedidos'],
+      ['discounts', 'Devoluções'],
+      ['variable_costs', 'Impostos sobre vendas'],
+      ['variable_costs', 'Tarifas de cartão'],
+      ['variable_costs', 'Custo das mercadorias vendidas'],
+      ['variable_costs', 'Frete sobre compra'],
+      ['expenses', 'Aluguel'],
+      ['expenses', 'Energia'],
+    ])
+  })
+
+  it('deducao do plano: devolucao abate a venda, imposto e taxa sao custo variavel', async () => {
+    const c = comLancamentos(
+      lanc({
+        accountId: 'd1',
+        accountName: 'Devoluções e cancelamentos',
+        accountType: 'deduction',
+        amountCents: 100,
+      }),
+      lanc({
+        accountId: 'd2',
+        accountName: 'Impostos sobre venda',
+        accountType: 'deduction',
+        amountCents: 200,
+      }),
+      lanc({
+        accountId: 'd3',
+        accountName: 'Taxas de cartão',
+        accountType: 'deduction',
+        amountCents: 300,
+      }),
+    )
+
+    const dre = await buildDre(c.deps, contexto(), periodo)
+    const grupo = (nome: string) => dre.lines.find((l) => l.accountName === nome)?.group
+
+    expect(grupo('Devoluções e cancelamentos')).toBe('discounts')
+    expect(grupo('Impostos sobre venda')).toBe('variable_costs')
+    expect(grupo('Taxas de cartão')).toBe('variable_costs')
+    expect(dre.discountsCents).toBe(100)
+    expect(dre.variableCostsCents).toBe(500)
   })
 
   it('nao traz lancamento de fora do periodo', async () => {
@@ -417,7 +533,9 @@ describe('DRE do periodo — RF-085, RF-086', () => {
     const dre = await buildDre(c.deps, contexto(), periodo)
 
     expect(dre.expensesCents).toBe(50_000)
-    expect(dre.lines[0]?.accountName).toBe('Sem classificacao')
+    const semConta = dre.lines.find((l) => l.group === 'expenses')
+    expect(semConta?.accountName).toBe('Sem classificação')
+    expect(semConta?.amountCents).toBe(50_000)
   })
 
   /* Sem a chave por tipo, uma despesa e uma receita nao classificadas cairiam
@@ -430,7 +548,7 @@ describe('DRE do periodo — RF-085, RF-086', () => {
 
     const dre = await buildDre(c.deps, contexto(), periodo)
 
-    expect(dre.lines).toHaveLength(2)
+    expect(comMovimento(dre)).toHaveLength(2)
     expect(dre.expensesCents).toBe(50_000)
     expect(dre.grossRevenueCents).toBe(70_000)
   })
@@ -449,16 +567,21 @@ describe('DRE do periodo — RF-085, RF-086', () => {
 
     const dre = await buildDre(c.deps, contexto(), periodo)
 
-    expect(dre.lines.map((l) => l.accountName)).toEqual(['Venda', 'Aluguel', 'Marketing'])
+    expect(comMovimento(dre).map((l) => l.accountName)).toEqual(['Venda', 'Aluguel', 'Marketing'])
   })
 
-  it('periodo sem movimento devolve zeros e nenhuma linha', async () => {
+  it('periodo sem movimento devolve zeros e so as linhas fixas, zeradas', async () => {
     const c = cenario()
 
     const dre = await buildDre(c.deps, contexto(), periodo)
 
     expect(dre.resultCents).toBe(0)
-    expect(dre.lines).toEqual([])
+    /* Impostos e tarifas de cartao sao linhas fixas do formato pedido pelo QA:
+       aparecem zeradas, e nenhuma outra. */
+    expect(dre.lines.map((l) => [l.accountName, l.amountCents, l.entryCount])).toEqual([
+      ['Impostos sobre vendas', 0, 0],
+      ['Tarifas de cartão', 0, 0],
+    ])
     expect(dre.grossMarginPoints).toBeNull()
   })
 

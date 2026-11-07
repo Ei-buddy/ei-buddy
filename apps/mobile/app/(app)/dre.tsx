@@ -4,13 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import { Cartao, Vazio } from '@/components/ui/Cartao'
-import {
-  carregarDre,
-  type Dre,
-  type LinhaDoDre,
-  mesLocal,
-  type TipoDeConta,
-} from '@/lib/contabilidade-api'
+import { linhasDoDreGerencial } from '@na-regua/contracts'
+import { carregarDre, type Dre, mesLocal } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
@@ -39,13 +34,6 @@ import { criarEstilos } from '@/theme/estilos'
 
 const emReais = (centavos: number) => centavos / 100
 
-const ROTULO_DO_TIPO: Record<TipoDeConta, string> = {
-  revenue: 'Receita',
-  deduction: 'Dedução',
-  cost: 'Custo',
-  expense: 'Despesa',
-}
-
 /** O mes anterior ao de uma data, em `AAAA-MM-DD`. */
 function mesAnterior(agora = new Date()): { de: string; ate: string } {
   /* Dia 1 antes de voltar o mes: em 31 de marco, `setMonth(mes - 1)` daria 3 de
@@ -63,7 +51,6 @@ export default function Relatorio() {
   const [carregando, setCarregando] = useState(true)
   const [atualizando, setAtualizando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [detalhando, setDetalhando] = useState<TipoDeConta | null>(null)
 
   const buscar = useCallback(async (qual: Recorte) => {
     const periodo = qual === 'atual' ? mesLocal() : mesAnterior()
@@ -90,7 +77,6 @@ export default function Relatorio() {
   const trocar = (qual: Recorte) => {
     if (qual === recorte) return
     setCarregando(true)
-    setDetalhando(null)
     setRecorte(qual)
   }
 
@@ -167,16 +153,19 @@ export default function Relatorio() {
             levam ate ele vem abaixo, para quem quiser conferir.
           */}
           <Cartao>
-            <Text style={estilos.resultadoRotulo}>Resultado do período</Text>
+            <Text style={estilos.resultadoRotulo}>Resultado operacional</Text>
             <Text
-              style={[estilos.resultadoValor, dre.resultCents < 0 && estilos.resultadoNegativo]}
+              style={[
+                estilos.resultadoValor,
+                dre.operatingResultCents < 0 && estilos.resultadoNegativo,
+              ]}
             >
-              {formatMoney(emReais(dre.resultCents))}
+              {formatMoney(emReais(dre.operatingResultCents))}
             </Text>
             <Text style={estilos.margem}>
-              {dre.grossMarginPoints === null
-                ? 'Sem receita no período'
-                : `Margem bruta de ${dre.grossMarginPoints}%`}
+              {dre.contributionMarginPoints === null
+                ? 'Sem venda no período'
+                : `Margem de contribuição de ${String(dre.contributionMarginPoints).replace('.', ',')}%`}
             </Text>
           </Cartao>
 
@@ -185,109 +174,55 @@ export default function Relatorio() {
             estado vazio: "Receita R$ 0,00" responde a pergunta, "sem dados"
             deixa o lojista sem saber se o mes foi parado ou se o app quebrou.
           */}
+          {/*
+            O formato pedido pelo QA (NR-204): vendas brutas, descontos, venda
+            liquida, custos variaveis, margem de contribuicao, cada conta de
+            despesa, resultado operacional. As linhas sao as do contrato — as
+            mesmas do web e da exportacao.
+          */}
           <Cartao titulo="Como se chega lá">
-            {[
-              { rotulo: 'Receita bruta', valor: dre.grossRevenueCents },
-              { rotulo: 'Deduções', valor: dre.deductionsCents, subtrai: true },
-              { rotulo: 'Receita líquida', valor: dre.netRevenueCents, total: true },
-              { rotulo: 'Custo', valor: dre.costCents, subtrai: true },
-              { rotulo: 'Lucro bruto', valor: dre.grossProfitCents, total: true },
-              { rotulo: 'Despesas', valor: dre.expensesCents, subtrai: true },
-            ].map((l) => (
-              <View key={l.rotulo} style={[estilos.linha, l.total === true && estilos.linhaTotal]}>
-                <Text style={[estilos.linhaRotulo, l.total === true && estilos.linhaForte]}>
-                  {l.rotulo}
-                </Text>
-                <Text style={[estilos.linhaValor, l.total === true && estilos.linhaForte]}>
-                  {/* O sinal aparece, e nao so a cor: quem nao distingue cores
-                      continua lendo o menos (RNF-052). */}
-                  {l.subtrai === true && l.valor !== 0 ? '− ' : ''}
-                  {formatMoney(emReais(Math.abs(l.valor)))}
+            {linhasDoDreGerencial(dre).map((l) => (
+              <View
+                key={l.chave}
+                style={[
+                  estilos.linha,
+                  l.separaAntes && estilos.linhaSepara,
+                  l.nivel === 'detalhe' && estilos.linhaDetalhe,
+                ]}
+              >
+                <View style={estilos.linhaTexto}>
+                  <Text
+                    style={[
+                      estilos.linhaRotulo,
+                      l.nivel === 'total' && estilos.linhaForte,
+                      l.nivel === 'detalhe' && estilos.detalheTexto,
+                    ]}
+                  >
+                    {l.rotulo}
+                  </Text>
+                  {l.nota ? <Text style={estilos.contaContagem}>{l.nota}</Text> : null}
+                  {l.lancamentos !== undefined ? (
+                    <Text style={estilos.contaContagem}>
+                      {l.lancamentos} {l.lancamentos === 1 ? 'lançamento' : 'lançamentos'}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text
+                  style={[
+                    estilos.linhaValor,
+                    l.nivel === 'total' && estilos.linhaForte,
+                    l.nivel === 'detalhe' && estilos.detalheTexto,
+                    l.nivel === 'total' && l.valorCents < 0 && estilos.resultadoNegativo,
+                  ]}
+                >
+                  {formatMoney(emReais(l.valorCents))}
                 </Text>
               </View>
             ))}
           </Cartao>
-
-          <Detalhe
-            linhas={dre.lines}
-            aberto={detalhando}
-            aoAlternar={(t) => setDetalhando((atual) => (atual === t ? null : t))}
-          />
         </ScrollView>
       )}
     </SafeAreaView>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-
-const ORDEM: readonly TipoDeConta[] = ['revenue', 'deduction', 'cost', 'expense']
-
-/**
- * As contas que compoem cada bloco — RF-086.
- *
- * Fechado por padrao. O servidor manda a CONTAGEM de lancamentos por conta, e
- * nao os lancamentos: um mes movimentado tem milhares, e no celular abrir tudo
- * de uma vez daria uma rolagem que ninguem percorre.
- */
-function Detalhe({
-  linhas,
-  aberto,
-  aoAlternar,
-}: {
-  linhas: readonly LinhaDoDre[]
-  aberto: TipoDeConta | null
-  aoAlternar: (t: TipoDeConta) => void
-}) {
-  const comMovimento = ORDEM.filter((t) => linhas.some((l) => l.type === t))
-
-  if (comMovimento.length === 0) {
-    return (
-      <Cartao>
-        <Text style={estilos.aviso}>Nenhum lançamento neste período.</Text>
-      </Cartao>
-    )
-  }
-
-  return (
-    <Cartao titulo="Por conta">
-      {comMovimento.map((tipo) => {
-        const doTipo = linhas.filter((l) => l.type === tipo)
-        const expandido = aberto === tipo
-
-        return (
-          <View key={tipo}>
-            <Pressable
-              onPress={() => aoAlternar(tipo)}
-              style={estilos.grupo}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: expandido }}
-            >
-              <Text style={estilos.grupoTitulo}>{ROTULO_DO_TIPO[tipo]}</Text>
-              <Text style={estilos.grupoContagem}>
-                {doTipo.length} {doTipo.length === 1 ? 'conta' : 'contas'}
-              </Text>
-            </Pressable>
-
-            {expandido
-              ? doTipo.map((l) => (
-                  <View key={l.accountId ?? `sem-conta-${l.type}`} style={estilos.conta}>
-                    <View style={estilos.contaTexto}>
-                      <Text style={[estilos.contaNome, l.accountId === null && estilos.semConta]}>
-                        {l.accountName}
-                      </Text>
-                      <Text style={estilos.contaContagem}>
-                        {l.entryCount} {l.entryCount === 1 ? 'lançamento' : 'lançamentos'}
-                      </Text>
-                    </View>
-                    <Text style={estilos.contaValor}>{formatMoney(emReais(l.amountCents))}</Text>
-                  </View>
-                ))
-              : null}
-          </View>
-        )
-      })}
-    </Cartao>
   )
 }
 
@@ -331,6 +266,12 @@ const estilos = criarEstilos(() => ({
     paddingVertical: espaco.sm,
   },
   linhaTotal: { borderTopWidth: 1, borderTopColor: cores.borda },
+  /* O traco do formato: comeca um bloco novo. */
+  linhaSepara: { borderTopWidth: 1, borderTopColor: cores.borda },
+  /* A conta que compoe a linha de cima: recuada e mais discreta. */
+  linhaDetalhe: { paddingVertical: espaco.xs, paddingLeft: espaco.md },
+  linhaTexto: { flex: 1, paddingRight: espaco.sm },
+  detalheTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
   linhaRotulo: { fontSize: fonte.corpo, color: cores.texto },
   linhaValor: { fontSize: fonte.corpo, color: cores.texto },
   linhaForte: { fontWeight: peso.forte },
