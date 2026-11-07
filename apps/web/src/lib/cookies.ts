@@ -136,6 +136,16 @@ export const ARMAZENAMENTO_LOCAL: readonly ArmazenamentoLocal[] = [
     duracao: 'Ate voce limpar os dados do navegador',
   },
   {
+    chave: 'nr:whatsapp-caminho',
+    /* `sessionStorage`: some ao fechar a aba. Nasce do clique em "WhatsApp"
+       no orcamento e guarda so se o aplicativo abriu ("app") ou nao ("web") —
+       nenhum texto, numero ou contato. */
+    categoria: 'preferencia',
+    finalidade:
+      'Lembrar, enquanto a aba estiver aberta, se o aplicativo do WhatsApp abriu no último envio — sem ele, os próximos envios vão direto para o WhatsApp Web.',
+    duracao: 'Até fechar a aba',
+  },
+  {
     chave: 'nr:checklist-dispensado',
     /* Nasce de um clique seu (o X no cartao de primeiros passos) — dispensa
        consentimento pela mesma razao do aviso de cookies. */

@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, type TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -256,6 +256,7 @@ function FormOrcamento({
   )
   const [busca, setBusca] = useState('')
   const [achados, setAchados] = useState<ProdutoDoCatalogo[]>([])
+  const buscaRef = useRef<TextInput>(null)
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
@@ -318,6 +319,8 @@ function FormOrcamento({
     )
     setBusca('')
     setAchados([])
+    /* Lancou, volta para a busca do proximo — achado do QA, o par do web. */
+    buscaRef.current?.focus()
   }
 
   const mudar = (id: string, campo: 'quantidade' | 'preco', valor: string) =>
@@ -451,6 +454,7 @@ function FormOrcamento({
           placeholder="Nome, código ou código de barras"
           dica="Enter mostra a lista"
           aoConfirmar={() => void listarProdutos()}
+          refDaEntrada={buscaRef}
         />
         {achados.map((p) => (
           <Pressable

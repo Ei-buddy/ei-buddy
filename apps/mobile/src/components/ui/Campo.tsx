@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type Ref, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
@@ -23,6 +23,7 @@ export default function Campo({
   editavel = true,
   aoSair,
   aoConfirmar,
+  refDaEntrada,
 }: {
   rotulo: string
   valor: string
@@ -38,6 +39,8 @@ export default function Campo({
   aoSair?: () => void
   /** O "Enter" do teclado — ex.: mostrar a lista de produtos. */
   aoConfirmar?: () => void
+  /** Para a tela devolver o foco ao campo — ex.: a busca do proximo produto. */
+  refDaEntrada?: Ref<TextInput>
 }) {
   const [visivel, setVisivel] = useState(false)
 
@@ -47,6 +50,7 @@ export default function Campo({
 
       <View style={[estilos.caixa, Boolean(erro) && estilos.caixaErro]}>
         <TextInput
+          ref={refDaEntrada}
           style={estilos.input}
           value={valor}
           onChangeText={onChange}

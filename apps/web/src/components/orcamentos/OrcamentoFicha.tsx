@@ -12,10 +12,12 @@ import {
   type Orcamento,
 } from '@/lib/orcamentos-api'
 import { maskPhone } from '@/lib/validation'
+import { abrirWhatsApp, enderecoDoWeb } from '@/lib/whatsapp'
 import { Card, EmptyState, PageHeader } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import papel from '@/components/vendas/comprovante.module.css'
+import styles from './orcamentos.module.css'
 import OrcamentoForm from './OrcamentoForm'
 
 const reais = (cents: number) => cents / 100
@@ -36,6 +38,9 @@ export default function OrcamentoFicha({ id }: { id: string }) {
   /* Achado do QA: "o abrir do orcamento deveria permitir o editar". */
   const [editando, setEditando] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+  const [abrindoWhatsApp, setAbrindoWhatsApp] = useState(false)
+  /* O navegador barrou a aba do WhatsApp Web: fica o link para clicar. */
+  const [whatsAppBloqueado, setWhatsAppBloqueado] = useState<string | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -84,6 +89,26 @@ export default function OrcamentoFicha({ id }: { id: string }) {
       },
     })
   }, [orcamento, empresa])
+
+  /**
+   * Aplicativo do WhatsApp primeiro; sem ele, o WhatsApp Web — achado do QA.
+   * O caminho e a deteccao moram em `lib/whatsapp`.
+   */
+  async function mandarPeloWhatsApp() {
+    if (texto === null) return
+    setWhatsAppBloqueado(null)
+    setAbrindoWhatsApp(true)
+    const caminho = await abrirWhatsApp({ texto })
+    setAbrindoWhatsApp(false)
+    if (caminho === 'web') {
+      setToast({
+        msg: 'O aplicativo do WhatsApp não abriu: o orçamento foi para o WhatsApp Web, numa aba nova.',
+        tone: 'success',
+      })
+    } else if (caminho === 'bloqueado') {
+      setWhatsAppBloqueado(enderecoDoWeb({ texto }))
+    }
+  }
 
   async function compartilhar() {
     if (texto === null || !orcamento) return
@@ -151,14 +176,13 @@ export default function OrcamentoFicha({ id }: { id: string }) {
               >
                 Compartilhar
               </Button>
-              <ButtonLink
-                href={texto ? `https://wa.me/?text=${encodeURIComponent(texto)}` : '#'}
+              <Button
                 variant="secondary"
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={() => void mandarPeloWhatsApp()}
+                disabled={texto === null || abrindoWhatsApp}
               >
-                WhatsApp
-              </ButtonLink>
+                {abrindoWhatsApp ? 'Abrindo WhatsApp…' : 'WhatsApp'}
+              </Button>
               <Button variant="secondary" onClick={() => window.print()} disabled={texto === null}>
                 Imprimir
               </Button>
@@ -178,6 +202,14 @@ export default function OrcamentoFicha({ id }: { id: string }) {
             </>
           }
         />
+        {whatsAppBloqueado !== null ? (
+          <p className={styles.avisoWhatsApp} role="status">
+            O aplicativo do WhatsApp não abriu e o navegador bloqueou a aba nova.{' '}
+            <a href={whatsAppBloqueado} target="_blank" rel="noopener noreferrer">
+              Abrir no WhatsApp Web
+            </a>
+          </p>
+        ) : null}
       </div>
 
       {editando && aberto ? (

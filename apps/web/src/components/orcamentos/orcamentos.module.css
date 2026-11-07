@@ -171,3 +171,19 @@
     grid-template-columns: 1fr auto;
   }
 }
+
+/* O navegador barrou a aba do WhatsApp Web: o link fica para clicar. */
+.avisoWhatsApp {
+  margin: -6px 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--app-field);
+  font-size: 13.5px;
+  color: var(--app-muted);
+}
+
+.avisoWhatsApp a {
+  color: var(--app-accent);
+  font-weight: 600;
+  text-decoration: underline;
+}
