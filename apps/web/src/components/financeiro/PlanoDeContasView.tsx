@@ -15,6 +15,9 @@ import {
   carregarPlano,
   type ContaContabil,
   criarConta,
+  type FiltroDoPlano,
+  type OrdemDoPlano,
+  planoNaTela,
   ROTULO_DO_TIPO,
   type TipoDeConta,
 } from '@/lib/contabilidade-api'
@@ -45,6 +48,9 @@ export default function PlanoDeContasView() {
   const [novoTipo, setNovoTipo] = useState<TipoDeConta>('expense')
   const [salvandoPlano, setSalvandoPlano] = useState(false)
   const [apagando, setApagando] = useState<ContaContabil | null>(null)
+  const [filtroTipo, setFiltroTipo] = useState<FiltroDoPlano>('todos')
+  const [ordemPlano, setOrdemPlano] = useState<OrdemDoPlano>('tipo')
+  const contasNaTela = planoNaTela(contas, filtroTipo, ordemPlano)
 
   const [editando, setEditando] = useState<CustoFixo | null>(null)
   const [formAberto, setFormAberto] = useState(false)
@@ -275,33 +281,77 @@ export default function PlanoDeContasView() {
               }
             />
           ) : (
-            <ul className={styles.planos}>
-              {contas.map((c) => (
-                <li key={c.id} className={styles.plano}>
-                  <span className={styles.planoNome}>
-                    <strong>{c.name}</strong>
-                    <Badge tone={c.type === 'revenue' ? 'success' : 'neutral'}>
-                      {ROTULO_DO_TIPO[c.type]}
-                    </Badge>
-                  </span>
-                  {/* Conta do plano padrao nao tem botao de apagar — RF-081.
+            <>
+              {/* Filtrar por tipo e ordenar por nome — achado do QA. */}
+              <div className={styles.planoFerramentas}>
+                <div className={styles.filtrosLinha} role="group" aria-label="Filtrar por tipo">
+                  {(['todos', ...(Object.keys(ROTULO_DO_TIPO) as TipoDeConta[])] as const).map(
+                    (t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`${styles.filtro} ${filtroTipo === t ? styles.filtroAtivo : ''}`}
+                        onClick={() => setFiltroTipo(t)}
+                        aria-pressed={filtroTipo === t}
+                      >
+                        {t === 'todos' ? 'Todos' : ROTULO_DO_TIPO[t]}{' '}
+                        <span className={styles.filtroContagem}>
+                          {t === 'todos'
+                            ? contas.length
+                            : contas.filter((c) => c.type === t).length}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                </div>
+                <label className={styles.planoOrdem}>
+                  <span>Ordenar</span>
+                  <select
+                    className={styles.input}
+                    value={ordemPlano}
+                    onChange={(e) => setOrdemPlano(e.target.value as OrdemDoPlano)}
+                    aria-label="Ordenar o plano de contas"
+                  >
+                    <option value="tipo">Por tipo (ordem do DRE)</option>
+                    <option value="nome">Nome (A–Z)</option>
+                    <option value="nome-desc">Nome (Z–A)</option>
+                  </select>
+                </label>
+              </div>
+              {contasNaTela.length === 0 ? (
+                <p className={styles.planoVazio}>
+                  Nenhuma conta do tipo{' '}
+                  {filtroTipo === 'todos' ? '' : ROTULO_DO_TIPO[filtroTipo].toLowerCase()} ainda.
+                </p>
+              ) : null}
+              <ul className={styles.planos} aria-label="Contas do plano">
+                {contasNaTela.map((c) => (
+                  <li key={c.id} className={styles.plano}>
+                    <span className={styles.planoNome}>
+                      <strong>{c.name}</strong>
+                      <Badge tone={c.type === 'revenue' ? 'success' : 'neutral'}>
+                        {ROTULO_DO_TIPO[c.type]}
+                      </Badge>
+                    </span>
+                    {/* Conta do plano padrao nao tem botao de apagar — RF-081.
                       Mostra-lo e deixar a api recusar seria oferecer uma acao
                       que nunca funciona. */}
-                  {c.isDefault ? (
-                    <span className={styles.planoValor}>padrão</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.custoExcluir}
-                      onClick={() => setApagando(c)}
-                      aria-label={`Apagar ${c.name}`}
-                    >
-                      <IconTrash size={15} />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    {c.isDefault ? (
+                      <span className={styles.planoValor}>padrão</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.custoExcluir}
+                        onClick={() => setApagando(c)}
+                        aria-label={`Apagar ${c.name}`}
+                      >
+                        <IconTrash size={15} />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </Card>
 
