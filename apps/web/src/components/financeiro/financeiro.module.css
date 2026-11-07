@@ -1046,4 +1046,25 @@
 .gerarTotal {
   border-top: 1px solid var(--app-border);
   font-weight: 600;
+/* --- Extrato por intervalo de datas (achado do QA) --- */
+
+.extratoIntervalo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.extratoIntervalo label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.extratoAviso {
+  width: 100%;
+  font-size: 13px;
+  color: var(--app-danger);
 }
