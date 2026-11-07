@@ -10,6 +10,7 @@ import { IconClose } from '@/components/Icons'
 import CampoTag from '@/components/app/CampoTag'
 import styles from './financeiro.module.css'
 import { reaisDoTexto } from '@/lib/valor'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /**
  * Lancamento de titulo, a pagar ou a receber — NR-074, RF-055, RF-065.
@@ -79,18 +80,7 @@ export default function FormularioTitulo({
   const [erros, setErros] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState(false)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !salvando) onCancelar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, salvando])
+  useDialogo(ref, onCancelar, salvando)
 
   /**
    * O id da conta pelo NOME digitado — criando de verdade se o nome nao bate

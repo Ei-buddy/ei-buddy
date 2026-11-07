@@ -9,6 +9,7 @@ import { Spinner } from '@/components/auth/Fields'
 import { LegendaObrigatorio, MarcaObrigatorio } from '@/components/ui/UI'
 import { IconClose } from '@/components/Icons'
 import styles from './financeiro.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /** O minimo do servidor para o motivo do cancelamento. */
 const MOTIVO_MINIMO = 3
@@ -70,18 +71,7 @@ export default function CorrecaoTitulo({
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !salvando) onFechar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onFechar, salvando])
+  useDialogo(ref, onFechar, salvando)
 
   async function confirmar(event: React.FormEvent) {
     event.preventDefault()

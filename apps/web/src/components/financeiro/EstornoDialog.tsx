@@ -15,6 +15,7 @@ import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import styles from './financeiro.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /** O motivo e obrigatorio no servidor, e o minimo la sao 3 caracteres. */
 const MOTIVO_MINIMO = 3
@@ -67,18 +68,7 @@ export default function EstornoDialog({
   const [erro, setErro] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !processando) onCancelar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, processando])
+  useDialogo(ref, onCancelar, processando)
 
   useEffect(() => {
     let cancelado = false

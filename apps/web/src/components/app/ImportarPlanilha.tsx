@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   lerCsv,
   type ErroImportacao,
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose, IconUpload } from '@/components/Icons'
 import styles from './importar.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 export type CampoImportacao = {
   key: string
@@ -71,18 +72,7 @@ export default function ImportarPlanilha({
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    dialogRef.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
+  useDialogo(dialogRef, onClose)
 
   /* ---------------------------------------------------------------- *
    * Etapa 1 — leitura do arquivo

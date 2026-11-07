@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { COLUNAS, comentarCard, moverCard, type CardCrm, type ColunaId } from '@/lib/crm-api'
 import { formatDate } from '@/lib/format'
 import { Badge } from '@/components/ui/UI'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconCheck, IconClose } from '@/components/Icons'
 import styles from './crm.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /**
  * Painel de detalhe do card: historico, comentarios e conclusao.
@@ -29,18 +30,7 @@ export default function CardDetalhe({
   const [erro, setErro] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onFechar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onFechar])
+  useDialogo(ref, onFechar)
 
   async function enviarComentario(event: React.FormEvent) {
     event.preventDefault()
