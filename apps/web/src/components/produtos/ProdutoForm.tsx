@@ -14,6 +14,7 @@ import { Spinner } from '@/components/auth/Fields'
 import { IconBarcode } from '@/components/Icons'
 import LeitorCodigoBarras from '@/components/app/LeitorCodigoBarras'
 import CampoTag from '@/components/app/CampoTag'
+import CampoFornecedor from '@/components/fornecedores/CampoFornecedor'
 import styles from './produtoForm.module.css'
 import { reaisDoTexto } from '@/lib/valor'
 
@@ -78,20 +79,18 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
   }, [produtoId])
 
   const [categorias, setCategorias] = useState<string[]>([])
-  const [fornecedores, setFornecedores] = useState<string[]>([])
   /* Soma dos custos variaveis da empresa, em pontos percentuais. Falha ao
      carregar vira zero: a tela so deixa de mostrar a linha, e o cadastro
      segue. */
   const [percentualVariavel, setPercentualVariavel] = useState(0)
 
-  /* Categoria/fornecedor ja usados pela propria loja — nao mais uma lista de
-     exemplo igual para toda empresa. */
+  /* Categorias ja usadas pela propria loja — nao mais uma lista de exemplo
+     igual para toda empresa. O fornecedor busca no cadastro de fornecedores. */
   useEffect(() => {
     void (async () => {
       const r = await carregarSugestoes()
       if (r.ok) {
         setCategorias(r.dados.categorias)
-        setFornecedores(r.dados.fornecedores)
       }
     })()
     void (async () => {
@@ -259,14 +258,13 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
               {erroDe('categoria')}
             </Field>
 
+            {/* Busca no cadastro de fornecedores — achado do QA. Antes eram
+                só os nomes já digitados em outros produtos. */}
             <Field label="Fornecedor" span={6}>
-              <CampoTag
+              <CampoFornecedor
                 valor={fornecedor}
-                opcoes={fornecedores}
-                onChange={setFornecedor}
-                onCriar={(novo) => setFornecedores((f) => [...f, novo])}
-                placeholder="Buscar ou criar fornecedor"
-                ariaLabel="Fornecedor"
+                onChange={(nome) => setFornecedor(nome)}
+                placeholder="Buscar fornecedor pelo nome ou CNPJ"
               />
             </Field>
           </FormGrid>

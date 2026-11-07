@@ -14,6 +14,7 @@ import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import LeitorCodigo from '@/components/LeitorCodigo'
+import CampoFornecedor from '@/components/CampoFornecedor'
 import { buscarProduto, calcularMargem, carregarSugestoes, salvarProduto } from '@/lib/produtos-api'
 import { carregarCustosVariaveis } from '@/lib/custos-api'
 import { formatMoney, formatPercent } from '@/lib/format'
@@ -206,10 +207,20 @@ export default function ProdutoNovoScreen() {
                 onChange={setPrecoCusto}
                 placeholder="12,00"
                 tipoTeclado="decimal-pad"
-                dica={margem === null ? undefined : `Margem ${formatPercent(margem)}`}
               />
             </View>
           </View>
+
+          {/* Margem com o lucro de cada unidade ao lado — o par do web. */}
+          {margem !== null && venda !== null && custo !== null ? (
+            <Text
+              style={[estilos.margem, margem < 0 && estilos.erro]}
+              accessibilityLiveRegion="polite"
+            >
+              Margem {formatPercent(margem)} · {venda - custo >= 0 ? 'lucro' : 'prejuízo'} de{' '}
+              {formatMoney(Math.abs(venda - custo) / 100)} por unidade
+            </Text>
+          ) : null}
 
           {percentualVariavel > 0 && sobra !== null ? (
             <Text style={[estilos.nota, sobra < 0 && estilos.erro]}>
@@ -245,12 +256,8 @@ export default function ProdutoNovoScreen() {
           <Campo rotulo="Categoria" valor={categoria} onChange={setCategoria} />
           <Sugestoes opcoes={sugestoes.categorias} atual={categoria} onEscolher={setCategoria} />
 
-          <Campo rotulo="Fornecedor" valor={fornecedor} onChange={setFornecedor} />
-          <Sugestoes
-            opcoes={sugestoes.fornecedores}
-            atual={fornecedor}
-            onEscolher={setFornecedor}
-          />
+          {/* Busca no cadastro de fornecedores — achado do QA. */}
+          <CampoFornecedor valor={fornecedor} onChange={(nome) => setFornecedor(nome)} />
 
           <Text style={estilos.secao}>Fiscal (para a NFC-e)</Text>
           <Campo
@@ -368,4 +375,5 @@ const estilos = criarEstilos(() => ({
     fontWeight: peso.forte,
   },
   nota: { color: cores.textoFraco, fontSize: fonte.micro },
+  margem: { color: cores.acento, fontSize: fonte.pequeno, fontWeight: peso.forte },
 }))
