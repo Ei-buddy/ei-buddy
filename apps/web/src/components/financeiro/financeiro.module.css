@@ -954,3 +954,43 @@
     min-width: 0;
   }
 }
+
+/* --- Plano de contas: filtro por tipo e ordem (achado do QA) --- */
+
+.planoFerramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0 6px;
+}
+
+.planoFerramentas .filtrosLinha {
+  margin: 0;
+}
+
+.filtroContagem {
+  margin-left: 2px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.planoOrdem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.planoOrdem select {
+  width: auto;
+  min-width: 190px;
+}
+
+.planoVazio {
+  padding: 14px 0;
+  font-size: 13.5px;
+  color: var(--app-muted);
+}

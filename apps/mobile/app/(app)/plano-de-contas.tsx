@@ -7,6 +7,9 @@ import {
   carregarPlano,
   criarConta,
   mesLocal,
+  type FiltroDoPlano,
+  type OrdemDoPlano,
+  planoNaTela,
   ROTULO_DO_TIPO,
   type ContaContabil,
   type Dre,
@@ -45,6 +48,9 @@ export default function PlanoDeContas() {
   const [novoNome, setNovoNome] = useState('')
   const [novoTipo, setNovoTipo] = useState<TipoDeConta>('expense')
   const [salvando, setSalvando] = useState(false)
+  const [filtroTipo, setFiltroTipo] = useState<FiltroDoPlano>('todos')
+  const [ordemPlano, setOrdemPlano] = useState<OrdemDoPlano>('tipo')
+  const contasNaTela = planoNaTela(contas, filtroTipo, ordemPlano)
 
   const buscar = useCallback(async () => {
     const { de, ate } = mesLocal()
@@ -203,13 +209,60 @@ export default function PlanoDeContas() {
         <CustosVariaveis />
 
         <Sanfona titulo="Planos de conta" resumo={`${contas.length} cadastrados`} inicialAberta>
+          {/* Filtrar por tipo e ordenar por nome — achado do QA, o par do web. */}
+          {contas.length > 0 ? (
+            <View style={estilos.ferramentas}>
+              <View style={estilos.tipos} accessibilityLabel="Filtrar por tipo">
+                {(['todos', ...TIPOS] as const).map((t) => (
+                  <Pressable
+                    key={t}
+                    onPress={() => setFiltroTipo(t)}
+                    style={[estilos.tipo, filtroTipo === t && estilos.tipoAtivo]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filtroTipo === t }}
+                  >
+                    <Text style={[estilos.tipoTexto, filtroTipo === t && estilos.tipoTextoAtivo]}>
+                      {t === 'todos' ? 'Todos' : ROTULO_DO_TIPO[t]} (
+                      {t === 'todos' ? contas.length : contas.filter((c) => c.type === t).length})
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={estilos.tipos} accessibilityLabel="Ordenar">
+                {(
+                  [
+                    ['tipo', 'Por tipo'],
+                    ['nome', 'Nome A–Z'],
+                    ['nome-desc', 'Nome Z–A'],
+                  ] as const
+                ).map(([valor, rotulo]) => (
+                  <Pressable
+                    key={valor}
+                    onPress={() => setOrdemPlano(valor)}
+                    style={[estilos.tipo, ordemPlano === valor && estilos.tipoAtivo]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ordemPlano === valor }}
+                  >
+                    <Text
+                      style={[estilos.tipoTexto, ordemPlano === valor && estilos.tipoTextoAtivo]}
+                    >
+                      {rotulo}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {contas.length > 0 && contasNaTela.length === 0 ? (
+            <Text style={estilos.ajuda}>Nenhuma conta deste tipo ainda.</Text>
+          ) : null}
           {contas.length === 0 ? (
             <Vazio
               titulo="Nenhuma conta cadastrada"
               descricao="Toque em Nova para criar a primeira conta."
             />
           ) : (
-            contas.map((c) => (
+            contasNaTela.map((c) => (
               <View key={c.id} style={estilos.linha}>
                 <View style={estilos.linhaInfo}>
                   <Text style={estilos.linhaNome}>{c.name}</Text>
@@ -268,6 +321,7 @@ const estilos = criarEstilos(() => ({
   flex: { flex: 1 },
   acoes: { flexDirection: 'row', gap: espaco.sm },
   tipos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm },
+  ferramentas: { gap: espaco.sm, paddingBottom: espaco.sm },
   tipo: {
     paddingHorizontal: espaco.md,
     paddingVertical: espaco.sm,

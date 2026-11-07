@@ -56,3 +56,27 @@ export const apagarConta = (accountId: string): Promise<Resultado<unknown>> =>
  */
 export const carregarDre = (from: string, to: string): Promise<Resultado<Dre>> =>
   pedir(`/api/relatorios/dre?from=${from}&to=${to}`)
+
+/** Como o plano de contas aparece na lista — achado do QA. */
+export type OrdemDoPlano = 'tipo' | 'nome' | 'nome-desc'
+export type FiltroDoPlano = TipoDeConta | 'todos'
+
+/**
+ * O plano de contas filtrado por tipo e ordenado — achado do QA ("poder
+ * ordenar por nome; poder filtrar por tipo").
+ *
+ * `tipo` mantem a ordem do servidor (receita, deducao, custo, despesa — a
+ * ordem do DRE). Por nome, em portugues: acento e maiuscula nao mudam a ordem
+ * ("Água" junto de "Aluguel", nao depois do Z).
+ */
+export function planoNaTela<T extends { readonly name: string; readonly type: TipoDeConta }>(
+  contas: readonly T[],
+  filtro: FiltroDoPlano,
+  ordem: OrdemDoPlano,
+): T[] {
+  const filtradas = filtro === 'todos' ? [...contas] : contas.filter((c) => c.type === filtro)
+  if (ordem === 'tipo') return filtradas
+  const porNome = (a: T, b: T) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base', numeric: true })
+  return filtradas.sort(ordem === 'nome' ? porNome : (a, b) => porNome(b, a))
+}
