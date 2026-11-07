@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   criarCobrancaVenda,
   FORMAS,
@@ -50,6 +50,7 @@ export default function EtapaPagamento({
   const [parcelas, setParcelas] = useState(1)
   const [cobrando, setCobrando] = useState<Pagamento | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+  const formasRef = useRef<HTMLDivElement>(null)
 
   const confirmado = pagamentos
     .filter((p) => p.status === 'confirmado')
@@ -137,12 +138,42 @@ export default function EtapaPagamento({
     onPagamentos(pagamentos.filter((p) => p.id !== id))
   }
 
+  /**
+   * Corrigir a forma de um pagamento ja lancado — achado do QA ("poder
+   * corrigir a forma de pagamento selecionada"). Dinheiro, cartao e fiado
+   * entravam confirmados e TRAVADOS: a linha nao tinha nem a lixeira, e a
+   * venda quitada escondia o lancador. Corrigir tira a linha e devolve forma,
+   * valor e parcelas ao lancador, para trocar a forma e confirmar de novo.
+   *
+   * Forma `online` (cobranca confirmada pelo provedor, quando existir) continua
+   * travada depois de confirmada: ali o dinheiro ja entrou de verdade.
+   */
+  function corrigir(p: Pagamento) {
+    const restanteDepois = Math.max(0, total - (confirmado - p.valor))
+    onPagamentos(pagamentos.filter((x) => x.id !== p.id))
+    setForma(p.forma)
+    setValorParcial(Math.min(p.valor, restanteDepois).toFixed(2).replace('.', ','))
+    setParcelas(p.parcelas ?? 1)
+    setToast({
+      msg: `${rotuloNoPdv(FORMAS.find((f) => f.valor === p.forma)!)} de ${formatMoney(p.valor)} voltou para o lançamento. Escolha a forma certa e confirme.`,
+      tone: 'success',
+    })
+    requestAnimationFrame(() =>
+      formasRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus(),
+    )
+  }
+
   return (
     <>
       <div className={styles.pagamentoGrid}>
         {/* ============ Formas ============ */}
         <Card title="Como o cliente vai pagar">
-          <div className={styles.formas} role="group" aria-label="Forma de pagamento">
+          <div
+            ref={formasRef}
+            className={styles.formas}
+            role="group"
+            aria-label="Forma de pagamento"
+          >
             {FORMAS.map((f) => (
               <button
                 key={f.valor}
@@ -275,7 +306,26 @@ export default function EtapaPagamento({
 
                     <span className={styles.pagamentoValor}>{formatMoney(p.valor)}</span>
 
-                    {p.status !== 'confirmado' ? (
+                    {p.status === 'confirmado' && !f.online ? (
+                      <span className={styles.pagamentoAcoes}>
+                        <button
+                          type="button"
+                          className={styles.pagamentoBotao}
+                          onClick={() => corrigir(p)}
+                          aria-label={`Corrigir ${rotuloNoPdv(f)} de ${formatMoney(p.valor)}`}
+                        >
+                          Corrigir
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.pagamentoExcluir}
+                          onClick={() => remover(p.id)}
+                          aria-label="Remover pagamento"
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </span>
+                    ) : p.status !== 'confirmado' ? (
                       <span className={styles.pagamentoAcoes}>
                         <button
                           type="button"

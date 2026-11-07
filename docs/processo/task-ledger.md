@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     167 |  338 |
-| ✅ Concluídas                 |     160 |  313 |
+| Total                         |     168 |  339 |
+| ✅ Concluídas                 |     161 |  314 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -408,6 +408,7 @@ voltam a ⬜.
 | NR-199 | E-mails funcionando: confirmação ao candidato a Parceiro (recebida, aprovada, recusada), teste de envio na Plataforma (web e app) com o motivo exato, /health mostra o modo, aviso no deploy sem SMTP_PASSWORD |   🟢   | `core` `contracts` `api` `web` `mobile` `infra`               |   1 | —                                      | —    | RF-119, RF-114                                     |   ✅   |
 | NR-200 | Produto: fornecedor busca no cadastro de fornecedores (nome ou CNPJ) e cadastra sem sair da tela já com o texto buscado; Margem na altura do Preço de venda, com o lucro por unidade ao lado (web e app)       |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-017, RF-020                                     |   ✅   |
 | NR-201 | Compra: Enter passa para o próximo campo e só o botão registra; motivo do estorno digita normal (diálogos não roubam mais o foco a cada tecla — gancho único useDialogo em 9 diálogos)                         |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-055, RF-124                                     |   ✅   |
+| NR-202 | Venda: pagamento já lançado (dinheiro, cartão, Pix, fiado) pode ser corrigido ou removido até fechar a venda; o motivo do estorno digita normal (diálogo da NR-201)                                            |   🟢   | `web`                                                         |   1 | —                                      | —    | RF-034, RF-043                                     |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                            |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                     |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                                                                                          |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -525,10 +526,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      91 |  148 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      92 |  149 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **338 dias-desenvolvedor** em 167 tarefas. Com 3 pessoas, isso é cerca
+Somando: **339 dias-desenvolvedor** em 168 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
