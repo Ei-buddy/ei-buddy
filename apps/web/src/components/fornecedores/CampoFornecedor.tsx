@@ -15,6 +15,7 @@ import { buscarCnpj } from '@/lib/empresa-api'
 import { Field, FormGrid, Input } from '@/components/ui/UI'
 import { Button } from '@/components/ui/Button'
 import { IconClose, IconPlus, IconSearch } from '@/components/Icons'
+import { useDialogo } from '@/components/app/useDialogo'
 import campo from '@/components/app/campoTag.module.css'
 import dialogo from '@/components/app/dialog.module.css'
 import styles from './campoFornecedor.module.css'
@@ -344,24 +345,11 @@ export function NovoFornecedorDialog({
   const [buscandoDoc, setBuscandoDoc] = useState(digitos(documentoInicial).length === 14)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  /* O Esc le o estado da hora pelo ref; o efeito roda UMA vez. Refazer o
-     efeito a cada render roubava o foco do campo — o "um caractere por vez"
-     dos dialogos de estorno. */
+  /* Esc, rolagem e foco pelo gancho comum: na pilha de dialogos, o Esc daqui
+     fecha so este cadastro, e nao a nova conta a pagar que esta embaixo. */
+  const painelRef = useRef<HTMLDivElement>(null)
+  useDialogo(painelRef, onCancelar, salvando)
   const consultadoRef = useRef<string | null>(null)
-  const cancelarRef = useRef(onCancelar)
-  const salvandoRef = useRef(false)
-  useEffect(() => {
-    cancelarRef.current = onCancelar
-    salvandoRef.current = salvando
-  })
-
-  useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !salvandoRef.current) cancelarRef.current()
-    }
-    document.addEventListener('keydown', aoTeclar)
-    return () => document.removeEventListener('keydown', aoTeclar)
-  }, [])
 
   async function preencherPeloCnpj(silencioso: boolean) {
     if (digitos(documento).length !== 14) {
@@ -453,6 +441,8 @@ export function NovoFornecedorDialog({
         tabIndex={-1}
       />
       <div
+        ref={painelRef}
+        tabIndex={-1}
         className={`${dialogo.painel} ${styles.painel}`}
         role="dialog"
         aria-modal="true"
