@@ -22,27 +22,40 @@
 
 /* --- Margem calculada --- */
 
+/*
+ * Margem na MESMA altura do Preco de venda, com o lucro escrito ao lado da
+ * porcentagem — achado do QA. Antes era uma caixa de duas linhas (74px contra
+ * 41px do campo vizinho), com o lucro embaixo.
+ *
+ * A altura e a do `Input` (padding 11px + texto 14.5px + borda): valor longo
+ * quebra o texto pequeno em duas linhas DENTRO da caixa, sem crescer.
+ */
 .margemBox {
-  display: grid;
-  gap: 2px;
-  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 41px;
+  padding: 0 14px;
+  overflow: hidden;
   border: 1px solid var(--glass-panel-border);
   border-radius: var(--radius-sm);
   background: var(--glass-sheen), var(--glass-surface);
   box-shadow: var(--glass-shadow);
-  min-height: 46px;
-  align-content: center;
 }
 
 .margemBox strong {
+  flex: none;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1;
   color: var(--app-accent);
 }
 
 .margemBox span {
+  min-width: 0;
   font-size: 12px;
+  line-height: 1.2;
   color: var(--app-muted);
 }
 

@@ -91,3 +91,17 @@ export function telefoneFormatado(t: string | null): string {
   if (t.length === 10) return t.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
   return t
 }
+
+const soDigitos = (t: string) => t.replace(/\D/g, '')
+
+/** O nome que aparece no produto e na compra: o fantasia, quando ha. */
+export const nomeDoFornecedor = (f: FornecedorCadastrado) => f.tradeName ?? f.name
+
+/**
+ * O texto buscado e um documento? So digitos e pontuacao de CNPJ/CPF, com 11
+ * ou mais digitos — "Distribuidora 2000" continua sendo nome.
+ */
+export function pareceDocumento(texto: string): boolean {
+  const t = texto.trim()
+  return /^[\d./\s-]+$/.test(t) && soDigitos(t).length >= 11
+}
