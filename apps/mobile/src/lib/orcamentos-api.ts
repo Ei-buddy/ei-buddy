@@ -152,12 +152,26 @@ export async function compartilharOrcamento(o: Orcamento): Promise<Resultado<tru
   }
 }
 
-/** Direto no WhatsApp, com o texto pronto para escolher o contato. */
+/**
+ * Direto no WhatsApp, com o texto pronto para escolher o contato.
+ *
+ * Achado do QA: "verificar se o aplicativo do Whats esta aberto, caso nao,
+ * recorrer ao Whats Web". Primeiro o aplicativo (`whatsapp://`); sem ele, o
+ * sistema recusa a abertura e vai o `wa.me` — no navegador do celular, a
+ * pagina do WhatsApp que leva ao Web ou a instalar.
+ */
 export async function mandarPeloWhatsApp(o: Orcamento): Promise<Resultado<true>> {
   const t = await textoDoOrcamento(o)
   if (!t.ok) return t
+  const texto = encodeURIComponent(t.dados)
   try {
-    await Linking.openURL(`https://wa.me/?text=${encodeURIComponent(t.dados)}`)
+    await Linking.openURL(`whatsapp://send?text=${texto}`)
+    return { ok: true, dados: true }
+  } catch {
+    /* Sem o aplicativo: o caminho pelo navegador. */
+  }
+  try {
+    await Linking.openURL(`https://wa.me/?text=${texto}`)
     return { ok: true, dados: true }
   } catch {
     return { ok: false, erro: 'Não deu para abrir o WhatsApp.' }
