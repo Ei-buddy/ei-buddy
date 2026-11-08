@@ -163,6 +163,8 @@ export function criarLojaDeTeste(
         grossCents: 5_000,
         netCents: 4_800,
         cardFeeCents: 0,
+        discountCents: 0,
+        taxCents: 0,
         netAfterFeesCents: 4_800,
         averageTicketCents: 2_500,
       },

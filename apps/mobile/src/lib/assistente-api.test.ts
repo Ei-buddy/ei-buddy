@@ -57,7 +57,15 @@ describe('assistente com os dados da loja', () => {
             ok: true,
             dados: {
               vendas: [],
-              resumo: { quantidade: 10, faturamento: 1130.93, liquido: 1000, ticketMedio: 113.09 },
+              resumo: {
+                quantidade: 10,
+                faturamento: 1130.93,
+                liquido: 1000,
+                descontos: 30.93,
+                tarifas: 70,
+                impostos: 30,
+                ticketMedio: 113.09,
+              },
             },
           }
         },
@@ -85,9 +93,13 @@ describe('assistente com os dados da loja', () => {
 
     expect(r.texto).toContain('1.130,93')
     expect(r.texto).toContain('10 vendas')
-    /* Bruto e liquido, os dois, cada um com o nome que tem. */
-    expect(r.texto).toContain('brutos')
-    expect(r.texto).toMatch(/Líquido: R\$\s1\.000,00/)
+    /* Achado do QA: a venda liquida e a do DRE (bruto - desconto), e cada
+       parcela que sai depois dela aparece com o valor. */
+    expect(r.texto).toMatch(/30,93 de desconto, a venda líquida foi R\$\s1\.100,00/)
+    expect(r.texto).toMatch(/R\$\s70,00 de taxa de cartão e R\$\s30,00 de imposto/)
+    expect(r.texto).toMatch(/ficam R\$\s1\.000,00/)
+    expect(texto(r)).toContain('Venda líquida hoje')
+    expect(texto(r)).toContain('Fica para a loja')
     expect(texto(r)).toContain('out/2026')
     /* A tabela fixa de antes ("Agosto R$ 64.200") nao pode voltar. */
     expect(texto(r)).not.toContain('64.200')
@@ -232,7 +244,15 @@ describe('acoes apontam telas do app', () => {
         historico: async () => ({
           ok: true,
           dados: {
-            resumo: { quantidade: 2, faturamento: 30, liquido: 30, ticketMedio: 15 },
+            resumo: {
+              quantidade: 2,
+              faturamento: 30,
+              liquido: 30,
+              descontos: 0,
+              tarifas: 0,
+              impostos: 0,
+              ticketMedio: 15,
+            },
             vendas: [
               {
                 numero: '7',
