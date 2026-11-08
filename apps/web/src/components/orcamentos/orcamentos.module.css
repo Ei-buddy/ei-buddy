@@ -187,3 +187,95 @@
   font-weight: 600;
   text-decoration: underline;
 }
+
+/* Busca, situacao e periodo da lista — NR-210, como no historico de vendas. */
+.barra {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+@media (min-width: 720px) {
+  .barra {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+  }
+}
+
+.busca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 15px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-full);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
+  color: var(--app-muted);
+  transition: border-color var(--transition);
+}
+
+.busca:focus-within {
+  border-color: var(--app-accent);
+  box-shadow:
+    var(--glass-shadow-inset),
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 30%, transparent);
+}
+
+.busca input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.busca input:focus {
+  outline: none;
+}
+
+.select {
+  padding: 10px 13px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--glass-inset);
+  box-shadow: var(--glass-shadow-inset);
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--app-accent);
+}
+
+.select option {
+  background: var(--dark-surface);
+  color: var(--dark-text);
+}
+
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-border);
+}
+
+.paginacaoResumo {
+  margin-top: 16px;
+  color: var(--app-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paginacao .paginacaoResumo {
+  margin-top: 0;
+}

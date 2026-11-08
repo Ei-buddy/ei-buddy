@@ -1,4 +1,5 @@
 import type { ExecutionContext } from '../context.js'
+import { diaNoFuso } from '../dia-no-fuso.js'
 
 /** Quanto foi pago ou recebido num periodo, e em quantos titulos. */
 export type TotalQuitado = {
@@ -24,16 +25,6 @@ export type SettlementTotals = {
     from: string,
     to: string,
   ): Promise<TotalQuitado>
-}
-
-/** `AAAA-MM-DD` do instante, no fuso dado. */
-function diaNoFuso(instante: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(instante)
 }
 
 /**

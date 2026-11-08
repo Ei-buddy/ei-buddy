@@ -1,6 +1,6 @@
-import type { QuoteOutput } from '@na-regua/contracts'
-import type { QuoteChanges, QuoteRepository } from '@na-regua/core'
-import type { Sql, TransactionSql } from 'postgres'
+import type { QuoteOutput, QuoteSituation } from '@na-regua/contracts'
+import type { FiltroDeOrcamentos, QuoteChanges, QuoteRepository } from '@na-regua/core'
+import type { PendingQuery, Row, Sql, TransactionSql } from 'postgres'
 import { withTenant } from './tenant.js'
 
 /**
@@ -135,7 +135,62 @@ async function gravarItens(
   `
 }
 
-export function createQuoteRepository(sql: Sql): QuoteRepository {
+/* Linha da lista: o orcamento mais o total e o resumo, nas janelas. */
+type LinhaDaLista = LinhaOrcamento & {
+  total_geral: string | number
+  aberto_qtd: string | number
+  aberto_valor: string | number
+  vencido_qtd: string | number
+  vencido_valor: string | number
+  convertido_qtd: string | number
+  convertido_valor: string | number
+  cancelado_qtd: string | number
+  cancelado_valor: string | number
+}
+
+/**
+ * Busca e periodo — o recorte do PAINEL. A situacao fica fora daqui: ela
+ * recorta so a lista, e o painel continua mostrando todas.
+ */
+function recorte(tx: TransactionSql, f: FiltroDeOrcamentos, timeZone: string) {
+  return tx`
+    ${
+      f.from === undefined
+        ? tx``
+        : tx`AND q.created_at >= (${f.from}::date)::timestamp AT TIME ZONE ${timeZone}`
+    }
+    ${
+      f.to === undefined
+        ? tx``
+        : tx`AND q.created_at < (${f.to}::date + 1)::timestamp AT TIME ZONE ${timeZone}`
+    }
+    ${
+      f.termo === undefined
+        ? tx``
+        : tx`AND (
+              q.customer_name ILIKE ${'%' + f.termo + '%'}
+              OR q.number::text = ${f.termo}
+              OR EXISTS (
+                SELECT 1 FROM quote_items qi2
+                 WHERE qi2.company_id = q.company_id
+                   AND qi2.quote_id = q.id
+                   AND qi2.description ILIKE ${'%' + f.termo + '%'}
+              )
+            )`
+    }
+  `
+}
+
+/* As quatro situacoes. Vencido e o aberto com validade antes de hoje. */
+const situacao: Record<QuoteSituation, (tx: TransactionSql, hoje: string) => PendingQuery<Row[]>> =
+  {
+    open: (tx, hoje) => tx`q.status = 'open' AND q.valid_until >= ${hoje}::date`,
+    expired: (tx, hoje) => tx`q.status = 'open' AND q.valid_until < ${hoje}::date`,
+    converted: (tx) => tx`q.status = 'converted'`,
+    cancelled: (tx) => tx`q.status = 'cancelled'`,
+  }
+
+export function createQuoteRepository(sql: Sql, timeZone = 'America/Sao_Paulo'): QuoteRepository {
   return {
     findProducts: (companyId, ids) =>
       withTenant(sql, companyId, async (tx) => {
@@ -210,15 +265,90 @@ export function createQuoteRepository(sql: Sql): QuoteRepository {
       })
     },
 
-    list: (companyId, limite) =>
+    /**
+     * A pagina, o total e o resumo numa consulta so — NR-210.
+     *
+     * O resumo precisa enxergar o que a situacao escolhida esconde. Por isso
+     * a situacao nao vai no `WHERE`: a CTE traz o recorte de busca e periodo,
+     * as janelas (`OVER ()`) somam cada situacao sobre ele, e so depois a
+     * situacao filtra as linhas da pagina. Com a situacao no `WHERE`, escolher
+     * "Vencidos" zeraria o "Em aberto" do painel.
+     *
+     * Quando a pagina vem vazia (pagina alem do fim, ou situacao sem nenhum),
+     * nao ha linha para carregar as janelas: o resumo sai de uma segunda
+     * consulta, so de agregados.
+     */
+    list: (companyId, f) =>
       withTenant(sql, companyId, async (tx) => {
-        const linhas = await tx<LinhaOrcamento[]>`
-          SELECT * FROM quotes
-           WHERE company_id = ${companyId}
-           ORDER BY number DESC
-           LIMIT ${limite}
+        const h = f.hoje
+        const linhas = await tx<LinhaDaLista[]>`
+          WITH recorte AS (
+            SELECT q.*,
+                   count(*) FILTER (WHERE ${situacao.open(tx, h)}) OVER () AS aberto_qtd,
+                   COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.open(tx, h)}) OVER (), 0)
+                     AS aberto_valor,
+                   count(*) FILTER (WHERE ${situacao.expired(tx, h)}) OVER () AS vencido_qtd,
+                   COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.expired(tx, h)}) OVER (), 0)
+                     AS vencido_valor,
+                   count(*) FILTER (WHERE ${situacao.converted(tx, h)}) OVER () AS convertido_qtd,
+                   COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.converted(tx, h)}) OVER (), 0)
+                     AS convertido_valor,
+                   count(*) FILTER (WHERE ${situacao.cancelled(tx, h)}) OVER () AS cancelado_qtd,
+                   COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.cancelled(tx, h)}) OVER (), 0)
+                     AS cancelado_valor
+              FROM quotes q
+             WHERE q.company_id = ${companyId}
+             ${recorte(tx, f, timeZone)}
+          )
+          SELECT q.*, count(*) OVER () AS total_geral
+            FROM recorte q
+           WHERE TRUE
+           ${f.situacao === undefined ? tx`` : tx`AND ${situacao[f.situacao](tx, h)}`}
+           ORDER BY q.number DESC
+           LIMIT ${f.limite} OFFSET ${f.offset}
         `
-        return comItens(tx, companyId, linhas)
+
+        let base: LinhaDaLista | undefined = linhas[0]
+        let total = numero(linhas[0]?.total_geral ?? 0)
+        if (base === undefined) {
+          const [agregado] = await tx<LinhaDaLista[]>`
+            SELECT
+              count(*) FILTER (WHERE ${situacao.open(tx, h)}) AS aberto_qtd,
+              COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.open(tx, h)}), 0) AS aberto_valor,
+              count(*) FILTER (WHERE ${situacao.expired(tx, h)}) AS vencido_qtd,
+              COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.expired(tx, h)}), 0)
+                AS vencido_valor,
+              count(*) FILTER (WHERE ${situacao.converted(tx, h)}) AS convertido_qtd,
+              COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.converted(tx, h)}), 0)
+                AS convertido_valor,
+              count(*) FILTER (WHERE ${situacao.cancelled(tx, h)}) AS cancelado_qtd,
+              COALESCE(SUM(q.total_cents) FILTER (WHERE ${situacao.cancelled(tx, h)}), 0)
+                AS cancelado_valor,
+              count(*) FILTER (WHERE ${
+                f.situacao === undefined ? tx`TRUE` : situacao[f.situacao](tx, h)
+              }) AS total_geral
+              FROM quotes q
+             WHERE q.company_id = ${companyId}
+             ${recorte(tx, f, timeZone)}
+          `
+          base = agregado
+          total = numero(agregado?.total_geral ?? 0)
+        }
+
+        const par = (qtd: unknown, valor: unknown) => ({
+          count: numero(qtd ?? 0),
+          totalCents: numero(valor ?? 0),
+        })
+        return {
+          orcamentos: await comItens(tx, companyId, linhas),
+          total,
+          resumo: {
+            open: par(base?.aberto_qtd, base?.aberto_valor),
+            expired: par(base?.vencido_qtd, base?.vencido_valor),
+            converted: par(base?.convertido_qtd, base?.convertido_valor),
+            cancelled: par(base?.cancelado_qtd, base?.cancelado_valor),
+          },
+        }
       }),
 
     findById: async (companyId, id) => {

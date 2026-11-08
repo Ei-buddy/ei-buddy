@@ -10,6 +10,7 @@ import {
 } from '@/lib/vendas-api'
 import { formatDateTime, formatMoney } from '@/lib/format'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
+import { PERIODOS, periodoDe } from '@/lib/periodos'
 import { SkeletonLinhas } from '@/components/ui/Skeleton'
 import { ButtonLink, Button } from '@/components/ui/Button'
 import { IconPlus, IconSearch } from '@/components/Icons'
@@ -43,32 +44,6 @@ const POR_PAGINA = 20
 
 /** Espera antes de buscar o que esta sendo digitado. */
 const ESPERA_DA_BUSCA_MS = 350
-
-/** Os recortes de periodo da barra, em dias para tras a partir de hoje. */
-const PERIODOS = [
-  { valor: 0, rotulo: 'Qualquer período' },
-  { valor: 1, rotulo: 'Hoje e ontem' },
-  { valor: 7, rotulo: '7 dias' },
-  { valor: 30, rotulo: '30 dias' },
-] as const
-
-/**
- * `de`/`ate` para um recorte em dias.
- *
- * Campos LOCAIS, nunca `toISOString`: no fuso do Brasil a meia-noite de hoje
- * ainda e ontem em UTC, e o periodo comecaria um dia antes.
- */
-function periodoDe(dias: number): { de: string; ate: string } {
-  if (dias === 0) return { de: '', ate: '' }
-
-  const dois = (n: number) => String(n).padStart(2, '0')
-  const iso = (d: Date) => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`
-
-  const hoje = new Date()
-  const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - (dias - 1))
-
-  return { de: iso(inicio), ate: iso(hoje) }
-}
 
 const ROTULO_DO_STATUS: Record<VendaDoHistorico['status'], string> = {
   open: 'Aberta',

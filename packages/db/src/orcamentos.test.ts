@@ -167,7 +167,8 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
     const q = await repo.create(novo([produtoA]))
     expect(q).toMatchObject({ customerId: cliente, customerName: 'Joana' })
     expect((await repo.findById(empresa, q.id))?.customerId).toBe(cliente)
-    expect((await repo.list(empresa, 50)).find((x) => x.id === q.id)?.customerId).toBe(cliente)
+    const pagina = await repo.list(empresa, { hoje: '2026-10-09', limite: 100, offset: 0 })
+    expect(pagina.orcamentos.find((x) => x.id === q.id)?.customerId).toBe(cliente)
   })
 
   it('acha so cliente vivo da loja', async () => {
@@ -232,5 +233,185 @@ describe.skipIf(!DATABASE_URL)('orcamentos — NR-159', () => {
     const aberto = await repo.create(novo([produtoA]))
     expect(await repo.update(randomUUID(), aberto.id, mudancas)).toBeNull()
     expect(await repo.update(empresa, 'x', mudancas)).toBeNull()
+  })
+
+  describe('lista com painel, busca, periodo e situacao — NR-210', () => {
+    let loja: string
+    let dono: string
+    const ids: Record<'q1' | 'q2' | 'q3' | 'q4' | 'q5', { id: string; number: number }> =
+      {} as never
+
+    /* Loja so deste bloco: o painel soma TUDO o que casa, e os orcamentos dos
+       testes de cima mudariam as contas. */
+    beforeAll(async () => {
+      loja = randomUUID()
+      dono = randomUUID()
+      const cnpj = cnpjDeTeste('5')
+      await withTenant(sql, loja, async (tx) => {
+        await tx`
+          INSERT INTO companies (id, legal_name, cnpj, email, phone)
+          VALUES (${loja}, 'Loja Painel', ${cnpj}, ${`p@${cnpj}.local`}, '41999990001')
+        `
+        await tx`INSERT INTO users (id, name, email) VALUES (${dono}, 'Dono', ${`p${dono}@local`})`
+        await tx`INSERT INTO company_users (company_id, user_id, role) VALUES (${loja}, ${dono}, 'owner')`
+      })
+      const prod = randomUUID()
+      const ana = randomUUID()
+      const bruno = randomUUID()
+      await withTenant(sql, loja, async (tx) => {
+        await tx`
+          INSERT INTO products
+            (id, company_id, description, internal_code, unit_of_measure,
+             sale_price_cents, cost_price_cents, stock)
+          VALUES (${prod}, ${loja}, 'Massa corrida', 'MC-1', 'un', 1000, 500, 3)
+        `
+        await tx`INSERT INTO customers (id, company_id, name) VALUES (${ana}, ${loja}, 'Ana Souza')`
+        await tx`INSERT INTO customers (id, company_id, name) VALUES (${bruno}, ${loja}, 'Bruno Lima')`
+      })
+
+      const criar = (
+        cliente: string,
+        nome: string,
+        totalCents: number,
+        validUntil: string,
+        createdAt: string,
+        descricao = 'Massa corrida',
+      ) =>
+        repo.create({
+          companyId: loja,
+          customerId: cliente,
+          customerName: nome,
+          validUntil,
+          notes: null,
+          discountCents: 0,
+          totalCents,
+          items: [
+            { productId: prod, description: descricao, quantity: 1, unitPriceCents: totalCents },
+          ],
+          createdBy: dono,
+          createdAt: new Date(createdAt),
+        })
+
+      /* Hoje = 09/10. q1 e q3 abertos no prazo; q2 vencido; q4 cancelado; q5 vendido.
+         q3 foi feito as 23h do dia 6 em Brasilia (02h do dia 7 em UTC). */
+      const q1 = await criar(ana, 'Ana Souza', 1000, '2026-10-17', '2026-10-05T12:00:00Z')
+      const q2 = await criar(
+        bruno,
+        'Bruno Lima',
+        2000,
+        '2026-10-08',
+        '2026-10-06T12:00:00Z',
+        'Rolo de la',
+      )
+      const q3 = await criar(ana, 'Ana Souza', 3000, '2026-10-09', '2026-10-07T02:00:00Z')
+      const q4 = await criar(ana, 'Ana Souza', 4000, '2026-10-30', '2026-10-08T12:00:00Z')
+      const q5 = await criar(ana, 'Ana Souza', 5000, '2026-10-30', '2026-10-08T13:00:00Z')
+      await repo.close(loja, q4.id, { status: 'cancelled', saleId: null, closedAt: new Date() })
+      const venda = randomUUID()
+      await withTenant(
+        sql,
+        loja,
+        (tx) => tx`
+          INSERT INTO sales (id, company_id, number, status, gross_amount_cents, net_amount_cents,
+                             created_at, created_by)
+          VALUES (${venda}, ${loja}, 1, 'settled', 5000, 5000, now(), ${dono})
+        `,
+      )
+      await repo.close(loja, q5.id, { status: 'converted', saleId: venda, closedAt: new Date() })
+      Object.assign(ids, { q1, q2, q3, q4, q5 })
+    }, 60_000)
+
+    const filtro = (over: Partial<Parameters<typeof repo.list>[1]> = {}) => ({
+      hoje: '2026-10-09',
+      limite: 20,
+      offset: 0,
+      ...over,
+    })
+
+    const painelCheio = {
+      open: { count: 2, totalCents: 4000 },
+      expired: { count: 1, totalCents: 2000 },
+      converted: { count: 1, totalCents: 5000 },
+      cancelled: { count: 1, totalCents: 4000 },
+    }
+
+    it('painel por situacao; validade hoje ainda e aberto; mais novo primeiro', async () => {
+      const r = await repo.list(loja, filtro())
+      expect(r.resumo).toEqual(painelCheio)
+      expect(r.total).toBe(5)
+      expect(r.orcamentos.map((o) => o.id)).toEqual(
+        [ids.q5, ids.q4, ids.q3, ids.q2, ids.q1].map((q) => q.id),
+      )
+      /* A pagina vem com os itens, como antes. */
+      expect(r.orcamentos[0]?.items[0]?.description).toBe('Massa corrida')
+      expect(r.orcamentos.find((o) => o.id === ids.q5.id)?.saleNumber).toBe(1)
+    })
+
+    it('a situacao recorta a lista e deixa o painel inteiro', async () => {
+      const vencidos = await repo.list(loja, filtro({ situacao: 'expired' }))
+      expect(vencidos.orcamentos.map((o) => o.id)).toEqual([ids.q2.id])
+      expect(vencidos.total).toBe(1)
+      expect(vencidos.resumo).toEqual(painelCheio)
+
+      const abertos = await repo.list(loja, filtro({ situacao: 'open' }))
+      expect(abertos.orcamentos.map((o) => o.id)).toEqual([ids.q3.id, ids.q1.id])
+    })
+
+    it('situacao sem nenhum: lista vazia, painel continua certo', async () => {
+      const r = await repo.list(loja, filtro({ termo: 'ana', situacao: 'expired' }))
+      expect(r.orcamentos).toEqual([])
+      expect(r.total).toBe(0)
+      expect(r.resumo).toEqual({
+        open: { count: 2, totalCents: 4000 },
+        expired: { count: 0, totalCents: 0 },
+        converted: { count: 1, totalCents: 5000 },
+        cancelled: { count: 1, totalCents: 4000 },
+      })
+    })
+
+    it('pagina alem do fim: vazia, mas total e painel do filtro inteiro', async () => {
+      const r = await repo.list(loja, filtro({ offset: 40 }))
+      expect(r.orcamentos).toEqual([])
+      expect(r.total).toBe(5)
+      expect(r.resumo).toEqual(painelCheio)
+
+      const segunda = await repo.list(loja, filtro({ limite: 2, offset: 2 }))
+      expect(segunda.orcamentos.map((o) => o.id)).toEqual([ids.q3.id, ids.q2.id])
+      expect(segunda.total).toBe(5)
+    })
+
+    it('busca por cliente (sem diferenciar maiuscula), numero e item', async () => {
+      const bruno = await repo.list(loja, filtro({ termo: 'BRUNO' }))
+      expect(bruno.orcamentos.map((o) => o.id)).toEqual([ids.q2.id])
+      expect(bruno.resumo.expired).toEqual({ count: 1, totalCents: 2000 })
+      expect(bruno.resumo.open).toEqual({ count: 0, totalCents: 0 })
+
+      const numero = await repo.list(loja, filtro({ termo: String(ids.q3.number) }))
+      expect(numero.orcamentos.map((o) => o.id)).toEqual([ids.q3.id])
+
+      const item = await repo.list(loja, filtro({ termo: 'rolo' }))
+      expect(item.orcamentos.map((o) => o.id)).toEqual([ids.q2.id])
+
+      const nada = await repo.list(loja, filtro({ termo: 'zzz' }))
+      expect(nada.total).toBe(0)
+      expect(nada.resumo.open.count).toBe(0)
+    })
+
+    it('periodo pelo dia da loja: 23h do dia 6 em Brasilia e dia 6', async () => {
+      const dia6 = await repo.list(loja, filtro({ from: '2026-10-06', to: '2026-10-06' }))
+      expect(dia6.orcamentos.map((o) => o.id)).toEqual([ids.q3.id, ids.q2.id])
+      expect(dia6.resumo.open).toEqual({ count: 1, totalCents: 3000 })
+
+      const dePara = await repo.list(loja, filtro({ from: '2026-10-08' }))
+      expect(dePara.total).toBe(2)
+      const ate = await repo.list(loja, filtro({ to: '2026-10-05' }))
+      expect(ate.orcamentos.map((o) => o.id)).toEqual([ids.q1.id])
+    })
+
+    it('outra loja nao enxerga nada', async () => {
+      const r = await repo.list(empresa, filtro({ termo: 'Bruno' }))
+      expect(r.orcamentos).toEqual([])
+      expect(r.resumo.expired.count).toBe(0)
+    })
   })
 })

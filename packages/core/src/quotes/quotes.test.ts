@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createQuoteInputSchema } from '@na-regua/contracts'
+import { createQuoteInputSchema, quoteListInputSchema } from '@na-regua/contracts'
 import { isAppError } from '../app-error.js'
 import { InMemoryAuditTrail } from '../audit/fakes.js'
 import type { ExecutionContext } from '../context.js'
@@ -37,7 +37,7 @@ function montar() {
   quotes.cadastrarCliente({ id: 'c2', companyId: 'emp-1', name: 'Pedro Alves' })
   quotes.cadastrarCliente({ id: 'cx', companyId: 'emp-2', name: 'De outra loja' })
   const audit = new InMemoryAuditTrail()
-  return { quotes, audit, deps: { quotes, audit } }
+  return { quotes, audit, deps: { quotes, audit, timeZone: 'America/Sao_Paulo' } }
 }
 
 const entrada = (over: Record<string, unknown> = {}) =>
@@ -130,7 +130,14 @@ describe('orcamento — NR-159', () => {
     const q = await createQuote(deps, ctx(), entrada())
     const e = await erroDe(getQuote(deps, ctx({ companyId: 'emp-2' }), q.id))
     expect(isAppError(e) && e.code).toBe('NOT_FOUND')
-    expect(await listQuotes(deps, ctx({ companyId: 'emp-2' }))).toEqual([])
+    const outra = await listQuotes(
+      deps,
+      ctx({ companyId: 'emp-2' }),
+      quoteListInputSchema.parse({}),
+    )
+    expect(outra.quotes).toEqual([])
+    expect(outra.total).toBe(0)
+    expect(outra.summary.open).toEqual({ count: 0, totalCents: 0 })
   })
 
   it('perfil somente leitura nao orca', async () => {
@@ -221,5 +228,101 @@ describe('orcamento — NR-159', () => {
     expect(isAppError(e3) && e3.code).toBe('NOT_FOUND')
     const e4 = await erroDe(updateQuote(deps, ctx({ role: 'accountant' }), aberto.id, entrada()))
     expect(isAppError(e4) && e4.code).toBe('FORBIDDEN')
+  })
+})
+
+describe('lista de orcamentos com painel e busca — NR-210', () => {
+  const lista = (over: Record<string, unknown> = {}) => quoteListInputSchema.parse(over)
+
+  /* Quatro orcamentos: um aberto no prazo, um vencido, um que virou venda e
+     um cancelado. "Hoje" e 07/10 (ctx.now). */
+  async function quatro() {
+    const m = montar()
+    const { deps, quotes } = m
+    const aberto = await createQuote(deps, ctx(), entrada({ validUntil: '2026-10-17' }))
+    const vencido = await createQuote(
+      deps,
+      ctx(),
+      entrada({
+        customerId: 'c2',
+        validUntil: '2026-10-08',
+        items: [{ productId: 'p2', quantity: 1, unitPriceCents: 1000 }],
+        discountCents: 0,
+      }),
+    )
+    const convertido = await createQuote(deps, ctx(), entrada({ discountCents: 0 }))
+    const cancelado = await createQuote(deps, ctx(), entrada({ discountCents: 0 }))
+    quotes.registrarVenda('venda-1', 'emp-1')
+    await convertQuote(deps, ctx(), convertido.id, { saleId: 'venda-1' })
+    await cancelQuote(deps, ctx(), cancelado.id)
+    return { ...m, aberto, vencido, convertido, cancelado }
+  }
+
+  /* O vencido e decidido no dia DO LISTAR: no dia 9, a validade de 8 passou. */
+  const depois = ctx({ now: new Date('2026-10-09T15:00:00.000Z') })
+
+  it('o painel soma cada situacao; vencido e o aberto com validade passada', async () => {
+    const { deps, aberto, vencido, convertido, cancelado } = await quatro()
+    const r = await listQuotes(deps, depois, lista())
+    expect(r.summary).toEqual({
+      open: { count: 1, totalCents: aberto.totalCents },
+      expired: { count: 1, totalCents: vencido.totalCents },
+      converted: { count: 1, totalCents: convertido.totalCents },
+      cancelled: { count: 1, totalCents: cancelado.totalCents },
+    })
+    expect(r.total).toBe(4)
+    expect(r.quotes.map((q) => q.number)).toEqual([4, 3, 2, 1])
+  })
+
+  it('a situacao recorta a lista, nao o painel', async () => {
+    const { deps, vencido, aberto } = await quatro()
+    const r = await listQuotes(deps, depois, lista({ situation: 'expired' }))
+    expect(r.quotes.map((q) => q.id)).toEqual([vencido.id])
+    expect(r.total).toBe(1)
+    expect(r.summary.open).toEqual({ count: 1, totalCents: aberto.totalCents })
+  })
+
+  it('a validade e o dia da loja: as 22h de Brasilia ainda e o mesmo dia', async () => {
+    const { deps } = await quatro()
+    /* 01:00 UTC do dia 9 = 22:00 do dia 8 em Brasilia: valido ate 8 ainda vale. */
+    const noite = ctx({ now: new Date('2026-10-09T01:00:00.000Z') })
+    const r = await listQuotes(deps, noite, lista())
+    expect(r.summary.expired.count).toBe(0)
+    expect(r.summary.open.count).toBe(2)
+  })
+
+  it('a busca acha por cliente, numero e produto, e o painel segue a busca', async () => {
+    const { deps, vencido } = await quatro()
+    const porCliente = await listQuotes(deps, depois, lista({ q: 'pedro' }))
+    expect(porCliente.quotes.map((q) => q.id)).toEqual([vencido.id])
+    expect(porCliente.summary.open.count).toBe(0)
+    expect(porCliente.summary.expired.count).toBe(1)
+
+    const porNumero = await listQuotes(deps, depois, lista({ q: '3' }))
+    expect(porNumero.quotes.map((q) => q.number)).toEqual([3])
+
+    const porProduto = await listQuotes(deps, depois, lista({ q: 'tinta' }))
+    expect(porProduto.total).toBe(3)
+
+    const vazio = await listQuotes(deps, depois, lista({ q: '   ' }))
+    expect(vazio.total).toBe(4)
+  })
+
+  it('pagina: total e painel falam do filtro inteiro', async () => {
+    const { deps } = await quatro()
+    const p2 = await listQuotes(deps, depois, lista({ page: 2, pageSize: 3 }))
+    expect(p2.quotes.map((q) => q.number)).toEqual([1])
+    expect(p2.total).toBe(4)
+    expect(p2.page).toBe(2)
+    expect(p2.pageSize).toBe(3)
+    expect(p2.summary.converted.count).toBe(1)
+  })
+
+  it('o periodo e o dia em que o orcamento foi feito', async () => {
+    const { deps } = await quatro()
+    expect(
+      (await listQuotes(deps, depois, lista({ from: '2026-10-07', to: '2026-10-07' }))).total,
+    ).toBe(4)
+    expect((await listQuotes(deps, depois, lista({ from: '2026-10-08' }))).total).toBe(0)
   })
 })

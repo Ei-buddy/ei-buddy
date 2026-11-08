@@ -694,5 +694,11 @@ export {
   updateQuote,
 } from './quotes/quotes.js'
 export type { QuoteDeps } from './quotes/quotes.js'
-export type { NewQuote, QuoteChanges, QuoteRepository } from './ports/quote-repository.js'
+export type {
+  FiltroDeOrcamentos,
+  NewQuote,
+  PaginaDeOrcamentos,
+  QuoteChanges,
+  QuoteRepository,
+} from './ports/quote-repository.js'
 export { InMemoryQuotes } from './quotes/fakes.js'
