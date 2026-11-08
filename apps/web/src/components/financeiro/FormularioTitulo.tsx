@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import CampoTag from '@/components/app/CampoTag'
+import CampoFornecedor from '@/components/fornecedores/CampoFornecedor'
 import styles from './financeiro.module.css'
 import { reaisDoTexto } from '@/lib/valor'
 import { useDialogo } from '@/components/app/useDialogo'
@@ -27,27 +28,23 @@ import { useDialogo } from '@/components/app/useDialogo'
  */
 export default function FormularioTitulo({
   tipo,
-  contrapartesConhecidas,
   onSalvo,
   onCancelar,
 }: {
   tipo: 'pagar' | 'receber'
-  /** Nomes de quem ja apareceu na lista — sugestao real, e nao inventada. */
-  contrapartesConhecidas: string[]
   onSalvo: (mensagem: string) => void
   onCancelar: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
   const [plano, setPlano] = useState('')
-  /** Fornecedor: texto livre (nao ha cadastro). Cliente: id de verdade. */
+  /** Fornecedor: nome, buscado no cadastro (o texto livre vale). Cliente: id. */
   const [fornecedor, setFornecedor] = useState('')
   const [clienteId, setClienteId] = useState('')
   const [vencimento, setVencimento] = useState('')
   const [valor, setValor] = useState('')
   const [descricao, setDescricao] = useState('')
 
-  const [fornecedores, setFornecedores] = useState(contrapartesConhecidas)
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([])
 
   /*
@@ -197,18 +194,19 @@ export default function FormularioTitulo({
         <form onSubmit={salvar} noValidate className={styles.formCampos}>
           {tipo === 'pagar' ? (
             <div className={styles.formLinha}>
-              <label className={styles.campo}>
+              <div className={styles.campo}>
                 <span>Fornecedor</span>
-                <CampoTag
+                {/* Busca no cadastro de fornecedores — achado do QA: a busca
+                    "misturava plano de conta e outras coisas". Ela sugeria
+                    qualquer nome que ja tivesse aparecido na lista, inclusive
+                    o das contas geradas pelos custos fixos. */}
+                <CampoFornecedor
                   valor={fornecedor}
-                  opcoes={fornecedores}
-                  onChange={setFornecedor}
-                  onCriar={(novo) => setFornecedores((f) => [...f, novo])}
-                  ariaLabel="Fornecedor"
+                  onChange={(nome) => setFornecedor(nome)}
                   invalido={Boolean(erros.contraparte)}
                 />
                 {erroDe('contraparte')}
-              </label>
+              </div>
 
               <label className={styles.campo}>
                 <span>Plano de conta</span>

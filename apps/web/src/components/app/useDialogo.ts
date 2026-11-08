@@ -16,6 +16,14 @@ import { useEffect, useRef, type RefObject } from 'react'
  * Agora o efeito monta na abertura e desmonta no fechamento; o Esc le a funcao
  * e o "esta processando" da hora por ref.
  */
+/**
+ * Os dialogos abertos, do mais antigo ao de cima. O cadastro rapido de
+ * fornecedor abre POR CIMA da nova conta a pagar (achado do QA, NR-207): sem a
+ * pilha, um Esc fechava as duas janelas, e fechar a de cima liberava a rolagem
+ * da pagina com a de baixo ainda aberta.
+ */
+const pilha: symbol[] = []
+
 export function useDialogo(
   painel: RefObject<HTMLElement | null>,
   onFechar: () => void,
@@ -31,15 +39,23 @@ export function useDialogo(
   })
 
   useEffect(() => {
+    const eu = Symbol('dialogo')
+    pilha.push(eu)
     const aoTeclar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !ocupadoRef.current) fecharRef.current()
+      /* So o dialogo de cima responde ao Esc. */
+      if (e.key !== 'Escape' || pilha[pilha.length - 1] !== eu) return
+      if (!ocupadoRef.current) fecharRef.current()
     }
     document.addEventListener('keydown', aoTeclar)
     document.body.style.overflow = 'hidden'
-    painel.current?.focus()
+    /* Campo com `autoFocus` dentro do dialogo fica com o foco; o painel so o
+       recebe quando nada dentro dele o tem. */
+    if (!painel.current?.contains(document.activeElement)) painel.current?.focus()
     return () => {
       document.removeEventListener('keydown', aoTeclar)
-      document.body.style.overflow = ''
+      const i = pilha.indexOf(eu)
+      if (i >= 0) pilha.splice(i, 1)
+      if (pilha.length === 0) document.body.style.overflow = ''
     }
   }, [painel])
 }

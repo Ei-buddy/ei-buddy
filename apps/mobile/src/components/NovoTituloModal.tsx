@@ -7,6 +7,7 @@ import { centavosDoTexto } from '@/lib/valor'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
 import { SeletorCliente } from '@/components/SeletoresDoPdv'
+import CampoFornecedor from '@/components/CampoFornecedor'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -19,12 +20,10 @@ import { criarEstilos } from '@/theme/estilos'
  */
 export default function NovoTituloModal({
   tipo,
-  contrapartesConhecidas,
   onSalvo,
   onFechar,
 }: {
   tipo: 'pagar' | 'receber'
-  contrapartesConhecidas: string[]
   onSalvo: (mensagem: string) => void
   onFechar: () => void
 }) {
@@ -119,11 +118,6 @@ export default function NovoTituloModal({
     onSalvo('Conta a receber lançada.')
   }
 
-  const termoFornecedor = fornecedor.trim().toLowerCase()
-  const fornecedoresSugeridos = contrapartesConhecidas
-    .filter((c) => c.toLowerCase() !== termoFornecedor && c.toLowerCase().includes(termoFornecedor))
-    .slice(0, 5)
-
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onFechar}>
       <View style={estilos.fundo}>
@@ -141,8 +135,9 @@ export default function NovoTituloModal({
 
             {pagar ? (
               <>
-                <Campo rotulo="Fornecedor" valor={fornecedor} onChange={setFornecedor} />
-                <Chips opcoes={fornecedoresSugeridos} onEscolher={setFornecedor} />
+                {/* Busca no cadastro de fornecedores — achado do QA: as
+                    sugestoes "misturavam plano de conta e outras coisas". */}
+                <CampoFornecedor valor={fornecedor} onChange={(nome) => setFornecedor(nome)} />
 
                 <Campo
                   rotulo="Plano de conta"

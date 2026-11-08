@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     172 |  344 |
-| ✅ Concluídas                 |     165 |  319 |
+| Total                         |     173 |  345 |
+| ✅ Concluídas                 |     166 |  320 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -413,6 +413,7 @@ voltam a ⬜.
 | NR-204 | DRE no formato da margem de contribuição: vendas brutas, descontos, venda líquida, custos variáveis (impostos, tarifas de cartão, mercadoria), margem de contribuição, cada conta de despesa e resultado operacional — web, app, exportação e assistente |   🟢   | `domain` `contracts` `core` `api` `agent` `web` `mobile`      |   2 | —                                      | —    | RF-085, RF-086                                     |   ✅   |
 | NR-205 | Plano de contas: filtrar por tipo (com a contagem de cada um) e ordenar por nome A–Z/Z–A, sem tropeçar em acento — web e app                                                                                                                             |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-081, RF-082                                     |   ✅   |
 | NR-206 | Custos fixos: cadastro em sequência (a janela fica aberta e limpa), plano de contas em ordem alfabética, gerar contas a pagar escolhendo mês e ano (do atual em diante, com prévia dos vencimentos); Enter nos formulários salva em vez de cancelar      |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-057                                             |   ✅   |
+| NR-207 | Conta a pagar: o Fornecedor busca só no cadastro de fornecedores (antes misturava custo fixo, plano de conta e nomes soltos) e cadastra na hora; Esc fecha só o diálogo de cima (pilha de diálogos)                                                      |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-055                                             |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                      |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                               |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                                                                                                                                    |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -530,10 +531,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |      96 |  154 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |      97 |  155 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **344 dias-desenvolvedor** em 172 tarefas. Com 3 pessoas, isso é cerca
+Somando: **345 dias-desenvolvedor** em 173 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
