@@ -3,6 +3,7 @@ import type {
   CompanyOutput,
   CustomerListItem,
   CustomerOutput,
+  CustomerSummaryOutput,
   ProductOutput,
 } from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
@@ -194,6 +195,15 @@ export type CustomerRepository = {
       readonly limite: number
     },
   ): Promise<{ readonly clientes: readonly CustomerListItem[]; readonly total: number }>
+
+  /**
+   * Os numeros do topo da tela, sobre a loja inteira — NR-211. Inativo e a
+   * mesma regra do filtro `inativos` da lista.
+   */
+  summary(
+    companyId: CompanyId,
+    criterio: { readonly diasParaInativo: number; readonly hoje: Date },
+  ): Promise<CustomerSummaryOutput>
 
   /**
    * Busca textual limitada para consulta conversacional de fiado — NR-115.

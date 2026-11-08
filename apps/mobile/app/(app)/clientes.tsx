@@ -19,7 +19,9 @@ import {
   listarClientes,
   confirmarImportacaoClientes,
   listarInadimplentes,
+  resumoDeClientes,
   type ClienteDaLista,
+  type ResumoDeClientes,
   type ClienteInadimplente,
   type FiltroDeCliente,
 } from '@/lib/clientes-api'
@@ -70,6 +72,21 @@ export default function Clientes() {
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
   const [importando, setImportando] = useState(false)
+  /* "Carregar mais" — NR-211: antes a lista parava nos 24 primeiros. */
+  const [pagina, setPagina] = useState(1)
+  const [carregandoMais, setCarregandoMais] = useState(false)
+  /* O topo da loja inteira — NR-211, pronto ao abrir a tela. */
+  const [resumo, setResumo] = useState<ResumoDeClientes | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    void resumoDeClientes().then((r) => {
+      if (!cancelado && r.ok) setResumo(r.dados)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [tentativa])
 
   /* Voltar da ficha ou do cadastro recarrega: o saldo ou o nome podem ter mudado. */
   useFocusEffect(
@@ -106,6 +123,7 @@ export default function Clientes() {
         return
       }
       setErro(null)
+      setPagina(1)
       setLista(r.dados.clientes)
       setTotal(r.dados.total)
     }
@@ -116,6 +134,17 @@ export default function Clientes() {
       clearTimeout(t)
     }
   }, [busca, filtro, tentativa])
+
+  async function carregarMais() {
+    if (filtro === 'inadimplentes') return
+    setCarregandoMais(true)
+    const r = await listarClientes({ termo: busca.trim(), filtro, pagina: pagina + 1 })
+    setCarregandoMais(false)
+    if (!r.ok) return
+    setPagina((p) => p + 1)
+    setTotal(r.dados.total)
+    setLista((atual) => [...atual, ...r.dados.clientes])
+  }
 
   const abrir = (id: string) => router.push({ pathname: '/cliente', params: { id } })
   const devendo = inadimplentes.reduce((soma, c) => soma + c.vencido, 0)
@@ -154,6 +183,34 @@ export default function Clientes() {
         {filtro === 'inadimplentes' ? null : (
           <BotoesExportar lista="clientes" filtros={{ q: busca.trim(), filter: filtro }} />
         )}
+      </View>
+
+      {/* O topo da loja inteira — NR-211. Tocar abre o filtro do numero. */}
+      <View style={estilos.resumo} accessibilityLabel="Resumo dos clientes">
+        {(
+          [
+            ['todos', 'Cadastrados', resumo ? String(resumo.total) : '—', null],
+            [
+              'fiado',
+              'Com fiado',
+              resumo ? String(resumo.comPendencia) : '—',
+              resumo && resumo.comPendencia > 0 ? formatMoney(resumo.totalPendente) : null,
+            ],
+            ['inativos', 'Sem comprar há 60 dias', resumo ? String(resumo.semComprar) : '—', null],
+          ] as const
+        ).map(([alvo, rotulo, valor, apoio]) => (
+          <Pressable
+            key={alvo}
+            onPress={() => setFiltro(alvo)}
+            style={[estilos.resumoItem, filtro === alvo && estilos.resumoAtivo]}
+            accessibilityRole="button"
+            accessibilityLabel={`${rotulo}: ${valor}`}
+          >
+            <Text style={estilos.resumoRotulo}>{rotulo}</Text>
+            <Text style={estilos.resumoValor}>{valor}</Text>
+            {apoio ? <Text style={estilos.resumoApoio}>{apoio}</Text> : null}
+          </Pressable>
+        ))}
       </View>
 
       <ScrollView
@@ -209,7 +266,21 @@ export default function Clientes() {
           keyExtractor={(c) => c.id}
           contentContainerStyle={estilos.lista}
           /* Via WhatsApp, como no web — NR-165. */
-          ListFooterComponent={<ComandosWhatsApp comandos={COMANDOS_CLIENTES} />}
+          ListFooterComponent={
+            <>
+              {lista.length < total ? (
+                <Botao
+                  variante="secundario"
+                  carregando={carregandoMais}
+                  onPress={() => void carregarMais()}
+                  largura
+                >
+                  {`Carregar mais (${total - lista.length})`}
+                </Botao>
+              ) : null}
+              <ComandosWhatsApp comandos={COMANDOS_CLIENTES} />
+            </>
+          }
           renderItem={({ item }) => <LinhaCliente cliente={item} onAbrir={() => abrir(item.id)} />}
           ListEmptyComponent={
             busca === '' && filtro === 'todos' ? (
@@ -369,6 +440,23 @@ const estilos = criarEstilos(() => ({
   },
 
   filtrosRolagem: { flexGrow: 0, flexShrink: 0 },
+  resumo: {
+    flexDirection: 'row',
+    gap: espaco.sm,
+    paddingHorizontal: espaco.lg,
+    paddingBottom: espaco.sm,
+  },
+  resumoItem: {
+    ...vidro.peca,
+    flex: 1,
+    padding: espaco.md,
+    borderRadius: raio.md,
+    gap: 2,
+  },
+  resumoAtivo: { borderColor: cores.acento },
+  resumoRotulo: { fontSize: 11, color: cores.textoFraco },
+  resumoValor: { fontSize: fonte.corpo, fontWeight: peso.pesado, color: cores.texto },
+  resumoApoio: { fontSize: 11, color: cores.atencao },
   filtros: { flexDirection: 'row', gap: espaco.sm, paddingHorizontal: espaco.lg },
   chip: {
     paddingHorizontal: espaco.lg,

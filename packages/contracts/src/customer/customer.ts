@@ -406,6 +406,28 @@ export const customerListOutputSchema = z.object({
 export type CustomerListOutput = z.infer<typeof customerListOutputSchema>
 
 /**
+ * Os numeros do topo da tela de clientes — NR-211.
+ *
+ * Achado do QA: "Sem comprar ha 60 dias" so aparecia depois de clicar no
+ * filtro. O numero saia do `total` da lista filtrada, e o "Com pendencia"
+ * contava so a pagina carregada (24 de uma base de tres mil). Agora vem de uma
+ * consulta propria, sobre a loja inteira, que nao muda com busca nem filtro.
+ *
+ * "Inativo" e a mesma regra do filtro: nunca comprou, ou a ultima compra foi
+ * ha mais de `DIAS_PARA_INATIVO` dias.
+ */
+export const customerSummaryOutputSchema = z.object({
+  /** Clientes na lista (o excluido nao conta). */
+  total: z.number().int(),
+  /** Com saldo de fiado em aberto, e quanto somam. */
+  withBalance: z.object({ count: z.number().int(), balanceCents: z.number().int() }),
+  /** Sem comprar ha `DIAS_PARA_INATIVO` dias, ou que nunca compraram. */
+  inactive: z.number().int(),
+})
+
+export type CustomerSummaryOutput = z.infer<typeof customerSummaryOutputSchema>
+
+/**
  * Cliente inadimplente — RF-071, US-034.
  *
  * So divida do CLIENTE: parcela de cartao fica de fora, porque quem deve ali e

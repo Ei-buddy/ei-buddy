@@ -478,6 +478,47 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
       }
     },
 
+    /**
+     * Os numeros do topo da tela, sobre a loja inteira — NR-211.
+     *
+     * "Inativo" e a MESMA conta do filtro `inativos` da lista acima: nunca
+     * comprou, ou a ultima venda (nao cancelada nem devolvida inteira) foi
+     * antes de `hoje - diasParaInativo`. Se as duas divergirem, o painel diz
+     * 12 e o filtro mostra 10.
+     */
+    summary: async (companyId, criterio) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ total: string; devendo: string; saldo: string | null; inativos: string }[]>`
+          SELECT count(*)                                              AS total,
+                 count(*) FILTER (WHERE c.wallet_balance_cents > 0)   AS devendo,
+                 COALESCE(SUM(c.wallet_balance_cents)
+                   FILTER (WHERE c.wallet_balance_cents > 0), 0)      AS saldo,
+                 count(*) FILTER (
+                   WHERE h.last_sale_at IS NULL
+                      OR h.last_sale_at < ${criterio.hoje}::timestamptz
+                         - make_interval(days => ${criterio.diasParaInativo})
+                 )                                                     AS inativos
+          FROM customers c
+          LEFT JOIN LATERAL (
+            SELECT max(s.created_at) AS last_sale_at
+            FROM sales s
+            WHERE s.customer_id = c.id AND s.status NOT IN ('cancelled', 'returned')
+          ) h ON true
+          WHERE c.company_id = ${companyId} AND c.deleted_at IS NULL
+        `,
+      )
+      return {
+        total: numero(linha?.total ?? 0),
+        withBalance: {
+          count: numero(linha?.devendo ?? 0),
+          balanceCents: numero(linha?.saldo ?? 0),
+        },
+        inactive: numero(linha?.inativos ?? 0),
+      }
+    },
+
     findSimilar: async (companyId, criteria) => {
       /*
        * Sem criterio nao ha semelhanca a procurar. Sair antes evita um

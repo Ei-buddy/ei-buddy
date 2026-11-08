@@ -4,6 +4,7 @@ import {
   type CustomerListInput,
   type CustomerListOutput,
   type CustomerOutput,
+  type CustomerSummaryOutput,
   type UpdateCustomerInput,
   DIAS_PARA_INATIVO,
   type ImportCustomersInput,
@@ -357,6 +358,21 @@ export async function listCustomers(
   })
 
   return { customers: [...clientes], total, page: input.page, pageSize: input.pageSize }
+}
+
+/**
+ * Os numeros do topo da tela de clientes — NR-211. Sobre a loja inteira: nao
+ * muda com a busca nem com o filtro, e nao depende de abrir o filtro para
+ * aparecer. Leitura, sem `assertCanWrite`, como a lista.
+ */
+export async function customerSummary(
+  deps: { readonly customers: CustomerRepository },
+  ctx: ExecutionContext,
+): Promise<CustomerSummaryOutput> {
+  return deps.customers.summary(ctx.companyId, {
+    diasParaInativo: DIAS_PARA_INATIVO,
+    hoje: ctx.now,
+  })
 }
 
 export type SearchCustomersDeps = {

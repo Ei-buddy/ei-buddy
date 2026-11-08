@@ -9,6 +9,8 @@ import {
   listarClientes,
   listarInadimplentes,
   type ClienteInadimplente,
+  resumoDeClientes,
+  type ResumoDeClientes,
 } from '@/lib/clientes-api'
 import { isValidCNPJ, isValidCPF } from '@/lib/validation'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -129,6 +131,10 @@ type Filtro = 'todos' | 'pendencia' | 'inativos' | 'inadimplentes'
 export default function ClientesLista() {
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('todos')
+  /* A lista vinha so com a primeira pagina (24) e sem jeito de ver o resto —
+     NR-211. Agora pagina como o historico de vendas. */
+  const [pagina, setPagina] = useState(1)
+  const [porPagina, setPorPagina] = useState(24)
   const [importando, setImportando] = useState(false)
 
   const [listaFiltrada, setListaFiltrada] = useState<ClienteDaLista[]>([])
@@ -136,6 +142,19 @@ export default function ClientesLista() {
   const [total, setTotal] = useState(0)
   const [carregando, setCarregando] = useState(true)
   const [erroCarga, setErroCarga] = useState<string | null>(null)
+  /* Os numeros do topo — NR-211: da loja inteira, prontos ao abrir a tela. */
+  const [resumo, setResumo] = useState<ResumoDeClientes | null>(null)
+
+  const carregarResumo = useCallback(async () => {
+    const r = await resumoDeClientes()
+    if (r.ok) setResumo(r.dados)
+  }, [])
+
+  useEffect(() => {
+    void (async () => {
+      await carregarResumo()
+    })()
+  }, [carregarResumo])
 
   /*
    * A busca e o filtro sao do SERVIDOR, e nao de um filtro sobre a lista.
@@ -148,7 +167,7 @@ export default function ClientesLista() {
    * "Inativo" tambem passa a ter uma definicao so, em `core`, em vez de uma
    * conta repetida aqui e no CRM.
    */
-  const buscar = useCallback(async (termo: string, qual: Filtro) => {
+  const buscar = useCallback(async (termo: string, qual: Filtro, qualPagina = 1) => {
     /* Inadimplentes tem consulta propria (RF-071): o que importa e o valor
        VENCIDO e os dias de atraso, que a lista geral nao traz. A busca filtra
        por nome aqui mesmo — a lista ja vem curta, so de quem deve. */
@@ -170,6 +189,7 @@ export default function ClientesLista() {
     const r = await listarClientes({
       termo,
       filtro: (qual === 'pendencia' ? 'fiado' : qual) as FiltroDeCliente,
+      pagina: qualPagina,
     })
     setCarregando(false)
 
@@ -181,6 +201,7 @@ export default function ClientesLista() {
     setErroCarga(null)
     setListaFiltrada(r.dados.clientes)
     setTotal(r.dados.total)
+    setPorPagina(r.dados.porPagina)
   }, [])
 
   useEffect(() => {
@@ -192,14 +213,23 @@ export default function ClientesLista() {
      * "Maria" escrito no campo.
      */
     const t = setTimeout(() => {
-      void buscar(busca, filtro)
+      void buscar(busca, filtro, pagina)
     }, 300)
 
     return () => clearTimeout(t)
-  }, [busca, filtro, buscar])
+  }, [busca, filtro, pagina, buscar])
 
-  const comPendencia = listaFiltrada.filter((c) => c.saldoFiado > 0)
-  const totalPendente = comPendencia.reduce((acc, c) => acc + c.saldoFiado, 0)
+  /* Mudar busca ou filtro volta para a primeira pagina: ficar na 4 de um
+     resultado que agora tem uma mostraria a lista vazia. */
+  const mudarBusca = (v: string) => {
+    setBusca(v)
+    setPagina(1)
+  }
+  const mudarFiltro = (v: Filtro) => {
+    setFiltro(v)
+    setPagina(1)
+  }
+  const ultimaPagina = Math.max(1, Math.ceil(total / porPagina))
 
   return (
     <>
@@ -229,23 +259,25 @@ export default function ClientesLista() {
         }
       />
 
+      {/*
+        O topo e da loja inteira — NR-211. Antes "Cadastrados" mostrava o total
+        do filtro aberto, "Com pendencia" contava so a pagina carregada (24 de
+        uma base de tres mil) e "Sem comprar ha 60 dias" so aparecia depois de
+        clicar no filtro. Agora os tres vem de `/clientes/resumo`, com a mesma
+        regra de inativo do filtro.
+      */}
       <div className="statRow">
-        <Stat label="Clientes cadastrados" value={carregando ? '—' : String(total)} />
+        <Stat label="Clientes cadastrados" value={resumo ? String(resumo.total) : '—'} />
         <Stat
           label="Com pendência"
-          value={String(comPendencia.length)}
-          hint={formatMoney(totalPendente)}
-          tone={comPendencia.length ? 'warning' : 'neutral'}
+          value={resumo ? String(resumo.comPendencia) : '—'}
+          hint={resumo ? formatMoney(resumo.totalPendente) : undefined}
+          tone={resumo && resumo.comPendencia > 0 ? 'warning' : 'neutral'}
         />
-        {/*
-          O numero de inativos sai do SERVIDOR, pelo filtro — nao de uma conta
-          sobre a pagina atual. Contar aqui daria "3 sem comprar" olhando para
-          os 24 clientes carregados, numa base de tres mil.
-        */}
         <Stat
           label="Sem comprar há 60 dias"
-          value={filtro === 'inativos' && !carregando ? String(total) : '—'}
-          hint={filtro === 'inativos' ? 'vale mandar um Whats' : 'abra o filtro para ver'}
+          value={resumo ? String(resumo.semComprar) : '—'}
+          hint={resumo && resumo.semComprar > 0 ? 'vale mandar um Whats' : undefined}
         />
       </div>
 
@@ -257,7 +289,7 @@ export default function ClientesLista() {
             <input
               type="search"
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              onChange={(e) => mudarBusca(e.target.value)}
               placeholder="Buscar por nome ou CPF/CNPJ"
               aria-label="Buscar cliente"
             />
@@ -276,7 +308,7 @@ export default function ClientesLista() {
                 key={valor}
                 type="button"
                 className={`${styles.filtro} ${filtro === valor ? styles.filtroAtivo : ''}`}
-                onClick={() => setFiltro(valor)}
+                onClick={() => mudarFiltro(valor)}
                 aria-pressed={filtro === valor}
               >
                 {rotulo}
@@ -298,7 +330,7 @@ export default function ClientesLista() {
                 onClick={() => {
                   setCarregando(true)
                   setErroCarga(null)
-                  void buscar(busca, filtro)
+                  void buscar(busca, filtro, pagina)
                 }}
               >
                 Tentar de novo
@@ -370,8 +402,8 @@ export default function ClientesLista() {
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    setBusca('')
-                    setFiltro('todos')
+                    mudarBusca('')
+                    mudarFiltro('todos')
                   }}
                 >
                   Limpar filtros
@@ -429,6 +461,36 @@ export default function ClientesLista() {
             })}
           </ul>
         )}
+
+        {/* "25–48 de 300" e os botoes — NR-211. Fora dos inadimplentes, que
+            vem inteiros. */}
+        {inadimplentes === null && erroCarga === null && !carregando && total > 0 ? (
+          <div className={styles.paginacao}>
+            <p className={styles.paginacaoResumo}>
+              {ultimaPagina <= 1
+                ? `${total} ${total === 1 ? 'cliente' : 'clientes'}`
+                : `${(pagina - 1) * porPagina + 1}–${(pagina - 1) * porPagina + listaFiltrada.length} de ${total}`}
+            </p>
+            {ultimaPagina > 1 ? (
+              <div className={styles.paginacaoBotoes}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setPagina((p) => p - 1)}
+                  disabled={pagina <= 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setPagina((p) => p + 1)}
+                  disabled={pagina >= ultimaPagina}
+                >
+                  Próxima
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </Card>
 
       <div className={styles.comandosWrap}>
@@ -458,7 +520,12 @@ export default function ClientesLista() {
             return validarContatoEEndereco(v)
           }}
           onConfirmar={confirmarImportacaoClientes}
-          onClose={() => setImportando(false)}
+          onClose={() => {
+            setImportando(false)
+            /* Quem entrou pela planilha muda a lista e o topo. */
+            void carregarResumo()
+            void buscar(busca, filtro, pagina)
+          }}
         />
       ) : null}
     </>

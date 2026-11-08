@@ -4,6 +4,7 @@ import type {
   CustomerContactOutput,
   CustomerListItem,
   CustomerOutput,
+  CustomerSummaryOutput,
   ProductOutput,
 } from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
@@ -273,6 +274,25 @@ export class InMemoryCustomerRepository implements CustomerRepository {
         salesCount: 0,
         totalSpentCents: 0,
       })),
+    }
+  }
+
+  /**
+   * O resumo do topo — NR-211. Sem venda no falso, todo cliente e inativo
+   * (nunca comprou), como no filtro da lista acima.
+   */
+  async summary(companyId: CompanyId): Promise<CustomerSummaryOutput> {
+    const meus = [...this.registros.values()].filter(
+      (c) => c.companyId === companyId && c.deletedAt === null,
+    )
+    const devendo = meus.filter((c) => c.walletBalanceCents > 0)
+    return {
+      total: meus.length,
+      withBalance: {
+        count: devendo.length,
+        balanceCents: devendo.reduce((t, c) => t + c.walletBalanceCents, 0),
+      },
+      inactive: meus.length,
     }
   }
 
