@@ -13,6 +13,7 @@ import {
   type TransacaoBancaria,
 } from '@/lib/conciliacao-api'
 import { formatDate, formatMoney } from '@/lib/format'
+import { useDialogo } from '@/components/app/useDialogo'
 import {
   Badge,
   Card,
@@ -291,6 +292,10 @@ function ConciliarDialog({
   const [criando, setCriando] = useState(false)
   const [contraparte, setContraparte] = useState(transacao.counterparty ?? '')
   const [descricao, setDescricao] = useState(transacao.description)
+  /* Esc fecha, o foco entra no dialogo e a pagina para de rolar por baixo —
+     como nos outros dialogos (achado do QA na conferencia da conciliacao). */
+  const painel = useRef<HTMLDivElement>(null)
+  useDialogo(painel, onFechar, processando)
 
   useEffect(() => {
     void (async () => {
@@ -349,7 +354,7 @@ function ConciliarDialog({
   return (
     <div className={styles.dialogRoot} role="dialog" aria-modal="true" aria-label="Conciliar">
       <div className={styles.dialogBackdrop} onClick={onFechar} />
-      <div className={styles.dialogPainel}>
+      <div className={styles.dialogPainel} ref={painel} tabIndex={-1}>
         <header className={styles.dialogCabecalho}>
           <div>
             <h2 className={styles.dialogTitulo}>Conciliar transação</h2>
@@ -475,6 +480,8 @@ function DesfazerDialog({
   const [motivo, setMotivo] = useState('')
   const [processando, setProcessando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const painel = useRef<HTMLDivElement>(null)
+  useDialogo(painel, onFechar, processando)
 
   async function confirmar() {
     setProcessando(true)
@@ -494,7 +501,7 @@ function DesfazerDialog({
   return (
     <div className={styles.dialogRoot} role="dialog" aria-modal="true" aria-label="Desfazer">
       <div className={styles.dialogBackdrop} onClick={onFechar} />
-      <div className={styles.dialogPainel}>
+      <div className={styles.dialogPainel} ref={painel} tabIndex={-1}>
         <header className={styles.dialogCabecalho}>
           <div>
             <h2 className={styles.dialogTitulo}>Desfazer conciliação</h2>
