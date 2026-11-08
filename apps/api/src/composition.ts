@@ -1026,8 +1026,9 @@ export function buildComprasDeps(): ComprasDeps {
 export function buildOrcamentosDeps(): OrcamentosDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
-    quotes: createQuoteRepository(sql),
+    quotes: createQuoteRepository(sql, env.TZ),
     audit: createAuditTrail(sql),
+    timeZone: env.TZ,
   }
 }
 

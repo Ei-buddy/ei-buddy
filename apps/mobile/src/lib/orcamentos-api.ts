@@ -57,9 +57,82 @@ export const vencido = (o: Orcamento, hoje: string) => o.status === 'open' && o.
 const resultado = <T>(r: { ok: true; dados: T } | { ok: false; message: string }): Resultado<T> =>
   r.ok ? { ok: true, dados: r.dados } : { ok: false, erro: r.message }
 
-export async function carregarOrcamentos(): Promise<Resultado<Orcamento[]>> {
-  const r = await chamarApi<{ quotes: Orcamento[] }>('/orcamentos')
-  return r.ok ? { ok: true, dados: r.dados.quotes } : { ok: false, erro: r.message }
+/**
+ * A situacao na tela — NR-210, a mesma do web. "Vencido" nao e status
+ * gravado: e o aberto cuja validade passou.
+ */
+export type SituacaoDoOrcamento = 'open' | 'expired' | 'converted' | 'cancelled'
+
+export const ROTULO_DA_SITUACAO: Record<SituacaoDoOrcamento, string> = {
+  open: 'Em aberto',
+  expired: 'Vencidos',
+  converted: 'Viraram venda',
+  cancelled: 'Cancelados',
+}
+
+export const SITUACOES: readonly SituacaoDoOrcamento[] = [
+  'open',
+  'expired',
+  'converted',
+  'cancelled',
+]
+
+export const situacaoDe = (o: Orcamento, hoje: string): SituacaoDoOrcamento =>
+  vencido(o, hoje) ? 'expired' : o.status
+
+export type TotalDaSituacao = { count: number; totalCents: number }
+
+export type ResumoDosOrcamentos = Record<SituacaoDoOrcamento, TotalDaSituacao>
+
+/**
+ * Conversao, em %: dos que ja tiveram desfecho (venda, cancelamento ou
+ * vencimento sem resposta), quantos viraram venda. Nulo sem nenhum desfecho.
+ */
+export function conversao(r: ResumoDosOrcamentos): number | null {
+  const desfechos = r.converted.count + r.cancelled.count + r.expired.count
+  return desfechos === 0 ? null : Math.round((r.converted.count / desfechos) * 100)
+}
+
+export type FiltroDosOrcamentos = {
+  termo: string
+  situacao: SituacaoDoOrcamento | ''
+  de?: string
+  ate?: string
+  pagina: number
+  porPagina?: number
+}
+
+export type PaginaDeOrcamentos = {
+  orcamentos: Orcamento[]
+  /** Quantos casam com busca, periodo e situacao. */
+  total: number
+  /** Sobre busca e periodo — a situacao escolhida nao zera o painel. */
+  resumo: ResumoDosOrcamentos
+}
+
+/** So viaja o que veio: `from=` vazio seria recusado como data invalida. */
+export function consultaDosOrcamentos(f: FiltroDosOrcamentos): string {
+  const q = new URLSearchParams({ page: String(f.pagina), pageSize: String(f.porPagina ?? 20) })
+  const termo = f.termo.trim()
+  if (termo !== '') q.set('q', termo)
+  if (f.situacao !== '') q.set('situation', f.situacao)
+  if (f.de) q.set('from', f.de)
+  if (f.ate) q.set('to', f.ate)
+  return q.toString()
+}
+
+/** Busca, situacao, periodo e pagina, com o painel — NR-210. */
+export async function carregarOrcamentos(
+  f: FiltroDosOrcamentos,
+): Promise<Resultado<PaginaDeOrcamentos>> {
+  const r = await chamarApi<{ quotes: Orcamento[]; total: number; summary: ResumoDosOrcamentos }>(
+    `/orcamentos?${consultaDosOrcamentos(f)}`,
+  )
+  if (!r.ok) return { ok: false, erro: r.message }
+  return {
+    ok: true,
+    dados: { orcamentos: r.dados.quotes, total: r.dados.total, resumo: r.dados.summary },
+  }
 }
 
 export const carregarOrcamento = async (id: string) =>

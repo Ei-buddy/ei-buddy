@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, Text, type TextInput, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
@@ -13,17 +13,23 @@ import {
   compartilharOrcamento,
   criarOrcamento,
   editarOrcamento,
+  conversao,
   mandarPeloWhatsApp,
+  ROTULO_DA_SITUACAO,
   ROTULO_SITUACAO,
-  vencido,
+  SITUACOES,
+  situacaoDe,
   type NovoOrcamento as NovoOrcamentoDados,
   type Orcamento,
+  type ResumoDosOrcamentos,
+  type SituacaoDoOrcamento,
 } from '@/lib/orcamentos-api'
 import { listarClientes, type ClienteDaLista } from '@/lib/clientes-api'
 import { listarCatalogo, type ProdutoDoCatalogo } from '@/lib/produtos-api'
 import { centavosDoTexto } from '@/lib/valor'
 import { maskDocumento } from '@/lib/validation'
-import { cores, espaco, fonte, peso, raio } from '@/theme/tokens'
+import { hojeLocal, inicioDosUltimosDias } from '@/lib/periodo'
+import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
 const reais = (cents: number) => formatMoney(cents / 100)
@@ -43,25 +49,86 @@ type Linha = {
  * estoque, compartilhavel pelo WhatsApp, que vira venda no PDV com o carrinho
  * montado.
  */
+type Periodo = 'hoje' | '7d' | '30d' | 'tudo'
+
+const PERIODOS: [Periodo, string][] = [
+  ['hoje', 'Hoje'],
+  ['7d', '7 dias'],
+  ['30d', '30 dias'],
+  ['tudo', 'Tudo'],
+]
+
+const DIAS_DO_PERIODO: Record<Exclude<Periodo, 'tudo'>, number> = { hoje: 1, '7d': 7, '30d': 30 }
+
+const quantos = (n: number) => `${n} ${n === 1 ? 'orçamento' : 'orçamentos'}`
+
 export default function OrcamentosScreen() {
   const router = useRouter()
   const [orcamentos, setOrcamentos] = useState<Orcamento[] | undefined>(undefined)
+  const [total, setTotal] = useState(0)
+  const [resumo, setResumo] = useState<ResumoDosOrcamentos | null>(null)
+  const [pagina, setPagina] = useState(1)
+  const [carregandoMais, setCarregandoMais] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState<string | null>(null)
   /* Achado do QA: "o abrir do orcamento deveria permitir o editar". */
   const [editando, setEditando] = useState<Orcamento | null>(null)
   const rolagem = useRef<ScrollView>(null)
 
-  const carregar = useCallback(async () => {
-    const r = await carregarOrcamentos()
-    if (r.ok) {
-      setOrcamentos(r.dados)
-      setErro(null)
-    } else setErro(r.erro)
-  }, [])
+  /* Painel, busca, situacao e periodo — NR-210, como nas vendas. Padrao
+     "Tudo": o painel responde "quanto tenho em aberto", e orcamento aberto de
+     dois meses atras ainda conta. */
+  const [termo, setTermo] = useState('')
+  const [situacao, setSituacao] = useState<SituacaoDoOrcamento | ''>('')
+  const [periodo, setPeriodo] = useState<Periodo>('tudo')
+  /* A resposta fora de ordem e descartada: "jo" nao pode pintar por cima de "joana". */
+  const pedido = useRef(0)
 
+  const buscar = useCallback(
+    async (t: string, s: SituacaoDoOrcamento | '', p: Periodo, pag: number) => {
+      const meu = ++pedido.current
+      const r = await carregarOrcamentos({
+        termo: t,
+        situacao: s,
+        pagina: pag,
+        ...(p === 'tudo' ? {} : { de: inicioDosUltimosDias(DIAS_DO_PERIODO[p]), ate: hojeLocal() }),
+      })
+      if (meu !== pedido.current) return
+      setCarregandoMais(false)
+      if (!r.ok) {
+        setErro(r.erro)
+        return
+      }
+      setErro(null)
+      setPagina(pag)
+      setTotal(r.dados.total)
+      setResumo(r.dados.resumo)
+      setOrcamentos((atual) =>
+        pag === 1 || atual === undefined ? r.dados.orcamentos : [...atual, ...r.dados.orcamentos],
+      )
+    },
+    [],
+  )
+
+  const carregar = useCallback(
+    () => buscar(termo, situacao, periodo, 1),
+    [buscar, termo, situacao, periodo],
+  )
+
+  /* Espera a digitacao parar antes de buscar. */
+  useEffect(() => {
+    const t = setTimeout(() => void buscar(termo, situacao, periodo, 1), 300)
+    return () => clearTimeout(t)
+  }, [termo, situacao, periodo, buscar])
+
+  /* Voltando do PDV (um orcamento virou venda), a lista e o painel mudaram. */
+  const primeiraVez = useRef(true)
   useFocusEffect(
     useCallback(() => {
+      if (primeiraVez.current) {
+        primeiraVez.current = false
+        return
+      }
       void carregar()
     }, [carregar]),
   )
@@ -92,6 +159,46 @@ export default function OrcamentosScreen() {
         contentContainerStyle={estilos.conteudo}
         keyboardShouldPersistTaps="handled"
       >
+        {/* O painel — NR-210. Mesma busca e periodo da lista. */}
+        <View style={estilos.painel} accessibilityLabel="Painel dos orçamentos">
+          <View style={estilos.painelItem}>
+            <Text style={estilos.painelRotulo}>Em aberto</Text>
+            <Text style={[estilos.painelValor, estilos.painelAberto]}>
+              {resumo ? reais(resumo.open.totalCents) : '—'}
+            </Text>
+            <Text style={estilos.painelApoio}>
+              {resumo ? `${quantos(resumo.open.count)} no prazo` : 'carregando'}
+            </Text>
+          </View>
+          <View style={estilos.painelItem}>
+            <Text style={estilos.painelRotulo}>Vencidos</Text>
+            <Text
+              style={[
+                estilos.painelValor,
+                resumo !== null && resumo.expired.count > 0 && estilos.painelVencido,
+              ]}
+            >
+              {resumo ? reais(resumo.expired.totalCents) : '—'}
+            </Text>
+            <Text style={estilos.painelApoio}>
+              {resumo ? `${quantos(resumo.expired.count)} sem resposta` : ''}
+            </Text>
+          </View>
+          <View style={estilos.painelItem}>
+            <Text style={estilos.painelRotulo}>Viraram venda</Text>
+            <Text style={estilos.painelValor}>
+              {resumo ? reais(resumo.converted.totalCents) : '—'}
+            </Text>
+            <Text style={estilos.painelApoio}>
+              {resumo
+                ? `${quantos(resumo.converted.count)}${
+                    conversao(resumo) === null ? '' : ` · ${conversao(resumo)}%`
+                  }`
+                : ''}
+            </Text>
+          </View>
+        </View>
+
         {editando ? (
           <FormOrcamento
             key={editando.id}
@@ -107,15 +214,85 @@ export default function OrcamentosScreen() {
         )}
 
         <Cartao titulo="Orçamentos">
+          <TextInput
+            style={estilos.busca}
+            value={termo}
+            onChangeText={setTermo}
+            placeholder="Número, cliente ou produto"
+            placeholderTextColor={cores.textoFraco}
+            autoCorrect={false}
+            accessibilityLabel="Buscar orçamento"
+          />
+
+          <View style={estilos.chips}>
+            {(['', ...SITUACOES] as const).map((s) => {
+              const ativo = situacao === s
+              const rotulo = s === '' ? 'Todas' : ROTULO_DA_SITUACAO[s]
+              const n = resumo === null ? null : s === '' ? null : resumo[s].count
+              return (
+                <Pressable
+                  key={s === '' ? 'todas' : s}
+                  onPress={() => setSituacao(s)}
+                  style={[estilos.chip, ativo && estilos.chipAtivo]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: ativo }}
+                >
+                  <Text style={[estilos.chipTexto, ativo && estilos.chipTextoAtivo]}>
+                    {n === null ? rotulo : `${rotulo} (${n})`}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+
+          <View style={estilos.periodos}>
+            {PERIODOS.map(([valor, rotulo]) => (
+              <Pressable
+                key={valor}
+                onPress={() => setPeriodo(valor)}
+                style={[estilos.periodo, periodo === valor && estilos.chipAtivo]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: periodo === valor }}
+              >
+                <Text style={[estilos.chipTexto, periodo === valor && estilos.chipTextoAtivo]}>
+                  {rotulo}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           {erro !== null ? (
-            <Vazio titulo="Não deu para carregar" descricao={erro} />
+            <Vazio
+              titulo="Não deu para carregar"
+              descricao={erro}
+              acao={<Botao onPress={() => void carregar()}>Tentar de novo</Botao>}
+            />
           ) : orcamentos === undefined ? (
             <Text style={estilos.apoio}>Carregando...</Text>
           ) : orcamentos.length === 0 ? (
-            <Text style={estilos.apoio}>Nenhum orçamento ainda.</Text>
+            termo.trim() === '' && situacao === '' && periodo === 'tudo' ? (
+              <Text style={estilos.apoio}>Nenhum orçamento ainda.</Text>
+            ) : (
+              <Vazio
+                titulo="Nenhum orçamento encontrado"
+                descricao="Ajuste a busca, a situação ou o período."
+                acao={
+                  <Botao
+                    variante="secundario"
+                    onPress={() => {
+                      setTermo('')
+                      setSituacao('')
+                      setPeriodo('tudo')
+                    }}
+                  >
+                    Limpar filtros
+                  </Botao>
+                }
+              />
+            )
           ) : (
             orcamentos.map((o) => {
-              const venceu = vencido(o, dia)
+              const venceu = situacaoDe(o, dia) === 'expired'
               const expandido = aberto === o.id
               return (
                 <View key={o.id} style={estilos.orcamento}>
@@ -215,6 +392,19 @@ export default function OrcamentosScreen() {
               )
             })
           )}
+          {orcamentos !== undefined && orcamentos.length < total ? (
+            <Botao
+              variante="secundario"
+              carregando={carregandoMais}
+              onPress={() => {
+                setCarregandoMais(true)
+                void buscar(termo, situacao, periodo, pagina + 1)
+              }}
+              largura
+            >
+              {`Carregar mais (${total - orcamentos.length})`}
+            </Botao>
+          ) : null}
         </Cartao>
       </ScrollView>
     </SafeAreaView>
@@ -580,5 +770,48 @@ const estilos = criarEstilos(() => ({
     borderBottomColor: cores.borda,
   },
   detalhe: { gap: espaco.xs, paddingTop: espaco.sm },
+  painel: { flexDirection: 'row', gap: espaco.sm },
+  painelItem: {
+    ...vidro.peca,
+    flex: 1,
+    padding: espaco.md,
+    borderRadius: raio.md,
+    gap: 2,
+  },
+  painelRotulo: { fontSize: 11, color: cores.textoFraco },
+  painelValor: { fontSize: fonte.pequeno, fontWeight: peso.pesado, color: cores.texto },
+  painelAberto: { color: cores.acento },
+  painelVencido: { color: cores.atencao },
+  painelApoio: { fontSize: 11, color: cores.textoFraco },
+  busca: {
+    minHeight: 48,
+    paddingHorizontal: espaco.lg,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.sm,
+    backgroundColor: cores.campo,
+    fontSize: fonte.corpo,
+    color: cores.texto,
+  },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm, marginTop: espaco.sm },
+  chip: {
+    paddingVertical: espaco.xs,
+    paddingHorizontal: espaco.md,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  chipAtivo: { backgroundColor: cores.sucessoFundo, borderColor: cores.acento },
+  chipTexto: { fontSize: fonte.micro, color: cores.textoFraco },
+  chipTextoAtivo: { color: cores.acento, fontWeight: peso.forte },
+  periodos: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm, marginBottom: espaco.sm },
+  periodo: {
+    flex: 1,
+    paddingVertical: espaco.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco.sm, marginTop: espaco.sm },
 }))

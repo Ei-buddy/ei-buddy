@@ -1,6 +1,12 @@
-import type { QuoteOutput } from '@na-regua/contracts'
+import type { QuoteOutput, QuoteSituation } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
-import type { NewQuote, QuoteChanges, QuoteRepository } from '../ports/quote-repository.js'
+import type {
+  FiltroDeOrcamentos,
+  NewQuote,
+  PaginaDeOrcamentos,
+  QuoteChanges,
+  QuoteRepository,
+} from '../ports/quote-repository.js'
 
 type Produto = {
   id: string
@@ -78,11 +84,39 @@ export class InMemoryQuotes implements QuoteRepository {
     return saida
   }
 
-  async list(companyId: CompanyId, limite: number) {
-    return this.orcamentos
+  /** As mesmas regras do banco: o resumo ve busca e periodo, a lista ve tambem a situacao. */
+  async list(companyId: CompanyId, f: FiltroDeOrcamentos): Promise<PaginaDeOrcamentos> {
+    const termo = f.termo?.toLowerCase()
+    const situacaoDe = (o: QuoteOutput): QuoteSituation =>
+      o.status === 'open' ? (o.validUntil < f.hoje ? 'expired' : 'open') : o.status
+    const recorte = this.orcamentos
       .filter((o) => o.companyId === companyId)
-      .slice(-limite)
-      .reverse()
+      .filter((o) => f.from === undefined || o.createdAt.slice(0, 10) >= f.from)
+      .filter((o) => f.to === undefined || o.createdAt.slice(0, 10) <= f.to)
+      .filter(
+        (o) =>
+          termo === undefined ||
+          (o.customerName ?? '').toLowerCase().includes(termo) ||
+          String(o.number) === termo ||
+          o.items.some((i) => i.description.toLowerCase().includes(termo)),
+      )
+    const somar = (s: QuoteSituation) => {
+      const deles = recorte.filter((o) => situacaoDe(o) === s)
+      return { count: deles.length, totalCents: deles.reduce((t, o) => t + o.totalCents, 0) }
+    }
+    const lista = recorte
+      .filter((o) => f.situacao === undefined || situacaoDe(o) === f.situacao)
+      .sort((a, b) => b.number - a.number)
+    return {
+      orcamentos: lista.slice(f.offset, f.offset + f.limite).map(({ companyId: _, ...o }) => o),
+      total: lista.length,
+      resumo: {
+        open: somar('open'),
+        expired: somar('expired'),
+        converted: somar('converted'),
+        cancelled: somar('cancelled'),
+      },
+    }
   }
 
   async findById(companyId: CompanyId, id: string) {

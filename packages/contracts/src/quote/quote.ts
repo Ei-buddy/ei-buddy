@@ -97,3 +97,78 @@ export const quoteOutputSchema = z.object({
 })
 
 export type QuoteOutput = z.infer<typeof quoteOutputSchema>
+
+/**
+ * A lista com busca, periodo, situacao e o painel — achado do QA ("deve ter
+ * um painel, como na venda, do total de orcamentos em aberto, como tambem um
+ * filtro de busca como ha na venda").
+ *
+ * Antes a tela recebia os 100 mais recentes e mais nada: um total somado ali
+ * deixaria de fora os orcamentos abertos mais antigos. Agora busca, periodo e
+ * paginas sao do servidor, e o RESUMO vem sobre o filtro inteiro — como no
+ * historico de vendas.
+ *
+ * "Vencido" nao e um status gravado: e o aberto cuja validade ja passou, no
+ * dia da loja. Por isso a situacao tem quatro valores e o status tres.
+ */
+export const quoteSituationSchema = z.enum(['open', 'expired', 'converted', 'cancelled'])
+
+export type QuoteSituation = z.infer<typeof quoteSituationSchema>
+
+export const PAGINA_PADRAO_DE_ORCAMENTOS = 20
+export const PAGINA_MAXIMA_DE_ORCAMENTOS = 100
+
+export const quoteListInputSchema = z
+  .object({
+    /** Numero do orcamento, nome do cliente ou descricao de item. */
+    q: z.string().trim().max(120).optional(),
+    /** Recorta a LISTA; o resumo continua mostrando todas as situacoes. */
+    situation: quoteSituationSchema.optional(),
+    /** Dia em que o orcamento foi feito, no fuso da loja. */
+    from: dateSchema.optional(),
+    to: dateSchema.optional(),
+    page: z.coerce.number().int().min(1, 'A primeira pagina e a 1.').default(1),
+    pageSize: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(
+        PAGINA_MAXIMA_DE_ORCAMENTOS,
+        `A pagina vai ate ${PAGINA_MAXIMA_DE_ORCAMENTOS} orcamentos.`,
+      )
+      .default(PAGINA_PADRAO_DE_ORCAMENTOS),
+  })
+  .strict()
+  .refine((p) => p.from === undefined || p.to === undefined || p.from <= p.to, {
+    message: 'O inicio do periodo nao pode ser depois do fim.',
+    path: ['from'],
+  })
+
+export type QuoteListInput = z.infer<typeof quoteListInputSchema>
+
+const quoteTotalSchema = z.object({
+  count: z.number().int(),
+  totalCents: z.number().int(),
+})
+
+export type QuoteTotal = z.infer<typeof quoteTotalSchema>
+
+/** Quantos e quanto em cada situacao, sobre a busca e o periodo. */
+export const quoteListSummarySchema = z.object({
+  open: quoteTotalSchema,
+  expired: quoteTotalSchema,
+  converted: quoteTotalSchema,
+  cancelled: quoteTotalSchema,
+})
+
+export type QuoteListSummary = z.infer<typeof quoteListSummarySchema>
+
+export const quoteListOutputSchema = z.object({
+  quotes: z.array(quoteOutputSchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  summary: quoteListSummarySchema,
+})
+
+export type QuoteListOutput = z.infer<typeof quoteListOutputSchema>
