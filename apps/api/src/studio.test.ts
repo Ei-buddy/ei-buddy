@@ -214,6 +214,8 @@ describe('montarStudio — generate US1', () => {
             grossCents: 10_000,
             netCents: 10_000,
             cardFeeCents: 0,
+            discountCents: 0,
+            taxCents: 0,
             netAfterFeesCents: 10_000,
             averageTicketCents: 10_000,
           },

@@ -306,6 +306,28 @@ describe.skipIf(!DATABASE_URL)('historico de vendas — NR-027', () => {
     expect(porId.get(semNota)).toMatchObject({ taxAmountCents: 0, netAmountCents: 10000 })
     expect(porId.get(comNota)).toMatchObject({ taxAmountCents: 600, netAmountCents: 9400 })
     expect(r.resumo).toMatchObject({ salesCount: 2, grossCents: 20000, netCents: 19400 })
+    /* So o imposto da venda COM nota entra no total — achado do QA, o
+       assistente mostra cada parcela. */
+    expect(r.resumo.taxCents).toBe(600)
+  })
+
+  it('o resumo traz o desconto e a parte que nao foi devolvida', async () => {
+    /* R$ 100 com R$ 10 de desconto, metade devolvida: sobram R$ 5 de desconto. */
+    await withTenant(
+      sql,
+      empresaA,
+      (tx) => tx`
+        INSERT INTO sales
+          (company_id, number, status, gross_amount_cents, discount_cents,
+           net_amount_cents, returned_amount_cents, created_at)
+        VALUES (${empresaA}, ${proximoNumero++}, 'settled', 10000, 1000, 9000, 5000,
+                '2027-01-05T15:00:00.000Z')
+      `,
+    )
+
+    const r = await repo.list(empresaA, { ...pagina, from: '2027-01-01', to: '2027-01-31' })
+
+    expect(r.resumo).toMatchObject({ grossCents: 5000, discountCents: 500, taxCents: 0 })
   })
 
   it('a venda devolvida inteira sai dos totais; a parcial abate o devolvido', async () => {
@@ -334,7 +356,14 @@ describe.skipIf(!DATABASE_URL)('historico de vendas — NR-027', () => {
     const r = await repo.list(empresaA, { ...pagina, from: '2030-01-01', to: '2030-01-31' })
 
     expect(r.vendas).toEqual([])
-    expect(r.resumo).toEqual({ salesCount: 0, grossCents: 0, netCents: 0, cardFeeCents: 0 })
+    expect(r.resumo).toEqual({
+      salesCount: 0,
+      grossCents: 0,
+      netCents: 0,
+      cardFeeCents: 0,
+      discountCents: 0,
+      taxCents: 0,
+    })
   })
 
   it('nao enxerga a venda da outra loja', async () => {

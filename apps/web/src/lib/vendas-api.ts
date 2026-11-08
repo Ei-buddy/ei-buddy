@@ -519,7 +519,13 @@ export type VendaDoHistorico = {
 export type ResumoDoHistorico = {
   quantidade: number
   faturamento: number
+  /** O que fica depois de desconto, taxa de cartao e imposto das notas. */
   liquido: number
+  /** Descontos concedidos — bruto menos isto e a venda liquida do DRE. */
+  descontos: number
+  tarifas: number
+  /** Imposto das notas emitidas (sem nota, zero — NR-185). */
+  impostos: number
   /** Nulo quando nao houve venda no filtro — nao zero. */
   ticketMedio: number | null
 }
@@ -636,6 +642,9 @@ export async function carregarHistorico(
       salesCount: number
       grossCents: number
       netCents: number
+      cardFeeCents: number
+      discountCents: number
+      taxCents: number
       netAfterFeesCents: number
       averageTicketCents: number | null
     }
@@ -659,6 +668,9 @@ export async function carregarHistorico(
            sem imposto e sem tarifa. */
         faturamento: reais(json.summary.grossCents),
         liquido: reais(json.summary.netAfterFeesCents),
+        descontos: reais(json.summary.discountCents ?? 0),
+        tarifas: reais(json.summary.cardFeeCents ?? 0),
+        impostos: reais(json.summary.taxCents ?? 0),
         ticketMedio:
           json.summary.averageTicketCents === null ? null : reais(json.summary.averageTicketCents),
       },

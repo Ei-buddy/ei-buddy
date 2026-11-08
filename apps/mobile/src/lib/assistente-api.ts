@@ -543,29 +543,42 @@ export async function responder(
       fontes.faturamento(mesesAntes(hoje, 2), fimDoMes(hoje)),
     ])
     if (!h.ok) return r('faturamento', NAO_CONSEGUI)
-    const { faturamento, liquido, quantidade } = h.dados.resumo
+    const { faturamento, liquido, quantidade, descontos, tarifas, impostos } = h.dados.resumo
+    /* Achado do QA: o "liquido" daqui ja tinha tirado taxa de cartao e imposto,
+       mas a frase nao dizia quanto de cada um — e no DRE combinado "venda
+       liquida" e o bruto menos os descontos (taxa e imposto sao custos
+       variaveis). Agora cada parcela aparece, na ordem do DRE. */
+    const vendaLiquida = Math.round((faturamento - descontos) * 100) / 100
     return r(
       'faturamento',
-      `Hoje você vendeu ${formatMoney(faturamento)} brutos em ${quantidade} vendas. Líquido: ${formatMoney(liquido)}, já sem desconto, taxa de cartão e imposto das notas emitidas.`,
+      `Hoje você vendeu ${formatMoney(faturamento)} em ${quantidade} vendas. ` +
+        `Com ${formatMoney(descontos)} de desconto, a venda líquida foi ${formatMoney(vendaLiquida)}. ` +
+        `Depois de ${formatMoney(tarifas)} de taxa de cartão e ${formatMoney(impostos)} de imposto das notas emitidas, ficam ${formatMoney(liquido)}.`,
       [
         {
           tipo: 'indicador',
-          rotulo: 'Faturamento bruto hoje',
+          rotulo: 'Venda bruta hoje',
           valor: formatMoney(faturamento),
           apoio: `${quantidade} vendas`,
         },
         {
           tipo: 'indicador',
-          rotulo: 'Faturamento líquido hoje',
+          rotulo: 'Venda líquida hoje',
+          valor: formatMoney(vendaLiquida),
+          apoio: `bruto menos ${formatMoney(descontos)} de desconto`,
+        },
+        {
+          tipo: 'indicador',
+          rotulo: 'Fica para a loja',
           valor: formatMoney(liquido),
-          apoio: 'sem desconto, taxa de cartão e imposto das notas',
+          apoio: `depois de ${formatMoney(tarifas)} de taxa de cartão e ${formatMoney(impostos)} de imposto das notas`,
         },
         ...(f.ok
           ? [
               {
                 tipo: 'tabela' as const,
                 titulo: 'Últimos meses',
-                colunas: ['Mês', 'Bruto', 'Líquido', 'Vendas'],
+                colunas: ['Mês', 'Bruto', 'Fica para a loja', 'Vendas'],
                 linhas: [...f.dados.months]
                   .reverse()
                   .map((m) => [

@@ -190,6 +190,14 @@ export const saleHistorySummarySchema = z.object({
   grossCents: z.number().int(),
   netCents: z.number().int(),
   cardFeeCents: z.number().int(),
+  /**
+   * Descontos concedidos e imposto das notas emitidas no filtro — achado do
+   * QA: o assistente dizia "liquido, ja sem desconto, taxa de cartao e
+   * imposto" sem mostrar quanto era cada um. Com eles, a venda liquida do DRE
+   * (bruto - descontos) e o que fica depois de taxa e imposto saem separados.
+   */
+  discountCents: z.number().int(),
+  taxCents: z.number().int(),
   /** `netCents` menos a tarifa de cartao — o que de fato entra. */
   netAfterFeesCents: z.number().int(),
   /** Nulo quando nao houve venda no filtro — nao zero. */
