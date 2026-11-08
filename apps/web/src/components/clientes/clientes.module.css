@@ -196,3 +196,26 @@
     display: block;
   }
 }
+
+/* Paginas da lista — NR-211, como no historico de vendas. */
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-border);
+}
+
+.paginacaoResumo {
+  color: var(--app-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paginacaoBotoes {
+  display: flex;
+  gap: 8px;
+}

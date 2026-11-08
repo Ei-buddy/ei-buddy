@@ -565,6 +565,7 @@ export type {
 export {
   deleteCustomer,
   getCustomer,
+  customerSummary,
   listCustomers,
   restoreCustomer,
   updateCustomer,

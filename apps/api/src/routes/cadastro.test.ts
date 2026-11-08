@@ -157,6 +157,20 @@ function cadastroEmMemoria() {
       }
     },
 
+    /* Sem venda no falso: todo cliente da lista e "nunca comprou", e inativo. */
+    summary: async (companyId) => {
+      const meus = clientes.filter((c) => c.companyId === companyId && c.deletedAt === null)
+      const devendo = meus.filter((c) => c.walletBalanceCents > 0)
+      return {
+        total: meus.length,
+        withBalance: {
+          count: devendo.length,
+          balanceCents: devendo.reduce((t, c) => t + c.walletBalanceCents, 0),
+        },
+        inactive: meus.length,
+      }
+    },
+
     findById: async (companyId, customerId) =>
       clientes.find((c) => c.id === customerId && c.companyId === companyId),
 
@@ -821,6 +835,21 @@ describe('excluir e reativar cliente — RF-009', () => {
 
     expect(r.statusCode).toBe(200)
     expect(r.json().deletedAt).not.toBeNull()
+  })
+
+  it('resumo do topo: sobre a loja inteira, sem o excluido — NR-211', async () => {
+    const { id } = await comCliente()
+    const antes = await app.inject({ method: 'GET', url: '/clientes/resumo' })
+    expect(antes.statusCode).toBe(200)
+    expect(antes.json()).toEqual({
+      total: 1,
+      withBalance: { count: 0, balanceCents: 0 },
+      inactive: 1,
+    })
+
+    await app.inject({ method: 'DELETE', url: `/clientes/${id}` })
+    const depois = await app.inject({ method: 'GET', url: '/clientes/resumo' })
+    expect(depois.json()).toMatchObject({ total: 0, inactive: 0 })
   })
 
   it('reativar devolve o cliente para a lista', async () => {

@@ -924,3 +924,33 @@ export async function listarInadimplentes(): Promise<Resultado<ClienteInadimplen
     })),
   }
 }
+
+/**
+ * Os numeros do topo da tela — NR-211. Sobre a loja inteira: nao mudam com a
+ * busca nem com o filtro, e "Sem comprar ha 60 dias" aparece ao abrir a tela,
+ * sem precisar clicar no filtro. Valores em REAIS, como o resto desta lib.
+ */
+export type ResumoDeClientes = {
+  total: number
+  comPendencia: number
+  totalPendente: number
+  semComprar: number
+}
+
+export async function resumoDeClientes(): Promise<Resultado<ResumoDeClientes>> {
+  const r = await pedir<{
+    total: number
+    withBalance: { count: number; balanceCents: number }
+    inactive: number
+  }>('/api/clientes/resumo')
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: {
+      total: r.dados.total,
+      comPendencia: r.dados.withBalance.count,
+      totalPendente: r.dados.withBalance.balanceCents / 100,
+      semComprar: r.dados.inactive,
+    },
+  }
+}

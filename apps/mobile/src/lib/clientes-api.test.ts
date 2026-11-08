@@ -18,7 +18,7 @@ vi.mock('./api', () => ({
   }),
 }))
 
-const { salvarCliente } = await import('./clientes-api')
+const { listarClientes, resumoDeClientes, salvarCliente } = await import('./clientes-api')
 
 const VAZIO = {
   cep: '',
@@ -77,5 +77,38 @@ describe('salvarCliente', () => {
 
     await salvarCliente(dados, { permitirDuplicado: true })
     expect(chamadas[1]?.caminho).toBe('/clientes?duplicado=permitir')
+  })
+})
+
+describe('resumo e paginas da lista — NR-211', () => {
+  beforeEach(() => {
+    chamadas.length = 0
+  })
+
+  it('resumo da loja inteira em reais', async () => {
+    resposta = {
+      ok: true,
+      dados: { total: 12, withBalance: { count: 2, balanceCents: 4_550 }, inactive: 5 },
+    }
+    expect(await resumoDeClientes()).toEqual({
+      ok: true,
+      dados: { total: 12, comPendencia: 2, totalPendente: 45.5, semComprar: 5 },
+    })
+    expect(chamadas[0]?.caminho).toBe('/clientes/resumo')
+  })
+
+  it('erro do resumo vira a mensagem', async () => {
+    resposta = { ok: false, message: 'Sem conexão.' }
+    expect(await resumoDeClientes()).toEqual({ ok: false, erro: 'Sem conexão.' })
+  })
+
+  it('"Carregar mais" pede a pagina seguinte; a primeira vai sem page', async () => {
+    resposta = { ok: true, dados: { customers: [], total: 0 } }
+    await listarClientes({ filtro: 'inativos' })
+    await listarClientes({ filtro: 'inativos', pagina: 2 })
+    expect(chamadas.map((c) => c.caminho)).toEqual([
+      '/clientes?filter=inativos',
+      '/clientes?filter=inativos&page=2',
+    ])
   })
 })

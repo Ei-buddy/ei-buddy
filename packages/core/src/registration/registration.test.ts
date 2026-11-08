@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isAppError } from '../app-error.js'
-import type { Role } from '@na-regua/contracts'
+import { DIAS_PARA_INATIVO, type Role } from '@na-regua/contracts'
 import type { ExecutionContext } from '../context.js'
 import {
   InMemoryCepLookup,
@@ -18,6 +18,7 @@ import { getCompany, updateCompany } from './manage-company.js'
 import {
   assertIdentifiable,
   checkCustomerWalletByQuery,
+  customerSummary,
   deleteCustomer,
   getCustomer,
   importCustomers,
@@ -259,6 +260,28 @@ describe('registerCustomer — RF-009, RF-010', () => {
       await listCustomers({ customers }, contexto(), { filter: 'todos', page: 1, pageSize: 24 })
     ).customers
     expect(gravado?.tradeName).toBe('Bar do Ze')
+  })
+
+  it('resumo do topo usa a regra de inativo do contrato e o "hoje" do contexto — NR-211', async () => {
+    const customers = new InMemoryCustomerRepository()
+    const pedidos: unknown[] = []
+    const espiao = Object.assign(Object.create(customers) as InMemoryCustomerRepository, {
+      summary: async (companyId: string, criterio: unknown) => {
+        pedidos.push({ companyId, criterio })
+        return customers.summary(companyId)
+      },
+    })
+    await registerCustomer({ customers }, contexto(), cliente({ name: 'Ana' }))
+
+    const r = await customerSummary({ customers: espiao }, contexto())
+
+    expect(r).toEqual({ total: 1, withBalance: { count: 0, balanceCents: 0 }, inactive: 1 })
+    expect(pedidos).toEqual([
+      {
+        companyId: contexto().companyId,
+        criterio: { diasParaInativo: DIAS_PARA_INATIVO, hoje: contexto().now },
+      },
+    ])
   })
 
   it('pessoa fisica fica sem fantasia', async () => {
