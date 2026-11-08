@@ -6,6 +6,7 @@ import {
 import {
   commentOnCrmCard,
   createCrmCard,
+  deleteCrmCard,
   listCrmBoard,
   listTeam,
   moveCrmCard,
@@ -55,6 +56,19 @@ export function registerCrmRoutes(app: FastifyInstance, deps: CrmRouteDeps): voi
       const input = validate(moveCrmCardInputSchema, request.body)
 
       return reply.code(200).send(await moveCrmCard(deps, ctx, id, input.column))
+    },
+  )
+
+  /** Excluir o card — NR-213. `204`: nao ha corpo a devolver. */
+  app.delete(
+    '/crm/cards/:id',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const { id } = request.params as { id: string }
+
+      await deleteCrmCard(deps, ctx, id)
+      return reply.code(204).send()
     },
   )
 

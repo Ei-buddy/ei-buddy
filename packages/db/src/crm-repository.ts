@@ -62,6 +62,9 @@ const paraCard = (l: LinhaCard): CrmCardOutput => ({
   createdAt: l.created_at.toISOString(),
 })
 
+const ehUuid = (v: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+
 export function createCrmRepository(sql: Sql): CrmRepository {
   const colunas = (tx: TransactionSql) => tx`
     cc.id, cc.title, cc.description, cc.kind, cc.column_status,
@@ -142,6 +145,8 @@ export function createCrmRepository(sql: Sql): CrmRepository {
     },
 
     findById: async (companyId, cardId) => {
+      /* Id que nao e uuid nao existe: "nao encontrado", e nao um 500 do Postgres. */
+      if (!ehUuid(cardId)) return undefined
       const [linha] = await withTenant(
         sql,
         companyId,
@@ -150,6 +155,19 @@ export function createCrmRepository(sql: Sql): CrmRepository {
         `,
       )
       return linha === undefined ? undefined : paraCard(linha)
+    },
+
+    /* Os comentarios saem junto pelo CASCADE de `crm_card_comments.card_id`. */
+    delete: async (companyId, cardId) => {
+      if (!ehUuid(cardId)) return false
+      const apagados = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx`
+          DELETE FROM crm_cards WHERE company_id = ${companyId} AND id = ${cardId} RETURNING id
+        `,
+      )
+      return apagados.length > 0
     },
 
     move: async (companyId, cardId, column) => {
