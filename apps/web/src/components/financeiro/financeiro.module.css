@@ -1046,6 +1046,8 @@
 .gerarTotal {
   border-top: 1px solid var(--app-border);
   font-weight: 600;
+}
+
 /* --- Extrato por intervalo de datas (achado do QA) --- */
 
 .extratoIntervalo {
