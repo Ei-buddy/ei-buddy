@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     176 |  348 |
-| ✅ Concluídas                 |     169 |  323 |
+| Total                         |     177 |  349 |
+| ✅ Concluídas                 |     170 |  324 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -417,6 +417,7 @@ voltam a ⬜.
 | NR-208 | Contas bancárias: extrato também por intervalo de datas (De/Até, já com o mês da tela), com saldo no início e no fim do intervalo — web e app                                                                                                            |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-073                                             |   ✅   |
 | NR-209 | Assistente: "Quanto vendi hoje" mostra venda bruta, descontos, venda líquida (bruto − desconto, como no DRE), taxa de cartão, imposto das notas e o que fica; resumo de vendas ganha desconto e imposto — web e app                                      |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | RF-108                                             |   ✅   |
 | NR-210 | Orçamentos: painel com o total em aberto, vencidos e os que viraram venda (com conversão), e busca por cliente, número ou produto com situação, período e páginas — tudo no servidor, sobre todos os orçamentos (web e app)                              |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-212 | Conciliação: conferida ponta a ponta (importar OFX, sugestões de pagar e receber, criar lançamento, desfazer, web e app); os diálogos de conciliar e desfazer passam a fechar com Esc e travar a rolagem como os demais                                  |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                      |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                               |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-172 | Orçamento convertido mostra "Ver venda #N" no web e no app (número da venda na resposta do orçamento)                                                                                                                                                    |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -534,10 +535,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     100 |  158 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     101 |  159 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **348 dias-desenvolvedor** em 176 tarefas. Com 3 pessoas, isso é cerca
+Somando: **349 dias-desenvolvedor** em 177 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

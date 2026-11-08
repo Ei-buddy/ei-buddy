@@ -160,6 +160,12 @@
   box-shadow: var(--glass-shadow-panel);
 }
 
+/* O painel recebe o foco ao abrir (Esc e leitores de tela); o contorno do
+   foco no painel inteiro so atrapalharia. */
+.dialogPainel:focus {
+  outline: none;
+}
+
 .dialogCabecalho {
   display: flex;
   align-items: flex-start;
