@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { BRAND } from '@/content/site'
-import { MODULOS_BLOQUEADOS } from '@/lib/access'
+import { MODULOS_BLOQUEADOS, ROTAS_LIBERADAS } from '@/lib/access'
 import { carregarAvisos, type Aviso } from '@/lib/avisos-api'
 import { avisosNovos, lerAvisosVistos, marcarAvisosVistos } from '@/lib/avisos-vistos'
 import MenuDoUsuario from './MenuDoUsuario'
@@ -121,6 +121,8 @@ const itensDaPlataforma: NavItem[] = [
   { href: '/app/plataforma/cargos', label: 'Cargos e Super Admin', icon: IconShield },
   /* Os chamados de todas as lojas — NR-215. */
   { href: '/app/plataforma/chamados', label: 'Chamados', icon: IconHelp },
+  /* Quem esta em teste, em dia, atrasado ou restrito — NR-216. */
+  { href: '/app/plataforma/assinaturas', label: 'Assinaturas', icon: IconWallet },
   { href: '/app/plataforma/lista-vip', label: 'Lista de espera', icon: IconList },
   { href: '/app/plataforma/parceiros', label: 'Parceiros', icon: IconHeart },
   /* Envio de teste — achado do QA: os e-mails nao saiam e ninguem via. */
@@ -321,8 +323,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const isActive = (href: string) =>
     href === '/app' ? pathname === href : pathname.startsWith(href)
 
+  /* Rota liberada nunca leva cadeado. Sem esta guarda a "Tela principal"
+     (`/app`) aparecia trancada: todo modulo bloqueado comeca com `/app/`. */
   const isRestrito = (href: string) =>
     bloqueado &&
+    !(ROTAS_LIBERADAS as readonly string[]).includes(href) &&
     (MODULOS_BLOQUEADOS as readonly string[]).some(
       (rota) => rota === href || rota.startsWith(`${href}/`),
     )
@@ -594,9 +599,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
 
-        {/* Aviso persistente de pagamento pendente. Fica no layout de /app,
-            portanto aparece em qualquer sub-rota. */}
-        {bloqueado ? <PaymentOverdueBanner /> : null}
+        {/* Aviso persistente da assinatura (atrasada, restrita ou cancelada).
+            Fica no layout de /app, portanto aparece em qualquer sub-rota; o
+            proprio banner decide se ha o que avisar — NR-216. */}
+        <PaymentOverdueBanner />
 
         <header className={styles.topbar}>
           <button

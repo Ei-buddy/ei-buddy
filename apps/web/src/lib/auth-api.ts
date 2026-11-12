@@ -17,8 +17,6 @@
  * quando o backend suportar; a UI ja trata os quatro estados.
  */
 
-export type SubscriptionStatus = 'active' | 'overdue' | 'trial'
-
 /** Atraso artificial so para exercitar os estados de loading da UI. */
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

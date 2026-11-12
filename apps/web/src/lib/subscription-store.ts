@@ -1,45 +1,33 @@
 /**
- * Guarda o status da assinatura entre o login e o painel.
+ * A situacao da assinatura, compartilhada pelas telas — NR-216.
  *
- * TEMPORARIO: enquanto nao ha sessao real, o status fica no localStorage do
- * navegador. Quando o backend existir, isto deve ser trocado por:
- *   - o status vindo no token/sessao (cookie httpOnly), ou
- *   - uma chamada a GET /billing/subscription no layout do painel.
- * Nenhuma tela le o localStorage diretamente — todas passam por aqui.
+ * A fonte e `GET /assinatura` no servidor. Antes era o `localStorage`
+ * (`demo:subscription-status`), escrito so pelo cadastro: nenhuma cobranca,
+ * atraso ou restricao chegava a mudar o que a tela mostrava.
  *
- * A leitura e exposta como um "external store" (getSnapshot/subscribe) para
- * ser consumida com useSyncExternalStore, que trata hidratacao corretamente.
+ * Exposta como "external store" (getSnapshot/subscribe) para ser lida com
+ * `useSyncExternalStore`: o HTML do servidor nasce com "sem assinatura"
+ * (liberado) e o navegador troca pelo valor real assim que a leitura volta,
+ * sem `setState` em efeito.
  */
 
-import type { SubscriptionStatus } from './auth-api'
+import {
+  lerAssinaturaDoServidor,
+  SEM_ASSINATURA,
+  type SituacaoDaAssinatura,
+} from './assinatura-api'
 
-const KEY = 'demo:subscription-status'
-
-/** Snapshot em cache: getSnapshot precisa devolver valor estavel. */
-let cache: SubscriptionStatus | null = null
+let atual: SituacaoDaAssinatura = SEM_ASSINATURA
 const listeners = new Set<() => void>()
 
-function leDoStorage(): SubscriptionStatus {
-  try {
-    const value = window.localStorage.getItem(KEY)
-    if (value === 'overdue' || value === 'trial' || value === 'active') {
-      return value
-    }
-  } catch {
-    /* Sem acesso ao storage (aba privada, cookies bloqueados). */
-  }
-  return 'active'
-}
-
-/** Valor lido no cliente. */
-export function getSubscriptionSnapshot(): SubscriptionStatus {
-  if (cache === null) cache = leDoStorage()
-  return cache
+/** Valor lido no cliente. Estavel entre chamadas: `getSnapshot` exige. */
+export function getSubscriptionSnapshot(): SituacaoDaAssinatura {
+  return atual
 }
 
 /** Valor usado no HTML do servidor e durante a hidratacao. */
-export function getSubscriptionServerSnapshot(): SubscriptionStatus {
-  return 'active'
+export function getSubscriptionServerSnapshot(): SituacaoDaAssinatura {
+  return SEM_ASSINATURA
 }
 
 export function subscribeSubscription(listener: () => void): () => void {
@@ -49,22 +37,24 @@ export function subscribeSubscription(listener: () => void): () => void {
   }
 }
 
-export function saveSubscriptionStatus(status: SubscriptionStatus): void {
-  cache = status
-  try {
-    window.localStorage.setItem(KEY, status)
-  } catch {
-    /* Segue apenas em memoria se o storage nao estiver disponivel. */
-  }
+function publicar(proxima: SituacaoDaAssinatura): void {
+  atual = proxima
   listeners.forEach((listener) => listener())
 }
 
-export function clearSubscriptionStatus(): void {
-  cache = 'active'
-  try {
-    window.localStorage.removeItem(KEY)
-  } catch {
-    /* ignorado */
-  }
-  listeners.forEach((listener) => listener())
+/**
+ * Busca de novo no servidor.
+ *
+ * Falha de rede MANTEM o ultimo valor conhecido: trocar por "liberado" a
+ * cada oscilacao desbloquearia uma loja restrita, e trocar por "restrito"
+ * bloquearia quem esta em dia. Nenhum dos dois e o que o servidor disse.
+ *
+ * Sessao sem loja ativa volta a "sem assinatura": nao ha o que restringir,
+ * e a situacao da loja anterior nao pode continuar valendo.
+ */
+export async function recarregarAssinatura(): Promise<SituacaoDaAssinatura> {
+  const lida = await lerAssinaturaDoServidor()
+  if (lida === 'sem-empresa') publicar(SEM_ASSINATURA)
+  else if (lida !== null) publicar(lida)
+  return atual
 }

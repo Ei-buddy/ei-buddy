@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  dateSchema,
   dateTimeSchema,
   emailSchema,
   idSchema,
@@ -8,7 +9,7 @@ import {
   roleSchema,
 } from '../common/primitives.js'
 import { cnpjSchema } from '../common/document.js'
-import { couponCodeInputSchema } from '../billing/subscription.js'
+import { couponCodeInputSchema, subscriptionStatusSchema } from '../billing/subscription.js'
 import { partnerAccountFieldsSchema, pixCombinaComTipo } from '../partners/partner.js'
 
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
@@ -271,7 +272,13 @@ export const enterCompanyInputSchema = z
 
 export type EnterCompanyInput = z.infer<typeof enterCompanyInputSchema>
 
-/** A visao geral da plataforma — uma linha por empresa. */
+/**
+ * A visao geral da plataforma — uma linha por empresa.
+ *
+ * Com a assinatura junto (NR-216): a plataforma nao enxergava quem estava
+ * atrasado ou restrito. Os quatro campos sao nulos quando a empresa nao tem
+ * assinatura — hoje, todas, enquanto a cobranca nao liga (QST-002).
+ */
 export const companyOverviewSchema = z.object({
   id: idSchema,
   legalName: z.string(),
@@ -279,6 +286,10 @@ export const companyOverviewSchema = z.object({
   cnpj: z.string(),
   isActive: z.boolean(),
   createdAt: dateTimeSchema,
+  subscriptionStatus: subscriptionStatusSchema.nullable(),
+  trialEndsAt: dateTimeSchema.nullable(),
+  nextDueDate: dateSchema.nullable(),
+  restrictedAt: dateTimeSchema.nullable(),
 })
 
 export type CompanyOverview = z.infer<typeof companyOverviewSchema>

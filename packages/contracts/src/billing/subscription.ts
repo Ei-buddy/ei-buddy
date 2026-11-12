@@ -244,6 +244,27 @@ export const subscriptionSchema = z
 
 export type Subscription = z.infer<typeof subscriptionSchema>
 
+/**
+ * A situacao da assinatura como a TELA da loja a recebe — NR-216, RF-117.
+ *
+ * Antes a web lia o estado do armazenamento do navegador (um valor que so o
+ * proprio cadastro escrevia) e a tela de assinatura nunca via o servidor.
+ *
+ * `canWrite` vem calculado pelo servidor, com `podeEscrever`, para web, app e
+ * assistente perguntarem a MESMA coisa no mesmo lugar. `subscription` nula e
+ * empresa sem assinatura nenhuma — o caso de toda loja enquanto o preco e os
+ * prazos (QST-002) nao estao configurados — e ela escreve.
+ */
+export const subscriptionViewOutputSchema = z
+  .object({
+    subscription: subscriptionSchema.nullable(),
+    status: subscriptionStatusSchema.nullable(),
+    canWrite: z.boolean(),
+  })
+  .strict()
+
+export type SubscriptionViewOutput = z.infer<typeof subscriptionViewOutputSchema>
+
 /* -------------------------------------------------------------------------
  * A fronteira com o provedor
  *

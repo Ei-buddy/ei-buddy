@@ -28,6 +28,7 @@ import {
   buildOrcamentosDeps,
   buildPrivacidadeDeps,
   buildSuporteDeps,
+  buildAssinaturaDeps,
   buildAuditoriaDeps,
   buildRelatoriosDeps,
   getRedis,
@@ -72,6 +73,7 @@ import { registerRelatoriosRoutes } from './routes/relatorios.js'
 import { registerAuditoriaRoutes } from './routes/auditoria.js'
 import { registerPrivacidadeRoutes } from './routes/privacidade.js'
 import { registerSuporteRoutes } from './routes/suporte.js'
+import { registerAssinaturaRoutes } from './routes/assinatura.js'
 import { registerSaleRoutes } from './routes/sales.js'
 import { registerAgentRoutes } from './routes/agent.js'
 import { montarStudio } from './studio.js'
@@ -165,6 +167,7 @@ async function registrarRotas(): Promise<void> {
   registerComprasRoutes(app, buildComprasDeps())
   registerOrcamentosRoutes(app, buildOrcamentosDeps())
   registerSuporteRoutes(app, buildSuporteDeps())
+  registerAssinaturaRoutes(app, buildAssinaturaDeps())
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())
   registerEmissaoRoutes(app, buildEmissaoDeps())

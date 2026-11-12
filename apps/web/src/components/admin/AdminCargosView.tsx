@@ -207,6 +207,12 @@ export default function AdminCargosView() {
                   <span className={styles.linhaDetalhe}>{e.cnpj}</span>
                 </div>
                 {!e.isActive ? <Badge tone="warning">Inativa</Badge> : null}
+                {/* So o que pede atencao: a lista completa fica em Assinaturas
+                    (NR-216), e um selo em cada linha viraria ruido. */}
+                {e.subscriptionStatus === 'overdue' ? <Badge tone="warning">Atrasada</Badge> : null}
+                {e.subscriptionStatus === 'restricted' ? (
+                  <Badge tone="danger">Restrita</Badge>
+                ) : null}
                 <Button size="sm" variant="secondary" onClick={() => setAlvo(e)}>
                   Entrar
                   <IconArrowRight size={16} />

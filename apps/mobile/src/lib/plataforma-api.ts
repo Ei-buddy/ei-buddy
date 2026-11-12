@@ -1,4 +1,5 @@
 import { chamarApi } from './api'
+import type { EstadoDaAssinatura } from './assinatura-api'
 
 /**
  * Area da plataforma (Super Admin) — ADR-0007, as mesmas rotas do web.
@@ -38,6 +39,12 @@ export type EmpresaListada = {
   cnpj: string
   isActive: boolean
   createdAt: string
+  /* A assinatura de cada loja — NR-216. Os quatro nulos quando a loja nao
+     tem assinatura (o caso de todas enquanto a cobranca nao liga). */
+  subscriptionStatus: EstadoDaAssinatura | null
+  trialEndsAt: string | null
+  nextDueDate: string | null
+  restrictedAt: string | null
 }
 
 export const listarEmpresas = () => pedir<{ companies: EmpresaListada[] }>('/admin/empresas')
