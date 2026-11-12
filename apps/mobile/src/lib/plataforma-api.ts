@@ -191,3 +191,68 @@ export type ResultadoDoTesteDeEmail = {
 
 export const enviarEmailDeTeste = (to: string) =>
   pedir<ResultadoDoTesteDeEmail>('/admin/email-teste', { method: 'POST', body: { to: to.trim() } })
+
+/* --- Chamados de todas as lojas — NR-215 ------------------------------ */
+
+export type SituacaoDaFila = 'responder' | 'aguardando' | 'encerrados' | 'todos'
+
+export const ABAS_DA_FILA: [SituacaoDaFila, string][] = [
+  ['responder', 'Para responder'],
+  ['aguardando', 'Aguardando cliente'],
+  ['encerrados', 'Encerrados'],
+  ['todos', 'Todos'],
+]
+
+export type ChamadoDaFila = {
+  id: string
+  companyName: string
+  protocol: string
+  subject: string
+  category: string
+  status: 'open' | 'waiting' | 'closed'
+  updatedAt: string
+  lastAuthor: 'cliente' | 'suporte' | null
+  messagesCount: number
+}
+
+export type ChamadoAberto = ChamadoDaFila & {
+  messages: {
+    id: string
+    author: 'cliente' | 'suporte'
+    authorName: string
+    body: string
+    createdAt: string
+  }[]
+}
+
+export type ContagensDaFila = { toAnswer: number; awaitingCustomer: number; closed: number }
+
+/** A mesma regra do banco: quem falou por ultimo decide de quem e a vez. */
+export function situacaoDoChamado(c: Pick<ChamadoDaFila, 'status' | 'lastAuthor'>): SituacaoDaFila {
+  if (c.status === 'closed') return 'encerrados'
+  return c.lastAuthor === 'suporte' ? 'aguardando' : 'responder'
+}
+
+export function contagemDaAba(c: ContagensDaFila, aba: SituacaoDaFila): number {
+  if (aba === 'responder') return c.toAnswer
+  if (aba === 'aguardando') return c.awaitingCustomer
+  if (aba === 'encerrados') return c.closed
+  return c.toAnswer + c.awaitingCustomer + c.closed
+}
+
+export const carregarFilaDeChamados = (situacao: SituacaoDaFila) =>
+  pedir<{ tickets: ChamadoDaFila[]; total: number; counts: ContagensDaFila }>(
+    `/admin/chamados?situation=${situacao}`,
+  )
+
+export const abrirChamadoDaFila = (id: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}`)
+
+export const responderChamadoDaFila = (id: string, texto: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}/respostas`, {
+    method: 'POST',
+    body: { body: texto.trim() },
+  })
+
+export const encerrarChamadoDaFila = (id: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}/encerrar`, { method: 'POST' })

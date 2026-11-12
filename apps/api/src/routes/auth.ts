@@ -36,6 +36,7 @@ import {
   myAccount,
   type MyAccountDeps,
   type TestEmailDeps,
+  type SupportInbox,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { LIMITE_DE_AUTENTICACAO, LIMITE_DE_CONFERENCIA_DO_CADASTRO } from '../plugins/rate-limit.js'
@@ -85,7 +86,10 @@ export type AuthRouteDeps = AuthDeps &
   Pick<ChangePhoneDeps, 'contacts' | 'phoneChanger'> &
   Pick<MyAccountDeps, 'editor'> &
   /* Envio de teste do Super Admin (`/admin/email-teste`) — mesma composicao. */
-  Pick<TestEmailDeps, 'emailTester'>
+  Pick<TestEmailDeps, 'emailTester'> & {
+    /* Fila de chamados do Super Admin (`/admin/chamados`) — NR-215, idem. */
+    readonly supportInbox: SupportInbox
+  }
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   /**
