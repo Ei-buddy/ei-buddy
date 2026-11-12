@@ -5,6 +5,12 @@ import type { AuthenticatedPrincipal } from '../plugins/execution-context.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
 import { ErroDeIntegracao } from '@na-regua/contracts'
 import { criarCadastroDeEmpresasFocusFalso } from '@na-regua/fiscal'
+import {
+  A1_ANTIGO_RC2,
+  A1_MODERNO_ATE_2099,
+  A1_VENCIDO_EM_2025,
+  SENHA_DOS_CERTIFICADOS_DE_TESTE,
+} from '../certificados-de-teste.js'
 import { type CredenciaisFiscaisDeps, registerFiscalRoutes } from './fiscal.js'
 
 /**
@@ -21,7 +27,10 @@ const PRINCIPAL: AuthenticatedPrincipal = {
   role: 'owner',
 }
 
-const CERTIFICADO = Buffer.from('pfx-de-mentira').toString('base64')
+/* Um A1 de verdade (autoassinado, de teste): desde a NR-214 a api abre o
+   arquivo com a senha antes de guardar, e um "pfx de mentira" e recusado. */
+const CERTIFICADO = A1_MODERNO_ATE_2099
+const SENHA = SENHA_DOS_CERTIFICADOS_DE_TESTE
 
 /*
  * Montado, e nao literal — e a varredura de segredos que pediu.
@@ -190,16 +199,17 @@ describe('gravar', () => {
       url: '/empresa/credenciais-fiscais',
       payload: {
         certificateBase64: CERTIFICADO,
-        certificatePassword: 'senha',
+        certificatePassword: SENHA,
         certificateExpiresAt: '2027-03-15',
       },
     })
 
-    /* Um formulario que envia so o campo alterado nao pode apagar o resto. */
+    /* Um formulario que envia so o campo alterado nao pode apagar o resto.
+       E a validade guardada e a do ARQUIVO (NR-214), nao a digitada. */
     expect(r.json()).toEqual({
       hasToken: true,
       hasCertificate: true,
-      certificateExpiresAt: '2027-03-15',
+      certificateExpiresAt: '2099-12-31',
       hasCscProduction: false,
       hasCscHomologation: false,
       focus: SEM_FOCUS,
@@ -221,19 +231,91 @@ describe('gravar', () => {
     expect(r.statusCode).toBe(400)
   })
 
-  it('certificado sem vencimento e recusado', async () => {
+  it('sem a validade digitada, ela sai do proprio certificado — NR-214', async () => {
     const c = await buildApp()
     app = c.app
 
     const r = await app.inject({
       method: 'PUT',
       url: '/empresa/credenciais-fiscais',
-      payload: { certificateBase64: CERTIFICADO, certificatePassword: 'senha' },
+      payload: { certificateBase64: CERTIFICADO, certificatePassword: SENHA },
     })
 
-    /* Sem vencimento o aviso da RF-004 e impossivel, e o lojista descobriria o
-       vencimento quando a nota parasse de sair. */
-    expect(r.statusCode).toBe(400)
+    expect(r.statusCode).toBe(200)
+    expect(r.json().certificateExpiresAt).toBe('2099-12-31')
+  })
+
+  describe('o certificado e aberto antes de guardar — NR-214', () => {
+    const enviar = async (payload: Record<string, unknown>) => {
+      const c = await buildApp()
+      app = c.app
+      const r = await app.inject({ method: 'PUT', url: '/empresa/credenciais-fiscais', payload })
+      return { r, memoria: c.memoria }
+    }
+
+    it('senha errada: 400 no campo da senha, e nada e guardado', async () => {
+      const { r, memoria } = await enviar({
+        certificateBase64: CERTIFICADO,
+        certificatePassword: 'outra-senha',
+      })
+      expect(r.statusCode).toBe(400)
+      expect(r.json().error.message).toBe(
+        'A senha não abre este certificado. Confira e envie de novo.',
+      )
+      expect(r.json().error.fields?.[0]?.path).toBe('certificatePassword')
+      expect(memoria.gravado.certificado).toBeUndefined()
+    })
+
+    it('arquivo que nao e certificado: 400, e nada e guardado', async () => {
+      const { r, memoria } = await enviar({
+        certificateBase64: Buffer.from('uma planilha qualquer').toString('base64'),
+        certificatePassword: SENHA,
+      })
+      expect(r.statusCode).toBe(400)
+      expect(r.json().error.message).toMatch(/não é um certificado A1/)
+      expect(memoria.gravado.certificado).toBeUndefined()
+    })
+
+    it('certificado vencido: 400 dizendo quando venceu', async () => {
+      const { r, memoria } = await enviar({
+        certificateBase64: A1_VENCIDO_EM_2025,
+        certificatePassword: SENHA,
+      })
+      expect(r.statusCode).toBe(400)
+      expect(r.json().error.message).toBe(
+        'Este certificado venceu em 31/12/2024. Envie o certificado renovado.',
+      )
+      expect(memoria.gravado.certificado).toBeUndefined()
+    })
+
+    it('formato antigo (RC2): com a data digitada, guarda; sem ela, pede a data', async () => {
+      const sem = await enviar({ certificateBase64: A1_ANTIGO_RC2, certificatePassword: SENHA })
+      expect(sem.r.statusCode).toBe(400)
+      expect(sem.r.json().error.fields?.[0]?.path).toBe('certificateExpiresAt')
+
+      const com = await enviar({
+        certificateBase64: A1_ANTIGO_RC2,
+        certificatePassword: SENHA,
+        certificateExpiresAt: '2028-06-30',
+      })
+      expect(com.r.statusCode).toBe(200)
+      expect(com.r.json().certificateExpiresAt).toBe('2028-06-30')
+    })
+
+    it('formato antigo com a senha errada tambem e recusado', async () => {
+      const { r } = await enviar({
+        certificateBase64: A1_ANTIGO_RC2,
+        certificatePassword: 'outra-senha',
+        certificateExpiresAt: '2028-06-30',
+      })
+      expect(r.statusCode).toBe(400)
+      expect(r.json().error.fields?.[0]?.path).toBe('certificatePassword')
+    })
+
+    it('validade sem certificado e recusada', async () => {
+      const { r } = await enviar({ certificateExpiresAt: '2028-06-30' })
+      expect(r.statusCode).toBe(400)
+    })
   })
 
   it('corpo vazio e recusado, em vez de gravar nada em silencio', async () => {
@@ -258,7 +340,7 @@ describe('gravar', () => {
       url: '/empresa/credenciais-fiscais',
       payload: {
         certificateBase64: 'nao é base64!!',
-        certificatePassword: 'senha',
+        certificatePassword: SENHA,
         certificateExpiresAt: '2027-03-15',
       },
     })
@@ -314,8 +396,7 @@ describe('quem pode', () => {
 describe('cadastro na Focus como revenda — NR-183', () => {
   const COMPLETO = {
     certificateBase64: CERTIFICADO,
-    certificatePassword: 'senha',
-    certificateExpiresAt: '2027-03-15',
+    certificatePassword: SENHA,
     cscProduction: { id: '000001', code: 'CSC-DE-TESTE-123' },
   }
 
@@ -350,7 +431,7 @@ describe('cadastro na Focus como revenda — NR-183', () => {
     expect(focus.chamadas[0]).toMatchObject({
       regimeTributario: 1,
       cscProducao: { id: '1', codigo: 'CSC-DE-TESTE-123' },
-      certificado: { base64: CERTIFICADO, senha: 'senha' },
+      certificado: { base64: CERTIFICADO, senha: SENHA },
     })
     expect(r.json().focus).toEqual({
       available: true,

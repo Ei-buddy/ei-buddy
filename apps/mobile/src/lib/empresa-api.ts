@@ -319,14 +319,15 @@ export async function salvarCsc(csc: {
 export async function enviarCertificado(
   base64: string,
   senha: string,
-  validoAte: string,
+  /** Opcional desde a NR-214: o servidor le a validade do proprio arquivo. */
+  validoAte: string | null = null,
 ): Promise<Resultado<SituacaoFiscal>> {
   const r = await chamarApi<SituacaoDaApi>('/empresa/credenciais-fiscais', {
     method: 'PUT',
     body: {
       certificateBase64: base64,
       certificatePassword: senha,
-      certificateExpiresAt: validoAte,
+      ...(validoAte === null ? {} : { certificateExpiresAt: validoAte }),
     },
   })
   if (!r.ok) return { ok: false, erro: r.message }

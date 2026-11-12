@@ -5,6 +5,8 @@ import {
   buscarCep,
   buscarCnpj,
   carregarEmpresa,
+  carregarSituacaoFiscal,
+  certificadoDaSituacao,
   RAMOS_ATIVIDADE,
   salvarEmpresa,
   UFS,
@@ -111,6 +113,14 @@ export default function EmpresaForm() {
   const [erros, setErros] = useState<Erros>({})
   const [conexoes, setConexoes] = useState(false)
   const [certificado, setCertificado] = useState<Certificado | null>(null)
+  /* O certificado que ja esta guardado — NR-214. Sem isto, a tela dizia
+     "Nenhum certificado enviado" a cada visita. */
+  useEffect(() => {
+    void (async () => {
+      const r = await carregarSituacaoFiscal()
+      if (r.ok) setCertificado(certificadoDaSituacao(r.dados))
+    })()
+  }, [])
 
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)

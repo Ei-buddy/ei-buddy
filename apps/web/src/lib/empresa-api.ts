@@ -178,18 +178,15 @@ export type Certificado = {
  * cifra os dois antes de tocar o banco. O navegador nao abre o `.pfx`, nao le a
  * senha e nao guarda nenhum dos dois.
  *
- * ## Por que a tela pergunta a validade
+ * ## A validade sai do arquivo — NR-214
  *
- * A versao anterior desta funcao prometia que "o backend abre o .pfx e extrai
- * titular e validade". Ler PKCS#12 exige biblioteca que o projeto nao tem, e
- * escolher uma so para isso e decisao que nao cabia nesta tarefa.
+ * A api abre o certificado com a senha antes de guardar: recusa senha errada,
+ * arquivo que nao e certificado e certificado vencido, e le a validade do
+ * proprio arquivo. A data digitada so vale para o A1 de formato antigo (RC2),
+ * que o OpenSSL 3 nao decifra — ai e a api que pede a data.
  *
- * Entao a validade e PERGUNTADA. E pior para quem cadastra e melhor que a
- * alternativa: sem ela, o aviso de vencimento (RF-004) e impossivel, e o
- * lojista descobriria que o certificado venceu quando a nota parasse de sair.
- *
- * O TITULAR saiu da tela pelo mesmo motivo — sem abrir o arquivo, exibi-lo
- * seria inventar.
+ * O nome do arquivo nao e guardado: depois de recarregar, a tela diz
+ * "Certificado A1" e a validade que o servidor confirmou.
  */
 export type SituacaoFiscal = {
   hasToken: boolean
@@ -228,6 +225,33 @@ async function chamarFiscal(
 
 export const carregarSituacaoFiscal = () => chamarFiscal()
 
+/** `AAAA-MM-DD` de hoje pelo relogio LOCAL — o dia da loja, nao o de UTC. */
+function hojeLocal(): string {
+  const d = new Date()
+  const dois = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`
+}
+
+/**
+ * O certificado que ja esta guardado, para a tela mostrar ao abrir — NR-214.
+ *
+ * Achado do QA: a tela Empresa so conhecia o certificado enviado NAQUELA
+ * visita. Ao voltar, dizia "Nenhum certificado enviado" com um valido no
+ * servidor, e o lojista enviava de novo achando que nao tinha ido.
+ */
+export function certificadoDaSituacao(
+  s: Pick<SituacaoFiscal, 'hasCertificate' | 'certificateExpiresAt'>,
+  hoje: string = hojeLocal(),
+  nomeArquivo = 'Certificado A1',
+): Certificado | null {
+  if (!s.hasCertificate || s.certificateExpiresAt === null) return null
+  return {
+    status: s.certificateExpiresAt < hoje ? 'expirado' : 'valido',
+    nomeArquivo,
+    validoAte: s.certificateExpiresAt,
+  }
+}
+
 /** Guarda o token do emissor. */
 export const salvarTokenFiscal = (focusToken: string) =>
   chamarFiscal({ method: 'PUT', body: JSON.stringify({ focusToken }) })
@@ -255,7 +279,8 @@ export async function enviarCertificado(
   validoAte: string,
 ): Promise<UploadResult> {
   if (senha === '') return { ok: false, error: 'Informe a senha do certificado.' }
-  if (validoAte === '') return { ok: false, error: 'Informe até quando o certificado vale.' }
+  /* A validade e opcional desde a NR-214: o servidor abre o certificado e le
+     a data do proprio arquivo. A digitada so vale para o formato antigo. */
 
   const nome = arquivo.name.toLowerCase()
   if (!nome.endsWith('.pfx') && !nome.endsWith('.p12')) {
@@ -278,27 +303,18 @@ export async function enviarCertificado(
     body: JSON.stringify({
       certificateBase64: btoa(binario),
       certificatePassword: senha,
-      certificateExpiresAt: validoAte,
+      ...(validoAte === '' ? {} : { certificateExpiresAt: validoAte }),
     }),
   })
 
   if (!r.ok) return { ok: false, error: r.error }
 
-  return {
-    ok: true,
-    certificado: {
-      /* O estado vem da DATA que o servidor confirmou, e nao do que a tela
-         achava — sao a mesma coisa hoje e nao serao no dia em que a api
-         normalizar a entrada. */
-      status:
-        r.dados.certificateExpiresAt !== null &&
-        r.dados.certificateExpiresAt < new Date().toISOString().slice(0, 10)
-          ? 'expirado'
-          : 'valido',
-      nomeArquivo: arquivo.name,
-      validoAte: r.dados.certificateExpiresAt ?? validoAte,
-    },
-  }
+  /* O estado vem da DATA que o servidor confirmou (a do arquivo, NR-214), e
+     nao da que foi digitada. */
+  const certificado = certificadoDaSituacao(r.dados, undefined, arquivo.name)
+  return certificado === null
+    ? { ok: false, error: 'O servidor não confirmou o certificado. Tente de novo.' }
+    : { ok: true, certificado }
 }
 
 /* -------------------------------------------------------------------------- */
