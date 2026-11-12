@@ -4,24 +4,36 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import type { SubscriptionStatus } from '@/lib/auth-api'
+import { usePathname } from 'next/navigation'
+import type { EstadoDaAssinatura, SituacaoDaAssinatura } from '@/lib/assinatura-api'
 import {
   getSubscriptionServerSnapshot,
   getSubscriptionSnapshot,
-  saveSubscriptionStatus,
+  recarregarAssinatura,
   subscribeSubscription,
 } from '@/lib/subscription-store'
 
 type SubscriptionContextValue = {
-  status: SubscriptionStatus
-  /** true quando o acesso deve ficar restrito. */
+  /** A situacao inteira, como o servidor devolveu. */
+  situacao: SituacaoDaAssinatura
+  /** `null` = sem assinatura (a cobranca ainda nao comecou). */
+  status: EstadoDaAssinatura | null
+  /**
+   * true quando a loja NAO pode criar lancamentos: restrita ou cancelada.
+   *
+   * Atrasada nao bloqueia — o prazo de tolerancia (RF-116) so serve se a
+   * loja continuar funcionando durante ele. A tela antiga bloqueava em
+   * "overdue", o oposto da regra.
+   */
   bloqueado: boolean
-  setStatus: (status: SubscriptionStatus) => void
+  /** Le de novo do servidor — depois de um pagamento, por exemplo. */
+  recarregar: () => Promise<void>
   /** Abre o modal de "pagamento necessario" a partir de qualquer tela. */
   pedirRegularizacao: () => void
   modalAberto: boolean
@@ -31,31 +43,43 @@ type SubscriptionContextValue = {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null)
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  /* Le o status como store externo: o servidor renderiza "active" e o
-     cliente reconcilia com o valor real logo apos a hidratacao, sem
-     setState em efeito. SUBSTITUIR A FONTE POR: GET /billing/subscription. */
-  const status = useSyncExternalStore(
+  /* O servidor renderiza "sem assinatura" (liberado) e o navegador troca pelo
+     valor de `GET /assinatura` assim que ele volta — NR-216. */
+  const situacao = useSyncExternalStore(
     subscribeSubscription,
     getSubscriptionSnapshot,
     getSubscriptionServerSnapshot,
   )
 
   const [modalAberto, setModalAberto] = useState(false)
+  const pathname = usePathname()
 
-  const setStatus = useCallback((next: SubscriptionStatus) => {
-    saveSubscriptionStatus(next)
+  /*
+   * De novo a cada troca de tela — o mesmo criterio dos avisos (NR-147).
+   *
+   * O layout do `/app` NAO remonta ao navegar: entrar numa loja como Super
+   * Admin, voltar da plataforma ou pagar a fatura troca a situacao sem
+   * remontar nada, e uma leitura so na montagem mostraria a da loja anterior.
+   */
+  useEffect(() => {
+    void recarregarAssinatura()
+  }, [pathname])
+
+  const recarregar = useCallback(async () => {
+    await recarregarAssinatura()
   }, [])
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({
-      status,
-      bloqueado: status === 'overdue',
-      setStatus,
+      situacao,
+      status: situacao.status,
+      bloqueado: !situacao.canWrite,
+      recarregar,
       pedirRegularizacao: () => setModalAberto(true),
       modalAberto,
       fecharModal: () => setModalAberto(false),
     }),
-    [status, setStatus, modalAberto],
+    [situacao, recarregar, modalAberto],
   )
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>

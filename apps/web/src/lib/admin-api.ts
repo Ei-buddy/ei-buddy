@@ -1,3 +1,4 @@
+import type { EstadoDaAssinatura } from './assinatura-api'
 import { pedir, type Resultado } from './http'
 import type { FairPrice, PainPoint, UsesSystem } from './waitlist-api'
 
@@ -17,6 +18,12 @@ export type EmpresaListada = {
   cnpj: string
   isActive: boolean
   createdAt: string
+  /* A assinatura de cada loja — NR-216. Os quatro nulos quando a loja nao
+     tem assinatura (o caso de todas enquanto a cobranca nao liga). */
+  subscriptionStatus: EstadoDaAssinatura | null
+  trialEndsAt: string | null
+  nextDueDate: string | null
+  restrictedAt: string | null
 }
 
 export type SuperAdmin = {

@@ -1,0 +1,58 @@
+/* Assinaturas de todas as lojas — NR-216. */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-full);
+  background: var(--glass-inset);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.filtroAtivo {
+  border-color: var(--app-accent);
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.contagem {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--glass-inset-hover);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.aviso {
+  margin: 0 0 16px;
+  color: var(--app-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.situacao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+.data {
+  color: var(--app-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}

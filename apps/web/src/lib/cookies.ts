@@ -172,13 +172,6 @@ export const ARMAZENAMENTO_LOCAL: readonly ArmazenamentoLocal[] = [
       'Lembrar se voce desligou o som do painel (bipe do leitor de codigo de barras e confirmacao de venda fechada).',
     duracao: 'Ate voce limpar os dados do navegador',
   },
-  {
-    chave: 'demo:subscription-status',
-    categoria: 'essencial',
-    finalidade:
-      'Guardar o estado da assinatura para as telas saberem o que liberar. Provisorio: sai quando a cobranca passar a ser consultada no servidor.',
-    duracao: 'Ate voce limpar os dados do navegador',
-  },
 ]
 
 /** Ha algo que dependa de consentimento? Hoje, nao — e a pagina diz isso. */

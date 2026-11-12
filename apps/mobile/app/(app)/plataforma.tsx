@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import AssinaturasDaPlataforma from '@/components/AssinaturasDaPlataforma'
 import Cabecalho from '@/components/Cabecalho'
 import ChamadosDaPlataforma from '@/components/ChamadosDaPlataforma'
 import ConfirmarModal from '@/components/ConfirmarModal'
@@ -41,12 +42,14 @@ import { maskCNPJ, maskPhone } from '@/lib/validation'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
-type Aba = 'empresas' | 'chamados' | 'usuarios' | 'lista' | 'parceiros' | 'email'
+type Aba = 'empresas' | 'chamados' | 'assinaturas' | 'usuarios' | 'lista' | 'parceiros' | 'email'
 
 const ABAS: [Aba, string][] = [
   ['empresas', 'Empresas'],
   /* Os chamados de todas as lojas — NR-215. */
   ['chamados', 'Chamados'],
+  /* Quem esta em teste, em dia, atrasado ou restrito — NR-216. */
+  ['assinaturas', 'Assinaturas'],
   ['usuarios', 'Usuários'],
   ['lista', 'Lista de espera'],
   ['parceiros', 'Parceiros'],
@@ -155,6 +158,8 @@ export default function Plataforma() {
           />
         ) : aba === 'chamados' ? (
           <ChamadosDaPlataforma />
+        ) : aba === 'assinaturas' ? (
+          <AssinaturasDaPlataforma />
         ) : aba === 'usuarios' ? (
           <Usuarios />
         ) : aba === 'lista' ? (
@@ -228,6 +233,13 @@ function Empresas({ onEntrou }: { onEntrou: (empresa: EmpresaListada) => Promise
               </Text>
             </View>
             {e.isActive ? null : <Etiqueta tom="erro">Inativa</Etiqueta>}
+            {/* So o que pede atencao; a lista completa fica em Assinaturas (NR-216). */}
+            {e.subscriptionStatus === 'overdue' ? (
+              <Etiqueta tom="atencao">Atrasada</Etiqueta>
+            ) : null}
+            {e.subscriptionStatus === 'restricted' ? (
+              <Etiqueta tom="erro">Restrita</Etiqueta>
+            ) : null}
           </View>
           {entrando?.id === e.id ? (
             <View style={estilos.formulario}>

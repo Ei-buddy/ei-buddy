@@ -10,7 +10,6 @@ import {
   createPixCharge,
   fetchPixChargeStatus,
 } from '@/lib/auth-api'
-import { saveSubscriptionStatus } from '@/lib/subscription-store'
 import {
   maskCNPJ,
   maskPhone,
@@ -246,9 +245,10 @@ export default function SignupFlow() {
    * ---------------------------------------------------------------- */
 
   const aoConfirmarPagamento = useCallback(() => {
-    saveSubscriptionStatus('active')
+    /* A situacao da assinatura vem do servidor (`GET /assinatura`, NR-216):
+       o painel le assim que abre, e nada precisa ser gravado aqui.
 
-    /* A sessao ja esta aberta: `createAccount` cria a conta de verdade na api
+       A sessao ja esta aberta: `createAccount` cria a conta de verdade na api
        e o proprio handler grava o cookie (NR-014). Daqui e so entrar. */
     router.push('/app')
   }, [router])
@@ -562,13 +562,7 @@ export default function SignupFlow() {
             title="Conta criada"
             subtitle={`Seu ${BRAND} já está pronto. A cobrança da mensalidade começa depois do período de teste, e avisamos antes.`}
           />
-          <SubmitButton
-            type="button"
-            onClick={() => {
-              saveSubscriptionStatus('trial')
-              router.push('/app')
-            }}
-          >
+          <SubmitButton type="button" onClick={() => router.push('/app')}>
             Ir para o painel
           </SubmitButton>
         </>

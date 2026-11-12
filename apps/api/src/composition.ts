@@ -178,6 +178,7 @@ import type { CadastroDeFornecedoresDeps } from './routes/cadastro-fornecedores.
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
+import type { AssinaturaDeps } from './routes/assinatura.js'
 import type { RelatoriosDeps } from './routes/relatorios.js'
 import type { AuditoriaDeps } from './routes/auditoria.js'
 import type { ContasDeps } from './routes/contas.js'
@@ -886,6 +887,18 @@ export function buildEstoqueDeps(): EstoqueDeps {
  * O nome e COPIADO na mensagem, e nao referenciado: quem escreveu pode sair da
  * empresa, e a conversa tem de continuar legivel.
  */
+/**
+ * A situacao da assinatura — NR-216.
+ *
+ * O repositorio e montado SEMPRE, e nao so quando `montarInicioDoTeste()`
+ * existe: sem os prazos (QST-002) nenhuma assinatura nasce, mas a leitura
+ * precisa responder "sem assinatura, pode lancar" — e uma assinatura gravada
+ * por fora (suporte, migracao) tem de aparecer do mesmo jeito.
+ */
+export function buildAssinaturaDeps(): AssinaturaDeps {
+  return { subscriptions: createSubscriptionRepository(getClient(env.DATABASE_URL)) }
+}
+
 export function buildSuporteDeps(): SuporteDeps {
   const sql = getClient(env.DATABASE_URL)
   const users = createUserDirectory(sql)
