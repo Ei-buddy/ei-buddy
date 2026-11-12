@@ -44,6 +44,11 @@ export function useDialogo(
     const aoTeclar = (e: KeyboardEvent) => {
       /* So o dialogo de cima responde ao Esc. */
       if (e.key !== 'Escape' || pilha[pilha.length - 1] !== eu) return
+      /* Um campo de dentro ja usou o Esc (a busca de cliente fechando a
+         propria lista, NR-217) e o marcou com `preventDefault`. Parar a
+         propagacao nao bastaria: no App Router o React escuta no proprio
+         `document`, o mesmo no deste ouvinte. */
+      if (e.defaultPrevented) return
       if (!ocupadoRef.current) fecharRef.current()
     }
     document.addEventListener('keydown', aoTeclar)

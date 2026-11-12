@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     182 |  356 |
-| ✅ Concluídas                 |     175 |  331 |
+| Total                         |     183 |  357 |
+| ✅ Concluídas                 |     176 |  332 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -422,6 +422,7 @@ voltam a ⬜.
 | NR-214 | Certificado A1: a api abre o .pfx com a senha antes de guardar (recusa senha errada, arquivo que não é certificado e certificado vencido), lê a validade do próprio arquivo e a tela Empresa passa a mostrar o certificado já guardado ao abrir (web e app)         |   🟢   | `contracts` `api` `web` `mobile`                              |   1 | —                                      | —    | RF-004                                             |   ✅   |
 | NR-215 | Plataforma: aba Chamados — a equipe EiBuddy (Super Admin) vê os chamados de todas as lojas (para responder, aguardando cliente, encerrados), responde como Suporte EiBuddy e encerra; a loja recebe a resposta como não lida (web e app)                            |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | US-062                                             |   ✅   |
 | NR-216 | Assinatura lida do servidor (GET /assinatura): web e app mostram a situação real (em teste, em dia, atrasada, restrita, cancelada); atrasada avisa sem bloquear, restrita bloqueia; Plataforma ganha a lista de Assinaturas com filtro de inadimplentes (web e app) |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-116, RF-117                                     |   ✅   |
+| NR-217 | CRM: o card novo busca o cliente no servidor (nome, CPF/CNPJ ou celular) em vez de listar só os 24 primeiros; Esc fecha só a lista dentro dos diálogos                                                                                                              |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                  |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                 |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                          |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -540,10 +541,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     106 |  166 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     107 |  167 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **356 dias-desenvolvedor** em 182 tarefas. Com 3 pessoas, isso é cerca
+Somando: **357 dias-desenvolvedor** em 183 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
