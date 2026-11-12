@@ -1,0 +1,74 @@
+/* Busca de cliente reutilizavel — NR-217. */
+.raiz {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+
+.lista {
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-inset);
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--glass-inset-hover);
+}
+
+.item small,
+.vazio {
+  color: var(--app-muted);
+}
+
+.vazio {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.escolhido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-inset);
+}
+
+.escolhido strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acoes {
+  display: flex;
+  gap: 4px;
+}

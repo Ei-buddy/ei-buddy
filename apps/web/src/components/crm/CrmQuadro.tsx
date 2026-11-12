@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { listarClientes } from '@/lib/clientes-api'
 import {
   COLUNAS,
   criarCard,
@@ -21,6 +20,7 @@ import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
 import { IconCalendar, IconList, IconPlus, IconUsers } from '@/components/Icons'
 import { useDialogo } from '@/components/app/useDialogo'
+import BuscaDeCliente, { type ClienteEscolhido } from '@/components/clientes/BuscaDeCliente'
 import CardDetalhe from './CardDetalhe'
 import styles from './crm.module.css'
 
@@ -484,16 +484,15 @@ function FormCard({
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
   const [tipo, setTipo] = useState<TipoCard>(tipoInicial)
-  const [clienteId, setClienteId] = useState('')
+  const [cliente, setCliente] = useState<ClienteEscolhido | null>(null)
   /* O campo de data do cartao novo abria em 24/08/2026 — a pessoa tinha de
      corrigir a data em todo cartao que criasse. */
   const [data, setData] = useState(hoje())
   const [responsavelId, setResponsavelId] = useState('')
 
-  /* Cliente e responsavel vem da api, e nao de `mock-data` — um id INVENTADO
-     aqui seria pior que a lista vazia: o card gravaria um vinculo que nao
-     existe. */
-  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([])
+  /* Responsavel vem da api, e nao de `mock-data` — um id INVENTADO aqui seria
+     pior que a lista vazia: o card gravaria um vinculo que nao existe. O
+     cliente e buscado no servidor pela `BuscaDeCliente` (NR-217). */
   const [equipe, setEquipe] = useState<MembroDaEquipe[]>([])
 
   const [erro, setErro] = useState<string | null>(null)
@@ -506,9 +505,7 @@ function FormCard({
     /* `async` explicito: o `setState` vem depois do await, nunca sincrono no
        corpo do efeito. */
     void (async () => {
-      const [rClientes, rEquipe] = await Promise.all([listarClientes({}), listarEquipe()])
-      if (rClientes.ok)
-        setClientes(rClientes.dados.clientes.map((c) => ({ id: c.id, nome: c.nome })))
+      const rEquipe = await listarEquipe()
       if (rEquipe.ok) setEquipe(rEquipe.dados)
     })()
   }, [])
@@ -528,7 +525,7 @@ function FormCard({
       titulo,
       descricao,
       tipo,
-      clienteId: clienteId === '' ? null : clienteId,
+      clienteId: cliente?.id ?? null,
       data,
       responsavelId: responsavelId === '' ? null : responsavelId,
     }
@@ -606,22 +603,12 @@ function FormCard({
             />
           </label>
 
-          <label className={styles.campo}>
+          {/* Busca no servidor — o `<select>` so trazia os 24 primeiros
+              clientes, e da 25a em diante a loja nao vinculava (NR-217). */}
+          <div className={styles.campo}>
             <span>Cliente</span>
-            <select
-              className={styles.select}
-              value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
-              aria-label="Cliente"
-            >
-              <option value="">Sem cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
-          </label>
+            <BuscaDeCliente valor={cliente} onEscolher={setCliente} classeDoCampo={styles.input} />
+          </div>
 
           <div className={styles.formLinha}>
             <label className={styles.campo}>

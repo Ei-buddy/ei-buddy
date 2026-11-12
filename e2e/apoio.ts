@@ -82,12 +82,15 @@ export async function produtoNovo(
 export async function clienteNovo(
   request: APIRequestContext,
   nome: string,
+  /* Celular repetido e recusado como possivel duplicado: quem cria varios
+     clientes na mesma loja passa um por cliente. */
+  phone = '41988887777',
 ): Promise<{ id: string }> {
   const r = await request.post('/api/clientes', {
     data: {
       name: nome,
       document: cpfNovo(),
-      phone: '41988887777',
+      phone,
       address: {
         zipCode: '80010000',
         street: 'Rua XV de Novembro',
