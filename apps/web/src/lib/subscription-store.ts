@@ -52,8 +52,16 @@ function publicar(proxima: SituacaoDaAssinatura): void {
  * Sessao sem loja ativa volta a "sem assinatura": nao ha o que restringir,
  * e a situacao da loja anterior nao pode continuar valendo.
  */
+let ultimaLeitura = 0
+
 export async function recarregarAssinatura(): Promise<SituacaoDaAssinatura> {
+  /* Vale so a ULTIMA leitura pedida. Trocando de tela rapido, duas leituras
+     podem voltar fora de ordem — a de antes de entrar numa loja (401) chegando
+     depois da de dentro dela apagaria a situacao certa. */
+  const minha = ++ultimaLeitura
   const lida = await lerAssinaturaDoServidor()
+  if (minha !== ultimaLeitura) return atual
+
   if (lida === 'sem-empresa') publicar(SEM_ASSINATURA)
   else if (lida !== null) publicar(lida)
   return atual

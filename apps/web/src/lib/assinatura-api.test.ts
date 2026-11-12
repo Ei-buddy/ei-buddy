@@ -155,4 +155,25 @@ describe('recarregarAssinatura (store do painel)', () => {
 
     vi.unstubAllGlobals()
   })
+
+  it('vale a ultima leitura pedida, mesmo que a anterior volte depois', async () => {
+    const { vi } = await import('vitest')
+    const store = await import('./subscription-store')
+    const fetchFalso = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchFalso)
+
+    let soltarAntiga: (r: Response) => void = () => undefined
+    fetchFalso.mockReturnValueOnce(new Promise<Response>((ok) => (soltarAntiga = ok)))
+    fetchFalso.mockResolvedValueOnce(resposta(200, restrita))
+
+    const antiga = store.recarregarAssinatura()
+    const nova = store.recarregarAssinatura()
+    await nova
+    /* A antiga (sem loja ativa) volta por ultimo: nao pode apagar a restrita. */
+    soltarAntiga(resposta(401))
+    await antiga
+
+    expect(store.getSubscriptionSnapshot().status).toBe('restricted')
+    vi.unstubAllGlobals()
+  })
 })
