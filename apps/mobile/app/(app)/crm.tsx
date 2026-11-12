@@ -4,13 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   COLUNAS,
   comentarCard,
+  excluirCard,
   listarCards,
   moverCard,
   type CardCrm,
   type ColunaId,
+  type TipoCard,
 } from '@/lib/crm-api'
 import { formatDate, formatDateTime, daysUntil } from '@/lib/format'
 import NovoCardModal from '@/components/NovoCardModal'
+import { confirmar } from '@/lib/confirmar'
 import Cabecalho from '@/components/Cabecalho'
 import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
@@ -33,7 +36,7 @@ export default function Crm() {
   const [cards, setCards] = useState<CardCrm[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [criando, setCriando] = useState(false)
+  const [criando, setCriando] = useState<TipoCard | null>(null)
 
   const buscar = useCallback(async () => {
     const r = await listarCards()
@@ -84,7 +87,16 @@ export default function Crm() {
       <Cabecalho
         titulo="CRM"
         subtitulo={carregando ? 'carregando' : aFazer > 0 ? `${aFazer} a fazer` : 'nada pendente'}
-        acao={<Botao onPress={() => setCriando(true)}>Novo</Botao>}
+        /* Os dois caminhos a vista — achado do QA: depois da primeira
+           pendencia, ninguem achava como lancar um contato. NR-213. */
+        acao={
+          <View style={estilos.acoesTopo}>
+            <Botao variante="secundario" onPress={() => setCriando('contato')}>
+              Contato
+            </Botao>
+            <Botao onPress={() => setCriando('pendencia')}>Pendência</Botao>
+          </View>
+        }
       />
 
       {carregando ? (
@@ -135,6 +147,7 @@ export default function Crm() {
                       key={card.id}
                       card={card}
                       onMover={(destino) => void mover(card.id, destino)}
+                      onExcluido={() => setCards((atual) => atual.filter((x) => x.id !== card.id))}
                       onComentado={(c) =>
                         setCards((atual) =>
                           atual.map((x) =>
@@ -151,13 +164,14 @@ export default function Crm() {
         </ScrollView>
       )}
 
-      {criando ? (
+      {criando !== null ? (
         <NovoCardModal
+          tipoInicial={criando}
           onCriado={(card) => {
-            setCriando(false)
+            setCriando(null)
             setCards((atual) => [card, ...atual])
           }}
-          onFechar={() => setCriando(false)}
+          onFechar={() => setCriando(null)}
         />
       ) : null}
     </SafeAreaView>
@@ -167,10 +181,12 @@ export default function Crm() {
 function CardLinha({
   card,
   onMover,
+  onExcluido,
   onComentado,
 }: {
   card: CardCrm
   onMover: (destino: ColunaId) => void
+  onExcluido: () => void
   onComentado: (c: CardCrm['comentarios'][number]) => void
 }) {
   const atrasado = card.coluna !== 'concluido' && daysUntil(card.data) < 0
@@ -178,6 +194,26 @@ function CardLinha({
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  /* Excluir — NR-213. Pergunta antes: o card leva os comentarios e nao volta. */
+  const [excluindo, setExcluindo] = useState(false)
+  function excluir() {
+    const tipo = card.tipo === 'pendencia' ? 'pendência' : 'contato'
+    confirmar(
+      `Excluir ${tipo}`,
+      `"${card.titulo}" sai do quadro com os comentários. Não dá para desfazer.`,
+      async () => {
+        setExcluindo(true)
+        const r = await excluirCard(card.id)
+        setExcluindo(false)
+        if (!r.ok) {
+          setErro(r.erro)
+          return
+        }
+        onExcluido()
+      },
+    )
+  }
 
   async function comentar() {
     setEnviando(true)
@@ -242,6 +278,15 @@ function CardLinha({
             </Botao>
           </View>
           {erro !== null ? <Text style={estilos.erro}>{erro}</Text> : null}
+          <Pressable
+            onPress={excluir}
+            disabled={excluindo}
+            style={estilos.excluir}
+            accessibilityRole="button"
+            accessibilityLabel={`Excluir ${card.titulo}`}
+          >
+            <Text style={estilos.excluirTexto}>{excluindo ? 'Excluindo...' : 'Excluir'}</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -309,4 +354,7 @@ const estilos = criarEstilos(() => ({
     color: cores.texto,
   },
   erro: { fontSize: fonte.micro, color: cores.erro },
+  acoesTopo: { flexDirection: 'row', gap: espaco.sm },
+  excluir: { alignSelf: 'flex-start', paddingVertical: espaco.xs },
+  excluirTexto: { fontSize: fonte.micro, fontWeight: peso.forte, color: cores.erro },
 }))

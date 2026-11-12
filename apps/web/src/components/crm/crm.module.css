@@ -388,6 +388,26 @@
   padding-top: 4px;
 }
 
+/* Excluir fica do lado oposto de Fechar/Concluir: longe do clique de rotina. */
+.excluir {
+  margin-right: auto;
+}
+
+/* "Por que so aparece eu?" — o seletor de responsavel explica de onde vem. */
+.campoDica {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+.campoDica a {
+  color: var(--app-accent);
+  font-weight: 600;
+}
+
+.dialogPainel:focus {
+  outline: none;
+}
+
 /* ===================== Detalhe ===================== */
 
 .detalheCabecalho {

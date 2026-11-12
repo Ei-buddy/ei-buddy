@@ -171,6 +171,12 @@ export async function moverCard(id: string, coluna: ColunaId): Promise<Resultado
   return r.ok ? { ok: true, dados: paraCard(r.dados) } : r
 }
 
+/** Exclui o card e os comentarios dele — NR-213. */
+export async function excluirCard(id: string): Promise<Resultado<null>> {
+  const r = await pedir<unknown>(`/api/crm/cards/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  return r.ok ? { ok: true, dados: null } : r
+}
+
 export async function comentarCard(id: string, texto: string): Promise<Resultado<Comentario>> {
   const r = await pedir<ComentarioDaApi>(`/api/crm/cards/${id}/comentarios`, {
     method: 'POST',

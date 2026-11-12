@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { listarClientes } from '@/lib/clientes-api'
 import {
   COLUNAS,
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import { Spinner } from '@/components/auth/Fields'
 import { IconCalendar, IconList, IconPlus, IconUsers } from '@/components/Icons'
+import { useDialogo } from '@/components/app/useDialogo'
 import CardDetalhe from './CardDetalhe'
 import styles from './crm.module.css'
 
@@ -36,7 +37,8 @@ export default function CrmQuadro() {
   const [periodo, setPeriodo] = useState(0)
 
   const [aberto, setAberto] = useState<CardCrm | null>(null)
-  const [criando, setCriando] = useState(false)
+  /* Qual formulario abrir: pendencia ou contato — NR-213. */
+  const [criando, setCriando] = useState<TipoCard | null>(null)
   const [arrastando, setArrastando] = useState<string | null>(null)
   const [colunaAlvo, setColunaAlvo] = useState<ColunaId | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
@@ -111,10 +113,20 @@ export default function CrmQuadro() {
         title="CRM"
         subtitle="Pendências e contatos lançados por aqui"
         actions={
-          <Button onClick={() => setCriando(true)}>
-            <IconPlus size={17} />
-            Nova pendência
-          </Button>
+          /* Achado do QA: "depois que uma pendencia e cadastrada nao e mais
+             possivel cadastrar um contato". O unico botao dizia "Nova
+             pendencia", e o contato ficava escondido num seletor dentro do
+             formulario. Agora os dois caminhos estao a vista. */
+          <>
+            <Button variant="secondary" onClick={() => setCriando('contato')}>
+              <IconPlus size={17} />
+              Novo contato
+            </Button>
+            <Button onClick={() => setCriando('pendencia')}>
+              <IconPlus size={17} />
+              Nova pendência
+            </Button>
+          </>
         }
       />
 
@@ -227,7 +239,7 @@ export default function CrmQuadro() {
                   description="Lance uma pendência ou um contato para começar a acompanhar."
                   mascote
                   action={
-                    <Button onClick={() => setCriando(true)}>
+                    <Button onClick={() => setCriando('pendencia')}>
                       <IconPlus size={16} />
                       Lançar a primeira
                     </Button>
@@ -346,17 +358,29 @@ export default function CrmQuadro() {
             setCards((atual) => atual.map((c) => (c.id === atualizado.id ? atualizado : c)))
             setAberto(atualizado)
           }}
+          onExcluido={(id) => {
+            setCards((atual) => atual.filter((c) => c.id !== id))
+            setAberto(null)
+            setToast({ msg: 'Card excluído.', tone: 'success' })
+          }}
         />
       ) : null}
 
-      {criando ? (
+      {criando !== null ? (
         <FormCard
+          tipoInicial={criando}
           onCriado={(novo) => {
             setCards((atual) => [novo, ...atual])
-            setCriando(false)
-            setToast({ msg: 'Card criado em A fazer.', tone: 'success' })
+            setCriando(null)
+            setToast({
+              msg:
+                novo.tipo === 'contato'
+                  ? 'Contato criado em A fazer.'
+                  : 'Pendência criada em A fazer.',
+              tone: 'success',
+            })
           }}
-          onCancelar={() => setCriando(false)}
+          onCancelar={() => setCriando(null)}
         />
       ) : null}
 
@@ -449,15 +473,17 @@ function CardKanban({
  * ================================================================== */
 
 function FormCard({
+  tipoInicial,
   onCriado,
   onCancelar,
 }: {
+  tipoInicial: TipoCard
   onCriado: (card: CardCrm) => void
   onCancelar: () => void
 }) {
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [tipo, setTipo] = useState<TipoCard>('pendencia')
+  const [tipo, setTipo] = useState<TipoCard>(tipoInicial)
   const [clienteId, setClienteId] = useState('')
   /* O campo de data do cartao novo abria em 24/08/2026 — a pessoa tinha de
      corrigir a data em todo cartao que criasse. */
@@ -472,6 +498,9 @@ function FormCard({
 
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  /* Esc fecha e a pagina nao rola por baixo, como nos outros dialogos. */
+  const painel = useRef<HTMLDivElement>(null)
+  useDialogo(painel, onCancelar, salvando)
 
   useEffect(() => {
     /* `async` explicito: o `setState` vem depois do await, nunca sincrono no
@@ -524,6 +553,8 @@ function FormCard({
       />
 
       <div
+        ref={painel}
+        tabIndex={-1}
         className={styles.dialogPainel}
         role="dialog"
         aria-modal="true"
@@ -618,6 +649,15 @@ function FormCard({
                   </option>
                 ))}
               </select>
+              {/* Achado do QA: "por que so aparece o Gustavo como responsavel?"
+                  A lista e de quem tem acesso a loja; com uma pessoa so na
+                  equipe, so ela aparece. */}
+              {equipe.length <= 1 ? (
+                <small className={styles.campoDica}>
+                  Aparece quem tem acesso à loja. Para incluir alguém, convide em{' '}
+                  <a href="/app/conexoes">Conexões</a>.
+                </small>
+              ) : null}
             </label>
           </div>
 

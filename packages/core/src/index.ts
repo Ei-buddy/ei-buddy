@@ -577,7 +577,14 @@ export type { SupportDeps } from './support/tickets.js'
 export type { NewTicket, NewTicketMessage, SupportRepository } from './ports/support-repository.js'
 
 /* CRM — NR-109. */
-export { commentOnCrmCard, createCrmCard, listCrmBoard, listTeam, moveCrmCard } from './crm/crm.js'
+export {
+  commentOnCrmCard,
+  createCrmCard,
+  deleteCrmCard,
+  listCrmBoard,
+  listTeam,
+  moveCrmCard,
+} from './crm/crm.js'
 export type { CrmDeps, TeamDeps } from './crm/crm.js'
 export type { CrmRepository, NewCrmCard, NewCrmComment } from './ports/crm-repository.js'
 export type { TeamRepository } from './ports/team-repository.js'

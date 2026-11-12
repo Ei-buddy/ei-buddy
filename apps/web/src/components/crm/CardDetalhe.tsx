@@ -1,12 +1,20 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { COLUNAS, comentarCard, moverCard, type CardCrm, type ColunaId } from '@/lib/crm-api'
+import {
+  COLUNAS,
+  comentarCard,
+  excluirCard,
+  moverCard,
+  type CardCrm,
+  type ColunaId,
+} from '@/lib/crm-api'
 import { formatDate } from '@/lib/format'
 import { Badge } from '@/components/ui/UI'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
-import { IconCheck, IconClose } from '@/components/Icons'
+import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
+import ConfirmarDialog from '@/components/app/ConfirmarDialog'
 import styles from './crm.module.css'
 import { useDialogo } from '@/components/app/useDialogo'
 
@@ -20,17 +28,36 @@ export default function CardDetalhe({
   card,
   onFechar,
   onAtualizar,
+  onExcluido,
 }: {
   card: CardCrm
   onFechar: () => void
   onAtualizar: (card: CardCrm) => void
+  /** O card saiu do servidor — o quadro tira ele da tela. NR-213. */
+  onExcluido: (id: string) => void
 }) {
   const [comentario, setComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  /* Excluir pede confirmacao: o card leva os comentarios junto, e nao volta. */
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  useDialogo(ref, onFechar)
+  useDialogo(ref, onFechar, excluindo)
+
+  async function excluir() {
+    setExcluindo(true)
+    setErro(null)
+    const r = await excluirCard(card.id)
+    setExcluindo(false)
+    setConfirmandoExclusao(false)
+    if (!r.ok) {
+      setErro(r.erro)
+      return
+    }
+    onExcluido(card.id)
+  }
 
   async function enviarComentario(event: React.FormEvent) {
     event.preventDefault()
@@ -185,6 +212,16 @@ export default function CardDetalhe({
         </section>
 
         <div className={styles.dialogAcoes}>
+          {/* Achado do QA: "devera ser possivel excluir uma pendencia". */}
+          <Button
+            variant="danger"
+            onClick={() => setConfirmandoExclusao(true)}
+            disabled={excluindo}
+            className={styles.excluir}
+          >
+            <IconTrash size={16} />
+            Excluir
+          </Button>
           <Button variant="secondary" onClick={onFechar}>
             Fechar
           </Button>
@@ -196,6 +233,19 @@ export default function CardDetalhe({
           ) : null}
         </div>
       </div>
+
+      {confirmandoExclusao ? (
+        <ConfirmarDialog
+          titulo={card.tipo === 'pendencia' ? 'Excluir pendência' : 'Excluir contato'}
+          descricao="O card sai do quadro com os comentários dele. Não dá para desfazer."
+          detalhe={card.titulo}
+          rotuloConfirmar="Excluir"
+          tom="perigo"
+          processando={excluindo}
+          onConfirmar={() => void excluir()}
+          onCancelar={() => setConfirmandoExclusao(false)}
+        />
+      ) : null}
     </div>
   )
 }
