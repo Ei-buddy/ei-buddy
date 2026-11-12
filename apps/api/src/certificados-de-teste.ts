@@ -3,6 +3,10 @@
  * para os testes de `certificado-a1`; nao valem para emitir nada. A senha dos
  * tres e `SENHA_DOS_CERTIFICADOS_DE_TESTE`.
  *
+ * A chave de 1024 bits e de proposito: no Node 24 (OpenSSL 3.5) o contexto
+ * TLS recusa chave pequena com "ee key too small" — foi o que quebrou a
+ * leitura na CI, e e o caso que `lerCertificadoA1` precisa continuar lendo.
+ *
  * Gerados assim (chave RSA de 1024 bits, titular "LOJA DE TESTE LTDA"):
  *   openssl ca -selfsign ... -startdate 20260101000000Z -enddate 20991231235959Z
  *   openssl pkcs12 -export            -> moderno (AES, o padrao do OpenSSL 3)

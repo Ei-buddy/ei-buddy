@@ -39,7 +39,15 @@ export type LeituraDoCertificado =
 export function lerCertificadoA1(arquivo: Uint8Array, senha: string): LeituraDoCertificado {
   let contexto: ReturnType<typeof createSecureContext>
   try {
-    contexto = createSecureContext({ pfx: Buffer.from(arquivo), passphrase: senha })
+    contexto = createSecureContext({
+      pfx: Buffer.from(arquivo),
+      passphrase: senha,
+      /* Este contexto so LE o arquivo, nunca abre conexao. Sem baixar o nivel
+         de seguranca, o OpenSSL 3.5 (Node 24) recusa chave RSA pequena ou
+         assinatura SHA-1 com "ee key too small"/"ca md too weak" antes de
+         deixar ler a validade — e o certificado viraria "nao e certificado". */
+      ciphers: 'DEFAULT@SECLEVEL=0',
+    })
   } catch (erro) {
     const mensagem = erro instanceof Error ? erro.message : String(erro)
     const codigo = (erro as { code?: unknown }).code
