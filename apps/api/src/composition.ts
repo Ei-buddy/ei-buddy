@@ -108,6 +108,7 @@ import {
   createExportSource,
   createLoginThrottle,
   createPlatformAdminAccess,
+  createSupportInboxRepository,
   createSessionIssuer,
   createSettlementQueries,
   createSettlementTotals,
@@ -389,6 +390,8 @@ export function buildAuthDeps(): AuthRouteDeps {
     audit: createAuditTrail(sql),
     /* Super Admin — ADR-0007. Mesma conexao das outras portas de identidade. */
     platformAdmin: createPlatformAdminAccess(sql),
+    /* Chamados vistos pela plataforma — NR-215. */
+    supportInbox: createSupportInboxRepository(sql),
     /*
      * Candidatura de Parceiro — NR-115, ADR-0013.
      *

@@ -2,11 +2,17 @@ import {
   enterCompanyInputSchema,
   grantPlatformAdminInputSchema,
   platformUserQuerySchema,
+  supportInboxQuerySchema,
+  supportReplyInputSchema,
   testEmailInputSchema,
 } from '@na-regua/contracts'
 import {
   AppError,
+  closeSupportTicket,
   enterCompany,
+  getSupportInboxTicket,
+  listSupportInbox,
+  replyAsSupport,
   exitCompany,
   grantPlatformAdmin,
   revokePlatformAdmin,
@@ -19,6 +25,7 @@ import {
   type PlatformAdminAccess,
   type SessionClaims,
   type SessionIssuer,
+  type SupportInbox,
   type UserDirectory,
 } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
@@ -41,6 +48,8 @@ export type AdminRouteDeps = {
   readonly registrar: IdentityRegistrar
   /** Envio de teste com o motivo da falha — achado do QA. */
   readonly emailTester: EmailTester
+  /** Os chamados de todas as lojas — NR-215. */
+  readonly supportInbox: SupportInbox
 }
 
 function sessaoOuFalha(request: FastifyRequest): SessionClaims {
@@ -166,5 +175,38 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRouteDeps):
     await revokePlatformAdmin(usoDeps, sessao.userId, userId)
 
     return reply.code(204).send()
+  })
+
+  /* ------------------------------------------------------------------ *
+   * Chamados de todas as lojas — NR-215.
+   *
+   * Achado do QA: "Suporte — como enxergaremos os chamados?". A equipe
+   * EiBuddy ve a fila, responde como "Suporte EiBuddy" e encerra.
+   * ------------------------------------------------------------------ */
+  const filaDeps = { access: deps.platformAdmin, inbox: deps.supportInbox }
+
+  app.get('/admin/chamados', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const query = validate(supportInboxQuerySchema, request.query ?? {})
+    return reply.code(200).send(await listSupportInbox(filaDeps, sessao.userId, query))
+  })
+
+  app.get('/admin/chamados/:id', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const { id } = request.params as { id: string }
+    return reply.code(200).send(await getSupportInboxTicket(filaDeps, sessao.userId, id))
+  })
+
+  app.post('/admin/chamados/:id/respostas', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const { id } = request.params as { id: string }
+    const input = validate(supportReplyInputSchema, request.body)
+    return reply.code(201).send(await replyAsSupport(filaDeps, sessao.userId, id, input))
+  })
+
+  app.post('/admin/chamados/:id/encerrar', async (request, reply) => {
+    const sessao = sessaoOuFalha(request)
+    const { id } = request.params as { id: string }
+    return reply.code(200).send(await closeSupportTicket(filaDeps, sessao.userId, id))
   })
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
+import ChamadosDaPlataforma from '@/components/ChamadosDaPlataforma'
 import ConfirmarModal from '@/components/ConfirmarModal'
 import Botao from '@/components/ui/Botao'
 import Campo from '@/components/ui/Campo'
@@ -40,10 +41,12 @@ import { maskCNPJ, maskPhone } from '@/lib/validation'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
-type Aba = 'empresas' | 'usuarios' | 'lista' | 'parceiros' | 'email'
+type Aba = 'empresas' | 'chamados' | 'usuarios' | 'lista' | 'parceiros' | 'email'
 
 const ABAS: [Aba, string][] = [
   ['empresas', 'Empresas'],
+  /* Os chamados de todas as lojas — NR-215. */
+  ['chamados', 'Chamados'],
   ['usuarios', 'Usuários'],
   ['lista', 'Lista de espera'],
   ['parceiros', 'Parceiros'],
@@ -150,6 +153,8 @@ export default function Plataforma() {
               router.replace('/inicio')
             }}
           />
+        ) : aba === 'chamados' ? (
+          <ChamadosDaPlataforma />
         ) : aba === 'usuarios' ? (
           <Usuarios />
         ) : aba === 'lista' ? (

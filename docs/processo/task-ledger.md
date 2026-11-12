@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     180 |  352 |
-| ✅ Concluídas                 |     173 |  327 |
+| Total                         |     181 |  354 |
+| ✅ Concluídas                 |     174 |  329 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -420,6 +420,7 @@ voltam a ⬜.
 | NR-212 | Conciliação: conferida ponta a ponta (importar OFX, sugestões de pagar e receber, criar lançamento, desfazer, web e app); os diálogos de conciliar e desfazer passam a fechar com Esc e travar a rolagem como os demais                                     |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-213 | CRM: "Novo contato" ao lado de "Nova pendência" (o contato ficava escondido no formulário), excluir pendência ou contato com confirmação, Esc no formulário e dica de que o responsável vem da equipe da loja (web e app)                                   |   🟢   | `core` `db` `api` `web` `mobile`                              |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-214 | Certificado A1: a api abre o .pfx com a senha antes de guardar (recusa senha errada, arquivo que não é certificado e certificado vencido), lê a validade do próprio arquivo e a tela Empresa passa a mostrar o certificado já guardado ao abrir (web e app) |   🟢   | `contracts` `api` `web` `mobile`                              |   1 | —                                      | —    | RF-004                                             |   ✅   |
+| NR-215 | Plataforma: aba Chamados — a equipe EiBuddy (Super Admin) vê os chamados de todas as lojas (para responder, aguardando cliente, encerrados), responde como Suporte EiBuddy e encerra; a loja recebe a resposta como não lida (web e app)                    |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | US-062                                             |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                          |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                         |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                  |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -538,10 +539,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     104 |  162 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     105 |  164 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **352 dias-desenvolvedor** em 180 tarefas. Com 3 pessoas, isso é cerca
+Somando: **354 dias-desenvolvedor** em 181 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

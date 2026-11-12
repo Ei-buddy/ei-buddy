@@ -127,6 +127,7 @@ export { createLoginThrottle, createSessionIssuer } from './session-repository.j
 export { createPasswordResetTokens } from './password-reset-repository.js'
 export { createUserContacts } from './user-contacts.js'
 export { createPlatformAdminAccess } from './platform-admin-repository.js'
+export { createSupportInboxRepository } from './support-inbox-repository.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
 /* Conta de Parceiro — NR-115, ADR-0013. */
 export { createPartnerApplicationRepository } from './partner-application-repository.js'

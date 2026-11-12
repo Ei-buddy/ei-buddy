@@ -119,6 +119,8 @@ const navItems: NavItem[] = [
  */
 const itensDaPlataforma: NavItem[] = [
   { href: '/app/plataforma/cargos', label: 'Cargos e Super Admin', icon: IconShield },
+  /* Os chamados de todas as lojas — NR-215. */
+  { href: '/app/plataforma/chamados', label: 'Chamados', icon: IconHelp },
   { href: '/app/plataforma/lista-vip', label: 'Lista de espera', icon: IconList },
   { href: '/app/plataforma/parceiros', label: 'Parceiros', icon: IconHeart },
   /* Envio de teste — achado do QA: os e-mails nao saiam e ninguem via. */

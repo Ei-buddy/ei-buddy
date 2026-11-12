@@ -574,6 +574,16 @@ export {
 /* Chamados de suporte — NR-080, US-062. */
 export { getTicket, listTickets, openTicket, readTicket, replyToTicket } from './support/tickets.js'
 export type { SupportDeps } from './support/tickets.js'
+/* Chamados vistos pela plataforma — NR-215. */
+export {
+  closeSupportTicket,
+  getSupportInboxTicket,
+  listSupportInbox,
+  replyAsSupport,
+} from './support/platform-inbox.js'
+export type { PlatformInboxDeps } from './support/platform-inbox.js'
+export type { SupportInbox } from './ports/support-inbox.js'
+export { InMemorySupportInbox } from './support/inbox-fakes.js'
 export type { NewTicket, NewTicketMessage, SupportRepository } from './ports/support-repository.js'
 
 /* CRM — NR-109. */
