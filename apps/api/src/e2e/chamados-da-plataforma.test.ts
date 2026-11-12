@@ -17,22 +17,17 @@ import { registerAuthRoutes } from '../routes/auth.js'
 import { registerSuporteRoutes } from '../routes/suporte.js'
 
 /**
- * Super Admin, ponta a ponta — ADR-0007, RF-131.
+ * Chamados vistos pela plataforma, ponta a ponta — NR-215, US-062.
  *
- * Mesmo desenho do `caminho-critico.test.ts`: api de verdade, rotas reais,
- * composicao real, Postgres real. O que este arquivo prova e o que so
- * aparece na COSTURA entre as camadas — RLS real, sessao real, rota real —
- * e nao dentro de uma peca isolada:
+ * Api de verdade, rotas reais, composicao real, Postgres real — o mesmo
+ * desenho do `super-admin.test.ts`. O que so aparece na COSTURA:
  *
- * - `POST /admin/entrar` faz uma rota de negocio ja existente (`/produtos`)
- *   funcionar para o Super Admin, sem essa rota saber que ele existe;
- * - `POST /admin/sair` faz a MESMA rota voltar a responder 401;
- * - `POST /admin/super-admins` cria conta nova quando o e-mail nao existe.
+ * - o chamado que a loja abre pelo `/suporte` aparece na fila do Super Admin
+ *   (atravessando a RLS pela funcao `SECURITY DEFINER`, e so por ela);
+ * - a resposta da plataforma volta para a loja como mensagem NAO LIDA;
+ * - quem nao e Super Admin recebe 403, e sem sessao 401.
  *
- * O bootstrap do primeiro Super Admin entra direto no banco (a mesma
- * insercao que `packages/db/src/super-admin.test.ts` usa) — e exatamente
- * assim que o bootstrap de producao funciona: nao existe rota para o
- * primeiro, so para o segundo em diante.
+ * O Super Admin entra direto no banco, como no bootstrap de producao.
  */
 
 const DATABASE_URL = process.env.DATABASE_URL
