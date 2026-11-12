@@ -14,6 +14,7 @@ import {
 } from '@na-regua/core'
 import type { CadastroDeEmpresasFocus, DadosDaEmpresaFocus, EmpresaNaFocus } from '@na-regua/fiscal'
 import type { FastifyInstance, FastifyBaseLogger } from 'fastify'
+import { lerCertificadoA1, validadeConferida } from '../certificado-a1.js'
 import { requireContext } from '../plugins/execution-context.js'
 import { LIMITE_DE_ESCRITA } from '../plugins/rate-limit.js'
 import { validate } from '../plugins/validate.js'
@@ -168,6 +169,13 @@ function paraTela(
 const TETO_DO_CERTIFICADO = 512 * 1024
 
 /**
+ * O dia da loja, para dizer se o certificado ja venceu. O produto e so para o
+ * Brasil e o horario de Brasilia e o da quase totalidade das lojas; quando
+ * houver fuso por empresa, ele entra aqui.
+ */
+const FUSO_DA_LOJA = 'America/Sao_Paulo'
+
+/**
  * `deps` nulo quando `SECRETS_KEY` nao esta definida.
  *
  * As rotas continuam EXISTINDO e respondem 503 com a explicacao. Nao
@@ -320,25 +328,41 @@ export function registerFiscalRoutes(
       const input = validate(updateFiscalCredentialsInputSchema, request.body)
 
       /*
-       * O `refine` do contrato ja garante que certificado, senha e vencimento
-       * chegam juntos — mas o TypeScript nao le `refine`. A checagem explicita
-       * e o que faz os tres entrarem como um bloco, em vez de `!` em cada um.
+       * O `refine` do contrato ja garante que certificado e senha chegam
+       * juntos — mas o TypeScript nao le `refine`.
+       *
+       * NR-214: antes de guardar, o certificado e ABERTO com a senha. Senha
+       * errada, arquivo que nao e certificado e certificado vencido voltam
+       * 400 aqui, e nao na primeira nota recusada. A validade guardada e a do
+       * arquivo; a digitada so vale quando o formato nao deixa le-la.
        */
-      const temCertificado =
-        input.certificateBase64 !== undefined &&
-        input.certificatePassword !== undefined &&
-        input.certificateExpiresAt !== undefined
+      const certificado =
+        input.certificateBase64 !== undefined && input.certificatePassword !== undefined
+          ? {
+              base64: input.certificateBase64,
+              senha: input.certificatePassword,
+              venceEm: validadeConferida(
+                lerCertificadoA1(
+                  Buffer.from(input.certificateBase64, 'base64'),
+                  input.certificatePassword,
+                ),
+                input.certificateExpiresAt,
+                ctx.now,
+                FUSO_DA_LOJA,
+              ),
+            }
+          : undefined
 
       await deps.fiscalCredentials.salvar({
         companyId: ctx.companyId,
         ...(input.focusToken === undefined ? {} : { focusToken: input.focusToken }),
-        ...(temCertificado
-          ? {
-              certificadoBase64: input.certificateBase64!,
-              senhaDoCertificado: input.certificatePassword!,
-              certificadoVenceEm: input.certificateExpiresAt!,
-            }
-          : {}),
+        ...(certificado === undefined
+          ? {}
+          : {
+              certificadoBase64: certificado.base64,
+              senhaDoCertificado: certificado.senha,
+              certificadoVenceEm: certificado.venceEm,
+            }),
         ...(input.cscProduction === undefined
           ? {}
           : { cscProducao: { id: input.cscProduction.id, codigo: input.cscProduction.code } }),

@@ -46,14 +46,12 @@ export const updateFiscalCredentialsInputSchema = z
     certificatePassword: z.string().min(1, 'Informe a senha do certificado.').optional(),
 
     /**
-     * Vencimento informado pelo lojista.
+     * Vencimento digitado — OPCIONAL desde a NR-214.
      *
-     * O ideal seria le-lo do proprio arquivo, e nao perguntar. Ler PKCS#12
-     * exige biblioteca que o projeto ainda nao tem, e escolher uma so para isso
-     * e decisao que nao cabe aqui. Perguntar e pior para quem cadastra e melhor
-     * que a alternativa: guardar certificado sem saber quando vence torna o
-     * aviso da RF-004 impossivel, e o lojista descobriria o vencimento quando a
-     * nota parasse de sair.
+     * A api abre o certificado com a senha e le a validade do proprio arquivo;
+     * quando consegue, ela vale mesmo que outra tenha sido digitada. A digitada
+     * so serve para o A1 cifrado no formato antigo (RC2), que o OpenSSL 3 nao
+     * decifra: ai a senha ainda e conferida, mas a data nao e lida.
      */
     certificateExpiresAt: dateSchema.optional(),
 
@@ -66,15 +64,14 @@ export const updateFiscalCredentialsInputSchema = z
     cscHomologation: cscSchema.optional(),
   })
   .strict()
-  .refine(
-    (v) =>
-      (v.certificateBase64 === undefined) === (v.certificatePassword === undefined) &&
-      (v.certificateBase64 === undefined) === (v.certificateExpiresAt === undefined),
-    {
-      message: 'Certificado, senha e vencimento vao juntos.',
-      path: ['certificateBase64'],
-    },
-  )
+  .refine((v) => (v.certificateBase64 === undefined) === (v.certificatePassword === undefined), {
+    message: 'Certificado e senha vao juntos.',
+    path: ['certificateBase64'],
+  })
+  .refine((v) => v.certificateExpiresAt === undefined || v.certificateBase64 !== undefined, {
+    message: 'Validade so vai junto com o certificado.',
+    path: ['certificateExpiresAt'],
+  })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nada para atualizar.' })
 
 export type UpdateFiscalCredentialsInput = z.infer<typeof updateFiscalCredentialsInputSchema>
