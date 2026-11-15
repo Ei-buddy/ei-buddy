@@ -34,8 +34,8 @@ export default function CertificadoDigital({
   /*
    * A validade e OPCIONAL desde a NR-214: o servidor abre o certificado com a
    * senha e le a data do proprio arquivo (e recusa senha errada e certificado
-   * vencido na hora). Digitar so e preciso no A1 de formato antigo, que o
-   * servidor nao consegue ler — e ai ele mesmo pede a data.
+   * vencido na hora). Desde a DEC-028 le tambem o A1 de formato antigo (RC2);
+   * digitar so e preciso se a leitura falhar — e ai o servidor pede a data.
    */
   const [validoAte, setValidoAte] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -186,8 +186,8 @@ export default function CertificadoDigital({
             disabled={enviando}
           />
           <span className={styles.certAjuda}>
-            Pode deixar em branco: lemos a validade do próprio certificado. Só pedimos a data se o
-            arquivo for de um formato antigo que não dá para ler.
+            Pode deixar em branco: lemos a validade do próprio certificado. Só pedimos a data se não
+            conseguirmos ler o arquivo.
           </span>
         </div>
       </div>

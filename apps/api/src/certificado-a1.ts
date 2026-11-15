@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import { createSecureContext } from 'node:tls'
 import { AppError } from '@na-regua/core'
@@ -18,14 +19,22 @@ import { AppError } from '@na-regua/core'
  * chave e o certificado. Depois, o certificado sai em DER e o
  * `X509Certificate` le a validade.
  *
- * ## O formato antigo
+ * ## O formato antigo — DEC-028
  *
  * Muitos A1 brasileiros vem cifrados com RC2-40, que o OpenSSL 3 desligou.
  * Neles o MAC ainda e conferido — senha errada continua dando "mac verify
- * failure" —, mas a decifragem para em "Unsupported PKCS12 PFX data". Nesse
- * caso a senha esta certa e so a validade nao e lida: vale a data digitada.
- * Ligar o provedor legado do OpenSSL no processo resolveria, mas mudaria a
- * criptografia disponivel para a api inteira; nao e decisao para caber aqui.
+ * failure" —, mas a decifragem para em "Unsupported PKCS12 PFX data".
+ *
+ * A decisao foi ligar o modo legado do OpenSSL **so na rotina que le o
+ * certificado**, e nao na api inteira. Por isso a segunda tentativa roda num
+ * processo do Node a parte, com `--openssl-legacy-provider`, que nasce para
+ * ler este arquivo e morre em seguida: a criptografia do processo da api nao
+ * muda. O filho recebe arquivo e senha pela entrada padrao (nunca na linha de
+ * comando, que aparece no `ps`) e sobe com o ambiente VAZIO — nenhum segredo
+ * da api passa para ele.
+ *
+ * Se nem o modo legado ler (Node sem o provedor, tempo esgotado), a senha ja
+ * foi conferida: vale a data digitada, como antes.
  */
 
 export type LeituraDoCertificado =
@@ -36,7 +45,22 @@ export type LeituraDoCertificado =
   | { readonly situacao: 'sem_leitura' }
   | { readonly situacao: 'nao_e_certificado' }
 
-export function lerCertificadoA1(arquivo: Uint8Array, senha: string): LeituraDoCertificado {
+/** Quem le o arquivo no modo legado. Trocavel nos testes. */
+export type LeitorLegado = (arquivo: Uint8Array, senha: string) => Promise<Date | null>
+
+export async function lerCertificadoA1(
+  arquivo: Uint8Array,
+  senha: string,
+  lerEmModoLegado: LeitorLegado = lerNoModoLegado,
+): Promise<LeituraDoCertificado> {
+  const leitura = lerNoProcesso(arquivo, senha)
+  if (leitura.situacao !== 'sem_leitura') return leitura
+
+  const venceEm = await lerEmModoLegado(arquivo, senha)
+  return venceEm === null ? leitura : { situacao: 'lido', venceEm }
+}
+
+function lerNoProcesso(arquivo: Uint8Array, senha: string): LeituraDoCertificado {
   let contexto: ReturnType<typeof createSecureContext>
   try {
     contexto = createSecureContext({
@@ -69,6 +93,72 @@ export function lerCertificadoA1(arquivo: Uint8Array, senha: string): LeituraDoC
   } catch {
     return { situacao: 'sem_leitura' }
   }
+}
+
+/**
+ * O codigo do processo filho. CommonJS em `-e`: o filho nao carrega nada do
+ * projeto, so o que o proprio Node traz.
+ */
+const LEITOR_DO_FILHO = `
+const { createSecureContext } = require('node:tls')
+const { X509Certificate } = require('node:crypto')
+let entrada = ''
+process.stdin.setEncoding('utf8')
+process.stdin.on('data', (parte) => { entrada += parte })
+process.stdin.on('end', () => {
+  try {
+    const { pfx, senha } = JSON.parse(entrada)
+    const contexto = createSecureContext({
+      pfx: Buffer.from(pfx, 'base64'),
+      passphrase: senha,
+      ciphers: 'DEFAULT@SECLEVEL=0',
+    })
+    const der = contexto.context.getCertificate()
+    process.stdout.write(JSON.stringify({ validTo: new X509Certificate(der).validTo }))
+  } catch {
+    process.stdout.write('{}')
+  }
+})
+`
+
+/** Tempo para o filho subir e ler; um .pfx le em milissegundos. */
+const TEMPO_DO_FILHO_MS = 10_000
+
+/** A leitura no modo legado, num processo a parte. `null` = nao leu. */
+export function lerNoModoLegado(arquivo: Uint8Array, senha: string): Promise<Date | null> {
+  return new Promise((resolve) => {
+    let saida = ''
+    let terminou = false
+    const fim = (valor: Date | null) => {
+      if (terminou) return
+      terminou = true
+      resolve(valor)
+    }
+
+    const filho = spawn(process.execPath, ['--openssl-legacy-provider', '-e', LEITOR_DO_FILHO], {
+      /* Ambiente vazio: nenhuma variavel da api (banco, chaves) chega ao filho,
+         nem um NODE_OPTIONS que mude o que ele carrega. */
+      env: {},
+      stdio: ['pipe', 'pipe', 'ignore'],
+      timeout: TEMPO_DO_FILHO_MS,
+    })
+    filho.stdout.setEncoding('utf8')
+    filho.stdout.on('data', (parte: string) => {
+      saida += parte
+    })
+    filho.on('error', () => fim(null))
+    filho.on('close', () => {
+      try {
+        const { validTo } = JSON.parse(saida) as { validTo?: string }
+        const data = validTo === undefined ? null : new Date(validTo)
+        fim(data !== null && !Number.isNaN(data.getTime()) ? data : null)
+      } catch {
+        fim(null)
+      }
+    })
+    filho.stdin.on('error', () => fim(null))
+    filho.stdin.end(JSON.stringify({ pfx: Buffer.from(arquivo).toString('base64'), senha }))
+  })
 }
 
 /** `AAAA-MM-DD` do instante no fuso da loja. */
