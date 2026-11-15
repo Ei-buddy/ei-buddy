@@ -285,7 +285,14 @@ export default function ClienteDetalhe({ clienteId }: { clienteId: string }) {
               <dt>Endereço</dt>
               <dd>
                 {endereco === null ? (
-                  'Não informado'
+                  /* Endereco e opcional (DEC-025 revisada): o aviso diz para
+                     que ele vai fazer falta, e leva a completar. */
+                  <>
+                    Não informado — necessário para emitir nota fiscal de serviço.{' '}
+                    {cliente.anonimizadoEm === null && cliente.excluidoEm === null ? (
+                      <Link href={`/app/clientes/${cliente.id}/editar`}>Informar endereço</Link>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     {endereco[0]}

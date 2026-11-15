@@ -118,6 +118,21 @@ type Erros = Partial<Record<keyof Campos, FieldError>>
  * divergiriam no primeiro campo novo. O que muda e o verbo e a busca por
  * parecido — ver `salvar` abaixo.
  */
+/** O endereco veio todo em branco? (o complemento nao conta: sozinho nao e endereco) */
+function enderecoEmBranco(c: Campos): boolean {
+  return [c.cep, c.logradouro, c.numero, c.bairro, c.cidade, c.uf].every((v) => v.trim() === '')
+}
+
+/**
+ * O que a tela diz ao salvar. Sem endereco, salva e avisa — DEC-025 revisada:
+ * o endereco sera preciso para emitir nota fiscal de servico.
+ */
+function mensagemDeSalvo(c: Campos): string {
+  return enderecoEmBranco(c)
+    ? 'Cliente salvo sem endereço. Ele será necessário para emitir nota fiscal de serviço.'
+    : 'Cliente salvo.'
+}
+
 export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = {}) {
   const router = useRouter()
 
@@ -291,12 +306,19 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
         tipo === 'juridica' ? validateRequired(campos.nomeFantasia, 'o nome fantasia') : null,
       ddd: validateDDD(campos.ddd),
       celular: validateCelular(campos.celular),
-      cep: validateCEP(campos.cep),
-      logradouro: validateRequired(campos.logradouro, 'o logradouro'),
-      numero: validateRequired(campos.numero, 'o numero'),
-      bairro: validateRequired(campos.bairro, 'o bairro'),
-      cidade: validateRequired(campos.cidade, 'a cidade'),
-      uf: validateRequired(campos.uf, 'a UF'),
+      /* Endereco e opcional (DEC-025 revisada, 2026-11-15): em branco, passa.
+         Comecou a preencher, tem de completar — CEP sem rua nao serve para
+         nota nem para entrega, e o contrato recusaria do mesmo jeito. */
+      ...(enderecoEmBranco(campos)
+        ? { cep: null, logradouro: null, numero: null, bairro: null, cidade: null, uf: null }
+        : {
+            cep: validateCEP(campos.cep),
+            logradouro: validateRequired(campos.logradouro, 'o logradouro'),
+            numero: validateRequired(campos.numero, 'o numero'),
+            bairro: validateRequired(campos.bairro, 'o bairro'),
+            cidade: validateRequired(campos.cidade, 'a cidade'),
+            uf: validateRequired(campos.uf, 'a UF'),
+          }),
     }
 
     setErros(novos)
@@ -339,7 +361,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
       return
     }
 
-    setToast({ msg: 'Cliente cadastrado.', tone: 'success' })
+    setToast({ msg: mensagemDeSalvo(campos), tone: 'success' })
     /* Depois de editar, volta para a FICHA: quem corrigiu um telefone quer
        conferir o resultado, e a lista nao mostra telefone. */
     router.push(editando ? `/app/clientes/${cliente.id}` : '/app/clientes')
@@ -363,7 +385,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
       return
     }
 
-    setToast({ msg: 'Cliente cadastrado.', tone: 'success' })
+    setToast({ msg: mensagemDeSalvo(campos), tone: 'success' })
     router.push('/app/clientes')
   }
 
@@ -537,12 +559,16 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
         </Card>
 
         <Card title="Endereço">
+          {/* Opcional desde a revisao da DEC-025: o aviso diz o que muda. */}
+          <p className={styles.dicaDoEndereco}>
+            Opcional. Sem endereço o cliente é salvo, mas ele será necessário para emitir nota
+            fiscal de serviço.
+          </p>
           <FormGrid>
-            <Field label="CEP" span={4} obrigatorio htmlFor="cliente-cep">
+            <Field label="CEP" span={4} htmlFor="cliente-cep">
               <div className={styles.inline}>
                 <Input
                   id="cliente-cep"
-                  aria-required
                   value={campos.cep}
                   onChange={(e) => {
                     const m = maskCEP(e.target.value)
@@ -568,7 +594,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               ) : null}
             </Field>
 
-            <Field label="Logradouro" span={8} obrigatorio htmlFor="cliente-logradouro">
+            <Field label="Logradouro" span={8} htmlFor="cliente-logradouro">
               <Input
                 id="cliente-logradouro"
                 value={campos.logradouro}
@@ -578,7 +604,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('logradouro')}
             </Field>
 
-            <Field label="Número" span={3} obrigatorio htmlFor="cliente-numero">
+            <Field label="Número" span={3} htmlFor="cliente-numero">
               <Input
                 id="cliente-numero"
                 value={campos.numero}
@@ -597,7 +623,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               />
             </Field>
 
-            <Field label="Bairro" span={5} obrigatorio htmlFor="cliente-bairro">
+            <Field label="Bairro" span={5} htmlFor="cliente-bairro">
               <Input
                 id="cliente-bairro"
                 value={campos.bairro}
@@ -607,7 +633,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('bairro')}
             </Field>
 
-            <Field label="Cidade" span={8} obrigatorio htmlFor="cliente-cidade">
+            <Field label="Cidade" span={8} htmlFor="cliente-cidade">
               <Input
                 id="cliente-cidade"
                 value={campos.cidade}
@@ -617,7 +643,7 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
               {erroDe('cidade')}
             </Field>
 
-            <Field label="UF" span={4} obrigatorio htmlFor="cliente-uf">
+            <Field label="UF" span={4} htmlFor="cliente-uf">
               <Select
                 id="cliente-uf"
                 value={campos.uf}

@@ -153,3 +153,11 @@
   box-shadow: var(--glass-shadow-active);
   color: #fff;
 }
+
+/* Endereco opcional — DEC-025 revisada. */
+.dicaDoEndereco {
+  margin: 0 0 12px;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}

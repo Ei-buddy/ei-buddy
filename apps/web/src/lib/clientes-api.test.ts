@@ -1,6 +1,14 @@
-import { camposFaltandoNoCliente as doContrato } from '@na-regua/contracts'
+import {
+  camposFaltandoNoCliente as doContrato,
+  semEnderecoParaNota as semEnderecoDoContrato,
+} from '@na-regua/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { camposFaltandoNoCliente, listarClientes, resumoDeClientes } from './clientes-api'
+import {
+  camposFaltandoNoCliente,
+  listarClientes,
+  resumoDeClientes,
+  semEnderecoParaNota,
+} from './clientes-api'
 
 /* A copia do web contra o contrato de verdade (DEC-025): se um mudar e o
    outro nao, o aviso de cadastro incompleto da tela mente. */
@@ -32,8 +40,11 @@ describe('cadastro incompleto: a copia do web e o contrato', () => {
     ['sem documento', { ...COMPLETO, document: null }],
     ['sem bairro', { ...COMPLETO, address: { ...COMPLETO.address, district: '  ' } }],
     ['sem celular', { ...COMPLETO, phone: null }],
+    ['sem endereco nenhum', { ...COMPLETO, address: VAZIO }],
+    ['so o CEP', { ...COMPLETO, address: { ...VAZIO, zipCode: '80010000' } }],
   ])('%s', (_caso, cliente) => {
     expect(camposFaltandoNoCliente(cliente)).toEqual(doContrato(cliente))
+    expect(semEnderecoParaNota(cliente)).toBe(semEnderecoDoContrato(cliente))
   })
 })
 

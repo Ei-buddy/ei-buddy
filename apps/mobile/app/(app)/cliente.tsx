@@ -169,7 +169,10 @@ export default function ClienteScreen() {
                 cliente.endereco.cidade && `${cliente.endereco.cidade}/${cliente.endereco.uf}`,
               ]
                 .filter(Boolean)
-                .join(', ') || '—'
+                .join(', ') ||
+              /* Endereco e opcional (DEC-025 revisada): diz para que ele faz
+                 falta, em vez de so um traco. */
+              'Não informado — necessário para nota fiscal de serviço'
             }
           />
           {cliente.telefone ? (

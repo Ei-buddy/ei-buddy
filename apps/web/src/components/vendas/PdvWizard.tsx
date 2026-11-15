@@ -577,27 +577,31 @@ function CadastroRapido({
       return
     }
 
-    /* Celular e endereco sao obrigatorios (NR-142). Mesma regra do
+    /* Celular obrigatorio (NR-142). Endereco opcional desde a revisao da
+       DEC-025 (2026-11-15) — mas, comecado, completo. Mesma regra do
        contrato, conferida aqui para nao ir a rede so para ouvir "invalido". */
     const so = digitos(celular)
     if (so.length !== 10 && so.length !== 11) {
       setErro('Informe o celular com DDD.')
       return
     }
-    if (digitos(cep).length !== 8) {
-      setErro('Informe o CEP.')
-      return
-    }
-    const faltando = [
-      [rua, 'a rua'],
-      [numero, 'o número (ou s/n)'],
-      [bairro, 'o bairro'],
-      [cidade, 'a cidade'],
-      [uf, 'a UF'],
-    ].find(([valor]) => !valor?.trim())
-    if (faltando) {
-      setErro(`Informe ${faltando[1]}.`)
-      return
+    const enderecoEmBranco = [cep, rua, numero, bairro, cidade, uf].every((v) => !v?.trim())
+    if (!enderecoEmBranco) {
+      if (digitos(cep).length !== 8) {
+        setErro('Informe o CEP (ou deixe o endereço todo em branco).')
+        return
+      }
+      const faltando = [
+        [rua, 'a rua'],
+        [numero, 'o número (ou s/n)'],
+        [bairro, 'o bairro'],
+        [cidade, 'a cidade'],
+        [uf, 'a UF'],
+      ].find(([valor]) => !valor?.trim())
+      if (faltando) {
+        setErro(`Informe ${faltando[1]} (ou deixe o endereço todo em branco).`)
+        return
+      }
     }
 
     await enviar(false)
@@ -622,8 +626,9 @@ function CadastroRapido({
           Cadastro rápido
         </h2>
         <p className={styles.dialogTexto}>
-          CPF, nome, celular e endereço. O CEP preenche o resto do endereço, e e-mail e limite do
-          fiado podem ser completados depois em Clientes.
+          CPF, nome e celular. O endereço é opcional (o CEP preenche o resto), mas será necessário
+          para emitir nota fiscal de serviço; e-mail e limite do fiado podem ser completados depois
+          em Clientes.
         </p>
 
         {duplicados !== null ? (
