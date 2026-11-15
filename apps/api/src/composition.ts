@@ -108,6 +108,7 @@ import {
   createExportSource,
   createLoginThrottle,
   createPlatformAdminAccess,
+  createSupportAlertDirectory,
   createSupportInboxRepository,
   createSessionIssuer,
   createSettlementQueries,
@@ -179,6 +180,7 @@ import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
 import type { AssinaturaDeps } from './routes/assinatura.js'
+import { criarAvisoDeChamado } from './aviso-de-chamado.js'
 import type { RelatoriosDeps } from './routes/relatorios.js'
 import type { AuditoriaDeps } from './routes/auditoria.js'
 import type { ContasDeps } from './routes/contas.js'
@@ -906,6 +908,12 @@ export function buildSuporteDeps(): SuporteDeps {
   return {
     support: createSupportRepository(sql),
     quemEscreve: async (ctx) => (await users.findById(ctx.userId))?.name ?? 'Lojista',
+    /* Chamado novo avisa todos os Super Admins por e-mail — DEC-029. */
+    alerta: criarAvisoDeChamado({
+      email: montarEnvioDeEmail(),
+      diretorio: createSupportAlertDirectory(sql),
+      webUrl: env.WEB_URL,
+    }),
   }
 }
 

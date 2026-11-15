@@ -583,6 +583,7 @@ export {
 } from './support/platform-inbox.js'
 export type { PlatformInboxDeps } from './support/platform-inbox.js'
 export type { SupportInbox } from './ports/support-inbox.js'
+export type { SupportAlertDirectory, SupportTicketAlert } from './ports/support-alert.js'
 export { InMemorySupportInbox } from './support/inbox-fakes.js'
 export type { NewTicket, NewTicketMessage, SupportRepository } from './ports/support-repository.js'
 
