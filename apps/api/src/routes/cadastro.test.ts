@@ -595,7 +595,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     expect(r.statusCode).toBe(201)
   })
 
-  it('sem celular ou sem endereco responde 400 no campo — NR-142', async () => {
+  it('sem documento ou celular responde 400 no campo — NR-142', async () => {
     const c = await buildApp()
     app = c.app
 
@@ -604,16 +604,27 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
       url: '/clientes',
       payload: { name: 'Marta' },
     })
+
+    expect(semNada.statusCode).toBe(400)
+    const campos = semNada.json().error.fields.map((f: { path: string }) => f.path)
+    expect(campos).toEqual(expect.arrayContaining(['document', 'phone']))
+    /* Endereco e opcional desde a revisao da DEC-025 (2026-11-15). */
+    expect(campos).not.toContain('address')
+  })
+
+  it('sem endereco cadastra; endereco pela metade responde 400 — DEC-025 revisada', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const { address: _fora, ...semEndereco } = CLIENTE
+    const sem = await app.inject({ method: 'POST', url: '/clientes', payload: semEndereco })
+    expect(sem.statusCode).toBe(201)
+
     const semRua = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { ...CLIENTE, address: { ...ENDERECO, street: '' } },
+      payload: { ...CLIENTE, phone: '41977776666', address: { ...ENDERECO, street: '' } },
     })
-
-    expect(semNada.statusCode).toBe(400)
-    expect(semNada.json().error.fields.map((f: { path: string }) => f.path)).toEqual(
-      expect.arrayContaining(['document', 'phone', 'address']),
-    )
     expect(semRua.statusCode).toBe(400)
     expect(semRua.json().error.fields[0].path).toBe('address.street')
   })

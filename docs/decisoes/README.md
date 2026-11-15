@@ -652,7 +652,7 @@ continua existindo, e completa os dados na próxima edição.
 obrigatório: o cadastro de cliente é um só no web e no app, com os mesmos
 requisitos. Antes ele era exigido só no formulário do web.
 
-**Revisão em 2026-11-15.** O **endereço passou a ser opcional**. Salvar o
+**Revisão em 2026-11-15 (NR-221).** O **endereço passou a ser opcional**. Salvar o
 cliente sem endereço salva e mostra só um aviso: o endereço será necessário
 para emitir nota fiscal de serviço. Ao emitir NFS-e no fechamento da venda
 para um cliente sem endereço, o sistema pede os dados na hora e já os grava no

@@ -400,7 +400,7 @@ export type EnderecoDoCliente = {
  * pacote em tempo de execucao. `clientes-api.test.ts` compara as duas contra
  * o contrato de verdade, e acusa no dia em que divergirem.
  */
-export function camposFaltandoNoCliente(c: {
+type CadastroParaConferir = {
   readonly document: string | null
   readonly phone: string | null
   readonly address: {
@@ -411,23 +411,51 @@ export function camposFaltandoNoCliente(c: {
     readonly city: string | null
     readonly state: string | null
   }
-}): string[] {
+}
+
+export function camposFaltandoNoCliente(c: CadastroParaConferir): string[] {
   const vazio = (v: string | null) => v === null || v.trim() === ''
   const e = c.address
-  return (
+  const pessoa = (
     [
       [c.document, 'CPF/CNPJ'],
       [c.phone, 'celular'],
-      [e.zipCode, 'CEP'],
-      [e.street, 'rua'],
-      [e.number, 'número'],
-      [e.district, 'bairro'],
-      [e.city, 'cidade'],
-      [e.state, 'UF'],
     ] as const
   )
     .filter(([valor]) => vazio(valor))
     .map(([, nome]) => nome)
+
+  /* Endereco e opcional (DEC-025 revisada): sem nenhum, nada falta. Pela
+     metade, falta o resto. */
+  if (semEnderecoParaNota(c)) return pessoa
+
+  return [
+    ...pessoa,
+    ...(
+      [
+        [e.zipCode, 'CEP'],
+        [e.street, 'rua'],
+        [e.number, 'número'],
+        [e.district, 'bairro'],
+        [e.city, 'cidade'],
+        [e.state, 'UF'],
+      ] as const
+    )
+      .filter(([valor]) => vazio(valor))
+      .map(([, nome]) => nome),
+  ]
+}
+
+/**
+ * Cliente sem endereco nenhum — copia de `semEnderecoParaNota` do contrato.
+ * Nao e cadastro incompleto; e o caso do aviso de que o endereco sera preciso
+ * para emitir nota fiscal de servico.
+ */
+export function semEnderecoParaNota(c: Pick<CadastroParaConferir, 'address'>): boolean {
+  const e = c.address
+  return [e.zipCode, e.street, e.number, e.district, e.city, e.state].every(
+    (v) => v === null || v.trim() === '',
+  )
 }
 
 export type ClienteDaFicha = {

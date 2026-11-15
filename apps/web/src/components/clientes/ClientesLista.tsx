@@ -56,20 +56,20 @@ const CAMPOS_PLANILHA = [
   {
     key: 'cep',
     label: 'CEP',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('cep'),
   },
   {
     key: 'rua',
     label: 'Rua',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('rua') || c.includes('logradouro') || c === 'endereço' || c === 'endereco',
   },
   {
     key: 'numero',
     label: 'Número',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('número') || c.includes('numero') || c === 'nº' || c === 'n',
   },
@@ -82,29 +82,35 @@ const CAMPOS_PLANILHA = [
   {
     key: 'bairro',
     label: 'Bairro',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('bairro'),
   },
   {
     key: 'cidade',
     label: 'Cidade',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('cidade') || c.includes('municipio') || c.includes('município'),
   },
   {
     key: 'uf',
     label: 'UF',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c === 'uf' || c.includes('estado'),
   },
 ]
 
-/** Celular e endereco de uma linha da planilha — obrigatorios (NR-142). */
+/**
+ * Celular e endereco de uma linha da planilha. Celular obrigatorio (NR-142);
+ * endereco opcional desde a revisao da DEC-025 — mas a linha que traz parte
+ * dele tem de trazer tudo.
+ */
 function validarContatoEEndereco(v: Record<string, string>): string | null {
-  /* Celular e endereco sao obrigatorios no cadastro (NR-142). */
   const celular = (v.celular ?? '').replace(/\D/g, '')
   if (celular.length !== 10 && celular.length !== 11) return 'Celular com DDD vazio ou inválido'
+  if (['cep', 'rua', 'numero', 'bairro', 'cidade', 'uf'].every((c) => !(v[c] ?? '').trim())) {
+    return null
+  }
   if ((v.cep ?? '').replace(/\D/g, '').length !== 8) return 'CEP vazio ou inválido'
   for (const [campo, rotulo] of [
     ['rua', 'Rua'],

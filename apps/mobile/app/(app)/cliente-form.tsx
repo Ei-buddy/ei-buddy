@@ -168,16 +168,28 @@ export default function ClienteFormScreen() {
 
   function validar(): string | null {
     if (nome.trim().length < 2) return 'Informe o nome do cliente.'
-    /* Celular e endereco sao obrigatorios (NR-142) — a mesma regra do web e
+    /* Celular obrigatorio (NR-142). Endereco opcional desde a revisao da
+       DEC-025 (2026-11-15) — mas, comecado, completo. A mesma regra do web e
        da api, conferida aqui para nao ir a rede so para ouvir "invalido". */
     const celular = telefone.replace(/\D/g, '')
     if (celular.length !== 10 && celular.length !== 11) return 'Informe o celular com DDD.'
-    if (endereco.cep.replace(/\D/g, '').length !== 8) return 'Informe o CEP.'
-    if (!endereco.logradouro.trim()) return 'Informe a rua.'
-    if (!endereco.numero.trim()) return 'Informe o número (ou s/n).'
-    if (!endereco.bairro.trim()) return 'Informe o bairro.'
-    if (!endereco.cidade.trim()) return 'Informe a cidade.'
-    if (endereco.uf.trim().length !== 2) return 'Informe a UF.'
+    const emBranco = [
+      endereco.cep,
+      endereco.logradouro,
+      endereco.numero,
+      endereco.bairro,
+      endereco.cidade,
+      endereco.uf,
+    ].every((v) => v.trim() === '')
+    if (!emBranco) {
+      const completar = ' (ou deixe o endereço todo em branco)'
+      if (endereco.cep.replace(/\D/g, '').length !== 8) return `Informe o CEP${completar}.`
+      if (!endereco.logradouro.trim()) return `Informe a rua${completar}.`
+      if (!endereco.numero.trim()) return `Informe o número ou s/n${completar}.`
+      if (!endereco.bairro.trim()) return `Informe o bairro${completar}.`
+      if (!endereco.cidade.trim()) return `Informe a cidade${completar}.`
+      if (endereco.uf.trim().length !== 2) return `Informe a UF${completar}.`
+    }
     /* CPF/CNPJ obrigatorio, como no web (NR-149). */
     if (digitosDoc === '') return 'Informe o CPF ou CNPJ.'
     {
@@ -242,7 +254,7 @@ export default function ClienteFormScreen() {
             valor={documento}
             onChange={(v) => setDocumento(mascaraDoDocumento(v))}
             tipoTeclado="numeric"
-            dica="CPF, celular e endereço são obrigatórios. O CNPJ preenche a razão social e o endereço."
+            dica="CPF e celular são obrigatórios; o endereço é opcional, mas necessário para nota fiscal de serviço. O CNPJ preenche a razão social e o endereço."
             aoSair={() => void aoSairDoDocumento()}
           />
           {existente ? (
