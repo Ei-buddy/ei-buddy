@@ -724,9 +724,13 @@ recebe arquivo e senha pela entrada padrão e sobe com o ambiente vazio.
 
 |             |                                                            |
 | ----------- | ---------------------------------------------------------- |
-| **Status**  | 🟢 Decidida — a implementar                                |
+| **Status**  | 🟢 Decidida — NR-220                                       |
 | **Escolha** | Todo Super Admin recebe por e-mail o aviso de chamado novo |
 | **Data**    | 2026-11-15                                                 |
+
+**Implementada na NR-220.** Um e-mail por Super Admin ativo (ninguém vê o
+endereço dos outros), com loja, protocolo, categoria, mensagem e o link da
+fila. E-mail que falha não impede o chamado.
 
 ---
 
