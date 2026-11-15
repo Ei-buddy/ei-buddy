@@ -703,11 +703,17 @@ Antes, conciliar só ligava o lançamento do extrato à conta, e a conta seguia
 
 ### <a id="dec-028"></a>DEC-028 — Certificado A1 antigo (RC2) lido em modo legado
 
-|             |                                                                      |
-| ----------- | -------------------------------------------------------------------- |
-| **Status**  | 🟢 Decidida — a implementar                                          |
+| | |
+|
+
+**Implementada na NR-219.** A segunda tentativa de leitura roda num processo
+do Node à parte, com `--openssl-legacy-provider`, que lê o arquivo e termina;
+recebe arquivo e senha pela entrada padrão e sobe com o ambiente vazio.
+
+----------- | -------------------------------------------------------------------- |
+| **Status** | 🟢 Decidida — a implementar |
 | **Escolha** | Ler o A1 antigo em modo legado **só na rotina que lê o certificado** |
-| **Data**    | 2026-11-15                                                           |
+| **Data** | 2026-11-15 |
 
 Alguns A1 vêm com cifra RC2, que o OpenSSL 3 não lê sem o provedor legado.
 Ligar o provedor legado na api inteira mudaria a criptografia disponível
