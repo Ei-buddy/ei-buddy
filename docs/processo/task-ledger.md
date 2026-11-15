@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     184 |  358 |
-| ✅ Concluídas                 |     177 |  333 |
+| Total                         |     185 |  359 |
+| ✅ Concluídas                 |     178 |  334 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -424,6 +424,7 @@ voltam a ⬜.
 | NR-216 | Assinatura lida do servidor (GET /assinatura): web e app mostram a situação real (em teste, em dia, atrasada, restrita, cancelada); atrasada avisa sem bloquear, restrita bloqueia; Plataforma ganha a lista de Assinaturas com filtro de inadimplentes (web e app)                                                                                                   |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-116, RF-117                                     |   ✅   |
 | NR-217 | CRM: o card novo busca o cliente no servidor (nome, CPF/CNPJ ou celular) em vez de listar só os 24 primeiros; Esc fecha só a lista dentro dos diálogos                                                                                                                                                                                                                |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-218 | Decisões de 15/11 registradas: preço e prazos da mensalidade (QST-002), pilotos (QST-003), LGPD (QST-004, a validar), sem contador (QST-005), endereço opcional (revisão da DEC-025) e DEC-026 a DEC-032 (conciliar dá baixa, taxas configuráveis, A1 legado só na leitura, aviso de chamado aos Super Admins, armazenamento, NFS-e nacional, produção com aprovação) |   🟢   | `docs`                                                        |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-219 | Certificado A1 de formato antigo (RC2) lido em modo legado só na rotina de leitura, num processo à parte e sem o ambiente da api (DEC-028): a validade sai do arquivo e não precisa mais ser digitada                                                                                                                                                                 |   🟢   | `api` `web`                                                   |   1 | —                                      | —    | RF-004                                             |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                    |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                   |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                            |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -542,10 +543,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     108 |  168 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     109 |  169 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **358 dias-desenvolvedor** em 184 tarefas. Com 3 pessoas, isso é cerca
+Somando: **359 dias-desenvolvedor** em 185 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

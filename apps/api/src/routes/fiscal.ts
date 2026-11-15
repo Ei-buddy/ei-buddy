@@ -342,7 +342,7 @@ export function registerFiscalRoutes(
               base64: input.certificateBase64,
               senha: input.certificatePassword,
               venceEm: validadeConferida(
-                lerCertificadoA1(
+                await lerCertificadoA1(
                   Buffer.from(input.certificateBase64, 'base64'),
                   input.certificatePassword,
                 ),

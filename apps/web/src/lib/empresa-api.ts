@@ -182,8 +182,9 @@ export type Certificado = {
  *
  * A api abre o certificado com a senha antes de guardar: recusa senha errada,
  * arquivo que nao e certificado e certificado vencido, e le a validade do
- * proprio arquivo. A data digitada so vale para o A1 de formato antigo (RC2),
- * que o OpenSSL 3 nao decifra — ai e a api que pede a data.
+ * proprio arquivo — inclusive o A1 de formato antigo (RC2), lido em modo
+ * legado (DEC-028). A data digitada so vale se a leitura falhar; ai e a api
+ * que pede a data.
  *
  * O nome do arquivo nao e guardado: depois de recarregar, a tela diz
  * "Certificado A1" e a validade que o servidor confirmou.
@@ -280,7 +281,7 @@ export async function enviarCertificado(
 ): Promise<UploadResult> {
   if (senha === '') return { ok: false, error: 'Informe a senha do certificado.' }
   /* A validade e opcional desde a NR-214: o servidor abre o certificado e le
-     a data do proprio arquivo. A digitada so vale para o formato antigo. */
+     a data do proprio arquivo. A digitada so vale se a leitura falhar. */
 
   const nome = arquivo.name.toLowerCase()
   if (!nome.endsWith('.pfx') && !nome.endsWith('.p12')) {

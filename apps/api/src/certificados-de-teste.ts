@@ -10,7 +10,7 @@
  * Gerados assim (chave RSA de 1024 bits, titular "LOJA DE TESTE LTDA"):
  *   openssl ca -selfsign ... -startdate 20260101000000Z -enddate 20991231235959Z
  *   openssl pkcs12 -export            -> moderno (AES, o padrao do OpenSSL 3)
- *   openssl pkcs12 -export -legacy    -> antigo  (RC2-40, que o OpenSSL 3 nao decifra)
+ *   openssl pkcs12 -export -legacy    -> antigo  (RC2-40: o OpenSSL 3 so decifra em modo legado)
  *   ... -enddate 20250101000000Z      -> vencido
  */
 

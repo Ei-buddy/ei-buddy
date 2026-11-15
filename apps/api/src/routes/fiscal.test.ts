@@ -288,18 +288,20 @@ describe('gravar', () => {
       expect(memoria.gravado.certificado).toBeUndefined()
     })
 
-    it('formato antigo (RC2): com a data digitada, guarda; sem ela, pede a data', async () => {
+    it('formato antigo (RC2): le a validade do arquivo no modo legado (DEC-028)', async () => {
+      /* Sem data digitada: antes pedia a data; agora le do arquivo. */
       const sem = await enviar({ certificateBase64: A1_ANTIGO_RC2, certificatePassword: SENHA })
-      expect(sem.r.statusCode).toBe(400)
-      expect(sem.r.json().error.fields?.[0]?.path).toBe('certificateExpiresAt')
+      expect(sem.r.statusCode).toBe(200)
+      expect(sem.r.json().certificateExpiresAt).toBe('2099-12-31')
 
+      /* Com outra digitada, vale a do arquivo — como no formato moderno. */
       const com = await enviar({
         certificateBase64: A1_ANTIGO_RC2,
         certificatePassword: SENHA,
         certificateExpiresAt: '2028-06-30',
       })
       expect(com.r.statusCode).toBe(200)
-      expect(com.r.json().certificateExpiresAt).toBe('2028-06-30')
+      expect(com.r.json().certificateExpiresAt).toBe('2099-12-31')
     })
 
     it('formato antigo com a senha errada tambem e recusado', async () => {
