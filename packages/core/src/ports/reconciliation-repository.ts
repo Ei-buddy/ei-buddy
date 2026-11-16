@@ -6,6 +6,7 @@ import type {
 } from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
 import type { TransactionalAuditTrail } from './audit-trail.js'
+import type { SettlementTransaction } from './settlement-writers.js'
 
 /**
  * Portas da conciliacao bancaria — NR-033, RF-078 a RF-080.
@@ -105,6 +106,36 @@ export type ReconciliationTransaction = TransactionalAuditTrail & {
   unlink(companyId: CompanyId, transactionId: string): Promise<void>
 
   insertEntry(lancamento: NovoLancamentoDeTransacao): Promise<{ readonly id: string }>
+}
+
+/**
+ * Conciliar da baixa — DEC-026.
+ *
+ * Ligar a linha do extrato ao titulo e lancar a baixa sao UMA operacao: o
+ * mesmo escopo tem as duas portas, e a baixa usada e a mesma da tela de contas
+ * (`lancarBaixa`). Em transacoes separadas, uma falha no meio deixaria o
+ * titulo baixado sem conciliacao — ou conciliado e ainda em aberto, que e
+ * exatamente o que a DEC-026 veio acabar.
+ */
+export type ConciliacaoComBaixaTransaction = ReconciliationTransaction &
+  SettlementTransaction & {
+    /**
+     * Guarda a baixa que a conciliacao lancou (nulo limpa). E ela que o
+     * desfazer estorna — e so ela: a baixa que a pessoa lancou a mao na tela
+     * de contas nao e da conciliacao.
+     */
+    setSettlement(
+      companyId: CompanyId,
+      transactionId: string,
+      settlementId: string | null,
+    ): Promise<void>
+  }
+
+export type ConciliacaoComBaixaUnitOfWork = {
+  transaction<T>(
+    companyId: CompanyId,
+    fn: (tx: ConciliacaoComBaixaTransaction) => Promise<T>,
+  ): Promise<T>
 }
 
 export type ReconciliationUnitOfWork = {

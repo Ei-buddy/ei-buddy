@@ -444,7 +444,8 @@ export {
 } from './auth/fakes.js'
 /* Idem: a trilha so persiste quando `db` expuser repositorio de auditoria. */
 export { InMemoryAuditTrail } from './audit/fakes.js'
-export { InMemoryReconciliation } from './reconciliation/fakes.js'
+export { InMemoryConciliacaoComBaixa, InMemoryReconciliation } from './reconciliation/fakes.js'
+export { InMemorySettlements } from './settlements/fakes.js'
 export { InMemoryChartOfAccounts } from './accounting/fakes.js'
 export type { AuthDeps, LoginMeta } from './auth/login.js'
 export type {
@@ -486,12 +487,16 @@ export {
   undoReconciliation,
 } from './reconciliation/reconcile.js'
 export { JANELA_DE_DIAS, suggestMatches } from './reconciliation/suggest-matches.js'
+/* Conciliar da baixa — DEC-026. */
+export { autoMatch, confirmReconciliations } from './reconciliation/confirm.js'
 export { listBankTransactions } from './reconciliation/list-transactions.js'
 export type { ListBankTransactionsDeps } from './reconciliation/list-transactions.js'
 export type { ReconciliationDeps, SugestaoDeConciliacao } from './reconciliation/suggest-matches.js'
 export type {
   BankTransactionSnapshot,
   LancamentoConciliavel,
+  ConciliacaoComBaixaTransaction,
+  ConciliacaoComBaixaUnitOfWork,
   NovoLancamentoDeTransacao,
   ReconciliationQueries,
   ReconciliationTransaction,

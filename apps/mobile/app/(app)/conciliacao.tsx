@@ -19,6 +19,8 @@ import {
   type TransacaoBancaria,
 } from '@/lib/conciliacao-api'
 import { formatDate, formatMoney } from '@/lib/format'
+import { listarContasBancarias, type ContaBancaria } from '@/lib/contas-bancarias-api'
+import ConferenciaDoExtrato from '@/components/ConferenciaDoExtrato'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -39,6 +41,20 @@ export default function Conciliacao() {
   const [erro, setErro] = useState<string | null>(null)
   const [importando, setImportando] = useState(false)
   const [aberta, setAberta] = useState<string | null>(null)
+  /* Conciliar da baixa — DEC-026: a baixa vai para a conta do extrato. Com uma
+     conta so, ela ja vem escolhida. */
+  const [contas, setContas] = useState<ContaBancaria[] | null>(null)
+  const [contaEscolhida, setContaEscolhida] = useState<string | null>(null)
+  const contaDoExtrato =
+    contaEscolhida ?? (contas !== null && contas.length === 1 ? contas[0]!.name : null)
+  const [conferindo, setConferindo] = useState(false)
+
+  useEffect(() => {
+    void (async () => {
+      const r = await listarContasBancarias()
+      setContas(r.ok ? r.dados : [])
+    })()
+  }, [])
 
   const buscar = useCallback(async (scope: RecorteDaFila) => {
     const r = await carregarFila(scope)
@@ -93,6 +109,7 @@ export default function Conciliacao() {
 
   function pronto(mensagem: string) {
     setAberta(null)
+    setConferindo(false)
     void buscar(recorte)
     Alert.alert('Conciliação', mensagem)
   }
@@ -110,6 +127,41 @@ export default function Conciliacao() {
       />
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+        <View style={estilos.contas}>
+          <Text style={estilos.apoio}>Conta do extrato</Text>
+          {contas !== null && contas.length === 0 ? (
+            <Text style={estilos.apoio}>
+              Cadastre a conta em Contas bancárias para a conciliação dar baixa.
+            </Text>
+          ) : (
+            <View style={estilos.recortes}>
+              {(contas ?? []).map((c) => (
+                <Pressable
+                  key={c.id}
+                  onPress={() => setContaEscolhida(c.name)}
+                  style={[estilos.chip, contaDoExtrato === c.name && estilos.recorteAtivo]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: contaDoExtrato === c.name }}
+                >
+                  <Text
+                    style={[
+                      estilos.recorteTexto,
+                      contaDoExtrato === c.name && estilos.recorteTextoAtivo,
+                    ]}
+                  >
+                    {c.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {recorte === 'pending' && pendentes > 0 ? (
+            <Botao variante="secundario" onPress={() => setConferindo((v) => !v)}>
+              {conferindo ? 'Voltar para a lista' : 'Conferir lado a lado'}
+            </Botao>
+          ) : null}
+        </View>
+
         <View style={estilos.recortes}>
           {(
             [
@@ -131,7 +183,13 @@ export default function Conciliacao() {
           ))}
         </View>
 
-        {erro !== null ? (
+        {conferindo && recorte === 'pending' ? (
+          <ConferenciaDoExtrato
+            contaDoExtrato={contaDoExtrato}
+            onPronto={pronto}
+            onErro={(m) => Alert.alert('Não deu para dar baixa', m)}
+          />
+        ) : erro !== null ? (
           <Vazio
             titulo="Não deu para carregar"
             descricao={erro}
@@ -182,7 +240,11 @@ export default function Conciliacao() {
 
               {aberta === t.id ? (
                 t.reconciledWith === null ? (
-                  <PainelDeConciliacao transacao={t} onPronto={pronto} />
+                  <PainelDeConciliacao
+                    transacao={t}
+                    contaDoExtrato={contaDoExtrato}
+                    onPronto={pronto}
+                  />
                 ) : (
                   <PainelDesfazer transacao={t} onPronto={pronto} />
                 )
@@ -197,9 +259,12 @@ export default function Conciliacao() {
 
 function PainelDeConciliacao({
   transacao,
+  contaDoExtrato,
   onPronto,
 }: {
   transacao: TransacaoBancaria
+  /** A conta das baixas — DEC-026. Sem ela, concilia sem baixar. */
+  contaDoExtrato: string | null
   onPronto: (mensagem: string) => void
 }) {
   const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
@@ -231,10 +296,18 @@ function PainelDeConciliacao({
   async function aceitar(s: Sugestao) {
     setProcessando(true)
     setErro(null)
-    const r = await conciliar(transacao.id, { entryKind: s.entry.entryKind, entryId: s.entry.id })
+    const r = await conciliar(transacao.id, {
+      entryKind: s.entry.entryKind,
+      entryId: s.entry.id,
+      ...(contaDoExtrato === null ? {} : { bankAccount: contaDoExtrato }),
+    })
     setProcessando(false)
     if (!r.ok) return setErro(r.erro)
-    onPronto(`Conciliado com ${s.entry.counterparty}.`)
+    onPronto(
+      contaDoExtrato === null
+        ? `Conciliado com ${s.entry.counterparty}.`
+        : `Conciliado com ${s.entry.counterparty} e baixado em ${contaDoExtrato}.`,
+    )
   }
 
   async function criar() {
@@ -243,10 +316,15 @@ function PainelDeConciliacao({
     const r = await criarLancamentoDaTransacao(transacao.id, {
       counterparty: contraparte.trim(),
       description: descricao.trim(),
+      ...(contaDoExtrato === null ? {} : { bankAccount: contaDoExtrato }),
     })
     setProcessando(false)
     if (!r.ok) return setErro(r.erro)
-    onPronto('Lançamento criado e conciliado.')
+    onPronto(
+      contaDoExtrato === null
+        ? 'Lançamento criado e conciliado.'
+        : `Lançamento criado, conciliado e baixado em ${contaDoExtrato}.`,
+    )
   }
 
   if (sugestoes === null) {
@@ -317,7 +395,9 @@ function PainelDesfazer({
     const r = await desfazerConciliacao(transacao.id, motivo.trim())
     setProcessando(false)
     if (!r.ok) return setErro(r.erro)
-    onPronto('Conciliação desfeita. A transação voltou para a fila.')
+    onPronto(
+      'Conciliação desfeita: a baixa que ela lançou foi estornada e a transação voltou para a fila.',
+    )
   }
 
   return (
@@ -346,7 +426,15 @@ const estilos = criarEstilos(() => ({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   flex: { flex: 1, gap: 2 },
-  recortes: { flexDirection: 'row', gap: espaco.sm },
+  recortes: { flexDirection: 'row', gap: espaco.sm, flexWrap: 'wrap' },
+  contas: { gap: espaco.sm },
+  chip: {
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.sm,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
   recorte: {
     flex: 1,
     paddingVertical: espaco.sm,

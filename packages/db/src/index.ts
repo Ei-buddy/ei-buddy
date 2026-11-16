@@ -53,6 +53,7 @@ export { createInvoiceStore } from './invoice-repository.js'
 export {
   createBankTransactionWriter,
   createReconciliationQueries,
+  createConciliacaoComBaixaUnitOfWork,
   createReconciliationUnitOfWork,
 } from './bank-transaction-repository.js'
 export { createSaleUnitOfWork } from './sale-unit-of-work.js'

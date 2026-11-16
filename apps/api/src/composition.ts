@@ -144,6 +144,7 @@ import {
   createRetrievalStore,
   createReconciliationQueries,
   createReconciliationUnitOfWork,
+  createConciliacaoComBaixaUnitOfWork,
   createSaleHistoryRepository,
   createSaleCancellationUnitOfWork,
   createSaleReturnUnitOfWork,
@@ -841,6 +842,10 @@ export function buildConciliacaoDeps(): ConciliacaoDeps {
 
   return {
     uow: createReconciliationUnitOfWork(sql),
+    /* Conciliar da baixa — DEC-026: conciliacao e baixa na mesma transacao, e
+       a conta da baixa conferida contra as contas da loja. */
+    baixas: createConciliacaoComBaixaUnitOfWork(sql),
+    bankAccounts: createBankAccountRepository(sql),
     queries,
     listQueries: queries,
     import: {

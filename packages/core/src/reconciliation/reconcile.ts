@@ -1,5 +1,4 @@
 import type {
-  BankTransactionDirection,
   CreateEntryFromTransactionInput,
   EntryKind,
   ReconcileInput,
@@ -8,22 +7,31 @@ import type {
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
-import type {
-  BankTransactionSnapshot,
-  LancamentoConciliavel,
-  ReconciliationTransaction,
-} from '../ports/reconciliation-repository.js'
+import type { ConciliacaoComBaixaTransaction } from '../ports/reconciliation-repository.js'
+import { contaCadastrada, lancarBaixa } from '../settlements/settle.js'
+import { estornarNaTransacao } from '../settlements/reverse-settlement.js'
+import { confirmReconciliations } from './confirm.js'
+import { conferePodeCasar, exigeBaixas, registra, tipoQueCasaCom } from './regras.js'
 import type { ReconciliationDeps } from './suggest-matches.js'
 
 /**
- * O que a conciliacao E, e o que ela NAO e.
+ * O que a conciliacao E.
  *
  * Ela liga uma linha do extrato a um lancamento: "este dinheiro que o banco
- * mostra e este titulo". Nada mais.
+ * mostra e este titulo" — e, desde a DEC-026 (15/11), DA BAIXA no titulo,
+ * na conta do extrato e na data do banco. Ver `confirm.ts`.
  *
- * Em particular ela **nao da baixa** no titulo, e a tentacao de fazer isso e
- * grande — o lojista ve o debito de R$ 480 da conta de luz e obviamente a conta
- * foi paga. Tres motivos para nao:
+ * Antes da DEC-026 ela nao baixava, pelos tres motivos abaixo. A decisao do
+ * produto foi outra (conferir o extrato e dar baixa conta por conta era o
+ * trabalho dobrado), e cada motivo virou uma regra do caminho novo:
+ *
+ * - 1: a baixa da conciliacao e a MESMA da tela de contas (`lancarBaixa`),
+ *   com as mesmas recusas — nao ha segundo caminho;
+ * - 2: desfazer a conciliacao ESTORNA a baixa que ela lancou, com o motivo
+ *   escrito (RF-067) — a cicatriz e o rastro, e e desejado;
+ * - 3: titulo ja quitado (o recebivel do cartao) so e ligado, sem baixa nova.
+ *
+ * O texto original, para quem quiser o raciocinio inteiro:
  *
  * 1. Baixa muda o quanto se deve e o saldo do cliente, com regras proprias
  *    (parcial, estorno por linha negativa) que sao RF-059, RF-060 e RF-067.
@@ -47,6 +55,18 @@ export async function reconcile(
   input: ReconcileInput,
 ): Promise<void> {
   assertCanWrite(ctx)
+
+  /* Com a conta do extrato, concilia E da baixa — DEC-026. Um par so e o mesmo
+     caminho do lote. */
+  if (input.bankAccount !== undefined) {
+    await confirmReconciliations(deps, ctx, {
+      bankAccount: input.bankAccount,
+      pairs: [
+        { transactionId: input.transactionId, entryKind: input.entryKind, entryId: input.entryId },
+      ],
+    })
+    return
+  }
 
   await deps.uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
@@ -102,7 +122,15 @@ export async function createEntryFromTransaction(
 ): Promise<{ readonly entryKind: EntryKind; readonly entryId: string }> {
   assertCanWrite(ctx)
 
-  return deps.uow.transaction(ctx.companyId, async (tx) => {
+  /* Com a conta do extrato, o lancamento ja nasce baixado — DEC-026: o
+     dinheiro ja entrou ou saiu, e o extrato e a prova. */
+  const conta =
+    input.bankAccount === undefined
+      ? undefined
+      : await contaCadastrada(deps.bankAccounts, ctx, input.bankAccount)
+  const uow = conta === undefined ? deps.uow : exigeBaixas(deps)
+
+  return uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
     if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
 
@@ -142,6 +170,20 @@ export async function createEntryFromTransaction(
       createdFromBankTransaction: transacao.id,
     })
 
+    if (conta !== undefined) {
+      const comBaixa = tx as ConciliacaoComBaixaTransaction
+      const baixa = await lancarBaixa(comBaixa, ctx, {
+        kind: entryKind,
+        tituloId: criado.id,
+        amountCents: transacao.amountCents,
+        method: null,
+        bankAccount: conta,
+        settledOn: transacao.postedOn,
+        notes: `Conciliação do extrato: ${transacao.description}`.slice(0, 500),
+      })
+      await comBaixa.setSettlement(ctx.companyId, transacao.id, baixa.id)
+    }
+
     return { entryKind, entryId: criado.id }
   })
 }
@@ -164,6 +206,13 @@ export async function undoReconciliation(
   input: UndoReconciliationInput,
 ): Promise<void> {
   assertCanWrite(ctx)
+
+  /* Com as baixas ligadas (a api sempre), o desfazer estorna a baixa que a
+     conciliacao lancou — DEC-026. Sem elas, so solta o vinculo, como antes. */
+  if (deps.baixas !== undefined) {
+    await deps.baixas.transaction(ctx.companyId, (tx) => desfazerComEstorno(tx, ctx, input))
+    return
+  }
 
   await deps.uow.transaction(ctx.companyId, async (tx) => {
     const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
@@ -188,88 +237,54 @@ export async function undoReconciliation(
 }
 
 /**
- * As duas recusas que impedem uma conferencia falsa.
+ * Desfaz e estorna a baixa da conciliacao — DEC-026, RF-067.
  *
- * Valem tanto para a sugestao aceita quanto para o casamento escolhido a mao —
- * e e o caminho a mao que precisa delas, porque a sugestao ja nasce filtrada.
- * Uma tela nova, ou uma chamada de API direta, entra por aqui.
+ * So a baixa que a CONCILIACAO lancou (`settlementId`). A baixa que a pessoa
+ * lancou a mao na tela de contas continua: ela nao veio daqui. E se a baixa da
+ * conciliacao ja foi estornada a mao, nao se estorna duas vezes.
  */
-function conferePodeCasar(
-  transacao: BankTransactionSnapshot,
-  lancamento: LancamentoConciliavel,
-  entryKind: EntryKind,
-): void {
-  if (tipoQueCasaCom(transacao.direction) !== entryKind) {
-    throw AppError.validation(
-      transacao.direction === 'debit'
-        ? 'Uma saída do banco só casa com conta a pagar.'
-        : 'Uma entrada no banco só casa com título a receber.',
-    )
-  }
-
-  if (lancamento.reconciled) {
-    throw AppError.conflict('Este lançamento já está conciliado com outra transação.')
-  }
-
-  if (lancamento.status === 'cancelled') {
-    throw AppError.conflict('Este lançamento está cancelado e não corresponde a nada no banco.')
-  }
-
-  const esperado = lancamento.netAmountCents ?? lancamento.amountCents
-  if (esperado !== transacao.amountCents) {
-    /* Diferenca de valor e informacao, nao ruido — ver JANELA_DE_DIAS. A
-       mensagem diz os dois numeros porque o lojista precisa saber o TAMANHO da
-       diferenca para descobrir o que ela e: R$ 2,50 e taxa, R$ 200 e outra
-       conta. */
-    throw AppError.validation(
-      `O banco mostra ${reais(transacao.amountCents)} e o lançamento é de ${reais(esperado)}. ` +
-        'Confira se é o título certo, ou lance a diferença antes de conciliar.',
-    )
-  }
-}
-
-function tipoQueCasaCom(direction: BankTransactionDirection): EntryKind {
-  return direction === 'debit' ? 'payable' : 'receivable'
-}
-
-/** Centavos como o lojista le. So para mensagem — nao volta para calculo. */
-function reais(centavos: number): string {
-  return `R$ ${(centavos / 100).toFixed(2).replace('.', ',')}`
-}
-
-/**
- * Rastro no historico do LANCAMENTO, e nao da transacao.
- *
- * A transacao do extrato nao e entidade que o lojista audita: ele pergunta "o
- * que aconteceu com esta conta a pagar", e a resposta tem de incluir "foi
- * conciliada com o extrato do dia 12". Auditar sob uma entidade
- * `BankTransaction` responderia a pergunta que ninguem faz.
- */
-async function registra(
-  /*
-   * Recebe o ESCOPO da transacao, e nao as dependencias — NR-087.
-   *
-   * Era `deps`, e a trilha era gravada fora da transacao que ela registra: uma
-   * conciliacao desfeita no commit deixava na trilha uma conciliacao que nunca
-   * houve. Ver `TransactionalAuditTrail`.
-   */
-  tx: ReconciliationTransaction,
+async function desfazerComEstorno(
+  tx: ConciliacaoComBaixaTransaction,
   ctx: ExecutionContext,
-  transacao: BankTransactionSnapshot,
-  entryKind: EntryKind,
-  entryId: string,
-  action: 'created' | 'updated' | 'cancelled',
-  after: Record<string, unknown>,
+  input: UndoReconciliationInput,
 ): Promise<void> {
-  await tx.record({
-    companyId: ctx.companyId,
-    entity: entryKind === 'payable' ? 'Payable' : 'Receivable',
-    entityId: entryId,
-    action,
-    actorId: ctx.userId,
-    channel: ctx.channel,
-    occurredAt: ctx.now,
-    before: null,
-    after: { bankTransactionId: transacao.id, postedOn: transacao.postedOn, ...after },
-  })
+  const transacao = await tx.findTransaction(ctx.companyId, input.transactionId)
+  if (transacao === undefined) throw AppError.notFound('Transação não encontrada.')
+
+  if (transacao.reconciledEntryId === null) {
+    throw AppError.conflict('Esta transação não está conciliada.')
+  }
+
+  let estornada: string | null = null
+  if (
+    transacao.settlementId !== null &&
+    !(await tx.hasReversal(ctx.companyId, transacao.settlementId))
+  ) {
+    const estorno = await estornarNaTransacao(
+      tx,
+      ctx,
+      transacao.settlementId,
+      `Conciliação desfeita: ${input.reason}`.slice(0, 500),
+    )
+    estornada = estorno.reversesId
+  }
+
+  /* Nesta ordem: o banco recusa baixa da conciliacao em linha nao conciliada
+     (`bank_transactions_baixa_so_conciliada`). */
+  await tx.setSettlement(ctx.companyId, transacao.id, null)
+  await tx.unlink(ctx.companyId, transacao.id)
+
+  await registra(
+    tx,
+    ctx,
+    transacao,
+    transacao.reconciledEntryKind!,
+    transacao.reconciledEntryId,
+    'cancelled',
+    {
+      reason: input.reason,
+      wasReconciledWith: transacao.reconciledEntryId,
+      reversedSettlementId: estornada,
+    },
+  )
 }

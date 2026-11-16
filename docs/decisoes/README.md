@@ -664,7 +664,7 @@ cadastro. CPF/CNPJ e celular continuam obrigatórios.
 
 |             |                                                             |
 | ----------- | ----------------------------------------------------------- |
-| **Status**  | 🟢 Decidida — a implementar                                 |
+| **Status**  | 🟢 Decidida — implementada na NR-225                        |
 | **Escolha** | Conciliar o extrato dá baixa nas contas a pagar e a receber |
 | **Data**    | 2026-11-15                                                  |
 
@@ -679,6 +679,14 @@ Antes, conciliar só ligava o lançamento do extrato à conta, e a conta seguia
 4. No fim, o sistema dá baixa em tudo o que foi confirmado.
 5. **A ordem das baixas é a mesma do extrato**, para a pessoa conferir os
    dois e ver que a sequência bate.
+
+Como ficou (NR-225): o extrato guarda a posição de cada linha no arquivo, e a
+fila segue data do banco e posição. "Conferir lado a lado" mostra cada linha
+com a conta que o sistema casou (valor exato, até 5 dias de diferença, cada
+conta para uma linha só). A pessoa marca os pares, escolhe a conta bancária do
+extrato e confirma: tudo numa transação, na ordem do extrato, com a baixa na
+data do banco. Título já quitado (recebível do cartão) só é ligado. Desfazer a
+conciliação estorna a baixa que ela lançou, com o motivo escrito.
 
 ---
 
