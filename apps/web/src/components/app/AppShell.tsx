@@ -93,6 +93,7 @@ const navItems: NavItem[] = [
       { href: '/app/financeiro/contas-a-receber', label: 'Contas a receber' },
       { href: '/app/financeiro/contas-bancarias', label: 'Contas bancárias' },
       { href: '/app/financeiro/conciliacao', label: 'Conciliação' },
+      { href: '/app/financeiro/taxas-de-recebimento', label: 'Taxas de recebimento' },
       { href: '/app/financeiro/dre', label: 'DRE' },
       { href: '/app/financeiro/relatorios', label: 'Relatórios' },
     ],

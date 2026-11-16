@@ -27,6 +27,7 @@ export const MODULOS_BLOQUEADOS = [
   '/app/financeiro/contas-a-receber',
   '/app/financeiro/contas-bancarias',
   '/app/financeiro/conciliacao',
+  '/app/financeiro/taxas-de-recebimento',
   '/app/financeiro/dre',
   '/app/financeiro/relatorios',
   '/app/crm',
