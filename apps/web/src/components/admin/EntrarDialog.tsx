@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, FormGrid, Textarea } from '@/components/ui/UI'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import { entrarNaEmpresa, type EmpresaListada } from '@/lib/admin-api'
 import styles from './admin.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /** A api recusa justificativa menor que isto — RF-131. */
 const JUSTIFICATIVA_MINIMA = 10
@@ -33,18 +34,7 @@ export default function EntrarDialog({
   const [erro, setErro] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !entrando) onCancelar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, entrando])
+  useDialogo(ref, onCancelar, entrando)
 
   const valida = justificativa.trim().length >= JUSTIFICATIVA_MINIMA
 

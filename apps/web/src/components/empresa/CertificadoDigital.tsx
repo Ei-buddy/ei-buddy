@@ -32,11 +32,10 @@ export default function CertificadoDigital({
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [senha, setSenha] = useState('')
   /*
-   * A validade e PERGUNTADA, e nao lida do arquivo.
-   *
-   * Ler PKCS#12 exige biblioteca que o projeto nao tem. Sem a data, o aviso de
-   * vencimento (RF-004) e impossivel e o lojista descobriria que o certificado
-   * venceu quando a nota parasse de sair.
+   * A validade e OPCIONAL desde a NR-214: o servidor abre o certificado com a
+   * senha e le a data do proprio arquivo (e recusa senha errada e certificado
+   * vencido na hora). Desde a DEC-028 le tambem o A1 de formato antigo (RC2);
+   * digitar so e preciso se a leitura falhar — e ai o servidor pede a data.
    */
   const [validoAte, setValidoAte] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -173,7 +172,7 @@ export default function CertificadoDigital({
 
         <div className={styles.certField}>
           <label className={styles.certLabel} htmlFor={validadeId}>
-            Válido até
+            Válido até <span className={styles.certOpcional}>(opcional)</span>
           </label>
           <input
             id={validadeId}
@@ -186,13 +185,9 @@ export default function CertificadoDigital({
             }}
             disabled={enviando}
           />
-          {/*
-            A data esta no proprio certificado — quem emitiu tem no e-mail, e o
-            Windows mostra ao abrir o arquivo. Perguntar e o preco de nao ter
-            leitor de PKCS#12: sem ela nao ha como avisar antes do vencimento.
-          */}
           <span className={styles.certAjuda}>
-            Está na própria emissão do certificado. Sem ela não conseguimos avisar antes de vencer.
+            Pode deixar em branco: lemos a validade do próprio certificado. Só pedimos a data se não
+            conseguirmos ler o arquivo.
           </span>
         </div>
       </div>

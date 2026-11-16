@@ -155,6 +155,12 @@ export async function comentarCard(id: string, texto: string): Promise<Resultado
   return r.ok ? { ok: true, dados: paraComentario(r.dados) } : { ok: false, erro: r.message }
 }
 
+/** Exclui o card e os comentarios dele — NR-213. */
+export async function excluirCard(id: string): Promise<ResultadoCrm<null>> {
+  const r = await chamarApi<unknown>(`/crm/cards/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  return r.ok ? { ok: true, dados: null } : { ok: false, erro: r.message }
+}
+
 export type MembroDaEquipe = { id: string; nome: string }
 
 /** Quem pode ser responsavel por um card — a equipe da loja. */

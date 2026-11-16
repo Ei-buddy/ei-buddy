@@ -94,10 +94,19 @@ export const accountOutputSchema = z.object({
 export type AccountOutput = z.infer<typeof accountOutputSchema>
 
 /** Uma linha do DRE, com o que ela agrega — RF-086. */
+/**
+ * O bloco do DRE gerencial (margem de contribuicao) em que a linha entra —
+ * achado do QA. `type` continua sendo o do plano de contas; `group` e onde a
+ * linha aparece no formato pedido.
+ */
+export const dreGroupSchema = z.enum(['sales', 'discounts', 'variable_costs', 'expenses'])
+export type DreGroup = z.infer<typeof dreGroupSchema>
+
 export const dreLineSchema = z.object({
   accountId: idSchema.nullable(),
   accountName: z.string(),
   type: accountTypeSchema,
+  group: dreGroupSchema,
   amountCents: z.number().int(),
   /** Quantos lancamentos compoem a linha — o "clique para detalhar". */
   entryCount: z.number().int(),
@@ -117,6 +126,26 @@ export const dreOutputSchema = z.object({
   resultCents: z.number().int(),
   /** Pontos por cem (18 = 18%). Nulo quando nao houve receita. */
   grossMarginPoints: z.number().nullable(),
+  /*
+   * DRE gerencial — o formato pedido pelo QA. Os mesmos lancamentos,
+   * reagrupados: `operatingResultCents` e sempre igual a `resultCents`.
+   *
+   *   Vendas brutas (grossRevenueCents)
+   *   (-) Descontos e devolucoes
+   *   = Venda liquida
+   *   (-) Custos variaveis: impostos, tarifas de cartao, mercadoria
+   *   = Margem de contribuicao
+   *   (-) cada conta de despesa do plano
+   *   = Resultado operacional
+   */
+  discountsCents: z.number().int(),
+  netSalesCents: z.number().int(),
+  variableCostsCents: z.number().int(),
+  contributionMarginCents: z.number().int(),
+  /** Sobre a venda liquida, em pontos. Nulo sem venda. */
+  contributionMarginPoints: z.number().nullable(),
+  operatingExpensesCents: z.number().int(),
+  operatingResultCents: z.number().int(),
   lines: z.array(dreLineSchema),
 })
 

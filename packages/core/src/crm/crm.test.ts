@@ -2,7 +2,14 @@ import type { Role } from '@na-regua/contracts'
 import { describe, expect, it } from 'vitest'
 import { isAppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
-import { commentOnCrmCard, createCrmCard, listCrmBoard, listTeam, moveCrmCard } from './crm.js'
+import {
+  commentOnCrmCard,
+  createCrmCard,
+  deleteCrmCard,
+  listCrmBoard,
+  listTeam,
+  moveCrmCard,
+} from './crm.js'
 import { InMemoryAuditTrail } from '../audit/fakes.js'
 import { InMemoryCrm, InMemoryTeam } from './fakes.js'
 
@@ -226,5 +233,51 @@ describe('listTeam', () => {
     const r = await listTeam({ team }, contexto({ companyId: 'emp-1' }))
 
     expect(r.members).toEqual([{ id: 'usr-1', name: 'Marina Alves' }])
+  })
+})
+
+describe('deleteCrmCard — NR-213', () => {
+  it('apaga o card e os comentarios, e a trilha guarda o que era', async () => {
+    const crm = new InMemoryCrm()
+    const audit = new InMemoryAuditTrail()
+    const card = await createCrmCard({ crm, audit }, contexto(), {
+      ...cardValido,
+      kind: 'task',
+    })
+    await commentOnCrmCard({ crm, audit }, contexto(), card.id, 'Liguei, nao atendeu.')
+
+    await deleteCrmCard({ crm, audit }, contexto(), card.id)
+
+    expect((await listCrmBoard({ crm }, contexto())).cards).toEqual([])
+    const ultima = audit.daEmpresa(contexto().companyId).at(-1)
+    expect(ultima).toMatchObject({
+      entity: 'CrmCard',
+      entityId: card.id,
+      action: 'deleted',
+      before: { title: card.title, kind: 'task', column: 'todo' },
+      after: null,
+    })
+  })
+
+  it('card de outra loja e "nao encontrado", e continua la', async () => {
+    const crm = new InMemoryCrm()
+    const card = await createCrmCard({ crm }, contexto({ companyId: 'empresa-2' }), cardValido)
+
+    const e = await deleteCrmCard({ crm }, contexto(), card.id).catch((x: unknown) => x)
+
+    expect(isAppError(e) && e.code).toBe('NOT_FOUND')
+    expect((await listCrmBoard({ crm }, contexto({ companyId: 'empresa-2' }))).cards).toHaveLength(
+      1,
+    )
+  })
+
+  it('quem so pode ler nao apaga', async () => {
+    const crm = new InMemoryCrm()
+    const card = await createCrmCard({ crm }, contexto(), cardValido)
+
+    await expect(
+      deleteCrmCard({ crm }, contexto({ role: 'accountant' as Role }), card.id),
+    ).rejects.toThrow(/somente de leitura/i)
+    expect((await listCrmBoard({ crm }, contexto())).cards).toHaveLength(1)
   })
 })

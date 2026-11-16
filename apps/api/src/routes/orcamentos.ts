@@ -1,6 +1,7 @@
 import {
   convertQuoteInputSchema,
   createQuoteInputSchema,
+  quoteListInputSchema,
   updateQuoteInputSchema,
 } from '@na-regua/contracts'
 import {
@@ -31,7 +32,9 @@ type ComId = { Params: { id: string } }
 export function registerOrcamentosRoutes(app: FastifyInstance, deps: OrcamentosDeps): void {
   app.get('/orcamentos', async (request, reply) => {
     const ctx = requireContext(request)
-    return reply.code(200).send({ quotes: await listQuotes(deps, ctx) })
+    /* Busca, periodo, situacao e pagina — NR-210. Sem nada, a primeira pagina. */
+    const input = validate(quoteListInputSchema, request.query ?? {})
+    return reply.code(200).send(await listQuotes(deps, ctx, input))
   })
 
   app.get<ComId>('/orcamentos/:id', async (request, reply) => {

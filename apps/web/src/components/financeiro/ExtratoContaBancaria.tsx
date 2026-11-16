@@ -27,8 +27,9 @@ function mesAoLado(mes: string, passo: number): string {
 const reais = (cents: number) => formatMoney(cents / 100)
 
 /**
- * O extrato de uma conta, mes a mes — achado do QA: "Bancos: ter um extrato
- * das movimentacoes".
+ * O extrato de uma conta, mes a mes ou num intervalo de datas — achados do QA:
+ * "Bancos: ter um extrato das movimentacoes"; "permitir visualizar o extrato
+ * em um intervalo de datas".
  *
  * As linhas sao as baixas que citaram a conta (o mesmo calculo do saldo da
  * lista), com o saldo depois de cada uma. O saldo do comeco do mes ja traz o
@@ -43,12 +44,21 @@ export default function ExtratoContaBancaria({
   onFechar: () => void
 }) {
   const [mes, setMes] = useState(mesDeHoje)
+  /* Intervalo de datas — achado do QA: "visualizar o extrato em um intervalo
+     de datas". O mes continua sendo o atalho; "Período" abre De e Ate ja com
+     o mes que estava na tela. */
+  const [modo, setModo] = useState<'mes' | 'periodo'>('mes')
+  const [intervalo, setIntervalo] = useState(() => periodoDoMes(mesDeHoje()))
   const [extrato, setExtrato] = useState<ExtratoDaConta | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
+  const intervaloValido =
+    intervalo.de !== '' && intervalo.ate !== '' && intervalo.de <= intervalo.ate
+  const { de, ate } = modo === 'mes' ? periodoDoMes(mes) : intervalo
+
   useEffect(() => {
+    if (modo === 'periodo' && !intervaloValido) return
     let cancelado = false
-    const { de, ate } = periodoDoMes(mes)
     void carregarExtrato(conta.id, de, ate).then((r) => {
       if (cancelado) return
       if (r.ok) {
@@ -59,9 +69,9 @@ export default function ExtratoContaBancaria({
     return () => {
       cancelado = true
     }
-  }, [conta.id, mes])
+  }, [conta.id, de, ate, modo, intervaloValido])
 
-  const atual = extrato !== null && extrato.from === periodoDoMes(mes).de ? extrato : null
+  const atual = extrato !== null && extrato.from === de && extrato.to === ate ? extrato : null
 
   return (
     <Card
@@ -72,35 +82,89 @@ export default function ExtratoContaBancaria({
         </Button>
       }
     >
-      <div className={styles.extratoBarra}>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setMes((m) => mesAoLado(m, -1))}
-          aria-label="Mês anterior"
+      <div className={styles.filtrosLinha} role="group" aria-label="Período do extrato">
+        <button
+          type="button"
+          className={`${styles.filtro} ${modo === 'mes' ? styles.filtroAtivo : ''}`}
+          onClick={() => setModo('mes')}
+          aria-pressed={modo === 'mes'}
         >
-          ‹
-        </Button>
-        <input
-          type="month"
-          className={styles.input}
-          value={mes}
-          onChange={(e) => e.target.value && setMes(e.target.value)}
-          aria-label="Mês do extrato"
-        />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setMes((m) => mesAoLado(m, 1))}
-          aria-label="Próximo mês"
+          Mês
+        </button>
+        <button
+          type="button"
+          className={`${styles.filtro} ${modo === 'periodo' ? styles.filtroAtivo : ''}`}
+          onClick={() => {
+            setIntervalo(periodoDoMes(mes))
+            setModo('periodo')
+          }}
+          aria-pressed={modo === 'periodo'}
         >
-          ›
-        </Button>
+          Período
+        </button>
       </div>
+
+      {modo === 'periodo' ? (
+        <div className={styles.extratoIntervalo}>
+          <label>
+            <span>De</span>
+            <input
+              type="date"
+              className={styles.input}
+              value={intervalo.de}
+              max={intervalo.ate || undefined}
+              onChange={(e) => setIntervalo((i) => ({ ...i, de: e.target.value }))}
+              aria-label="Extrato de"
+            />
+          </label>
+          <label>
+            <span>Até</span>
+            <input
+              type="date"
+              className={styles.input}
+              value={intervalo.ate}
+              min={intervalo.de || undefined}
+              onChange={(e) => setIntervalo((i) => ({ ...i, ate: e.target.value }))}
+              aria-label="Extrato até"
+            />
+          </label>
+          {!intervaloValido && intervalo.de !== '' && intervalo.ate !== '' ? (
+            <p className={styles.extratoAviso} role="alert">
+              A data inicial precisa ser antes da final.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className={styles.extratoBarra}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setMes((m) => mesAoLado(m, -1))}
+            aria-label="Mês anterior"
+          >
+            ‹
+          </Button>
+          <input
+            type="month"
+            className={styles.input}
+            value={mes}
+            onChange={(e) => e.target.value && setMes(e.target.value)}
+            aria-label="Mês do extrato"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setMes((m) => mesAoLado(m, 1))}
+            aria-label="Próximo mês"
+          >
+            ›
+          </Button>
+        </div>
+      )}
 
       {erro !== null ? (
         <EmptyState title="Não deu para carregar o extrato" description={erro} />
-      ) : atual === null ? (
+      ) : modo === 'periodo' && !intervaloValido ? null : atual === null ? (
         <EmptyState title="Carregando..." />
       ) : (
         <>
@@ -124,7 +188,9 @@ export default function ExtratoContaBancaria({
           </div>
 
           {atual.entries.length === 0 ? (
-            <p className={styles.extratoVazio}>Nenhuma movimentação neste mês.</p>
+            <p className={styles.extratoVazio}>
+              Nenhuma movimentação {modo === 'mes' ? 'neste mês' : 'neste período'}.
+            </p>
           ) : (
             <ul className={styles.extratoLinhas} aria-label="Movimentações">
               {atual.entries.map((l) => (

@@ -4,6 +4,7 @@ import type { UserId } from '../context.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { IdentityProvider, UserDirectory } from '../ports/identity.js'
 import type { IdentityPhoneChanger, UserContacts } from '../ports/phone-change.js'
+import { donoDoCelular } from './phone-variants.js'
 
 export type ChangePhoneDeps = {
   readonly contacts: UserContacts
@@ -73,7 +74,7 @@ export async function changePhone(
 
   if (contato.phone === input.phone) return { phone: input.phone }
 
-  if ((await deps.users.findByPhone(input.phone)) !== undefined) {
+  if ((await donoDoCelular(deps.users, input.phone)) !== undefined) {
     /* A pessoa esta logada e sabe o proprio numero: dizer que o NOVO esta em
        uso nao revela conta de ninguem que ela ja nao pudesse testar no cadastro. */
     throw AppError.conflict('Este celular já está em uso por outra conta.')

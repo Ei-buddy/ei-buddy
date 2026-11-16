@@ -199,6 +199,28 @@ export type DadosDaConta = {
   }
 }
 
+/** Os campos que nao se repetem entre contas — achado do QA. */
+export type CampoUnicoDoCadastro = 'email' | 'cnpj' | 'phone'
+
+/**
+ * O e-mail, o CNPJ ou o celular ja estao em uso? — achado do QA, o par do web.
+ *
+ * Mensagem por campo em uso (vazio = tudo livre), ou `null` quando nao deu
+ * para conferir agora: nulo nao trava, o cadastro confere tudo ao gravar.
+ */
+export async function conferirCadastro(campos: {
+  email?: string
+  cnpj?: string
+  phone?: string
+}): Promise<Partial<Record<CampoUnicoDoCadastro, string>> | null> {
+  const r = await chamarApi<{ conflicts: { field: CampoUnicoDoCadastro; message: string }[] }>(
+    '/auth/signup/disponibilidade',
+    { method: 'POST', body: campos },
+  )
+  if (!r.ok) return null
+  return Object.fromEntries(r.dados.conflicts.map((c) => [c.field, c.message]))
+}
+
 /**
  * Cria a conta e a loja — RF-001, a mesma rota do web. Quem chega aqui ja
  * aceitou os termos na tela; a conta nasce logada.
@@ -210,7 +232,8 @@ export async function criarConta(dados: DadosDaConta): Promise<ResultadoLogin> {
     body: {
       name: dados.nome.trim(),
       email: dados.email.trim(),
-      ...(celular === '' ? {} : { phone: celular }),
+      /* Obrigatorio e unico entre contas — achado do QA. */
+      phone: celular,
       secret: dados.senha,
       legalName: dados.razaoSocial.trim(),
       cnpj: dados.cnpj.replace(/\D/g, ''),

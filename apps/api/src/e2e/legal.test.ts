@@ -2,6 +2,12 @@ import { randomInt, randomUUID } from 'node:crypto'
 import { VERSOES_LEGAIS } from '@na-regua/contracts'
 import { getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
+
+/* Celular unico por chamada: o cadastro exige e nao aceita repetido. */
+function celularDeTeste(): string {
+  return `41${randomInt(900_000_000, 999_999_999)}`
+}
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
@@ -89,6 +95,7 @@ describe.skipIf(!DATABASE_URL)('documentos legais, ponta a ponta — RF-02/RF-03
       payload: {
         name: `Titular ${sufixo}`,
         email: `titular-${sufixo}@teste.local`,
+        phone: celularDeTeste(),
         secret: 'senha-de-teste-longa',
         legalName: `Loja do Titular ${sufixo} LTDA`,
         cnpj: cnpjDeTeste(),
@@ -118,6 +125,7 @@ describe.skipIf(!DATABASE_URL)('documentos legais, ponta a ponta — RF-02/RF-03
       payload: {
         name: `Sem Aceite ${sufixo}`,
         email: `sem-aceite-${sufixo}@teste.local`,
+        phone: celularDeTeste(),
         secret: 'senha-de-teste-longa',
         legalName: `Loja Sem Aceite ${sufixo} LTDA`,
         cnpj: cnpjDeTeste(),
@@ -136,6 +144,7 @@ describe.skipIf(!DATABASE_URL)('documentos legais, ponta a ponta — RF-02/RF-03
       payload: {
         name: `Recusou ${sufixo}`,
         email: `recusou-${sufixo}@teste.local`,
+        phone: celularDeTeste(),
         secret: 'senha-de-teste-longa',
         legalName: `Loja Recusou ${sufixo} LTDA`,
         cnpj: cnpjDeTeste(),

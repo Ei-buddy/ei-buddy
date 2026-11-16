@@ -433,6 +433,65 @@ describe.skipIf(!DATABASE_URL)('super admin — NR-105', () => {
       })
     })
 
+    /* NR-216: a plataforma nao enxergava quem estava atrasado. A assinatura
+       mora numa tabela com RLS por empresa — so a funcao a atravessa. */
+    it('listCompanies traz a situacao da assinatura, e nula para quem nao tem', async () => {
+      const acesso = createPlatformAdminAccess(sql)
+      const bootstrap = await criarUsuarioSemEmpresa(`Bootstrap Assinatura ${randomUUID()}`)
+      await admin`INSERT INTO platform_admins (user_id, granted_by) VALUES (${bootstrap}, ${bootstrap})`
+
+      await withTenant(
+        sql,
+        empresaA,
+        (tx) => tx`
+          INSERT INTO subscriptions (company_id, plan_code, status, trial_ends_at, restricted_at, next_due_date)
+          VALUES (${empresaA}, 'plano-unico', 'restricted', '2026-10-01T15:00:00Z',
+                  '2026-11-10T12:00:00Z', '2026-11-05')
+          ON CONFLICT (company_id) DO NOTHING
+        `,
+      )
+
+      const empresas = await acesso.listCompanies(bootstrap)
+      const a = empresas.find((e) => e.id === empresaA)
+      const b = empresas.find((e) => e.id === empresaB)
+
+      expect(a).toMatchObject({
+        subscriptionStatus: 'restricted',
+        trialEndsAt: '2026-10-01T15:00:00.000Z',
+        /* `date` nao anda um dia para tras por causa do fuso. */
+        nextDueDate: '2026-11-05',
+        restrictedAt: '2026-11-10T12:00:00.000Z',
+      })
+      expect(b).toMatchObject({
+        subscriptionStatus: null,
+        trialEndsAt: null,
+        nextDueDate: null,
+        restrictedAt: null,
+      })
+    })
+
+    it('assinatura apagada (deleted_at) nao aparece como situacao', async () => {
+      const acesso = createPlatformAdminAccess(sql)
+      const bootstrap = await criarUsuarioSemEmpresa(`Bootstrap Apagada ${randomUUID()}`)
+      await admin`INSERT INTO platform_admins (user_id, granted_by) VALUES (${bootstrap}, ${bootstrap})`
+
+      const empresaC = randomUUID()
+      const cnpj = cnpjDeTeste('7')
+      await withTenant(sql, empresaC, async (tx) => {
+        await tx`
+          INSERT INTO companies (id, legal_name, cnpj, email, phone)
+          VALUES (${empresaC}, 'Loja Assinatura Apagada', ${cnpj}, ${`contato@${cnpj}.local`}, '41999990000')
+        `
+        await tx`
+          INSERT INTO subscriptions (company_id, plan_code, status, deleted_at)
+          VALUES (${empresaC}, 'plano-unico', 'overdue', now())
+        `
+      })
+
+      const c = (await acesso.listCompanies(bootstrap)).find((e) => e.id === empresaC)
+      expect(c?.subscriptionStatus).toBeNull()
+    })
+
     it('enterCompany e exitCompany, pelo adapter, trocam a sessao de verdade', async () => {
       const acesso = createPlatformAdminAccess(sql)
       const bootstrap = await criarUsuarioSemEmpresa(`Bootstrap EntrarSair ${randomUUID()}`)

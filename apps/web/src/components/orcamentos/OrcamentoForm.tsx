@@ -149,6 +149,10 @@ export default function OrcamentoForm({
     )
     setBusca('')
     setAchados([])
+    /* Lancou, volta para a busca do proximo — achado do QA. Clicar no achado
+       deixava o foco no botao (que some), e era preciso clicar na busca de
+       novo a cada produto. */
+    document.getElementById('orcamento-busca')?.focus()
   }
 
   const mudar = (id: string, campo: 'quantidade' | 'preco', valor: string) =>

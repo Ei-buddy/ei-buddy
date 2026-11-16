@@ -61,8 +61,9 @@ export class AppError extends Error {
     return new AppError('UNAUTHORIZED', message)
   }
 
-  static conflict(message: string): AppError {
-    return new AppError('CONFLICT', message)
+  /** `fields` opcional: o cadastro aponta o campo repetido (e-mail, CNPJ, celular). */
+  static conflict(message: string, fields: readonly FieldIssue[] = []): AppError {
+    return new AppError('CONFLICT', message, fields)
   }
 
   static validation(message: string, fields: readonly FieldIssue[] = []): AppError {

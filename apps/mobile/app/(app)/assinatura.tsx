@@ -1,8 +1,16 @@
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Cabecalho from '@/components/Cabecalho'
 import Sanfona from '@/components/ui/Sanfona'
 import { Vazio } from '@/components/ui/Cartao'
+import {
+  carregarAssinatura,
+  resumoDaAssinatura,
+  type SituacaoDaAssinatura,
+  type Tom,
+} from '@/lib/assinatura-api'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -32,15 +40,56 @@ const PLANO = {
  * o do site. A cobranca da mensalidade ainda nao existe (QST-002): ate la a
  * tela diz o plano e que nao ha fatura — e nao inventa uma.
  *
+ * A SITUACAO vem do servidor (`GET /assinatura`, NR-216): em teste, em dia,
+ * atrasada, restrita ou cancelada — ou "liberado", enquanto a cobranca nao
+ * liga. Antes a tela nem perguntava.
+ *
  * O pagamento fica no site: cobrar assinatura dentro do app na App Store exige
  * o sistema de pagamento da Apple, decisao de produto ainda nao tomada.
  */
 export default function Assinatura() {
+  const [situacao, setSituacao] = useState<SituacaoDaAssinatura | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  /* De novo a cada vez que a tela volta ao foco: a pessoa pode ter pago pelo
+     site e voltado para o app. */
+  useFocusEffect(
+    useCallback(() => {
+      let cancelado = false
+      void (async () => {
+        const r = await carregarAssinatura()
+        if (cancelado) return
+        if (r.ok) {
+          setErro(null)
+          setSituacao(r.dados)
+        } else {
+          setErro(r.erro)
+        }
+      })()
+      return () => {
+        cancelado = true
+      }
+    }, []),
+  )
+
+  const resumo = situacao === null ? null : resumoDaAssinatura(situacao)
+
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <Cabecalho titulo="Assinatura" subtitulo={`${PLANO.nome} · ${PLANO.preco}${PLANO.periodo}`} />
 
       <ScrollView contentContainerStyle={estilos.conteudo}>
+        <View
+          style={[estilos.estado, resumo !== null && estiloDoTom(resumo.tom)]}
+          accessibilityLabel="Situação da assinatura"
+        >
+          <Text style={estilos.situacaoRotulo}>Situação</Text>
+          <Text style={estilos.estadoValor}>
+            {resumo?.rotulo ?? (erro === null ? 'Carregando...' : 'Não deu para carregar')}
+          </Text>
+          <Text style={estilos.situacaoApoio}>{resumo?.detalhe ?? erro ?? ''}</Text>
+        </View>
+
         <View style={estilos.situacao}>
           <Text style={estilos.situacaoRotulo}>Plano atual</Text>
           <Text style={estilos.situacaoValor}>{PLANO.preco}</Text>
@@ -77,7 +126,27 @@ export default function Assinatura() {
   )
 }
 
+function estiloDoTom(tom: Tom) {
+  if (tom === 'warning') return estilos.estadoAtencao
+  if (tom === 'negative') return estilos.estadoErro
+  return null
+}
+
 const estilos = criarEstilos(() => ({
+  estado: {
+    ...vidro.peca,
+    padding: espaco.lg,
+    borderRadius: raio.md,
+    gap: espaco.xs,
+  },
+  estadoAtencao: {
+    borderWidth: 1,
+    borderColor: cores.atencao,
+    backgroundColor: cores.atencaoFundo,
+  },
+  estadoErro: { borderWidth: 1, borderColor: cores.erro, backgroundColor: cores.erroFundo },
+  estadoValor: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
+
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
 

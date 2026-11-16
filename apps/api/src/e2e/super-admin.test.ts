@@ -2,6 +2,12 @@ import { randomInt, randomUUID } from 'node:crypto'
 import { signupInputSchema } from '@na-regua/contracts'
 import { getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
+
+/* Celular unico por chamada: o cadastro exige e nao aceita repetido. */
+function celularDeTeste(): string {
+  return `41${randomInt(900_000_000, 999_999_999)}`
+}
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
@@ -93,6 +99,7 @@ describe.skipIf(!DATABASE_URL)('super admin, ponta a ponta — ADR-0007', () => 
     const cadastro = signupInputSchema.parse({
       name: 'Dona da Loja Alvo',
       email: `dona-${randomUUID()}@loja.local`,
+      phone: celularDeTeste(),
       secret: 'senha-de-teste',
       legalName: 'Loja Alvo do Super Admin LTDA',
       cnpj: CNPJ,

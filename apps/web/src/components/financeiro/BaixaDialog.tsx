@@ -15,6 +15,7 @@ import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import styles from './financeiro.module.css'
 import { centavosDoTexto } from '@/lib/valor'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /**
  * Baixa de titulo — total ou parcial.
@@ -82,18 +83,7 @@ export default function BaixaDialog({
     })
   }, [])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !processando) onCancelar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, processando])
+  useDialogo(ref, onCancelar, processando)
 
   const pagar = verbo === 'pagar'
 

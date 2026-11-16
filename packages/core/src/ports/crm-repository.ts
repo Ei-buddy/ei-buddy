@@ -46,4 +46,10 @@ export type CrmRepository = {
 
   /** Lanca quando o card nao existe nesta empresa. */
   addComment(comment: NewCrmComment): Promise<CrmCommentOutput>
+
+  /**
+   * Apaga o card e os comentarios dele (CASCADE) — NR-213. `false` quando nao
+   * existia nesta empresa.
+   */
+  delete(companyId: CompanyId, cardId: string): Promise<boolean>
 }

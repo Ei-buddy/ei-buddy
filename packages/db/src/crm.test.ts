@@ -174,6 +174,42 @@ describe.skipIf(!DATABASE_URL)('CRM — NR-109', () => {
     expect(lido?.comments[0]?.authorName).toBe('Dono da A')
   })
 
+  it('excluir apaga o card e os comentarios; de outra loja ou id torto, nada — NR-213', async () => {
+    const card = await crm.create({
+      companyId: empresaA,
+      title: 'Lancado por engano',
+      kind: 'task',
+      dueOn: '2026-09-25',
+      createdBy: usuarioA,
+      createdAt: new Date('2026-09-11T13:00:00.000Z'),
+    })
+    await crm.addComment({
+      companyId: empresaA,
+      cardId: card.id,
+      authorId: usuarioA,
+      text: 'Vai sumir junto.',
+      createdAt: new Date('2026-09-11T14:00:00.000Z'),
+    })
+
+    /* A outra loja nao apaga, nem enxerga. */
+    expect(await crm.delete(empresaB, card.id)).toBe(false)
+    expect(await crm.findById(empresaA, card.id)).toBeDefined()
+    /* Id que nao e uuid: "nao existe", sem erro do Postgres. */
+    expect(await crm.delete(empresaA, 'nao-e-uuid')).toBe(false)
+    expect(await crm.findById(empresaA, 'nao-e-uuid')).toBeUndefined()
+
+    expect(await crm.delete(empresaA, card.id)).toBe(true)
+    expect(await crm.findById(empresaA, card.id)).toBeUndefined()
+    expect(await crm.delete(empresaA, card.id)).toBe(false)
+
+    const sobra = await withTenant(
+      sql,
+      empresaA,
+      (tx) => tx`SELECT count(*)::int AS n FROM crm_card_comments WHERE card_id = ${card.id}`,
+    )
+    expect(sobra[0]?.n).toBe(0)
+  })
+
   it('card sem comentario nenhum nao quebra a leitura', async () => {
     /* `json_agg` sobre conjunto vazio devolve NULL, e nao `[]`. */
     const card = await crm.create({

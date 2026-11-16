@@ -13,6 +13,9 @@ import {
   type TransacaoBancaria,
 } from '@/lib/conciliacao-api'
 import { formatDate, formatMoney } from '@/lib/format'
+import { listarContasBancarias, type ContaBancaria } from '@/lib/contas-bancarias-api'
+import ConferenciaDoExtrato from './ConferenciaDoExtrato'
+import { useDialogo } from '@/components/app/useDialogo'
 import {
   Badge,
   Card,
@@ -20,6 +23,7 @@ import {
   Field,
   Input,
   PageHeader,
+  Select,
   Stat,
   Textarea,
 } from '@/components/ui/UI'
@@ -55,6 +59,23 @@ export default function ConciliacaoView() {
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
   const arquivoRef = useRef<HTMLInputElement>(null)
+
+  /* Conciliar da baixa — DEC-026: a baixa vai para a conta do extrato. Com uma
+     conta so, ela ja vem escolhida. */
+  const [contas, setContas] = useState<ContaBancaria[] | null>(null)
+  const [contaEscolhida, setContaEscolhida] = useState<string | null>(null)
+  const contaDoExtrato =
+    contaEscolhida ?? (contas !== null && contas.length === 1 ? contas[0]!.name : null)
+  const [conferindo, setConferindo] = useState(false)
+  /* Remonta a conferencia depois de confirmar ou importar: a fila mudou. */
+  const [rodada, setRodada] = useState(0)
+
+  useEffect(() => {
+    void (async () => {
+      const r = await listarContasBancarias()
+      setContas(r.ok ? r.dados : [])
+    })()
+  }, [])
 
   const buscar = useCallback(async (scope: RecorteDaFila) => {
     const r = await carregarFila(scope)
@@ -120,6 +141,7 @@ export default function ConciliacaoView() {
     })
 
     recarregar()
+    setRodada((n) => n + 1)
   }
 
   const fila = recorte === 'pending'
@@ -152,6 +174,35 @@ export default function ConciliacaoView() {
           value={String(pendentes)}
           hint={pendentes === 0 ? 'Extrato em dia' : 'transações do extrato sem lançamento'}
         />
+
+        <div className={styles.contaDoExtrato}>
+          <label htmlFor="conta-do-extrato">Conta do extrato</label>
+          {contas !== null && contas.length === 0 ? (
+            <span className={styles.contraparte}>
+              Cadastre a conta em Financeiro &gt; Contas bancárias para a conciliação dar baixa.
+            </span>
+          ) : (
+            <span className={styles.contaSelect}>
+              <Select
+                id="conta-do-extrato"
+                value={contaDoExtrato ?? ''}
+                onChange={(e) => setContaEscolhida(e.target.value || null)}
+              >
+                <option value="">Escolha a conta</option>
+                {(contas ?? []).map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </span>
+          )}
+          {fila && pendentes > 0 ? (
+            <Button variant="secondary" onClick={() => setConferindo((v) => !v)}>
+              {conferindo ? 'Fechar a conferência' : 'Conferir lado a lado'}
+            </Button>
+          ) : null}
+        </div>
 
         <div className={styles.abas}>
           <button
@@ -230,9 +281,24 @@ export default function ConciliacaoView() {
         )}
       </Card>
 
+      {conferindo && fila ? (
+        <ConferenciaDoExtrato
+          key={rodada}
+          contaDoExtrato={contaDoExtrato}
+          onErro={(msg) => setToast({ msg, tone: 'error' })}
+          onPronto={(msg) => {
+            setConferindo(false)
+            setToast({ msg, tone: 'success' })
+            recarregar()
+            setRodada((n) => n + 1)
+          }}
+        />
+      ) : null}
+
       {conciliando !== null ? (
         <ConciliarDialog
           transacao={conciliando}
+          contaDoExtrato={contaDoExtrato}
           onFechar={() => setConciliando(null)}
           onPronto={(msg) => {
             setConciliando(null)
@@ -249,7 +315,7 @@ export default function ConciliacaoView() {
           onPronto={() => {
             setDesfazendo(null)
             setToast({
-              msg: 'Conciliação desfeita. Os dois voltaram para a fila.',
+              msg: 'Conciliação desfeita: a baixa que ela lançou foi estornada e os dois voltaram para a fila.',
               tone: 'success',
             })
             recarregar()
@@ -276,10 +342,13 @@ export default function ConciliacaoView() {
  */
 function ConciliarDialog({
   transacao,
+  contaDoExtrato,
   onFechar,
   onPronto,
 }: {
   transacao: TransacaoBancaria
+  /** A conta das baixas — DEC-026. Sem ela, concilia sem baixar. */
+  contaDoExtrato: string | null
   onFechar: () => void
   onPronto: (msg: string) => void
 }) {
@@ -291,6 +360,10 @@ function ConciliarDialog({
   const [criando, setCriando] = useState(false)
   const [contraparte, setContraparte] = useState(transacao.counterparty ?? '')
   const [descricao, setDescricao] = useState(transacao.description)
+  /* Esc fecha, o foco entra no dialogo e a pagina para de rolar por baixo —
+     como nos outros dialogos (achado do QA na conferencia da conciliacao). */
+  const painel = useRef<HTMLDivElement>(null)
+  useDialogo(painel, onFechar, processando)
 
   useEffect(() => {
     void (async () => {
@@ -317,6 +390,7 @@ function ConciliarDialog({
     const r = await conciliar(transacao.id, {
       entryKind: s.entry.entryKind,
       entryId: s.entry.id,
+      ...(contaDoExtrato === null ? {} : { bankAccount: contaDoExtrato }),
     })
     setProcessando(false)
 
@@ -325,7 +399,11 @@ function ConciliarDialog({
       return
     }
 
-    onPronto(`Conciliado com ${s.entry.counterparty}.`)
+    onPronto(
+      contaDoExtrato === null
+        ? `Conciliado com ${s.entry.counterparty}.`
+        : `Conciliado com ${s.entry.counterparty} e baixado em ${contaDoExtrato}.`,
+    )
   }
 
   async function criar() {
@@ -335,6 +413,7 @@ function ConciliarDialog({
     const r = await criarLancamentoDaTransacao(transacao.id, {
       counterparty: contraparte.trim(),
       description: descricao.trim(),
+      ...(contaDoExtrato === null ? {} : { bankAccount: contaDoExtrato }),
     })
     setProcessando(false)
 
@@ -343,13 +422,17 @@ function ConciliarDialog({
       return
     }
 
-    onPronto('Lancamento criado e conciliado.')
+    onPronto(
+      contaDoExtrato === null
+        ? 'Lançamento criado e conciliado.'
+        : `Lançamento criado, conciliado e baixado em ${contaDoExtrato}.`,
+    )
   }
 
   return (
     <div className={styles.dialogRoot} role="dialog" aria-modal="true" aria-label="Conciliar">
       <div className={styles.dialogBackdrop} onClick={onFechar} />
-      <div className={styles.dialogPainel}>
+      <div className={styles.dialogPainel} ref={painel} tabIndex={-1}>
         <header className={styles.dialogCabecalho}>
           <div>
             <h2 className={styles.dialogTitulo}>Conciliar transação</h2>
@@ -475,6 +558,8 @@ function DesfazerDialog({
   const [motivo, setMotivo] = useState('')
   const [processando, setProcessando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const painel = useRef<HTMLDivElement>(null)
+  useDialogo(painel, onFechar, processando)
 
   async function confirmar() {
     setProcessando(true)
@@ -494,7 +579,7 @@ function DesfazerDialog({
   return (
     <div className={styles.dialogRoot} role="dialog" aria-modal="true" aria-label="Desfazer">
       <div className={styles.dialogBackdrop} onClick={onFechar} />
-      <div className={styles.dialogPainel}>
+      <div className={styles.dialogPainel} ref={painel} tabIndex={-1}>
         <header className={styles.dialogCabecalho}>
           <div>
             <h2 className={styles.dialogTitulo}>Desfazer conciliação</h2>

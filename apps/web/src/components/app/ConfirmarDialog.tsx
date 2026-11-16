@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconClose } from '@/components/Icons'
 import styles from './dialog.module.css'
+import { useDialogo } from '@/components/app/useDialogo'
 
 /**
  * Confirmacao para acoes que mexem em dinheiro.
@@ -34,18 +35,7 @@ export default function ConfirmarDialog({
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !processando) onCancelar()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    ref.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, processando])
+  useDialogo(ref, onCancelar, processando)
 
   return (
     <div className={styles.root}>

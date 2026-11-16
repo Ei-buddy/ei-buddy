@@ -69,6 +69,14 @@ export class InMemoryCrm implements CrmRepository {
     return this.semTenant(movido)
   }
 
+  async delete(companyId: CompanyId, cardId: string): Promise<boolean> {
+    const atual = this.cards.get(cardId)
+    if (atual === undefined || atual.companyId !== companyId) return false
+    this.cards.delete(cardId)
+    this.comments.delete(cardId)
+    return true
+  }
+
   async addComment(comment: NewCrmComment): Promise<CrmCommentOutput> {
     const card = this.cards.get(comment.cardId)
     if (card === undefined || card.companyId !== comment.companyId) {

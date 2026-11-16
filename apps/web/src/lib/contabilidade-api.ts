@@ -1,3 +1,4 @@
+import type { DreLine, DreOutput } from '@na-regua/contracts'
 import { pedir, type Resultado } from './http'
 
 /**
@@ -16,29 +17,12 @@ export type ContaContabil = {
   isDefault: boolean
 }
 
-export type LinhaDoDre = {
-  accountId: string | null
-  accountName: string
-  type: TipoDeConta
-  amountCents: number
-  /** Quantos lancamentos compoem a linha — o "clique para detalhar". */
-  entryCount: number
-}
-
-export type Dre = {
-  from: string
-  to: string
-  grossRevenueCents: number
-  deductionsCents: number
-  netRevenueCents: number
-  costCents: number
-  grossProfitCents: number
-  expensesCents: number
-  resultCents: number
-  /** Pontos por cem (18 = 18%). Nulo quando nao houve receita. */
-  grossMarginPoints: number | null
-  lines: LinhaDoDre[]
-}
+/**
+ * O DRE como a api devolve — o contrato e a fonte, para a tela nao desenhar um
+ * campo que a api deixou de mandar (ou deixar de desenhar um que chegou).
+ */
+export type LinhaDoDre = DreLine
+export type Dre = DreOutput
 
 /** O rotulo de cada tipo, num lugar so. */
 export const ROTULO_DO_TIPO: Record<TipoDeConta, string> = {
@@ -72,3 +56,27 @@ export const apagarConta = (accountId: string): Promise<Resultado<unknown>> =>
  */
 export const carregarDre = (from: string, to: string): Promise<Resultado<Dre>> =>
   pedir(`/api/relatorios/dre?from=${from}&to=${to}`)
+
+/** Como o plano de contas aparece na lista — achado do QA. */
+export type OrdemDoPlano = 'tipo' | 'nome' | 'nome-desc'
+export type FiltroDoPlano = TipoDeConta | 'todos'
+
+/**
+ * O plano de contas filtrado por tipo e ordenado — achado do QA ("poder
+ * ordenar por nome; poder filtrar por tipo").
+ *
+ * `tipo` mantem a ordem do servidor (receita, deducao, custo, despesa — a
+ * ordem do DRE). Por nome, em portugues: acento e maiuscula nao mudam a ordem
+ * ("Água" junto de "Aluguel", nao depois do Z).
+ */
+export function planoNaTela<T extends { readonly name: string; readonly type: TipoDeConta }>(
+  contas: readonly T[],
+  filtro: FiltroDoPlano,
+  ordem: OrdemDoPlano,
+): T[] {
+  const filtradas = filtro === 'todos' ? [...contas] : contas.filter((c) => c.type === filtro)
+  if (ordem === 'tipo') return filtradas
+  const porNome = (a: T, b: T) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base', numeric: true })
+  return filtradas.sort(ordem === 'nome' ? porNome : (a, b) => porNome(b, a))
+}

@@ -6,8 +6,11 @@ import type {
   EntryKind,
 } from '@na-regua/contracts'
 import type { CompanyId } from '../context.js'
+import type { InMemorySettlements } from '../settlements/fakes.js'
 import type {
   BankTransactionSnapshot,
+  ConciliacaoComBaixaTransaction,
+  ConciliacaoComBaixaUnitOfWork,
   LancamentoConciliavel,
   NovoLancamentoDeTransacao,
   ReconciliationQueries,
@@ -73,6 +76,7 @@ export class InMemoryReconciliation implements ReconciliationUnitOfWork, Reconci
       counterparty: t.counterparty ?? null,
       reconciledEntryKind: null,
       reconciledEntryId: null,
+      settlementId: null,
     }
     this.transacoes.push(guardada)
     return guardada
@@ -109,6 +113,12 @@ export class InMemoryReconciliation implements ReconciliationUnitOfWork, Reconci
   }
 
   /** O que o teste confere depois de conciliar. */
+  /** A baixa da conciliacao — so o falso combinado chama. */
+  definirBaixa(transactionId: string, settlementId: string | null): void {
+    const i = this.transacoes.findIndex((t) => t.id === transactionId)
+    if (i >= 0) this.transacoes[i] = { ...this.transacoes[i]!, settlementId }
+  }
+
   transacao(id: string): BankTransactionSnapshot | undefined {
     return this.transacoes.find((t) => t.id === id)
   }
@@ -241,6 +251,11 @@ export class InMemoryReconciliation implements ReconciliationUnitOfWork, Reconci
         )
         if (i < 0) return
 
+        /* O CHECK `bank_transactions_baixa_so_conciliada` do banco: soltar
+           a linha com a baixa da conciliacao ainda presa a ela e recusado. */
+        if (this.transacoes[i]!.settlementId !== null) {
+          throw new Error('bank_transactions_baixa_so_conciliada')
+        }
         const ligado = this.transacoes[i]!.reconciledEntryId
         this.transacoes[i] = {
           ...this.transacoes[i]!,
@@ -266,5 +281,81 @@ export class InMemoryReconciliation implements ReconciliationUnitOfWork, Reconci
   private marcar(entryId: string, reconciled: boolean): void {
     const i = this.lancamentos.findIndex((l) => l.id === entryId)
     if (i >= 0) this.lancamentos[i] = { ...this.lancamentos[i]!, reconciled }
+  }
+}
+
+/**
+ * Conciliacao e baixa na mesma transacao — DEC-026.
+ *
+ * Compoe os dois falsos, e a transacao de um dentro da do outro: a falha em
+ * qualquer ponto desfaz as duas, como o `withTenant` unico do banco. Os dois
+ * TEM de ter a mesma trilha — e o que o banco faz, uma conexao so.
+ *
+ * O titulo existe nos dois falsos com o mesmo id: no da conciliacao como
+ * candidato, no da baixa com o saldo. `adicionarTitulo` poe nos dois.
+ */
+export class InMemoryConciliacaoComBaixa implements ConciliacaoComBaixaUnitOfWork {
+  constructor(
+    readonly conciliacao: InMemoryReconciliation,
+    readonly baixas: InMemorySettlements,
+  ) {
+    if (conciliacao.trilha !== baixas.trilha) {
+      throw new Error('Os dois falsos precisam da mesma trilha, como a mesma conexao no banco.')
+    }
+  }
+
+  adicionarTitulo(
+    companyId: CompanyId,
+    t: {
+      entryKind: EntryKind
+      counterparty: string
+      amountCents: number
+      dueDate: string
+      netAmountCents?: number | null
+      settledAmountCents?: number
+      status?: string
+      customerId?: string | null
+      isCustomerDebt?: boolean
+    },
+  ): LancamentoConciliavel {
+    const l = this.conciliacao.adicionarLancamento(companyId, t)
+    this.baixas.adicionarTitulo(companyId, t.entryKind, {
+      id: l.id,
+      amountCents: t.amountCents,
+      settledAmountCents: t.settledAmountCents ?? 0,
+      status: t.status ?? 'open',
+      customerId: t.customerId ?? null,
+      isCustomerDebt: t.isCustomerDebt ?? false,
+    })
+    return l
+  }
+
+  async transaction<T>(
+    companyId: CompanyId,
+    fn: (tx: ConciliacaoComBaixaTransaction) => Promise<T>,
+  ): Promise<T> {
+    return this.conciliacao.transaction(companyId, (rtx) =>
+      this.baixas.transaction(companyId, (stx) =>
+        fn({
+          ...stx,
+          ...rtx,
+          /* O lancamento criado do extrato tambem nasce no falso da baixa —
+             no banco e a mesma linha. */
+          insertEntry: async (l) => {
+            const criado = await rtx.insertEntry(l)
+            this.baixas.adicionarTitulo(l.companyId, l.entryKind, {
+              id: criado.id,
+              amountCents: l.amountCents,
+              settledAmountCents: 0,
+              status: 'open',
+              customerId: null,
+            })
+            return criado
+          },
+          setSettlement: async (_empresa, transactionId, settlementId) =>
+            this.conciliacao.definirBaixa(transactionId, settlementId),
+        }),
+      ),
+    )
   }
 }

@@ -53,6 +53,7 @@ export { createInvoiceStore } from './invoice-repository.js'
 export {
   createBankTransactionWriter,
   createReconciliationQueries,
+  createConciliacaoComBaixaUnitOfWork,
   createReconciliationUnitOfWork,
 } from './bank-transaction-repository.js'
 export { createSaleUnitOfWork } from './sale-unit-of-work.js'
@@ -103,6 +104,9 @@ export {
 /* Cadastro de fornecedor — NR-191. */
 export { createSupplierRepository } from './supplier-repository.js'
 
+/* Taxas de recebimento da loja — DEC-027 (NR-223). */
+export { createPaymentFeeSettingsRepository } from './payment-fee-settings-repository.js'
+
 /* Sugestao de reposicao pela venda dos ultimos seis meses — achado do QA. */
 export { createRestockQueries } from './restock-queries.js'
 
@@ -127,6 +131,8 @@ export { createLoginThrottle, createSessionIssuer } from './session-repository.j
 export { createPasswordResetTokens } from './password-reset-repository.js'
 export { createUserContacts } from './user-contacts.js'
 export { createPlatformAdminAccess } from './platform-admin-repository.js'
+export { createSupportInboxRepository } from './support-inbox-repository.js'
+export { createSupportAlertDirectory } from './support-alert-directory.js'
 export { createConnectionRequests, createSupplierDirectory } from './connection-repository.js'
 /* Conta de Parceiro — NR-115, ADR-0013. */
 export { createPartnerApplicationRepository } from './partner-application-repository.js'

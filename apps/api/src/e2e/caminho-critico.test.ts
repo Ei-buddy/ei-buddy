@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import {
   cnpjSchema,
   createCompanyInputSchema,
@@ -8,6 +8,12 @@ import {
 import { PLANO_DE_CONTAS_PADRAO } from '@na-regua/core'
 import { getClient, migrate, withTenant } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
+
+/* Celular unico por chamada: o cadastro exige e nao aceita repetido. */
+function celularDeTeste(): string {
+  return `41${randomInt(900_000_000, 999_999_999)}`
+}
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
@@ -146,6 +152,7 @@ const SENHA = 'senha-de-teste'
 const CADASTRO = {
   name: 'Operadora do Caminho Critico',
   email: `dona@${CNPJ}.local`,
+  phone: celularDeTeste(),
   secret: SENHA,
   legalName: EMPRESA.legalName,
   cnpj: CNPJ,

@@ -42,13 +42,19 @@ PR**, e a linha sai da tabela de abertas.
 
 ## Painel
 
-| Estado             | Qtd | Quais                              |
-| ------------------ | --: | ---------------------------------- |
-| 🔴 Aberta          |   4 | DEC-005, 013, 016, 018             |
-| 🟡 Em análise      |   0 | —                                  |
-| ⚪ Adiada          |   1 | DEC-014                            |
-| 🟢 Decidida        |  19 | DEC-001–004, 006–012, 015, 019–025 |
-| ❓ Pergunta aberta |   9 | QST-001 a QST-008, QST-012         |
+| Estado             | Qtd | Quais                                       |
+| ------------------ | --: | ------------------------------------------- |
+| 🔴 Aberta          |   5 | DEC-005, 013, 016, 018, 030                 |
+| 🟡 Em análise      |   0 | —                                           |
+| ⚪ Adiada          |   1 | DEC-014                                     |
+| 🟢 Decidida        |  25 | DEC-001–004, 006–012, 015, 019–029, 031–032 |
+| ❓ Pergunta aberta |   5 | QST-001, QST-006 a QST-008, QST-012         |
+
+**Respostas de 2026-11-15** (arquivo "Pendências que não são de código",
+preenchido): fecharam a QST-002 (preço e prazos), a QST-003 (pilotos), a
+QST-004 (entendimento adotado, a validar com especialista) e a QST-005;
+revisaram a [DEC-025](#dec-025) (endereço opcional) e abriram as decisões
+[DEC-026](#dec-026) a [DEC-032](#dec-032).
 
 **Bloqueando o MVP agora:** nenhuma DEC de assistente — [DEC-011](#dec-011)
 fechou na [ADR-0016](adr/0016-memoria-da-conversa-tabelas-nossas.md).
@@ -408,20 +414,20 @@ Quando fechar: ADR nova e o mesmo PR atualiza o adapter.
 Resolvem-se com informação, não com escolha. Uma pergunta respondida vira
 atualização de documento — e às vezes abre uma `DEC`.
 
-| ID                              | Pergunta                                                                                                                                                                                                                                                                | Para quem          | Por que importa                                                                                                                                                   | Prazo      |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| <a id="qst-001"></a>**QST-001** | Quantos lojistas se espera nos primeiros 12 meses?                                                                                                                                                                                                                      | Produto            | Dimensiona [RNF-016/017](../produto/requisitos-nao-funcionais.md) e o custo de [DEC-009](#dec-009)                                                                | Sprint 1   |
-| <a id="qst-002"></a>**QST-002** | Qual o preço da mensalidade e quantos planos?                                                                                                                                                                                                                           | Produto            | [RNF-072](../produto/requisitos-nao-funcionais.md) e [RNF-074](../produto/requisitos-nao-funcionais.md) são percentuais dela — sem o valor, não há como verificar | Sprint 1   |
-| <a id="qst-003"></a>**QST-003** | Existe lojista-piloto comprometido em usar o MVP?                                                                                                                                                                                                                       | Produto            | Sem piloto não há como validar o [critério de saída do MVP](../produto/escopo-mvp.md#critérios-de-saída-do-mvp)                                                   | Sprint 1   |
-| <a id="qst-004"></a>**QST-004** | Quem é controlador e quem é operador de dados na LGPD?                                                                                                                                                                                                                  | Jurídico           | Define quem responde por vazamento e o que vai no contrato — ver [`seguranca.md`](../arquitetura/seguranca.md#lgpd)                                               | Sprint 2   |
-| <a id="qst-005"></a>**QST-005** | Qual contador valida o formato de exportação?                                                                                                                                                                                                                           | Produto            | [RF-087](../produto/requisitos-funcionais.md) sem validação real vira retrabalho                                                                                  | Sprint 4   |
-| <a id="qst-006"></a>**QST-006** | As [personas](../produto/personas.md) foram validadas com lojistas reais?                                                                                                                                                                                               | Produto            | Hoje são inferência a partir da apresentação comercial                                                                                                            | Sprint 2   |
-| <a id="qst-007"></a>**QST-007** | As metas [M1–M7](../produto/visao.md#métricas-de-sucesso) são realistas?                                                                                                                                                                                                | Produto            | São hipóteses; meta errada leva a decisão errada                                                                                                                  | Sprint 2   |
-| <a id="qst-008"></a>**QST-008** | Os alvos numéricos dos [RNFs](../produto/requisitos-nao-funcionais.md) batem com o aparelho e a internet do público-alvo?                                                                                                                                               | Produto + Trilha 3 | Calibrados por estimativa, não por medição                                                                                                                        | Sprint 3   |
-| <a id="qst-009"></a>**QST-009** | ~~A PagMaxx pode estender o escopo da API Key?~~ Respondida: Asaas autentica por API Key ([ADR-0004](adr/0004-asaas.md))                                                                                                                                                | —                  | Encerrada com a troca de PSP                                                                                                                                      | Respondida |
-| <a id="qst-010"></a>**QST-010** | ~~A PagMaxx tem API de captura presencial?~~ Respondida: Asaas também não; PDV só registra ([ADR-0004](adr/0004-asaas.md))                                                                                                                                              | —                  | Encerrada — o desenho do PDV não muda                                                                                                                             | Respondida |
-| <a id="qst-011"></a>**QST-011** | ~~ProComércio é a marca guarda-chuva e este ERP é uma das soluções dela, ou é o nome do próprio ERP?~~ Respondida: o ERP é **EiBuddy** ([ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)); ProComércio não é o nome do produto. Paleta provisória segue em `packages/ui`. | —                  | Encerrada com a DEC-001                                                                                                                                           | Respondida |
-| <a id="qst-012"></a>**QST-012** | Já existe conta Asaas de sandbox e acesso para testar `packages/payments`?                                                                                                                                                                                              | Produto            | Sem sandbox não há como ligar o adapter da [NR-044](../processo/task-ledger.md)                                                                                   | Sprint 2   |
+| ID                              | Pergunta                                                                                                                                                                                                                                                                                                                                                                             | Para quem          | Por que importa                                                                                    | Prazo      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------- | ---------- |
+| <a id="qst-001"></a>**QST-001** | Quantos lojistas se espera nos primeiros 12 meses?                                                                                                                                                                                                                                                                                                                                   | Produto            | Dimensiona [RNF-016/017](../produto/requisitos-nao-funcionais.md) e o custo de [DEC-009](#dec-009) | Sprint 1   |
+| <a id="qst-002"></a>**QST-002** | ~~Qual o preço da mensalidade e quantos planos?~~ Respondida em 2026-11-15: três planos — R$ 89,00 (uso completo), R$ 79,00 (com NFS-e ou NFC-e) e R$ 69,00 (sem nota fiscal); teste de 16 dias, aviso 6 dias antes do fim, tolerância de 8 dias e, depois dela, mais 6 dias de aviso antes do bloqueio. **A confirmar:** quem paga R$ 79 × R$ 89 e se os 6 dias finais somam aos 8. | —                  | Encerrada; destrava a NR-063                                                                       | Respondida |
+| <a id="qst-003"></a>**QST-003** | ~~Existe lojista-piloto comprometido em usar o MVP?~~ Respondida em 2026-11-15: Thaís e Bianca.                                                                                                                                                                                                                                                                                      | —                  | Encerrada                                                                                          | Respondida |
+| <a id="qst-004"></a>**QST-004** | ~~Quem é controlador e quem é operador de dados na LGPD?~~ Entendimento adotado em 2026-11-15, **a validar com advogado ou especialista em LGPD**: nos dados dos clientes das lojas, a loja é controladora e a EiBuddy é operadora; nos dados das próprias lojas (cadastro, cobrança da mensalidade), a EiBuddy é controladora.                                                      | Jurídico           | Validação pendente — ver DEC-016                                                                   | Validar    |
+| <a id="qst-005"></a>**QST-005** | ~~Qual contador valida o formato de exportação?~~ Respondida em 2026-11-15: não há contador para validar. O formato segue sem validação externa.                                                                                                                                                                                                                                     | —                  | Encerrada; [RF-087](../produto/requisitos-funcionais.md) segue sem validação real                  | Respondida |
+| <a id="qst-006"></a>**QST-006** | As [personas](../produto/personas.md) foram validadas com lojistas reais?                                                                                                                                                                                                                                                                                                            | Produto            | Hoje são inferência a partir da apresentação comercial                                             | Sprint 2   |
+| <a id="qst-007"></a>**QST-007** | As metas [M1–M7](../produto/visao.md#métricas-de-sucesso) são realistas?                                                                                                                                                                                                                                                                                                             | Produto            | São hipóteses; meta errada leva a decisão errada                                                   | Sprint 2   |
+| <a id="qst-008"></a>**QST-008** | Os alvos numéricos dos [RNFs](../produto/requisitos-nao-funcionais.md) batem com o aparelho e a internet do público-alvo?                                                                                                                                                                                                                                                            | Produto + Trilha 3 | Calibrados por estimativa, não por medição                                                         | Sprint 3   |
+| <a id="qst-009"></a>**QST-009** | ~~A PagMaxx pode estender o escopo da API Key?~~ Respondida: Asaas autentica por API Key ([ADR-0004](adr/0004-asaas.md))                                                                                                                                                                                                                                                             | —                  | Encerrada com a troca de PSP                                                                       | Respondida |
+| <a id="qst-010"></a>**QST-010** | ~~A PagMaxx tem API de captura presencial?~~ Respondida: Asaas também não; PDV só registra ([ADR-0004](adr/0004-asaas.md))                                                                                                                                                                                                                                                           | —                  | Encerrada — o desenho do PDV não muda                                                              | Respondida |
+| <a id="qst-011"></a>**QST-011** | ~~ProComércio é a marca guarda-chuva e este ERP é uma das soluções dela, ou é o nome do próprio ERP?~~ Respondida: o ERP é **EiBuddy** ([ADR-0011](adr/0011-eibuddy-nome-e-dominio.md)); ProComércio não é o nome do produto. Paleta provisória segue em `packages/ui`.                                                                                                              | —                  | Encerrada com a DEC-001                                                                            | Respondida |
+| <a id="qst-012"></a>**QST-012** | Já existe conta Asaas de sandbox e acesso para testar `packages/payments`?                                                                                                                                                                                                                                                                                                           | Produto            | Sem sandbox não há como ligar o adapter da [NR-044](../processo/task-ledger.md)                    | Sprint 2   |
 
 ---
 
@@ -645,6 +651,140 @@ continua existindo, e completa os dados na próxima edição.
 **Revisão em 2026-10-07 (NR-149).** O CPF/CNPJ também passou a ser
 obrigatório: o cadastro de cliente é um só no web e no app, com os mesmos
 requisitos. Antes ele era exigido só no formulário do web.
+
+**Revisão em 2026-11-15 (NR-221).** O **endereço passou a ser opcional**. Salvar o
+cliente sem endereço salva e mostra só um aviso: o endereço será necessário
+para emitir nota fiscal de serviço. Ao emitir NFS-e no fechamento da venda
+para um cliente sem endereço, o sistema pede os dados na hora e já os grava no
+cadastro. CPF/CNPJ e celular continuam obrigatórios.
+
+---
+
+### <a id="dec-026"></a>DEC-026 — Conciliar dá baixa
+
+|             |                                                             |
+| ----------- | ----------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — implementada na NR-225                        |
+| **Escolha** | Conciliar o extrato dá baixa nas contas a pagar e a receber |
+| **Data**    | 2026-11-15                                                  |
+
+Antes, conciliar só ligava o lançamento do extrato à conta, e a conta seguia
+"em aberto". O fluxo decidido:
+
+1. A loja importa o extrato bancário.
+2. O sistema cruza cada lançamento do extrato com as contas a pagar e a
+   receber por critérios que coincidem (data prevista, valor etc.).
+3. Extrato e contas ficam lado a lado para a pessoa conferir e confirmar cada
+   par.
+4. No fim, o sistema dá baixa em tudo o que foi confirmado.
+5. **A ordem das baixas é a mesma do extrato**, para a pessoa conferir os
+   dois e ver que a sequência bate.
+
+Como ficou (NR-225): o extrato guarda a posição de cada linha no arquivo, e a
+fila segue data do banco e posição. "Conferir lado a lado" mostra cada linha
+com a conta que o sistema casou (valor exato, até 5 dias de diferença, cada
+conta para uma linha só). A pessoa marca os pares, escolhe a conta bancária do
+extrato e confirma: tudo numa transação, na ordem do extrato, com a baixa na
+data do banco. Título já quitado (recebível do cartão) só é ligado. Desfazer a
+conciliação estorna a baixa que ela lançou, com o motivo escrito.
+
+---
+
+### <a id="dec-027"></a>DEC-027 — Taxas de recebimento configuráveis
+
+|             |                                                                      |
+| ----------- | -------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — a implementar                                          |
+| **Escolha** | Sem tabela fixa: taxa por forma de pagamento, gravada junto da venda |
+| **Data**    | 2026-11-15                                                           |
+
+- Loja com Asaas: as tarifas vêm da API do Asaas e ficam gravadas junto da
+  venda, para o DRE apurar o líquido certo. O contas a receber já nasce com a
+  tarifa descontada.
+- Loja sem Asaas: o cadastro das formas de pagamento ganha a taxa de cada uma
+  (Pix, débito, crédito à vista, parcelado por número de parcelas), inclusive
+  bandeira com taxa diferente.
+- Antecipação automática: só um espaço para parametrizar agora; a rotina de
+  antecipação fica para uma fase futura.
+
+---
+
+### <a id="dec-028"></a>DEC-028 — Certificado A1 antigo (RC2) lido em modo legado
+
+|             |                                                                      |
+| ----------- | -------------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — NR-219                                                 |
+| **Escolha** | Ler o A1 antigo em modo legado **só na rotina que lê o certificado** |
+| **Data**    | 2026-11-15                                                           |
+
+Alguns A1 vêm com cifra RC2, que o OpenSSL 3 não lê sem o provedor legado.
+Ligar o provedor legado na api inteira mudaria a criptografia disponível
+para todo o processo; a escolha é limitá-lo à leitura do certificado. Antes,
+sem leitura, a tela conferia a senha mas pedia a validade digitada.
+
+**Implementada na NR-219.** A segunda tentativa de leitura roda num processo
+do Node à parte, com `--openssl-legacy-provider`, que lê o arquivo e termina;
+recebe arquivo e senha pela entrada padrão e sobe com o ambiente vazio.
+
+---
+
+### <a id="dec-029"></a>DEC-029 — Aviso de chamado novo para todos os Super Admins
+
+|             |                                                            |
+| ----------- | ---------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — NR-220                                       |
+| **Escolha** | Todo Super Admin recebe por e-mail o aviso de chamado novo |
+| **Data**    | 2026-11-15                                                 |
+
+**Implementada na NR-220.** Um e-mail por Super Admin ativo (ninguém vê o
+endereço dos outros), com loja, protocolo, categoria, mensagem e o link da
+fila. E-mail que falha não impede o chamado.
+
+---
+
+### <a id="dec-030"></a>DEC-030 — Armazenamento de arquivos
+
+|             |                                                  |
+| ----------- | ------------------------------------------------ |
+| **Status**  | 🔴 Aberta — quando tratar: a definir             |
+| **Escolha** | Indicado: FTP da AKA (a confirmar o que é "AKA") |
+| **Data**    | 2026-11-15                                       |
+
+FTP é diferente de S3/R2/MinIO: o envio e a busca de arquivos precisam de um
+adapter próprio, e o plano de hospedagem precisa incluir o espaço. Até lá
+continuam parados o "Exportar meus dados", a foto do produto e o anexo do
+chamado de suporte.
+
+---
+
+### <a id="dec-031"></a>DEC-031 — NFS-e: três campos e todos os municípios
+
+|             |                                                          |
+| ----------- | -------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — a implementar                              |
+| **Escolha** | Emissão apta a qualquer município, com três campos novos |
+| **Data**    | 2026-11-15                                               |
+
+- **Código de Tributação Nacional** (6 dígitos) — no cadastro da loja.
+- **Alíquota do ISS** — no cadastro da loja.
+- **NBS** (9 dígitos, o item do serviço) — no cadastro do produto.
+
+Os municípios onde as lojas emitem não são previsíveis: a emissão tem de
+servir a todos. Os três campos são os do padrão nacional da NFS-e.
+
+---
+
+### <a id="dec-032"></a>DEC-032 — Produção só com aprovação
+
+|             |                                                                 |
+| ----------- | --------------------------------------------------------------- |
+| **Status**  | 🟢 Decidida — falta o usuário do GitHub do aprovador            |
+| **Escolha** | Todo deploy em produção precisa de aprovação de Gustavo Guerios |
+| **Data**    | 2026-11-15                                                      |
+
+Fluxo: quem responde pelo produto diz "pode publicar", a publicação é
+disparada e o aprovador aprova no GitHub (Environment `production` →
+Required reviewers).
 
 ## Documentos relacionados
 

@@ -1,4 +1,4 @@
-import type { QuoteOutput } from '@na-regua/contracts'
+import type { QuoteListSummary, QuoteOutput, QuoteSituation } from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
 
 /** Portas do orcamento — NR-159. */
@@ -25,6 +25,26 @@ export type NewQuote = {
 /** O que muda na edicao: tudo menos numero, autor e data de criacao. */
 export type QuoteChanges = Omit<NewQuote, 'companyId' | 'createdBy' | 'createdAt'>
 
+/** O recorte da lista — NR-210. `hoje` decide o que ja venceu. */
+export type FiltroDeOrcamentos = {
+  readonly termo?: string
+  readonly situacao?: QuoteSituation
+  readonly from?: string
+  readonly to?: string
+  /** `AAAA-MM-DD` no fuso da loja: aberto com validade antes dele esta vencido. */
+  readonly hoje: string
+  readonly limite: number
+  readonly offset: number
+}
+
+export type PaginaDeOrcamentos = {
+  readonly orcamentos: readonly QuoteOutput[]
+  /** Quantos casam com busca, periodo e situacao — para as paginas. */
+  readonly total: number
+  /** Sobre busca e periodo, SEM a situacao: o painel mostra todas. */
+  readonly resumo: QuoteListSummary
+}
+
 export type QuoteRepository = {
   /** Produtos da empresa entre os ids pedidos. Os de outra loja nao voltam. */
   findProducts(
@@ -37,7 +57,7 @@ export type QuoteRepository = {
   create(orcamento: NewQuote): Promise<QuoteOutput>
   /** Troca cliente, itens e valores SO se ainda estiver aberto; `null` quando ja nao estava. */
   update(companyId: CompanyId, id: string, mudancas: QuoteChanges): Promise<QuoteOutput | null>
-  list(companyId: CompanyId, limite: number): Promise<readonly QuoteOutput[]>
+  list(companyId: CompanyId, filtro: FiltroDeOrcamentos): Promise<PaginaDeOrcamentos>
   findById(companyId: CompanyId, id: string): Promise<QuoteOutput | null>
   saleExists(companyId: CompanyId, saleId: string): Promise<boolean>
   /** Fecha SO se ainda estiver aberto; `null` quando ja nao estava. */

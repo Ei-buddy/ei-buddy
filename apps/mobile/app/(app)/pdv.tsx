@@ -29,7 +29,7 @@ import {
   type SituacaoCertificado,
   type VendaRegistrada,
   FORMAS,
-  PARCELAS_MAXIMAS,
+  taxaDoPagamento,
   paraItemCarrinho,
   subtotalCarrinho,
   subtotalItem,
@@ -49,6 +49,8 @@ import { compartilharComprovante } from '@/lib/comprovante-da-venda'
 import { diaLocal, formatMoney } from '@/lib/format'
 import { tocarConfirmacao } from '@/lib/som'
 import { centavosDoTexto } from '@/lib/valor'
+import { parcelasOferecidas, rotuloDaTaxa, taxaDaForma } from '@/lib/taxas-api'
+import { useTaxasDaLoja } from '@/lib/use-taxas-da-loja'
 import Botao from '@/components/ui/Botao'
 import { Vazio } from '@/components/ui/Cartao'
 import LeitorCodigo from '@/components/LeitorCodigo'
@@ -112,6 +114,12 @@ export default function Pdv() {
    */
   const chaveDoFechamento = useRef<string | null>(null)
   const proximaParte = useRef(1)
+  /* A tabela da loja (DEC-027): a mesma que o servidor usa no fechamento. So
+     oferece as parcelas que a loja configurou — e a tabela pode chegar depois
+     da escolha. */
+  const tabela = useTaxasDaLoja()
+  const maxParcelas = parcelasOferecidas(tabela)
+  const parcelasDe = (n: number) => Math.min(n, maxParcelas)
 
   const subtotal = subtotalCarrinho(itens)
   /* Centavos inteiros: o servidor confere a soma dos pagamentos contra
@@ -134,7 +142,9 @@ export default function Pdv() {
             valor:
               recebidoCentavos !== null && recebidoCentavos > 0 ? recebidoCentavos / 100 : total,
             status: 'confirmado',
-            ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+            ...(forma === 'credito' && parcelasDe(parcelas) > 1
+              ? { parcelas: parcelasDe(parcelas) }
+              : {}),
           },
         ]
       : partes.map((p) => ({
@@ -142,7 +152,9 @@ export default function Pdv() {
           forma: p.forma,
           valor: (centavosDoTexto(p.texto) ?? 0) / 100,
           status: 'confirmado',
-          ...(p.forma === 'credito' && p.parcelas > 1 ? { parcelas: p.parcelas } : {}),
+          ...(p.forma === 'credito' && parcelasDe(p.parcelas) > 1
+            ? { parcelas: parcelasDe(p.parcelas) }
+            : {}),
         }))
   const falta = faltaPagarCentavos(totalCentavos, pagamentos)
   const temFiado = pagamentos.some((p) => p.forma === 'carteira')
@@ -393,6 +405,7 @@ export default function Pdv() {
       return
     }
 
+    const taxasPrevistas = pagamentos.reduce((acc, p) => acc + taxaDoPagamento(p, tabela), 0)
     const formas = pagamentos
       .map(
         (p) =>
@@ -406,6 +419,10 @@ export default function Pdv() {
       descontoCentavos > 0 ? `Desconto de ${formatMoney(descontoCentavos / 100)}.` : null,
       cliente ? `Cliente: ${cliente.nome}.` : null,
       `Pagamento em ${formas}.`,
+      /* A previsao com a taxa da loja — o servidor grava o valor final. */
+      taxasPrevistas > 0.009
+        ? `Taxas da maquininha (previsão): ${formatMoney(taxasPrevistas)}.`
+        : null,
       falta < 0 ? `Troco: ${formatMoney(-falta / 100)}.` : null,
       /* RF-072: vender fiado para quem esta vencido e decisao do lojista —
          o app avisa, nao proibe. */
@@ -551,7 +568,14 @@ export default function Pdv() {
                   ate a cobranca existir no app. */}
               <SeletorDeForma valor={forma} onChange={setForma} />
 
-              {forma === 'credito' ? <Parcelas valor={parcelas} onChange={setParcelas} /> : null}
+              {forma === 'credito' ? (
+                <Parcelas
+                  valor={parcelasDe(parcelas)}
+                  maximo={maxParcelas}
+                  taxa={rotuloDaTaxa(taxaDaForma(tabela, 'credito', parcelasDe(parcelas)))}
+                  onChange={setParcelas}
+                />
+              ) : null}
 
               {forma === 'dinheiro' ? (
                 <View style={estilos.parteLinha}>
@@ -593,7 +617,9 @@ export default function Pdv() {
                     />
                     {p.forma === 'credito' ? (
                       <Parcelas
-                        valor={p.parcelas}
+                        valor={parcelasDe(p.parcelas)}
+                        maximo={maxParcelas}
+                        taxa={rotuloDaTaxa(taxaDaForma(tabela, 'credito', parcelasDe(p.parcelas)))}
                         onChange={(n) => mudarParte(p.id, { parcelas: n })}
                       />
                     ) : null}
@@ -737,10 +763,25 @@ function SeletorDeForma({
   )
 }
 
-function Parcelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
+function Parcelas({
+  valor,
+  maximo,
+  taxa,
+  onChange,
+}: {
+  valor: number
+  /** As parcelas que a loja configurou — DEC-027. */
+  maximo: number
+  /** "taxa 4,50%" — a da loja para este numero de parcelas. */
+  taxa: string
+  onChange: (n: number) => void
+}) {
   return (
     <View style={estilos.parcelas}>
-      <Text style={estilos.totalRotulo}>Parcelas</Text>
+      <View>
+        <Text style={estilos.totalRotulo}>Parcelas</Text>
+        <Text style={estilos.resumoAviso}>{taxa}</Text>
+      </View>
       <View style={estilos.parcelasControle}>
         <Pressable
           onPress={() => onChange(Math.max(1, valor - 1))}
@@ -751,7 +792,7 @@ function Parcelas({ valor, onChange }: { valor: number; onChange: (n: number) =>
         </Pressable>
         <Text style={estilos.parcelasValor}>{valor === 1 ? 'À vista' : `${valor}x`}</Text>
         <Pressable
-          onPress={() => onChange(Math.min(PARCELAS_MAXIMAS, valor + 1))}
+          onPress={() => onChange(Math.min(maximo, valor + 1))}
           style={estilos.parcelasBotao}
           accessibilityLabel="Mais parcelas"
         >

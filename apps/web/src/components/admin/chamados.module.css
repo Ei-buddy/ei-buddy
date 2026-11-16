@@ -1,0 +1,180 @@
+/* Chamados de todas as lojas — NR-215. */
+.abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-full);
+  background: var(--glass-inset);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.abaAtiva {
+  border-color: var(--app-accent);
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.contagem {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--glass-inset-hover);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.grade {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 1000px) {
+  .grade {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: start;
+  }
+}
+
+.vazio {
+  margin: 8px 0;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.lista {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--glass-inset-hover);
+}
+
+.itemAtivo {
+  border-color: var(--app-accent);
+}
+
+.itemTopo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.itemApoio {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12.5px;
+}
+
+.detalhe {
+  display: grid;
+  gap: 14px;
+}
+
+.conversa {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doCliente,
+.doSuporte {
+  display: grid;
+  gap: 4px;
+  max-width: 92%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.doCliente {
+  justify-self: start;
+  background: var(--glass-inset);
+}
+
+.doSuporte {
+  justify-self: end;
+  background: color-mix(in srgb, var(--app-accent) 16%, transparent);
+}
+
+.autor {
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.texto {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.anexo {
+  color: var(--app-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.campo {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--app-muted);
+}
+
+.campo textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-inset-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-inset);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--app-accent);
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -34,6 +34,8 @@ type LinhaEmpresa = {
   state_registration: string | null
   municipal_registration: string | null
   business_segment: string | null
+  national_service_code: string | null
+  iss_rate_percent: string | number | null
   postal_code: string | null
   street: string | null
   street_number: string | null
@@ -83,6 +85,9 @@ const paraEmpresa = (l: LinhaEmpresa): CompanyOutput => ({
   stateRegistration: l.state_registration,
   municipalRegistration: l.municipal_registration,
   businessSegment: l.business_segment,
+  nationalServiceCode: l.national_service_code,
+  /* `numeric` volta como string do driver. */
+  issRatePercent: l.iss_rate_percent === null ? null : Number(l.iss_rate_percent),
   createdAt: l.created_at.toISOString(),
 })
 
@@ -141,6 +146,7 @@ export function createCompanyRepository(sql: Sql): CompanyRepository {
           INSERT INTO companies
             (id, legal_name, trade_name, cnpj, email, phone,
              state_registration, municipal_registration, business_segment,
+             national_service_code, iss_rate_percent,
              postal_code, street, street_number, complement, neighborhood, city, state,
              latitude, longitude,
              created_at)
@@ -148,6 +154,7 @@ export function createCompanyRepository(sql: Sql): CompanyRepository {
                   ${c.email}, ${c.phone},
                   ${c.stateRegistration ?? null}, ${c.municipalRegistration ?? null},
                   ${c.businessSegment ?? null},
+                  ${c.nationalServiceCode ?? null}, ${c.issRatePercent ?? null},
                   ${c.address?.zipCode ?? null}, ${c.address?.street ?? null},
                   ${c.address?.number ?? null}, ${c.address?.complement ?? null},
                   ${c.address?.district ?? null}, ${c.address?.city ?? null},
@@ -258,6 +265,9 @@ export function createCompanyRepository(sql: Sql): CompanyRepository {
             municipal_registration = COALESCE(${m.municipalRegistration ?? null},
                                               municipal_registration),
             business_segment       = COALESCE(${m.businessSegment ?? null}, business_segment),
+            national_service_code  = COALESCE(${m.nationalServiceCode ?? null},
+                                              national_service_code),
+            iss_rate_percent       = COALESCE(${m.issRatePercent ?? null}, iss_rate_percent),
             postal_code               = COALESCE(${m.address?.zipCode ?? null}, postal_code),
             street                 = COALESCE(${m.address?.street ?? null}, street),
             street_number          = COALESCE(${m.address?.number ?? null}, street_number),
@@ -478,6 +488,47 @@ export function createCustomerRepository(sql: Sql): CustomerRepository {
       }
     },
 
+    /**
+     * Os numeros do topo da tela, sobre a loja inteira — NR-211.
+     *
+     * "Inativo" e a MESMA conta do filtro `inativos` da lista acima: nunca
+     * comprou, ou a ultima venda (nao cancelada nem devolvida inteira) foi
+     * antes de `hoje - diasParaInativo`. Se as duas divergirem, o painel diz
+     * 12 e o filtro mostra 10.
+     */
+    summary: async (companyId, criterio) => {
+      const [linha] = await withTenant(
+        sql,
+        companyId,
+        (tx) => tx<{ total: string; devendo: string; saldo: string | null; inativos: string }[]>`
+          SELECT count(*)                                              AS total,
+                 count(*) FILTER (WHERE c.wallet_balance_cents > 0)   AS devendo,
+                 COALESCE(SUM(c.wallet_balance_cents)
+                   FILTER (WHERE c.wallet_balance_cents > 0), 0)      AS saldo,
+                 count(*) FILTER (
+                   WHERE h.last_sale_at IS NULL
+                      OR h.last_sale_at < ${criterio.hoje}::timestamptz
+                         - make_interval(days => ${criterio.diasParaInativo})
+                 )                                                     AS inativos
+          FROM customers c
+          LEFT JOIN LATERAL (
+            SELECT max(s.created_at) AS last_sale_at
+            FROM sales s
+            WHERE s.customer_id = c.id AND s.status NOT IN ('cancelled', 'returned')
+          ) h ON true
+          WHERE c.company_id = ${companyId} AND c.deleted_at IS NULL
+        `,
+      )
+      return {
+        total: numero(linha?.total ?? 0),
+        withBalance: {
+          count: numero(linha?.devendo ?? 0),
+          balanceCents: numero(linha?.saldo ?? 0),
+        },
+        inactive: numero(linha?.inativos ?? 0),
+      }
+    },
+
     findSimilar: async (companyId, criteria) => {
       /*
        * Sem criterio nao ha semelhanca a procurar. Sair antes evita um
@@ -615,6 +666,7 @@ type LinhaProduto = {
   ncm: string | null
   cfop: string | null
   tax_situation_code: string | null
+  nbs_code: string | null
 }
 
 const paraProduto = (l: LinhaProduto): ProductOutput => ({
@@ -630,6 +682,7 @@ const paraProduto = (l: LinhaProduto): ProductOutput => ({
   ncm: l.ncm,
   cfop: l.cfop,
   taxSituationCode: l.tax_situation_code,
+  nbsCode: l.nbs_code,
   /* A coluna chama `stock`; o contrato chama `stock`. */
   stock: l.stock,
   minStock: l.min_stock,
@@ -648,13 +701,13 @@ export function createProductRepository(sql: Sql): ProductRepository {
           INSERT INTO products
             (company_id, description, barcode, internal_code, unit_of_measure,
              sale_price_cents, cost_price_cents, tax_rate, min_stock, category,
-             supplier, ncm, cfop, tax_situation_code,
+             supplier, ncm, cfop, tax_situation_code, nbs_code,
              created_by, created_at)
           VALUES (${p.companyId}, ${p.description}, ${p.barcode ?? null}, ${p.internalCode},
                   ${p.unitOfMeasure}, ${p.salePriceCents}, ${p.costPriceCents},
                   ${p.taxRate ?? null}, ${p.minStock}, ${p.category ?? null},
                   ${p.supplier ?? null},
-                  ${p.ncm}, ${p.cfop}, ${p.taxSituationCode},
+                  ${p.ncm}, ${p.cfop}, ${p.taxSituationCode}, ${p.nbsCode},
                   ${p.createdBy}, ${p.createdAt})
           RETURNING *
         `,
@@ -863,6 +916,8 @@ export function createProductRepository(sql: Sql): ProductRepository {
                  cfop              = COALESCE(${patch.cfop ?? null}, cfop),
                  tax_situation_code = COALESCE(${patch.taxSituationCode ?? null},
                                                tax_situation_code),
+                 nbs_code          = CASE WHEN ${patch.nbsCode !== undefined}::boolean
+                                          THEN ${patch.nbsCode ?? null} ELSE nbs_code END,
                  updated_by        = ${updatedBy},
                  updated_at        = now()
            WHERE id = ${productId} AND deleted_at IS NULL

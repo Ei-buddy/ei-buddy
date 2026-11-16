@@ -182,8 +182,12 @@ jobs:
           SMTP_FROM: ${{ vars.SMTP_FROM || 'EiBuddy <eibuddyerp@gmail.com>' }}
           AVISO_PARCEIRO_EMAIL: ${{ vars.AVISO_PARCEIRO_EMAIL || 'eibuddyerp@gmail.com' }}
         run: |
+          # Aviso ALTO, e nao `notice` — achado do QA: com o secret ausente o
+          # servidor fica no modo "so log" e nenhum e-mail sai (redefinicao de
+          # senha, avisos de Parceiro). O `notice` passou semanas sem ninguem ver.
+          # Nao reprova o deploy: o resto do sistema funciona sem e-mail.
           if [ -z "$SMTP_PASSWORD" ]; then
-            echo "::notice::Secret SMTP_PASSWORD ausente — e-mail do servidor nao foi alterado."
+            echo "::warning title=E-mail desligado::Secret SMTP_PASSWORD ausente no Environment deste deploy: o servidor NAO envia e-mail (redefinicao de senha, avisos de Parceiro). Cadastre a senha de app do Gmail de $SMTP_USER em Settings > Environments > SMTP_PASSWORD e faca o deploy de novo."
             exit 0
           fi
 

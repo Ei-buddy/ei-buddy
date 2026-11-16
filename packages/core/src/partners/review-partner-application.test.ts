@@ -106,4 +106,57 @@ describe('revisao de candidatura de Parceiro — NR-115', () => {
     const minha = await c.partners.mine('empresa-1')
     expect(minha?.status).toBe('rejected')
   })
+
+  describe('aviso por e-mail a quem se candidatou — achado do QA', () => {
+    function comAvisos(falhar = false) {
+      const c = cenario()
+      const enviados: { tipo: string; email: string; extra: string | null }[] = []
+      const applicantNotice = {
+        recebida: async () => {},
+        aprovada: async (i: { email: string; couponCode: string | null }) => {
+          if (falhar) throw new Error('smtp fora')
+          enviados.push({ tipo: 'aprovada', email: i.email, extra: i.couponCode })
+        },
+        recusada: async (i: { email: string; note: string | null }) => {
+          if (falhar) throw new Error('smtp fora')
+          enviados.push({ tipo: 'recusada', email: i.email, extra: i.note })
+        },
+      }
+      return { ...c, deps: { ...c.deps, applicantNotice }, enviados }
+    }
+    const candidatar = (c: ReturnType<typeof cenario>) =>
+      c.partners.submit({
+        ownerUserId: 'dono-1',
+        ownerCompanyId: 'empresa-1',
+        pixKey: '41999990000',
+        pixKeyType: 'PHONE',
+        message: 'Quero divulgar o Buddy.',
+        couponCode: 'JOAO10',
+      })
+
+    it('aprovar avisa o e-mail da candidata, com o cupom', async () => {
+      const c = comAvisos()
+      const { partnerId } = await candidatar(c)
+      await approvePartnerApplication(c.deps, ADMIN_ID, partnerId)
+      expect(c.enviados).toEqual([
+        { tipo: 'aprovada', email: 'teste@empresa.local', extra: 'JOAO10' },
+      ])
+    })
+
+    it('recusar avisa com o motivo', async () => {
+      const c = comAvisos()
+      const { partnerId } = await candidatar(c)
+      await rejectPartnerApplication(c.deps, ADMIN_ID, partnerId, 'Faltou a chave PIX certa.')
+      expect(c.enviados).toEqual([
+        { tipo: 'recusada', email: 'teste@empresa.local', extra: 'Faltou a chave PIX certa.' },
+      ])
+    })
+
+    it('e-mail que falha nao desfaz a decisao', async () => {
+      const c = comAvisos(true)
+      const { partnerId } = await candidatar(c)
+      await approvePartnerApplication(c.deps, ADMIN_ID, partnerId)
+      expect(await c.partners.listPending()).toEqual([])
+    })
+  })
 })

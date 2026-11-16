@@ -1,3 +1,4 @@
+import type { EstadoDaAssinatura } from './assinatura-api'
 import { pedir, type Resultado } from './http'
 import type { FairPrice, PainPoint, UsesSystem } from './waitlist-api'
 
@@ -17,6 +18,12 @@ export type EmpresaListada = {
   cnpj: string
   isActive: boolean
   createdAt: string
+  /* A assinatura de cada loja — NR-216. Os quatro nulos quando a loja nao
+     tem assinatura (o caso de todas enquanto a cobranca nao liga). */
+  subscriptionStatus: EstadoDaAssinatura | null
+  trialEndsAt: string | null
+  nextDueDate: string | null
+  restrictedAt: string | null
 }
 
 export type SuperAdmin = {
@@ -151,3 +158,15 @@ export const listarUsuariosDaPlataforma = (
   const qs = query.toString()
   return pedir(`/api/admin/usuarios${qs === '' ? '' : `?${qs}`}`)
 }
+
+/** Resultado do envio de teste — achado do QA ("os e-mails nao funcionam"). */
+export type ResultadoDoTesteDeEmail = {
+  /** `log` = o servidor nao manda e-mail nenhum, so escreve no log. */
+  mode: 'smtp' | 'log'
+  sent: boolean
+  /** Por que nao saiu, nas palavras do servidor de e-mail. */
+  reason: string | null
+}
+
+export const enviarEmailDeTeste = (to: string): Promise<Resultado<ResultadoDoTesteDeEmail>> =>
+  pedir('/api/admin/email-teste', { method: 'POST', body: JSON.stringify({ to }) })

@@ -6,7 +6,8 @@ import {
   type ContaBancaria,
   type ExtratoDaConta,
 } from '@/lib/contas-bancarias-api'
-import { formatDate, formatMoney, hoje } from '@/lib/format'
+import { dataDoTexto, formatDate, formatMoney, hoje, mascaraData } from '@/lib/format'
+import Campo from '@/components/ui/Campo'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
 
@@ -56,12 +57,30 @@ export default function ExtratoContaModal({
   onFechar: () => void
 }) {
   const [mes, setMes] = useState(() => hoje().slice(0, 7))
+  /* Intervalo de datas — achado do QA, o par do web. "Periodo" abre De e Ate
+     ja com o mes que estava na tela. */
+  const [modo, setModo] = useState<'mes' | 'periodo'>('mes')
+  const [deTexto, setDeTexto] = useState('')
+  const [ateTexto, setAteTexto] = useState('')
   const [extrato, setExtrato] = useState<ExtratoDaConta | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
+  const deData = dataDoTexto(deTexto)
+  const ateData = dataDoTexto(ateTexto)
+  const intervaloValido = deData !== null && ateData !== null && deData <= ateData
+  const { de, ate } =
+    modo === 'mes' || !intervaloValido ? periodoDoMes(mes) : { de: deData, ate: ateData }
+
+  function abrirPeriodo() {
+    const p = periodoDoMes(mes)
+    setDeTexto(formatDate(p.de))
+    setAteTexto(formatDate(p.ate))
+    setModo('periodo')
+  }
+
   useEffect(() => {
+    if (modo === 'periodo' && !intervaloValido) return
     let cancelado = false
-    const { de, ate } = periodoDoMes(mes)
     void carregarExtrato(conta.id, de, ate).then((r) => {
       if (cancelado) return
       if (r.ok) {
@@ -72,9 +91,9 @@ export default function ExtratoContaModal({
     return () => {
       cancelado = true
     }
-  }, [conta.id, mes])
+  }, [conta.id, de, ate, modo, intervaloValido])
 
-  const atual = extrato !== null && extrato.from === periodoDoMes(mes).de ? extrato : null
+  const atual = extrato !== null && extrato.from === de && extrato.to === ate ? extrato : null
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onFechar}>
@@ -89,29 +108,78 @@ export default function ExtratoContaModal({
           <ScrollView contentContainerStyle={estilos.conteudo}>
             <Text style={estilos.titulo}>Extrato · {conta.name}</Text>
 
-            <View style={estilos.meses}>
-              <Pressable
-                onPress={() => setMes((m) => mesAoLado(m, -1))}
-                style={estilos.seta}
-                accessibilityRole="button"
-                accessibilityLabel="Mês anterior"
-              >
-                <Text style={estilos.setaTexto}>‹</Text>
-              </Pressable>
-              <Text style={estilos.mes}>{rotuloDoMes(mes)}</Text>
-              <Pressable
-                onPress={() => setMes((m) => mesAoLado(m, 1))}
-                style={estilos.seta}
-                accessibilityRole="button"
-                accessibilityLabel="Próximo mês"
-              >
-                <Text style={estilos.setaTexto}>›</Text>
-              </Pressable>
+            <View style={estilos.modos} accessibilityLabel="Período do extrato">
+              {(
+                [
+                  ['mes', 'Mês'],
+                  ['periodo', 'Período'],
+                ] as const
+              ).map(([valor, rotulo]) => (
+                <Pressable
+                  key={valor}
+                  onPress={() => (valor === 'mes' ? setModo('mes') : abrirPeriodo())}
+                  style={[estilos.modo, modo === valor && estilos.modoAtivo]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: modo === valor }}
+                >
+                  <Text style={[estilos.modoTexto, modo === valor && estilos.modoTextoAtivo]}>
+                    {rotulo}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
+
+            {modo === 'periodo' ? (
+              <View style={estilos.intervalo}>
+                <View style={estilos.flex}>
+                  <Campo
+                    rotulo="De"
+                    valor={deTexto}
+                    onChange={(v) => setDeTexto(mascaraData(v))}
+                    tipoTeclado="numeric"
+                    placeholder="DD/MM/AAAA"
+                  />
+                </View>
+                <View style={estilos.flex}>
+                  <Campo
+                    rotulo="Até"
+                    valor={ateTexto}
+                    onChange={(v) => setAteTexto(mascaraData(v))}
+                    tipoTeclado="numeric"
+                    placeholder="DD/MM/AAAA"
+                  />
+                </View>
+              </View>
+            ) : null}
+            {modo === 'periodo' && deData !== null && ateData !== null && !intervaloValido ? (
+              <Text style={estilos.erro}>A data inicial precisa ser antes da final.</Text>
+            ) : null}
+
+            {modo === 'mes' ? (
+              <View style={estilos.meses}>
+                <Pressable
+                  onPress={() => setMes((m) => mesAoLado(m, -1))}
+                  style={estilos.seta}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mês anterior"
+                >
+                  <Text style={estilos.setaTexto}>‹</Text>
+                </Pressable>
+                <Text style={estilos.mes}>{rotuloDoMes(mes)}</Text>
+                <Pressable
+                  onPress={() => setMes((m) => mesAoLado(m, 1))}
+                  style={estilos.seta}
+                  accessibilityRole="button"
+                  accessibilityLabel="Próximo mês"
+                >
+                  <Text style={estilos.setaTexto}>›</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             {erro !== null ? (
               <Text style={estilos.erro}>{erro}</Text>
-            ) : atual === null ? (
+            ) : modo === 'periodo' && !intervaloValido ? null : atual === null ? (
               <Text style={estilos.apoio}>Carregando...</Text>
             ) : (
               <>
@@ -130,7 +198,9 @@ export default function ExtratoContaModal({
                 </View>
 
                 {atual.entries.length === 0 ? (
-                  <Text style={estilos.apoio}>Nenhuma movimentação neste mês.</Text>
+                  <Text style={estilos.apoio}>
+                    Nenhuma movimentação {modo === 'mes' ? 'neste mês' : 'neste período'}.
+                  </Text>
                 ) : (
                   atual.entries.map((l) => (
                     <View key={l.id} style={estilos.movimento}>
@@ -207,6 +277,18 @@ const estilos = criarEstilos(() => ({
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   meses: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modos: { flexDirection: 'row', gap: espaco.sm },
+  modo: {
+    paddingHorizontal: espaco.md,
+    paddingVertical: espaco.sm,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.pill,
+  },
+  modoAtivo: { ...vidro.ativo },
+  modoTexto: { fontSize: fonte.pequeno, color: cores.textoFraco },
+  modoTextoAtivo: { color: cores.textoSobreAtivo, fontWeight: peso.forte },
+  intervalo: { flexDirection: 'row', gap: espaco.sm },
   seta: {
     ...vidro.peca,
     width: 44,

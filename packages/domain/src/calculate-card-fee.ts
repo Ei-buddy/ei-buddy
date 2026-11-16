@@ -64,3 +64,32 @@ export function calculateCardFeeAmount(
   const rate = lookupCardFeeRate(table, brand, installments)
   return amount.percentage(rate.feeRatePercent)
 }
+
+/**
+ * Taxa do debito — DEC-027.
+ *
+ * Com a tabela de debito da loja: a bandeira, senao a geral (`unknown`).
+ * Sem ela, o credito 1x — a regra de antes de a loja poder configurar, para
+ * venda de quem nunca configurou nao mudar de valor.
+ */
+export function calculateDebitFeeAmount(
+  amount: Money,
+  table: CardFeeTable,
+  brand: CardBrand | undefined,
+): Money {
+  const debito = table.debitRates
+  if (debito === undefined || debito.length === 0) {
+    return calculateCardFeeAmount(amount, table, brand, 1)
+  }
+  const taxa =
+    debito.find((r) => r.brand === (brand ?? 'unknown')) ??
+    debito.find((r) => r.brand === 'unknown') ??
+    debito.reduce((pior, r) => (r.feeRatePercent > pior.feeRatePercent ? r : pior))
+  return amount.percentage(taxa.feeRatePercent)
+}
+
+/** Taxa do Pix — DEC-027. Sem taxa configurada, zero. */
+export function calculatePixFeeAmount(amount: Money, table: CardFeeTable): Money {
+  const taxa = table.pixFeePercent ?? 0
+  return taxa === 0 ? Money.zero() : amount.percentage(taxa)
+}

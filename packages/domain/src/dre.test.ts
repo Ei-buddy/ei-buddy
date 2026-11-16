@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { calcularDre, type LancamentoDoPeriodo } from './dre.js'
+import {
+  calcularDre,
+  calcularDreGerencial,
+  type GrupoDoDre,
+  type LancamentoDoPeriodo,
+} from './dre.js'
 import { DomainError } from './domain-error.js'
 
 const l = (tipo: LancamentoDoPeriodo['tipo'], amountCents: number): LancamentoDoPeriodo => ({
@@ -110,5 +115,66 @@ describe('lancamento invalido', () => {
 
   it('aceita zero — lancamento de valor zero existe e nao atrapalha', () => {
     expect(calcularDre([l('revenue', 0)]).receitaBruta.isZero()).toBe(true)
+  })
+})
+
+describe('DRE gerencial — margem de contribuicao (achado do QA)', () => {
+  const g = (grupo: GrupoDoDre, amountCents: number) => ({ grupo, amountCents })
+
+  /** R$ 10.000 vendidos, R$ 500 de desconto, R$ 300 de imposto, R$ 200 de
+      tarifa, R$ 5.000 de mercadoria; aluguel R$ 2.000 e energia R$ 500. */
+  const mes = [
+    g('vendas', 1_000_000),
+    g('descontos', 50_000),
+    g('custos_variaveis', 30_000),
+    g('custos_variaveis', 20_000),
+    g('custos_variaveis', 500_000),
+    g('despesas', 200_000),
+    g('despesas', 50_000),
+  ]
+
+  it('vendas brutas, descontos, venda liquida, custos variaveis, margem e resultado', () => {
+    const d = calcularDreGerencial(mes)
+
+    expect(d.vendasBrutas.cents).toBe(1_000_000n)
+    expect(d.descontos.cents).toBe(50_000n)
+    expect(d.vendaLiquida.cents).toBe(950_000n)
+    expect(d.custosVariaveis.cents).toBe(550_000n)
+    expect(d.margemDeContribuicao.cents).toBe(400_000n)
+    expect(d.despesas.cents).toBe(250_000n)
+    expect(d.resultadoOperacional.cents).toBe(150_000n)
+  })
+
+  it('a margem de contribuicao e sobre a venda liquida, em pontos', () => {
+    /* 400.000 / 950.000 = 42,105...% → 42,11 */
+    expect(calcularDreGerencial(mes).margemDeContribuicaoPontos).toBe(42.11)
+  })
+
+  it('sem venda, a margem e nula (nada de Infinity ou NaN)', () => {
+    const d = calcularDreGerencial([g('despesas', 10_000)])
+
+    expect(d.margemDeContribuicaoPontos).toBeNull()
+    expect(d.resultadoOperacional.cents).toBe(-10_000n)
+  })
+
+  it('o resultado operacional e o mesmo resultado do DRE contabil', () => {
+    /* A tarifa de cartao e despesa no contabil e custo variavel no gerencial;
+       o imposto e deducao no contabil e custo variavel no gerencial. O total
+       nao pode mudar com o reagrupamento. */
+    const contabil = calcularDre([
+      { tipo: 'revenue', amountCents: 1_000_000 },
+      { tipo: 'deduction', amountCents: 50_000 },
+      { tipo: 'deduction', amountCents: 30_000 },
+      { tipo: 'expense', amountCents: 20_000 },
+      { tipo: 'cost', amountCents: 500_000 },
+      { tipo: 'expense', amountCents: 250_000 },
+    ])
+    const gerencial = calcularDreGerencial(mes)
+
+    expect(gerencial.resultadoOperacional.cents).toBe(contabil.resultado.cents)
+  })
+
+  it('valor negativo e recusado, como no DRE contabil', () => {
+    expect(() => calcularDreGerencial([g('vendas', -1)])).toThrow(DomainError)
   })
 })

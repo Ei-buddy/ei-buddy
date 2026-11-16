@@ -1,4 +1,8 @@
-import { calculateCardFeeAmount, isCardPayment } from './calculate-card-fee.js'
+import {
+  calculateDebitFeeAmount,
+  calculatePixFeeAmount,
+  isCardPayment,
+} from './calculate-card-fee.js'
 import { calculateInstallmentPlan, resolveInstallmentCount } from './calculate-installment-plan.js'
 import { calculateTax } from './calculate-tax.js'
 import { DomainError } from './domain-error.js'
@@ -43,14 +47,19 @@ function calculatePaymentsCardFee(
 ): Money {
   return Money.sum(
     payments.map((payment) => {
+      /* Pix tambem tem taxa, quando a loja configura — DEC-027. */
+      if (payment.method === 'pix') {
+        return calculatePixFeeAmount(payment.amount, cardFees)
+      }
       if (!isCardPayment(payment.method)) {
         return Money.zero()
       }
       if (payment.method === 'credit') {
         return calculateInstallmentPlan(payment, cardFees, at).cardFeeAmount
       }
-      const installments = resolveInstallmentCount(payment)
-      return calculateCardFeeAmount(payment.amount, cardFees, payment.brand, installments)
+      /* Valida as parcelas: debito parcelado e recusado (INVALID_INSTALLMENTS). */
+      resolveInstallmentCount(payment)
+      return calculateDebitFeeAmount(payment.amount, cardFees, payment.brand)
     }),
   )
 }

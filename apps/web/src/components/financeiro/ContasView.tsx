@@ -614,7 +614,6 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
       {lancando ? (
         <FormularioTitulo
           tipo={tipo}
-          contrapartesConhecidas={contrapartes}
           onSalvo={(msg) => {
             setLancando(false)
             setToast({ msg, tone: 'success' })

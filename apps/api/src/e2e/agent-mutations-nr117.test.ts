@@ -1,8 +1,15 @@
+import { randomInt } from 'node:crypto'
 import { agentReplySchema } from '@na-regua/contracts'
 import { createAgentRuntime } from '@na-regua/agent'
 import { roteiroDoModelo } from '@na-regua/agent/test-support'
 import { createConfirmationStore, getClient, migrate } from '@na-regua/db'
 import Fastify, { type FastifyInstance } from 'fastify'
+
+/* Celular unico por chamada: o cadastro exige e nao aceita repetido. */
+function celularDeTeste(): string {
+  return `41${randomInt(900_000_000, 999_999_999)}`
+}
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerErrorHandler } from '../plugins/error-handler.js'
 import { registerRateLimit } from '../plugins/rate-limit.js'
@@ -44,6 +51,7 @@ describe.skipIf(!DATABASE_URL)('NR-117 — mutacoes persistidas apos o aceite', 
   const CADASTRO = {
     name: 'Operadora NR-117 Mutacoes',
     email: `dona-nr117@${CNPJ}.local`,
+    phone: celularDeTeste(),
     secret: 'senha-de-teste',
     legalName: 'Loja Mutacoes Agent LTDA',
     cnpj: CNPJ,

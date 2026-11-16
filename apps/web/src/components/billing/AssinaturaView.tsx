@@ -11,6 +11,7 @@ import { Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { plan } from '@/content/site'
 import { reaisDoTexto } from '@/lib/valor'
+import { resumoDaAssinatura } from '@/lib/assinatura-api'
 import { useSubscription } from './SubscriptionProvider'
 import styles from './assinatura.module.css'
 
@@ -23,8 +24,17 @@ import styles from './assinatura.module.css'
  */
 
 export default function AssinaturaView() {
-  const { bloqueado, setStatus } = useSubscription()
+  /* A situacao vem do servidor (`GET /assinatura`) — NR-216. Antes vinha do
+     armazenamento do navegador, e esta tela dizia "Em dia" para toda loja. */
+  const { situacao, recarregar } = useSubscription()
   const [pagando, setPagando] = useState(false)
+  const resumo = resumoDaAssinatura(situacao)
+  /* Atrasada, restrita ou cancelada: as tres pedem uma acao da loja. Atrasada
+     ainda escreve (tolerancia), mas e a hora de regularizar. */
+  const pedeRegularizar =
+    situacao.status === 'overdue' ||
+    situacao.status === 'restricted' ||
+    situacao.status === 'cancelled'
 
   /* Estavel: o CobrancaPix usa esta funcao como dependencia de efeito. */
   const criarCobrancaFatura = useCallback((valor: number) => createPixCharge(plan.name, valor), [])
@@ -39,21 +49,30 @@ export default function AssinaturaView() {
         <Stat label="Plano atual" value={plan.name} hint={`${plan.price}${plan.period}`} />
         <Stat
           label="Situação"
-          value={bloqueado ? 'Pagamento pendente' : 'Em dia'}
-          hint={bloqueado ? 'acesso restrito' : 'acesso completo'}
-          tone={bloqueado ? 'warning' : 'positive'}
+          value={resumo.rotulo}
+          hint={resumo.detalhe}
+          tone={
+            resumo.tom === 'positive'
+              ? 'positive'
+              : resumo.tom === 'neutral'
+                ? 'neutral'
+                : 'warning'
+          }
         />
       </div>
 
-      {bloqueado && !pagando ? (
+      {pedeRegularizar && !pagando ? (
         <div className={styles.callout}>
           <div>
             <strong className={styles.calloutTitle}>
-              Regularize para liberar o acesso completo
+              {situacao.status === 'overdue'
+                ? 'Regularize antes de o acesso ser restrito'
+                : 'Regularize para liberar o acesso completo'}
             </strong>
             <p className={styles.calloutText}>
-              Assim que o pagamento cair, os módulos voltam automaticamente — nenhum dado seu foi
-              apagado.
+              {situacao.status === 'overdue'
+                ? 'Enquanto a tolerância corre, tudo continua funcionando. Depois dela, só consultar e exportar ficam liberados.'
+                : 'Assim que o pagamento cair, os módulos voltam automaticamente — nenhum dado seu foi apagado.'}
             </p>
           </div>
           {/* Sem cobranca de verdade, o Pix seria um QR de exemplo que banco
@@ -75,9 +94,9 @@ export default function AssinaturaView() {
             criarCobranca={criarCobrancaFatura}
             consultarStatus={fetchPixChargeStatus}
             onPago={() => {
-              /* Confirmado: libera o painel na hora. Com backend, isto vira
-                 uma releitura de GET /billing/subscription. */
-              setStatus('active')
+              /* Confirmado: le de novo do servidor, que e quem sabe se a
+                 assinatura voltou a ficar em dia (o aviso do provedor). */
+              void recarregar()
               setPagando(false)
             }}
             textoSucesso="Acesso liberado. Obrigado!"

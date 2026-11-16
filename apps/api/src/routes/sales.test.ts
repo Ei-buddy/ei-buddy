@@ -35,6 +35,8 @@ function historicoEmMemoria(vendas: VendaDoHistorico[] = []): SaleHistoryReposit
           grossCents: validas.reduce((a, v) => a + v.grossAmountCents, 0),
           netCents: validas.reduce((a, v) => a + v.netAmountCents, 0),
           cardFeeCents: validas.reduce((a, v) => a + v.cardFeeAmountCents, 0),
+          discountCents: validas.reduce((a, v) => a + v.discountCents, 0),
+          taxCents: validas.reduce((a, v) => a + v.taxAmountCents, 0),
         },
       }
     },

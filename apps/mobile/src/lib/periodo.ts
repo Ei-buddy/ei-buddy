@@ -103,3 +103,11 @@ export function dataPorExtenso(agora: Date = new Date()): string {
 export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] ?? nome
 }
+
+/**
+ * O primeiro dia dos ultimos `dias` dias, contando hoje — NR-210. `1` e so
+ * hoje; `7` e hoje e os seis anteriores. Campos LOCAIS, pelo mesmo motivo.
+ */
+export function inicioDosUltimosDias(dias: number, agora: Date = new Date()): string {
+  return hojeLocal(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - (dias - 1)))
+}

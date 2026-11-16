@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { addressOutputSchema, addressSchema, cnpjSchema } from '../common/document.js'
 import { emailSchema, idSchema, nameSchema, phoneSchema, roleSchema } from '../common/primitives.js'
+import { issRatePercentSchema, nationalServiceCodeSchema } from '../invoice/invoice.js'
 
 /**
  * Empresa (o tenant) e seus usuarios — glossario `Company` e `User`.
@@ -70,6 +71,13 @@ export const createCompanyInputSchema = z
     stateRegistration: stateRegistrationSchema.optional(),
     municipalRegistration: municipalRegistrationSchema.optional(),
     businessSegment: businessSegmentSchema.optional(),
+    /**
+     * Os da NFS-e — DEC-031. Opcionais pela mesma razao dos fiscais acima:
+     * loja que so vende mercadoria nunca os preenche. A emissao da NFS-e e
+     * quem cobra, na hora.
+     */
+    nationalServiceCode: nationalServiceCodeSchema.optional(),
+    issRatePercent: issRatePercentSchema.optional(),
     address: addressSchema.optional(),
   })
   .strict()
@@ -108,6 +116,10 @@ export const companyOutputSchema = z.object({
   stateRegistration: z.string().nullable(),
   municipalRegistration: z.string().nullable(),
   businessSegment: z.string().nullable(),
+  /** Codigo de Tributacao Nacional da NFS-e (6 digitos) — DEC-031. */
+  nationalServiceCode: z.string().nullable(),
+  /** Aliquota do ISS em pontos percentuais — DEC-031. */
+  issRatePercent: z.number().nullable(),
   createdAt: z.string(),
 })
 

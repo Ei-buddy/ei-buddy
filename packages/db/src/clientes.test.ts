@@ -257,6 +257,60 @@ describe.skipIf(!DATABASE_URL)('lista de clientes — NR-072', () => {
     })
   })
 
+  describe('resumo do topo — NR-211', () => {
+    const criterio = { diasParaInativo: 60, hoje: HOJE }
+
+    it('bate com o filtro da lista: mesma regra de inativo e de fiado', async () => {
+      const resumo = await repo.summary(empresaA, criterio)
+      const tudo = await repo.list(empresaA, { ...pedido, limite: 100 })
+      const inativos = await repo.list(empresaA, { ...pedido, filtro: 'inativos', limite: 100 })
+      const fiado = await repo.list(empresaA, { ...pedido, filtro: 'fiado', limite: 100 })
+
+      expect(resumo.total).toBe(tudo.total)
+      expect(resumo.inactive).toBe(inativos.total)
+      expect(resumo.withBalance.count).toBe(fiado.total)
+      expect(resumo.withBalance.balanceCents).toBe(
+        fiado.clientes.reduce((t, c) => t + c.walletBalanceCents, 0),
+      )
+    })
+
+    it('conta exata numa loja so dele: nunca comprou, sumido, recente, cancelada, excluido', async () => {
+      const loja = await criarEmpresa(cnpjDeTeste('7'), 'Loja Resumo')
+      try {
+        await criarCliente(loja, 'Nunca Veio')
+        const sumido = await criarCliente(loja, 'Sumido', { saldoCents: 1_000 })
+        await criarVenda(loja, sumido, '2026-07-01T10:00:00.000Z', 2_000)
+        const recente = await criarCliente(loja, 'Recente', { saldoCents: 2_500 })
+        await criarVenda(loja, recente, '2026-09-01T10:00:00.000Z', 3_000)
+        /* So a venda cancelada recente: para o painel, ele nao comprou. */
+        const cancelou = await criarCliente(loja, 'Cancelou')
+        await criarVenda(loja, cancelou, '2026-09-05T10:00:00.000Z', 3_000, true)
+        /* 60 dias exatos antes de hoje ainda conta como dentro da janela. */
+        const limite = await criarCliente(loja, 'No Limite')
+        await criarVenda(loja, limite, '2026-07-09T12:00:00.000Z', 1_000)
+        const excluido = await criarCliente(loja, 'Excluido', { saldoCents: 9_900 })
+        await withTenant(
+          sql,
+          loja,
+          (tx) => tx`UPDATE customers SET deleted_at = now() WHERE id = ${excluido}`,
+        )
+
+        expect(await repo.summary(loja, criterio)).toEqual({
+          total: 5,
+          withBalance: { count: 2, balanceCents: 3_500 },
+          inactive: 3,
+        })
+        expect(await repo.summary(empresaB, criterio)).not.toMatchObject({ total: 5 })
+      } finally {
+        await withTenant(sql, loja, async (tx) => {
+          await tx`DELETE FROM sales`
+          await tx`DELETE FROM customers`
+          await tx`DELETE FROM companies`
+        })
+      }
+    })
+  })
+
   it('nao enxerga o cliente da outra loja', async () => {
     await criarCliente(empresaB, 'Cliente da loja B')
 

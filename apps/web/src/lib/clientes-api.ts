@@ -400,7 +400,7 @@ export type EnderecoDoCliente = {
  * pacote em tempo de execucao. `clientes-api.test.ts` compara as duas contra
  * o contrato de verdade, e acusa no dia em que divergirem.
  */
-export function camposFaltandoNoCliente(c: {
+type CadastroParaConferir = {
   readonly document: string | null
   readonly phone: string | null
   readonly address: {
@@ -411,23 +411,51 @@ export function camposFaltandoNoCliente(c: {
     readonly city: string | null
     readonly state: string | null
   }
-}): string[] {
+}
+
+export function camposFaltandoNoCliente(c: CadastroParaConferir): string[] {
   const vazio = (v: string | null) => v === null || v.trim() === ''
   const e = c.address
-  return (
+  const pessoa = (
     [
       [c.document, 'CPF/CNPJ'],
       [c.phone, 'celular'],
-      [e.zipCode, 'CEP'],
-      [e.street, 'rua'],
-      [e.number, 'número'],
-      [e.district, 'bairro'],
-      [e.city, 'cidade'],
-      [e.state, 'UF'],
     ] as const
   )
     .filter(([valor]) => vazio(valor))
     .map(([, nome]) => nome)
+
+  /* Endereco e opcional (DEC-025 revisada): sem nenhum, nada falta. Pela
+     metade, falta o resto. */
+  if (semEnderecoParaNota(c)) return pessoa
+
+  return [
+    ...pessoa,
+    ...(
+      [
+        [e.zipCode, 'CEP'],
+        [e.street, 'rua'],
+        [e.number, 'número'],
+        [e.district, 'bairro'],
+        [e.city, 'cidade'],
+        [e.state, 'UF'],
+      ] as const
+    )
+      .filter(([valor]) => vazio(valor))
+      .map(([, nome]) => nome),
+  ]
+}
+
+/**
+ * Cliente sem endereco nenhum — copia de `semEnderecoParaNota` do contrato.
+ * Nao e cadastro incompleto; e o caso do aviso de que o endereco sera preciso
+ * para emitir nota fiscal de servico.
+ */
+export function semEnderecoParaNota(c: Pick<CadastroParaConferir, 'address'>): boolean {
+  const e = c.address
+  return [e.zipCode, e.street, e.number, e.district, e.city, e.state].every(
+    (v) => v === null || v.trim() === '',
+  )
 }
 
 export type ClienteDaFicha = {
@@ -922,5 +950,35 @@ export async function listarInadimplentes(): Promise<Resultado<ClienteInadimplen
       diasDeAtraso: c.daysOverdue,
       titulos: c.receivablesCount,
     })),
+  }
+}
+
+/**
+ * Os numeros do topo da tela — NR-211. Sobre a loja inteira: nao mudam com a
+ * busca nem com o filtro, e "Sem comprar ha 60 dias" aparece ao abrir a tela,
+ * sem precisar clicar no filtro. Valores em REAIS, como o resto desta lib.
+ */
+export type ResumoDeClientes = {
+  total: number
+  comPendencia: number
+  totalPendente: number
+  semComprar: number
+}
+
+export async function resumoDeClientes(): Promise<Resultado<ResumoDeClientes>> {
+  const r = await pedir<{
+    total: number
+    withBalance: { count: number; balanceCents: number }
+    inactive: number
+  }>('/api/clientes/resumo')
+  if (!r.ok) return r
+  return {
+    ok: true,
+    dados: {
+      total: r.dados.total,
+      comPendencia: r.dados.withBalance.count,
+      totalPendente: r.dados.withBalance.balanceCents / 100,
+      semComprar: r.dados.inactive,
+    },
   }
 }

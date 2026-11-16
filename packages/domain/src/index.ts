@@ -11,12 +11,24 @@ export { applyDiscount } from './apply-discount.js'
  * `calculateSaleTotals` devolve a tarifa somada. `calculateInstallmentPlan`
  * cobre o credito e recusa as outras formas de proposito.
  */
-export { calculateCardFeeAmount, isCardPayment } from './calculate-card-fee.js'
+export {
+  calculateCardFeeAmount,
+  calculateDebitFeeAmount,
+  calculatePixFeeAmount,
+  isCardPayment,
+} from './calculate-card-fee.js'
 export { calculateChange } from './calculate-change.js'
 export { calculateInstallmentPlan } from './calculate-installment-plan.js'
 export { calculateSaleTotals } from './calculate-sale-totals.js'
-export { calcularDre } from './dre.js'
-export type { Dre, LancamentoDoPeriodo, TipoDeConta } from './dre.js'
+export { calcularDre, calcularDreGerencial } from './dre.js'
+export type {
+  Dre,
+  DreGerencial,
+  GrupoDoDre,
+  LancamentoDoPeriodo,
+  LancamentoGerencial,
+  TipoDeConta,
+} from './dre.js'
 export { DomainError } from './domain-error.js'
 export {
   diasEntre,

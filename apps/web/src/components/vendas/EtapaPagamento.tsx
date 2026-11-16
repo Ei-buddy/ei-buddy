@@ -1,12 +1,10 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   criarCobrancaVenda,
   FORMAS,
-  PARCELAS_MAXIMAS,
   statusCobrancaVenda,
-  taxaDoCredito,
   taxaDoPagamento,
   valorLiquido,
   type Pagamento,
@@ -21,6 +19,8 @@ import CobrancaPix from '@/components/app/CobrancaPix'
 import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
 import { reaisDoTexto } from '@/lib/valor'
+import { parcelasOferecidas, rotuloDaTaxa, taxaDaForma } from '@/lib/taxas-api'
+import { useTaxasDaLoja } from '@/lib/use-taxas-da-loja'
 
 /* No balcao, "carteira" e o fiado: e assim que o lojista chama, e o app ja
    mostra "Fiado" no mesmo botao. */
@@ -50,6 +50,12 @@ export default function EtapaPagamento({
   const [parcelas, setParcelas] = useState(1)
   const [cobrando, setCobrando] = useState<Pagamento | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
+  const formasRef = useRef<HTMLDivElement>(null)
+  /* A tabela da loja (DEC-027): a mesma que o servidor usa no fechamento. */
+  const tabela = useTaxasDaLoja()
+  const maxParcelas = parcelasOferecidas(tabela)
+  /* A tabela pode chegar depois da escolha, e a loja parcelar em menos vezes. */
+  const parcelasValidas = Math.min(parcelas, maxParcelas)
 
   const confirmado = pagamentos
     .filter((p) => p.status === 'confirmado')
@@ -61,10 +67,10 @@ export default function EtapaPagamento({
      O servidor abate o troco do pagamento em dinheiro, e o comprovante mostra
      recebido e troco. A mais no cartao e erro de digitacao, e e recusado. */
   const troco = Math.max(0, Math.round((confirmado - total) * 100) / 100)
-  const liquido = valorLiquido(pagamentos)
+  const liquido = valorLiquido(pagamentos, tabela)
   const taxaTotal = pagamentos
     .filter((p) => p.status === 'confirmado')
-    .reduce((acc, p) => acc + taxaDoPagamento(p), 0)
+    .reduce((acc, p) => acc + taxaDoPagamento(p, tabela), 0)
 
   const formaAtual = useMemo(() => FORMAS.find((f) => f.valor === forma)!, [forma])
 
@@ -103,7 +109,7 @@ export default function EtapaPagamento({
       forma,
       valor,
       status: formaAtual.online ? 'pendente' : 'confirmado',
-      ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+      ...(forma === 'credito' && parcelasValidas > 1 ? { parcelas: parcelasValidas } : {}),
     }
 
     onPagamentos([...pagamentos, novo])
@@ -137,12 +143,42 @@ export default function EtapaPagamento({
     onPagamentos(pagamentos.filter((p) => p.id !== id))
   }
 
+  /**
+   * Corrigir a forma de um pagamento ja lancado — achado do QA ("poder
+   * corrigir a forma de pagamento selecionada"). Dinheiro, cartao e fiado
+   * entravam confirmados e TRAVADOS: a linha nao tinha nem a lixeira, e a
+   * venda quitada escondia o lancador. Corrigir tira a linha e devolve forma,
+   * valor e parcelas ao lancador, para trocar a forma e confirmar de novo.
+   *
+   * Forma `online` (cobranca confirmada pelo provedor, quando existir) continua
+   * travada depois de confirmada: ali o dinheiro ja entrou de verdade.
+   */
+  function corrigir(p: Pagamento) {
+    const restanteDepois = Math.max(0, total - (confirmado - p.valor))
+    onPagamentos(pagamentos.filter((x) => x.id !== p.id))
+    setForma(p.forma)
+    setValorParcial(Math.min(p.valor, restanteDepois).toFixed(2).replace('.', ','))
+    setParcelas(p.parcelas ?? 1)
+    setToast({
+      msg: `${rotuloNoPdv(FORMAS.find((f) => f.valor === p.forma)!)} de ${formatMoney(p.valor)} voltou para o lançamento. Escolha a forma certa e confirme.`,
+      tone: 'success',
+    })
+    requestAnimationFrame(() =>
+      formasRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus(),
+    )
+  }
+
   return (
     <>
       <div className={styles.pagamentoGrid}>
         {/* ============ Formas ============ */}
         <Card title="Como o cliente vai pagar">
-          <div className={styles.formas} role="group" aria-label="Forma de pagamento">
+          <div
+            ref={formasRef}
+            className={styles.formas}
+            role="group"
+            aria-label="Forma de pagamento"
+          >
             {FORMAS.map((f) => (
               <button
                 key={f.valor}
@@ -155,10 +191,8 @@ export default function EtapaPagamento({
                 <strong>{rotuloNoPdv(f)}</strong>
                 {f.valor === 'carteira' && !temCliente ? (
                   <span>precisa de cliente</span>
-                ) : f.taxa > 0 ? (
-                  <span>taxa {f.taxa.toFixed(2).replace('.', ',')}%</span>
                 ) : (
-                  <span>sem taxa</span>
+                  <span>{rotuloDaTaxa(taxaDaForma(tabela, f.valor))}</span>
                 )}
               </button>
             ))}
@@ -186,13 +220,13 @@ export default function EtapaPagamento({
                   <span>Parcelas</span>
                   <select
                     className={styles.input}
-                    value={parcelas}
+                    value={parcelasValidas}
                     onChange={(e) => setParcelas(Number(e.target.value))}
                   >
-                    {Array.from({ length: PARCELAS_MAXIMAS }, (_, i) => i + 1).map((n) => (
+                    {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={n}>
-                        {n === 1 ? 'À vista (1x)' : `${n}x`} — taxa{' '}
-                        {taxaDoCredito(n).toFixed(2).replace('.', ',')}%
+                        {n === 1 ? 'À vista (1x)' : `${n}x`} —{' '}
+                        {rotuloDaTaxa(taxaDaForma(tabela, 'credito', n))}
                       </option>
                     ))}
                   </select>
@@ -260,8 +294,8 @@ export default function EtapaPagamento({
                         {rotuloNoPdv(f)}
                         {p.parcelas ? ` · ${p.parcelas}x` : ''}
                       </strong>
-                      {taxaDoPagamento(p) > 0 ? (
-                        <span>taxa {formatMoney(taxaDoPagamento(p))}</span>
+                      {taxaDoPagamento(p, tabela) > 0 ? (
+                        <span>taxa {formatMoney(taxaDoPagamento(p, tabela))}</span>
                       ) : null}
                     </span>
 
@@ -275,7 +309,26 @@ export default function EtapaPagamento({
 
                     <span className={styles.pagamentoValor}>{formatMoney(p.valor)}</span>
 
-                    {p.status !== 'confirmado' ? (
+                    {p.status === 'confirmado' && !f.online ? (
+                      <span className={styles.pagamentoAcoes}>
+                        <button
+                          type="button"
+                          className={styles.pagamentoBotao}
+                          onClick={() => corrigir(p)}
+                          aria-label={`Corrigir ${rotuloNoPdv(f)} de ${formatMoney(p.valor)}`}
+                        >
+                          Corrigir
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.pagamentoExcluir}
+                          onClick={() => remover(p.id)}
+                          aria-label="Remover pagamento"
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </span>
+                    ) : p.status !== 'confirmado' ? (
                       <span className={styles.pagamentoAcoes}>
                         <button
                           type="button"

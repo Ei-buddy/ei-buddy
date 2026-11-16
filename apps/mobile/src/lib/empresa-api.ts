@@ -107,6 +107,10 @@ export type DadosEmpresa = {
   inscricaoEstadual: string
   inscricaoMunicipal: string
   ramoAtividade: string
+  /** Codigo de Tributacao Nacional da NFS-e, 6 digitos — DEC-031. */
+  codigoTributacaoNacional: string
+  /** Aliquota do ISS como digitada ("2,79") — DEC-031. */
+  aliquotaIss: string
   cep: string
   logradouro: string
   numero: string
@@ -126,6 +130,8 @@ type EmpresaDaApi = {
   stateRegistration: string | null
   municipalRegistration: string | null
   businessSegment: string | null
+  nationalServiceCode: string | null
+  issRatePercent: number | null
   address: {
     zipCode: string | null
     street: string | null
@@ -147,6 +153,8 @@ function paraTela(e: EmpresaDaApi): DadosEmpresa {
     inscricaoEstadual: e.stateRegistration ?? '',
     inscricaoMunicipal: e.municipalRegistration ?? '',
     ramoAtividade: e.businessSegment ?? '',
+    codigoTributacaoNacional: e.nationalServiceCode ?? '',
+    aliquotaIss: e.issRatePercent === null ? '' : String(e.issRatePercent).replace('.', ','),
     cep: e.address.zipCode ?? '',
     logradouro: e.address.street ?? '',
     numero: e.address.number ?? '',
@@ -175,6 +183,14 @@ export async function carregarEmpresa(): Promise<Resultado<DadosEmpresa>> {
  *
  * Devolve o que o SERVIDOR gravou, para a tela nao discordar do banco.
  */
+/** A aliquota como a api quer ("2,79" -> 2.79). Vazio nao viaja. */
+export function aliquotaParaApi(texto: string): { issRatePercent?: number | string } {
+  const limpo = texto.trim().replace('%', '').trim()
+  if (limpo === '') return {}
+  const numero = Number(limpo.replace(/\./g, '').replace(',', '.'))
+  return { issRatePercent: Number.isNaN(numero) ? limpo : numero }
+}
+
 export async function salvarEmpresa(dados: DadosEmpresa): Promise<Resultado<DadosEmpresa>> {
   const seTiver = (chave: string, valor: string) =>
     valor.trim() === '' ? {} : { [chave]: valor.trim() }
@@ -198,6 +214,8 @@ export async function salvarEmpresa(dados: DadosEmpresa): Promise<Resultado<Dado
       ...(telefone === '' ? {} : { phone: telefone }),
       ...seTiver('stateRegistration', dados.inscricaoEstadual),
       ...seTiver('municipalRegistration', dados.inscricaoMunicipal),
+      ...seTiver('nationalServiceCode', dados.codigoTributacaoNacional.replace(/\D/g, '')),
+      ...aliquotaParaApi(dados.aliquotaIss),
       ...seTiver('businessSegment', dados.ramoAtividade),
       ...(Object.keys(endereco).length === 0 ? {} : { address: endereco }),
     },
@@ -319,14 +337,15 @@ export async function salvarCsc(csc: {
 export async function enviarCertificado(
   base64: string,
   senha: string,
-  validoAte: string,
+  /** Opcional desde a NR-214: o servidor le a validade do proprio arquivo. */
+  validoAte: string | null = null,
 ): Promise<Resultado<SituacaoFiscal>> {
   const r = await chamarApi<SituacaoDaApi>('/empresa/credenciais-fiscais', {
     method: 'PUT',
     body: {
       certificateBase64: base64,
       certificatePassword: senha,
-      certificateExpiresAt: validoAte,
+      ...(validoAte === null ? {} : { certificateExpiresAt: validoAte }),
     },
   })
   if (!r.ok) return { ok: false, erro: r.message }

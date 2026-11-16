@@ -53,6 +53,8 @@ function cadastroEmMemoria() {
         stateRegistration: c.stateRegistration ?? null,
         municipalRegistration: c.municipalRegistration ?? null,
         businessSegment: c.businessSegment ?? null,
+        nationalServiceCode: c.nationalServiceCode ?? null,
+        issRatePercent: c.issRatePercent ?? null,
         createdAt: c.createdAt.toISOString(),
       }
       empresas.push(e)
@@ -154,6 +156,20 @@ function cadastroEmMemoria() {
         clientes: casam
           .slice(criterio.offset, criterio.offset + criterio.limite)
           .map((c) => ({ ...c, lastSaleOn: null, salesCount: 0, totalSpentCents: 0 })),
+      }
+    },
+
+    /* Sem venda no falso: todo cliente da lista e "nunca comprou", e inativo. */
+    summary: async (companyId) => {
+      const meus = clientes.filter((c) => c.companyId === companyId && c.deletedAt === null)
+      const devendo = meus.filter((c) => c.walletBalanceCents > 0)
+      return {
+        total: meus.length,
+        withBalance: {
+          count: devendo.length,
+          balanceCents: devendo.reduce((t, c) => t + c.walletBalanceCents, 0),
+        },
+        inactive: meus.length,
       }
     },
 
@@ -278,6 +294,7 @@ function cadastroEmMemoria() {
         ncm: p.ncm,
         cfop: p.cfop,
         taxSituationCode: p.taxSituationCode,
+        nbsCode: p.nbsCode,
         stock: 0,
         minStock: p.minStock,
         category: p.category ?? null,
@@ -581,7 +598,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     expect(r.statusCode).toBe(201)
   })
 
-  it('sem celular ou sem endereco responde 400 no campo — NR-142', async () => {
+  it('sem documento ou celular responde 400 no campo — NR-142', async () => {
     const c = await buildApp()
     app = c.app
 
@@ -590,16 +607,27 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
       url: '/clientes',
       payload: { name: 'Marta' },
     })
+
+    expect(semNada.statusCode).toBe(400)
+    const campos = semNada.json().error.fields.map((f: { path: string }) => f.path)
+    expect(campos).toEqual(expect.arrayContaining(['document', 'phone']))
+    /* Endereco e opcional desde a revisao da DEC-025 (2026-11-15). */
+    expect(campos).not.toContain('address')
+  })
+
+  it('sem endereco cadastra; endereco pela metade responde 400 — DEC-025 revisada', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const { address: _fora, ...semEndereco } = CLIENTE
+    const sem = await app.inject({ method: 'POST', url: '/clientes', payload: semEndereco })
+    expect(sem.statusCode).toBe(201)
+
     const semRua = await app.inject({
       method: 'POST',
       url: '/clientes',
-      payload: { ...CLIENTE, address: { ...ENDERECO, street: '' } },
+      payload: { ...CLIENTE, phone: '41977776666', address: { ...ENDERECO, street: '' } },
     })
-
-    expect(semNada.statusCode).toBe(400)
-    expect(semNada.json().error.fields.map((f: { path: string }) => f.path)).toEqual(
-      expect.arrayContaining(['document', 'phone', 'address']),
-    )
     expect(semRua.statusCode).toBe(400)
     expect(semRua.json().error.fields[0].path).toBe('address.street')
   })
@@ -821,6 +849,21 @@ describe('excluir e reativar cliente — RF-009', () => {
 
     expect(r.statusCode).toBe(200)
     expect(r.json().deletedAt).not.toBeNull()
+  })
+
+  it('resumo do topo: sobre a loja inteira, sem o excluido — NR-211', async () => {
+    const { id } = await comCliente()
+    const antes = await app.inject({ method: 'GET', url: '/clientes/resumo' })
+    expect(antes.statusCode).toBe(200)
+    expect(antes.json()).toEqual({
+      total: 1,
+      withBalance: { count: 0, balanceCents: 0 },
+      inactive: 1,
+    })
+
+    await app.inject({ method: 'DELETE', url: `/clientes/${id}` })
+    const depois = await app.inject({ method: 'GET', url: '/clientes/resumo' })
+    expect(depois.json()).toMatchObject({ total: 0, inactive: 0 })
   })
 
   it('reativar devolve o cliente para a lista', async () => {

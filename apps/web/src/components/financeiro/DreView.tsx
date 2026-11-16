@@ -1,13 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import {
-  carregarDre,
-  type Dre,
-  type LinhaDoDre,
-  ROTULO_DO_TIPO,
-  type TipoDeConta,
-} from '@/lib/contabilidade-api'
+import { linhasDoDreGerencial } from '@/lib/dre-gerencial'
+import { carregarDre, type Dre } from '@/lib/contabilidade-api'
 import { formatMoney } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Card, EmptyState, Field, Input, PageHeader } from '@/components/ui/UI'
@@ -16,7 +11,11 @@ import BotoesExportar from '@/components/app/BotoesExportar'
 import styles from './dre.module.css'
 
 /**
- * DRE simplificado — NR-077, RF-085, RF-086. US-041.
+ * DRE — NR-077, RF-085, RF-086. US-041. No formato da margem de contribuicao
+ * pedido pelo QA (NR-204): vendas brutas, descontos, venda liquida, custos
+ * variaveis, margem de contribuicao, cada conta de despesa e o resultado
+ * operacional. As linhas vem de `linhasDoDreGerencial` (contracts), as mesmas
+ * do app e da exportacao.
  *
  * A tela nao calcula nada. A ordem das subtracoes vem de `domain` e chega
  * pronta: e exatamente a parte que nao pode variar entre esta tela, o resumo do
@@ -43,28 +42,6 @@ function mesDe(hoje: Date): { from: string; to: string } {
   }
 }
 
-/** As linhas do resumo, na ordem em que o relatorio se le. */
-type LinhaDeResumo = {
-  rotulo: string
-  valorCents: number
-  /** Total que fecha um bloco — recebe destaque. */
-  destaque?: boolean
-  /** Subtrai do que veio antes: mostrada com sinal negativo. */
-  subtrai?: boolean
-}
-
-function resumoDe(dre: Dre): LinhaDeResumo[] {
-  return [
-    { rotulo: 'Receita bruta', valorCents: dre.grossRevenueCents },
-    { rotulo: 'Deduções', valorCents: dre.deductionsCents, subtrai: true },
-    { rotulo: 'Receita líquida', valorCents: dre.netRevenueCents, destaque: true },
-    { rotulo: 'Custo', valorCents: dre.costCents, subtrai: true },
-    { rotulo: 'Lucro bruto', valorCents: dre.grossProfitCents, destaque: true },
-    { rotulo: 'Despesas', valorCents: dre.expensesCents, subtrai: true },
-    { rotulo: 'Resultado', valorCents: dre.resultCents, destaque: true },
-  ]
-}
-
 export default function DreView() {
   const inicial = mesDe(new Date())
 
@@ -73,7 +50,6 @@ export default function DreView() {
   const [dre, setDre] = useState<Dre | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [detalhando, setDetalhando] = useState<TipoDeConta | null>(null)
 
   const buscar = useCallback(async (from: string, to: string) => {
     const r = await carregarDre(from, to)
@@ -111,8 +87,8 @@ export default function DreView() {
   return (
     <>
       <PageHeader
-        title="DRE simplificado"
-        subtitle="Receita, custo, despesa e resultado do período"
+        title="DRE"
+        subtitle="Vendas, custos variáveis, margem de contribuição e resultado do período"
         actions={<BotoesExportar lista="dre" filtros={{ from: de, to: ate }} />}
       />
 
@@ -155,115 +131,40 @@ export default function DreView() {
              */}
             <table className={styles.resumo}>
               <tbody>
-                {resumoDe(dre).map((l) => (
-                  <tr key={l.rotulo} className={l.destaque ? styles.linhaTotal : undefined}>
-                    <th scope="row">{l.rotulo}</th>
+                {linhasDoDreGerencial(dre).map((l) => (
+                  <tr
+                    key={l.chave}
+                    className={[
+                      l.nivel === 'total' ? styles.linhaTotal : '',
+                      l.nivel === 'detalhe' ? styles.linhaDetalhe : '',
+                      l.separaAntes && l.nivel !== 'total' ? styles.linhaSepara : '',
+                    ].join(' ')}
+                  >
+                    <th scope="row">
+                      {l.rotulo}
+                      {l.nota ? <span className={styles.nota}> {l.nota}</span> : null}
+                      {l.nivel === 'detalhe' || (l.lancamentos ?? 0) > 0 ? (
+                        <span className={styles.contagem}>
+                          {' '}
+                          {l.lancamentos ?? 0}{' '}
+                          {(l.lancamentos ?? 0) === 1 ? 'lançamento' : 'lançamentos'}
+                        </span>
+                      ) : null}
+                    </th>
                     <td
                       className={
-                        l.rotulo === 'Resultado' && dre.resultCents < 0
-                          ? styles.negativo
-                          : undefined
+                        l.nivel === 'total' && l.valorCents < 0 ? styles.negativo : undefined
                       }
                     >
-                      {/* So a linha que subtrai ganha o "−" fixo; nos totais o
-                          sinal vem do valor, e prejuizo aparece negativo. */}
-                      {l.subtrai
-                        ? `${l.valorCents !== 0 ? '− ' : ''}${formatMoney(emReais(Math.abs(l.valorCents)))}`
-                        : formatMoney(emReais(l.valorCents))}
+                      {formatMoney(emReais(l.valorCents))}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            <p className={styles.margem}>
-              {/* Nula quando nao houve receita: dividir por zero daria "Infinity%"
-                  ou "NaN%", e o servidor devolve `null` justamente para a tela
-                  poder dizer que a conta nao existe neste periodo. */}
-              Margem bruta:{' '}
-              <strong>
-                {dre.grossMarginPoints === null
-                  ? 'sem receita no período'
-                  : `${dre.grossMarginPoints}%`}
-              </strong>
-            </p>
-
-            <Detalhe
-              linhas={dre.lines}
-              aberto={detalhando}
-              onAlternar={(t) => setDetalhando((atual) => (atual === t ? null : t))}
-            />
           </>
         )}
       </Card>
     </>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-
-const ORDEM: readonly TipoDeConta[] = ['revenue', 'deduction', 'cost', 'expense']
-
-/**
- * As contas que compoem cada bloco — RF-086.
- *
- * O servidor manda a CONTAGEM de lancamentos por conta, e nao os lancamentos.
- * Um mes movimentado tem milhares, e traze-los junto com o resumo carregaria o
- * detalhe que ninguem pediu ainda.
- */
-function Detalhe({
-  linhas,
-  aberto,
-  onAlternar,
-}: {
-  linhas: LinhaDoDre[]
-  aberto: TipoDeConta | null
-  onAlternar: (t: TipoDeConta) => void
-}) {
-  const comMovimento = ORDEM.filter((t) => linhas.some((l) => l.type === t))
-
-  if (comMovimento.length === 0) {
-    return <p className={styles.aviso}>Nenhum lançamento neste período.</p>
-  }
-
-  return (
-    <div className={styles.detalhe}>
-      {comMovimento.map((tipo) => {
-        const doTipo = linhas.filter((l) => l.type === tipo)
-        const expandido = aberto === tipo
-
-        return (
-          <div key={tipo} className={styles.grupo}>
-            <button
-              type="button"
-              className={styles.grupoBotao}
-              onClick={() => onAlternar(tipo)}
-              aria-expanded={expandido}
-            >
-              <span>{ROTULO_DO_TIPO[tipo]}</span>
-              <span className={styles.grupoContagem}>
-                {doTipo.length} {doTipo.length === 1 ? 'conta' : 'contas'}
-              </span>
-            </button>
-
-            {expandido ? (
-              <ul className={styles.contas}>
-                {doTipo.map((l) => (
-                  <li key={l.accountId ?? `sem-conta-${l.type}`} className={styles.conta}>
-                    <span className={l.accountId === null ? styles.semConta : undefined}>
-                      {l.accountName}
-                    </span>
-                    <span className={styles.contaContagem}>
-                      {l.entryCount} {l.entryCount === 1 ? 'lancamento' : 'lancamentos'}
-                    </span>
-                    <span className={styles.contaValor}>{formatMoney(emReais(l.amountCents))}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        )
-      })}
-    </div>
   )
 }

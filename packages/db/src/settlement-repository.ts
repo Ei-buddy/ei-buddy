@@ -94,7 +94,8 @@ const paraBaixa = (l: LinhaBaixa): SettlementOutput => ({
   createdBy: l.created_by,
 })
 
-function escopo(tx: TransactionSql, companyId: string): SettlementTransaction {
+/** Exportado para a conciliacao (DEC-026) baixar na mesma transacao. */
+export function escopoDaBaixa(tx: TransactionSql, companyId: string): SettlementTransaction {
   return {
     /*
      * A trilha entra NA transacao — NR-087.
@@ -325,7 +326,8 @@ export function createSettlementQueries(sql: Sql): SettlementQueries {
 
 export function createSettlementUnitOfWork(sql: Sql): SettlementUnitOfWork {
   return {
-    transaction: (companyId, fn) => withTenant(sql, companyId, (tx) => fn(escopo(tx, companyId))),
+    transaction: (companyId, fn) =>
+      withTenant(sql, companyId, (tx) => fn(escopoDaBaixa(tx, companyId))),
   }
 }
 

@@ -3,6 +3,7 @@ import type {
   CompanyOutput,
   CustomerListItem,
   CustomerOutput,
+  CustomerSummaryOutput,
   ProductOutput,
 } from '@na-regua/contracts'
 import type { CompanyId, UserId } from '../context.js'
@@ -40,6 +41,9 @@ export type NewCompany = {
   readonly stateRegistration?: string | undefined
   readonly municipalRegistration?: string | undefined
   readonly businessSegment?: string | undefined
+  /** Os da NFS-e — DEC-031. */
+  readonly nationalServiceCode?: string | undefined
+  readonly issRatePercent?: number | undefined
   readonly address?: Address | undefined
   /**
    * Nunca chega pela entrada da rota — `contracts` nao tem este campo em
@@ -69,6 +73,9 @@ export type CompanyChanges = {
   readonly stateRegistration?: string | undefined
   readonly municipalRegistration?: string | undefined
   readonly businessSegment?: string | undefined
+  /** Os da NFS-e — DEC-031. */
+  readonly nationalServiceCode?: string | undefined
+  readonly issRatePercent?: number | undefined
   readonly address?: Address | undefined
   /** Ver `NewCompany.coordinates`. */
   readonly coordinates?: CompanyCoordinates | undefined
@@ -196,6 +203,15 @@ export type CustomerRepository = {
   ): Promise<{ readonly clientes: readonly CustomerListItem[]; readonly total: number }>
 
   /**
+   * Os numeros do topo da tela, sobre a loja inteira — NR-211. Inativo e a
+   * mesma regra do filtro `inativos` da lista.
+   */
+  summary(
+    companyId: CompanyId,
+    criterio: { readonly diasParaInativo: number; readonly hoje: Date },
+  ): Promise<CustomerSummaryOutput>
+
+  /**
    * Busca textual limitada para consulta conversacional de fiado — NR-115.
    *
    * Metodo proprio, e nao `list` com pagina 1: a lista traz historico de compra
@@ -261,6 +277,8 @@ export type NewProduct = {
   readonly ncm: string | null
   readonly cfop: string | null
   readonly taxSituationCode: string | null
+  /** NBS do servico (9 digitos), para a NFS-e — DEC-031. */
+  readonly nbsCode: string | null
 }
 
 /**
@@ -284,6 +302,8 @@ export type ProductPatch = {
   readonly ncm?: string | undefined
   readonly cfop?: string | undefined
   readonly taxSituationCode?: string | undefined
+  /** `null` tira o NBS — DEC-031. */
+  readonly nbsCode?: string | null | undefined
 }
 
 export type ProductRepository = {

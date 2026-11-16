@@ -1,5 +1,6 @@
 import {
   CONTA_DINHEIRO_DO_CAIXA,
+  type PaymentMethod,
   type SettlementOutput,
   type SettlePayableInput,
   type SettleReceivableInput,
@@ -9,7 +10,7 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import { usuarioReal } from '../system-actor.js'
-import type { SettlementUnitOfWork } from '../ports/settlement-writers.js'
+import type { SettlementTransaction, SettlementUnitOfWork } from '../ports/settlement-writers.js'
 import type { BankAccountRepository } from '../ports/bank-account-repository.js'
 import { mexeNoSaldoDoCliente } from './customer-balance.js'
 
@@ -39,8 +40,8 @@ export type SettleDeps = {
  * Compara sem caixa e sem espaco nas pontas, como o saldo compara. Devolve o
  * nome como esta cadastrado, para a baixa gravar a grafia da conta.
  */
-async function contaCadastrada(
-  deps: SettleDeps,
+export async function contaCadastrada(
+  bankAccounts: Pick<BankAccountRepository, 'list'> | undefined,
   ctx: ExecutionContext,
   nome: string,
 ): Promise<string> {
@@ -48,9 +49,9 @@ async function contaCadastrada(
   if (procurado === CONTA_DINHEIRO_DO_CAIXA.toLocaleLowerCase('pt-BR')) {
     return CONTA_DINHEIRO_DO_CAIXA
   }
-  if (deps.bankAccounts === undefined) return nome
+  if (bankAccounts === undefined) return nome
 
-  const contas = await deps.bankAccounts.list(ctx.companyId)
+  const contas = await bankAccounts.list(ctx.companyId)
   const achada = contas.find((c) => c.name.trim().toLocaleLowerCase('pt-BR') === procurado)
   if (achada !== undefined) return achada.name
 
@@ -59,6 +60,88 @@ async function contaCadastrada(
       ? `Nenhuma conta bancária cadastrada. Cadastre a conta em Financeiro > Contas bancárias, ou escolha "${CONTA_DINHEIRO_DO_CAIXA}".`
       : `A conta "${nome.trim()}" não está cadastrada. Escolha uma das contas da loja ou "${CONTA_DINHEIRO_DO_CAIXA}".`,
   )
+}
+
+/** O que uma baixa precisa saber, para os dois tipos de titulo. */
+export type BaixaNaTransacao = {
+  readonly kind: 'payable' | 'receivable'
+  readonly tituloId: string
+  readonly amountCents: number
+  readonly method: PaymentMethod | null
+  /** Ja conferida com `contaCadastrada` — nome como esta cadastrado. */
+  readonly bankAccount: string | null
+  readonly settledOn: string
+  readonly notes: string | null
+}
+
+/**
+ * A baixa DENTRO de uma transacao aberta por quem chama.
+ *
+ * E o unico caminho que grava baixa: a tela de contas (RF-059, RF-066) e a
+ * conciliacao (DEC-026) passam por aqui. Dois caminhos teriam duas versoes
+ * das regras — titulo cancelado, valor acima do saldo, saldo do cliente — e a
+ * segunda seria a que ninguem testou.
+ */
+export async function lancarBaixa(
+  tx: SettlementTransaction,
+  ctx: ExecutionContext,
+  b: BaixaNaTransacao,
+): Promise<SettlementOutput> {
+  const ehPagar = b.kind === 'payable'
+  const titulo = ehPagar
+    ? await tx.findPayable(ctx.companyId, b.tituloId)
+    : await tx.findReceivable(ctx.companyId, b.tituloId)
+  if (titulo === undefined) {
+    throw AppError.notFound(ehPagar ? 'Conta não encontrada.' : 'Recebível não encontrado.')
+  }
+  if (titulo.status === 'cancelled') {
+    throw AppError.conflict(
+      ehPagar
+        ? 'Esta conta foi cancelada e não pode receber baixa.'
+        : 'Este recebível foi cancelado e não pode receber baixa.',
+    )
+  }
+
+  /* A aritmetica e de `domain`, e a mesma para os dois tipos de titulo. */
+  const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, b.amountCents)
+
+  const baixa = await tx.insertSettlement({
+    companyId: ctx.companyId,
+    payableId: ehPagar ? titulo.id : null,
+    receivableId: ehPagar ? null : titulo.id,
+    amountCents: b.amountCents,
+    method: b.method,
+    bankAccount: b.bankAccount,
+    settledOn: b.settledOn,
+    notes: b.notes,
+    reversesId: null,
+    /* `null` quando foi o sistema: a coluna referencia `users`, e o
+       sistema nao e um usuario — ver `system-actor.ts`. */
+    createdBy: usuarioReal(ctx),
+    createdAt: ctx.now,
+  })
+
+  await tx.updateTitulo(ctx.companyId, b.kind, titulo.id, r.settledAmountCents, r.status)
+
+  /* Conta a pagar nao mexe em saldo de cliente. No recebivel, ele pagou: deve
+     menos. Negativo. */
+  if (!ehPagar && mexeNoSaldoDoCliente(titulo)) {
+    await tx.adjustCustomerBalance(ctx.companyId, titulo.customerId!, -b.amountCents)
+  }
+
+  await tx.record({
+    companyId: ctx.companyId,
+    entity: ehPagar ? 'Payable' : 'Receivable',
+    entityId: titulo.id,
+    action: 'updated',
+    actorId: ctx.userId,
+    channel: ctx.channel,
+    occurredAt: ctx.now,
+    before: { settledAmountCents: titulo.settledAmountCents, status: titulo.status },
+    after: { settledAmountCents: r.settledAmountCents, status: r.status },
+  })
+
+  return baixa
 }
 
 /**
@@ -73,50 +156,19 @@ export async function settlePayable(
   input: SettlePayableInput,
 ): Promise<SettlementOutput> {
   assertCanWrite(ctx)
-  const conta = await contaCadastrada(deps, ctx, input.bankAccount)
+  const conta = await contaCadastrada(deps.bankAccounts, ctx, input.bankAccount)
 
-  return deps.uow.transaction(ctx.companyId, async (tx) => {
-    const titulo = await tx.findPayable(ctx.companyId, input.payableId)
-    if (titulo === undefined) throw AppError.notFound('Conta não encontrada.')
-    if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Esta conta foi cancelada e não pode receber baixa.')
-    }
-
-    /* A aritmetica e de `domain`, e a mesma para os dois tipos de titulo. */
-    const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
-
-    const baixa = await tx.insertSettlement({
-      companyId: ctx.companyId,
-      payableId: titulo.id,
-      receivableId: null,
+  return deps.uow.transaction(ctx.companyId, (tx) =>
+    lancarBaixa(tx, ctx, {
+      kind: 'payable',
+      tituloId: input.payableId,
       amountCents: input.amountCents,
       method: null,
       bankAccount: conta,
       settledOn: input.settledOn,
       notes: input.notes ?? null,
-      reversesId: null,
-      /* `null` quando foi o sistema: a coluna referencia `users`, e o
-         sistema nao e um usuario — ver `system-actor.ts`. */
-      createdBy: usuarioReal(ctx),
-      createdAt: ctx.now,
-    })
-
-    await tx.updateTitulo(ctx.companyId, 'payable', titulo.id, r.settledAmountCents, r.status)
-
-    await tx.record({
-      companyId: ctx.companyId,
-      entity: 'Payable',
-      entityId: titulo.id,
-      action: 'updated',
-      actorId: ctx.userId,
-      channel: ctx.channel,
-      occurredAt: ctx.now,
-      before: { settledAmountCents: titulo.settledAmountCents, status: titulo.status },
-      after: { settledAmountCents: r.settledAmountCents, status: r.status },
-    })
-
-    return baixa
-  })
+    }),
+  )
 }
 
 /**
@@ -132,54 +184,21 @@ export async function settleReceivable(
 ): Promise<SettlementOutput> {
   assertCanWrite(ctx)
   const conta =
-    input.bankAccount === undefined ? null : await contaCadastrada(deps, ctx, input.bankAccount)
+    input.bankAccount === undefined
+      ? null
+      : await contaCadastrada(deps.bankAccounts, ctx, input.bankAccount)
 
-  return deps.uow.transaction(ctx.companyId, async (tx) => {
-    const titulo = await tx.findReceivable(ctx.companyId, input.receivableId)
-    if (titulo === undefined) throw AppError.notFound('Recebível não encontrado.')
-    if (titulo.status === 'cancelled') {
-      throw AppError.conflict('Este recebível foi cancelado e não pode receber baixa.')
-    }
-
-    const r = baixaDeDominio(titulo.amountCents, titulo.settledAmountCents, input.amountCents)
-
-    const baixa = await tx.insertSettlement({
-      companyId: ctx.companyId,
-      payableId: null,
-      receivableId: titulo.id,
+  return deps.uow.transaction(ctx.companyId, (tx) =>
+    lancarBaixa(tx, ctx, {
+      kind: 'receivable',
+      tituloId: input.receivableId,
       amountCents: input.amountCents,
       method: input.method,
       bankAccount: conta,
       settledOn: input.settledOn,
       notes: input.notes ?? null,
-      reversesId: null,
-      /* `null` quando foi o sistema: a coluna referencia `users`, e o
-         sistema nao e um usuario — ver `system-actor.ts`. */
-      createdBy: usuarioReal(ctx),
-      createdAt: ctx.now,
-    })
-
-    await tx.updateTitulo(ctx.companyId, 'receivable', titulo.id, r.settledAmountCents, r.status)
-
-    /* Ele pagou: deve menos. Negativo. */
-    if (mexeNoSaldoDoCliente(titulo)) {
-      await tx.adjustCustomerBalance(ctx.companyId, titulo.customerId!, -input.amountCents)
-    }
-
-    await tx.record({
-      companyId: ctx.companyId,
-      entity: 'Receivable',
-      entityId: titulo.id,
-      action: 'updated',
-      actorId: ctx.userId,
-      channel: ctx.channel,
-      occurredAt: ctx.now,
-      before: { settledAmountCents: titulo.settledAmountCents, status: titulo.status },
-      after: { settledAmountCents: r.settledAmountCents, status: r.status },
-    })
-
-    return baixa
-  })
+    }),
+  )
 }
 
 /**

@@ -24,6 +24,7 @@ import {
   deleteCustomer,
   deleteProduct,
   getCompany,
+  customerSummary,
   getCustomer,
   getProduct,
   importCustomers,
@@ -197,6 +198,15 @@ export function registerCadastroRoutes(app: FastifyInstance, deps: CadastroDeps)
   app.get('/clientes/inadimplentes', async (request, reply) => {
     const ctx = requireContext(request)
     return reply.code(200).send({ customers: await listDelinquentCustomers(deps, ctx) })
+  })
+
+  /**
+   * Os numeros do topo da tela de clientes, sobre a loja inteira — NR-211.
+   * Estatica, antes de `/clientes/:id`, como a de cima.
+   */
+  app.get('/clientes/resumo', async (request, reply) => {
+    const ctx = requireContext(request)
+    return reply.code(200).send(await customerSummary(deps, ctx))
   })
 
   /**

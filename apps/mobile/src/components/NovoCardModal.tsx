@@ -19,15 +19,18 @@ import { criarEstilos } from '@/theme/estilos'
  * contato), cliente, data, responsavel e descricao.
  */
 export default function NovoCardModal({
+  tipoInicial = 'pendencia',
   onCriado,
   onFechar,
 }: {
+  /** O botao que abriu: "Pendência" ou "Contato" — NR-213. */
+  tipoInicial?: TipoCard
   onCriado: (card: CardCrm) => void
   onFechar: () => void
 }) {
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [tipo, setTipo] = useState<TipoCard>('pendencia')
+  const [tipo, setTipo] = useState<TipoCard>(tipoInicial)
   const [cliente, setCliente] = useState<{ id: string; nome: string } | null>(null)
   const [escolhendoCliente, setEscolhendoCliente] = useState(false)
   const [data, setData] = useState(formatDate(hoje()))
@@ -140,6 +143,12 @@ export default function NovoCardModal({
                     </Pressable>
                   ))}
                 </View>
+                {/* "Por que so aparece eu?" — a lista e de quem tem acesso a loja. */}
+                {equipe.length <= 1 ? (
+                  <Text style={estilos.dica}>
+                    Aparece quem tem acesso à loja. Para incluir alguém, convide em Conexões.
+                  </Text>
+                ) : null}
               </>
             ) : null}
 
@@ -190,6 +199,7 @@ const estilos = criarEstilos(() => ({
   conteudo: { padding: espaco.lg, gap: espaco.md, paddingBottom: espaco.xxl },
   titulo: { fontSize: fonte.titulo, fontWeight: peso.pesado, color: cores.texto },
   rotulo: { fontSize: fonte.pequeno, fontWeight: peso.medio, color: cores.textoFraco },
+  dica: { fontSize: fonte.micro, color: cores.textoFraco },
   erro: { fontSize: fonte.pequeno, color: cores.erro },
   flex: { flex: 1 },
   acoes: { flexDirection: 'row', gap: espaco.md },

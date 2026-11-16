@@ -1,4 +1,4 @@
-import type { Role } from '@na-regua/contracts'
+import type { Role, SubscriptionStatus } from '@na-regua/contracts'
 
 /**
  * Quem esta pedindo, por qual empresa e por qual canal.
@@ -38,6 +38,16 @@ export type ExecutionContext = {
    * chama `new Date()` nao e testavel sem congelar o relogio do processo.
    */
   readonly now: Date
+  /**
+   * A situacao da assinatura da loja quando o contexto foi montado — RF-117.
+   *
+   * Quem monta o contexto de uma ESCRITA (a api e o canal WhatsApp) le e
+   * preenche; `assertCanWrite` recusa loja restrita ou cancelada. Ausente ou
+   * nulo = nao ha assinatura, ou nao foi lida (leitura, job do sistema,
+   * testes) — e ai ninguem e barrado: o bloqueio so pode atingir quem foi
+   * avisado (RF-116).
+   */
+  readonly subscriptionStatus?: SubscriptionStatus | null
 }
 
 /**

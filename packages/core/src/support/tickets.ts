@@ -5,14 +5,20 @@ import type {
   TicketListOutput,
 } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
-import { assertCanWrite } from '../authorization.js'
+import { assertPapelPodeEscrever } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import type { SupportTicketAlert } from '../ports/support-alert.js'
 import type { SupportRepository } from '../ports/support-repository.js'
 
 export type SupportDeps = {
   readonly support: SupportRepository
   /** O nome de quem escreve, para a conversa dizer quem falou. */
   readonly quemEscreve: (ctx: ExecutionContext) => Promise<string>
+  /**
+   * Aviso de chamado novo para a equipe — DEC-029. Opcional: sem ele, a fila
+   * da Plataforma continua sendo a fonte (NR-215).
+   */
+  readonly alerta?: SupportTicketAlert
 }
 
 /**
@@ -64,27 +70,47 @@ export async function getTicket(
 /**
  * Abrir chamado — US-062.
  *
- * `assertCanWrite` porque abrir chamado CRIA um registro que a equipe vai
+ * O papel e conferido porque abrir chamado CRIA um registro que a equipe vai
  * atender. Nao e leitura, e um papel somente-leitura nao deveria conseguir
  * gerar trabalho para outra pessoa.
+ *
+ * A ASSINATURA nao (RF-117): loja restrita continua abrindo chamado — o
+ * suporte e o caminho para regularizar.
  */
 export async function openTicket(
   deps: SupportDeps,
   ctx: ExecutionContext,
   input: OpenTicketInput,
 ): Promise<TicketDetail> {
-  assertCanWrite(ctx)
+  assertPapelPodeEscrever(ctx)
 
-  return deps.support.open({
+  const authorName = await deps.quemEscreve(ctx)
+  const chamado = await deps.support.open({
     companyId: ctx.companyId,
     subject: input.subject,
     category: input.category,
     body: input.body,
     attachment: input.attachment ?? null,
-    authorName: await deps.quemEscreve(ctx),
+    authorName,
     createdBy: ctx.userId,
     createdAt: ctx.now,
   })
+
+  /* O aviso nunca derruba o chamado: ele ja esta gravado e na fila da
+     Plataforma, e um e-mail que nao saiu nao pode custar o pedido de ajuda. */
+  await deps.alerta
+    ?.chamadoAberto({
+      companyId: ctx.companyId,
+      ticketId: chamado.id,
+      protocol: chamado.protocol,
+      subject: chamado.subject,
+      category: chamado.category,
+      authorName,
+      body: input.body,
+    })
+    .catch(() => undefined)
+
+  return chamado
 }
 
 export async function replyToTicket(
@@ -92,7 +118,7 @@ export async function replyToTicket(
   ctx: ExecutionContext,
   input: ReplyToTicketInput,
 ): Promise<TicketDetail> {
-  assertCanWrite(ctx)
+  assertPapelPodeEscrever(ctx)
 
   const chamado = await deps.support.reply({
     companyId: ctx.companyId,

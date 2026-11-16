@@ -1,12 +1,15 @@
 import type {
   ConvertQuoteInput,
   CreateQuoteInput,
+  QuoteListInput,
+  QuoteListOutput,
   QuoteOutput,
   UpdateQuoteInput,
 } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import { assertCanWrite } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
+import { diaNoFuso } from '../dia-no-fuso.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { QuoteChanges, QuoteRepository } from '../ports/quote-repository.js'
 
@@ -21,6 +24,8 @@ import type { QuoteChanges, QuoteRepository } from '../ports/quote-repository.js
 export type QuoteDeps = {
   readonly quotes: QuoteRepository
   readonly audit: AuditTrail
+  /** O fuso da loja: decide o "hoje" do vencido. */
+  readonly timeZone: string
 }
 
 /**
@@ -150,11 +155,33 @@ export async function updateQuote(
   return depois
 }
 
+/**
+ * A lista com busca, periodo e situacao, e o painel com o total de cada
+ * situacao — NR-210. O painel ignora a situacao escolhida: escolher "Vencidos"
+ * nao pode zerar o "Em aberto" do topo.
+ */
 export async function listQuotes(
   deps: QuoteDeps,
   ctx: ExecutionContext,
-): Promise<readonly QuoteOutput[]> {
-  return deps.quotes.list(ctx.companyId, 100)
+  input: QuoteListInput,
+): Promise<QuoteListOutput> {
+  const termo = input.q === undefined || input.q === '' ? undefined : input.q
+  const pagina = await deps.quotes.list(ctx.companyId, {
+    ...(termo === undefined ? {} : { termo }),
+    ...(input.situation === undefined ? {} : { situacao: input.situation }),
+    ...(input.from === undefined ? {} : { from: input.from }),
+    ...(input.to === undefined ? {} : { to: input.to }),
+    hoje: diaNoFuso(ctx.now, deps.timeZone),
+    limite: input.pageSize,
+    offset: (input.page - 1) * input.pageSize,
+  })
+  return {
+    quotes: [...pagina.orcamentos],
+    total: pagina.total,
+    page: input.page,
+    pageSize: input.pageSize,
+    summary: pagina.resumo,
+  }
 }
 
 export async function getQuote(

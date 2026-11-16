@@ -3,6 +3,7 @@ import { AppError } from '../app-error.js'
 import { assertCanWrite, assertSegundoCanal } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { AuthDeps } from './login.js'
+import { donoDoCelular } from './phone-variants.js'
 
 /**
  * Convida usuario e atribui papel — RF-005.
@@ -34,7 +35,7 @@ export async function inviteUser(
 
   const existente =
     (input.email === undefined ? undefined : await deps.users.findByEmail(input.email)) ??
-    (input.phone === undefined ? undefined : await deps.users.findByPhone(input.phone))
+    (input.phone === undefined ? undefined : await donoDoCelular(deps.users, input.phone))
 
   /*
    * Pessoa que ja existe ganha VINCULO, e nao um usuario novo.

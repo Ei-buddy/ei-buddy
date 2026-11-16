@@ -23,7 +23,11 @@ async function buildApp(principal: AuthenticatedPrincipal = PRINCIPAL) {
   quotes.cadastrarCliente({ id: 'c1', companyId: 'empresa-1', name: 'Joana Lima' })
   quotes.cadastrarCliente({ id: 'c2', companyId: 'empresa-1', name: 'Pedro Alves' })
   quotes.registrarVenda('v1', 'empresa-1')
-  registerOrcamentosRoutes(app, { quotes, audit: new InMemoryAuditTrail() })
+  registerOrcamentosRoutes(app, {
+    quotes,
+    audit: new InMemoryAuditTrail(),
+    timeZone: 'America/Sao_Paulo',
+  })
   return app
 }
 
@@ -118,5 +122,55 @@ describe('orcamentos — NR-159', () => {
     expect(
       (await app.inject({ method: 'PUT', url: `/orcamentos/${id}`, payload: corpo })).statusCode,
     ).toBe(409)
+  })
+
+  it('lista com busca, situacao, pagina e o painel — NR-210', async () => {
+    app = await buildApp()
+    await app.inject({ method: 'POST', url: '/orcamentos', payload: corpo })
+    await app.inject({
+      method: 'POST',
+      url: '/orcamentos',
+      payload: {
+        ...corpo,
+        customerId: 'c2',
+        items: [{ productId: 'p2', quantity: 1, unitPriceCents: 700 }],
+      },
+    })
+
+    const tudo = (await app.inject({ method: 'GET', url: '/orcamentos' })).json()
+    expect(tudo).toMatchObject({ total: 2, page: 1, pageSize: 20 })
+    expect(tudo.quotes.map((q: { number: number }) => q.number)).toEqual([2, 1])
+    expect(tudo.summary.cancelled).toEqual({ count: 0, totalCents: 0 })
+    const abertos = tudo.summary.open.count + tudo.summary.expired.count
+    expect(abertos).toBe(2)
+
+    const pedro = (
+      await app.inject({ method: 'GET', url: '/orcamentos?q=pedro&page=1&pageSize=5' })
+    ).json()
+    expect(pedro.quotes.map((q: { customerName: string }) => q.customerName)).toEqual([
+      'Pedro Alves',
+    ])
+    expect(pedro.pageSize).toBe(5)
+
+    const cancelados = (
+      await app.inject({ method: 'GET', url: '/orcamentos?situation=cancelled' })
+    ).json()
+    expect(cancelados.quotes).toEqual([])
+    expect(cancelados.total).toBe(0)
+    /* O painel nao segue a situacao escolhida. */
+    expect(cancelados.summary.open.count + cancelados.summary.expired.count).toBe(2)
+  })
+
+  it('filtro invalido e 400', async () => {
+    app = await buildApp()
+    for (const url of [
+      '/orcamentos?situation=pago',
+      '/orcamentos?from=2026-10-09&to=2026-10-01',
+      '/orcamentos?page=0',
+      '/orcamentos?pageSize=500',
+      '/orcamentos?outro=1',
+    ]) {
+      expect((await app.inject({ method: 'GET', url })).statusCode, url).toBe(400)
+    }
   })
 })

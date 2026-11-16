@@ -349,7 +349,6 @@ export default function ContasView({ tipo }: { tipo: 'pagar' | 'receber' }) {
         <NovoTituloModal
           tipo={tipo}
           /* Os fornecedores que a loja ja usou, para "Copel" nao virar "copel". */
-          contrapartesConhecidas={[...new Set(linhas.map((l) => l.contraparte))]}
           onSalvo={(msg) => {
             setLancando(false)
             setAviso(msg)

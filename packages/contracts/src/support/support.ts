@@ -112,3 +112,80 @@ export const ticketListOutputSchema = z.object({
 })
 
 export type TicketListOutput = z.infer<typeof ticketListOutputSchema>
+
+/**
+ * A fila de chamados da PLATAFORMA — NR-215.
+ *
+ * Achado do QA: "como enxergaremos os chamados?". A equipe EiBuddy (Super
+ * Admin) ve os chamados de todas as lojas, responde como "Suporte" e encerra.
+ *
+ * A situacao e derivada da ultima mensagem, e nao guardada: "responder" e o
+ * que esta com a bola do nosso lado (o cliente falou por ultimo);
+ * "aguardando" e o que espera o cliente.
+ */
+export const SITUACOES_DA_FILA = ['responder', 'aguardando', 'encerrados', 'todos'] as const
+
+export const supportInboxSituationSchema = z.enum(SITUACOES_DA_FILA, {
+  error: 'Situacao da fila invalida.',
+})
+
+export type SupportInboxSituation = z.infer<typeof supportInboxSituationSchema>
+
+export const supportInboxQuerySchema = z
+  .object({
+    situation: supportInboxSituationSchema.default('responder'),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(30),
+  })
+  .strict()
+
+export type SupportInboxQuery = z.infer<typeof supportInboxQuerySchema>
+
+export const supportInboxItemSchema = z.object({
+  id: idSchema,
+  companyId: idSchema,
+  companyName: z.string(),
+  protocol: z.string(),
+  subject: z.string(),
+  category: ticketCategorySchema,
+  status: ticketStatusSchema,
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+  /** Quem falou por ultimo. Nulo so num chamado sem mensagem nenhuma. */
+  lastAuthor: z.enum(['cliente', 'suporte']).nullable(),
+  messagesCount: z.number().int(),
+})
+
+export type SupportInboxItem = z.infer<typeof supportInboxItemSchema>
+
+export const supportInboxCountsSchema = z.object({
+  toAnswer: z.number().int(),
+  awaitingCustomer: z.number().int(),
+  closed: z.number().int(),
+})
+
+export type SupportInboxCounts = z.infer<typeof supportInboxCountsSchema>
+
+export const supportInboxOutputSchema = z.object({
+  tickets: z.array(supportInboxItemSchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  counts: supportInboxCountsSchema,
+})
+
+export type SupportInboxOutput = z.infer<typeof supportInboxOutputSchema>
+
+export const supportInboxDetailSchema = supportInboxItemSchema.extend({
+  messages: z.array(ticketMessageSchema),
+})
+
+export type SupportInboxDetail = z.infer<typeof supportInboxDetailSchema>
+
+export const supportReplyInputSchema = z
+  .object({
+    body: z.string().trim().min(1, 'Escreva a resposta.').max(4000, 'Mensagem muito longa.'),
+  })
+  .strict()
+
+export type SupportReplyInput = z.infer<typeof supportReplyInputSchema>

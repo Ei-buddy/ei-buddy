@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import type { StatementParseResult } from '@na-regua/contracts'
 import {
   InMemoryAuditTrail,
+  InMemoryConciliacaoComBaixa,
   InMemoryReconciliation,
+  InMemorySettlements,
   type NewBankTransaction,
   type StatementFile,
 } from '@na-regua/core'
@@ -79,12 +81,15 @@ async function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL) {
   /* A MESMA trilha por dentro da transacao — NR-087. */
   const audit = new InMemoryAuditTrail()
   const repo = new InMemoryReconciliation(audit)
+  /* Conciliar da baixa — DEC-026: a mesma trilha nos dois falsos. */
+  const combinado = new InMemoryConciliacaoComBaixa(repo, new InMemorySettlements(audit))
   const leitor = leitorQueDevolve(LIDO_OK)
   const escritor = escritorEmMemoria()
 
   const deps: ConciliacaoDeps = {
     uow: repo,
     queries: repo,
+    baixas: combinado,
     listQueries: repo,
     import: {
       parser: leitor.parser,
@@ -102,7 +107,7 @@ async function buildApp(principal: AuthenticatedPrincipal | null = PRINCIPAL) {
   })
   registerConciliacaoRoutes(app, deps)
 
-  return { app, repo, audit, leitor, escritor }
+  return { app, repo, combinado, audit, leitor, escritor }
 }
 
 let app: FastifyInstance
@@ -484,5 +489,96 @@ describe('quem pode', () => {
     })
 
     expect(escrita.statusCode).toBe(403)
+  })
+})
+
+describe('conciliar da baixa — DEC-026', () => {
+  it('casa a fila e confirma: concilia e baixa, na ordem do extrato', async () => {
+    const c = await buildApp()
+    app = c.app
+    const t2 = c.repo.adicionarTransacao(EMPRESA, {
+      direction: 'debit',
+      amountCents: 200,
+      postedOn: '2026-11-02',
+    })
+    const t1 = c.repo.adicionarTransacao(EMPRESA, {
+      direction: 'debit',
+      amountCents: 100,
+      postedOn: '2026-11-01',
+    })
+    const c1 = c.combinado.adicionarTitulo(EMPRESA, {
+      entryKind: 'payable',
+      counterparty: 'A',
+      amountCents: 100,
+      dueDate: '2026-11-01',
+    })
+    const c2 = c.combinado.adicionarTitulo(EMPRESA, {
+      entryKind: 'payable',
+      counterparty: 'B',
+      amountCents: 200,
+      dueDate: '2026-11-02',
+    })
+
+    const auto = await app.inject({ method: 'GET', url: '/conciliacao/automatica' })
+    expect(auto.statusCode).toBe(200)
+    const pares = auto.json().pairs as {
+      transaction: { id: string }
+      suggestion: { entry: { id: string } } | null
+    }[]
+    expect(pares.map((p) => p.transaction.id)).toEqual([t1.id, t2.id])
+    expect(pares.map((p) => p.suggestion?.entry.id)).toEqual([c1.id, c2.id])
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/conciliacao/confirmar',
+      payload: {
+        bankAccount: 'Nubank PJ',
+        pairs: [
+          { transactionId: t2.id, entryKind: 'payable', entryId: c2.id },
+          { transactionId: t1.id, entryKind: 'payable', entryId: c1.id },
+        ],
+      },
+    })
+    expect(r.statusCode).toBe(200)
+    expect(r.json()).toMatchObject({ reconciled: 2, settled: 2 })
+    expect((r.json().order as { postedOn: string }[]).map((o) => o.postedOn)).toEqual([
+      '2026-11-01',
+      '2026-11-02',
+    ])
+    expect(c.combinado.baixas.tituloDe(c1.id)?.status).toBe('settled')
+  })
+
+  it('sem conta, ou com par repetido, e 400; contador recebe 403', async () => {
+    const c = await buildApp()
+    app = c.app
+    const t = c.repo.adicionarTransacao(EMPRESA, {
+      direction: 'debit',
+      amountCents: 100,
+      postedOn: '2026-11-01',
+    })
+    const par = { transactionId: t.id, entryKind: 'payable', entryId: t.id }
+
+    const semConta = await app.inject({
+      method: 'POST',
+      url: '/conciliacao/confirmar',
+      payload: { pairs: [par] },
+    })
+    expect(semConta.statusCode).toBe(400)
+    const repetido = await app.inject({
+      method: 'POST',
+      url: '/conciliacao/confirmar',
+      payload: { bankAccount: 'X', pairs: [par, par] },
+    })
+    expect(repetido.statusCode).toBe(400)
+
+    await app.close()
+    const contador = await buildApp({ ...PRINCIPAL, role: 'accountant' })
+    app = contador.app
+    const r = await app.inject({
+      method: 'POST',
+      url: '/conciliacao/confirmar',
+      payload: { bankAccount: 'X', pairs: [par] },
+    })
+    expect(r.statusCode).toBe(403)
   })
 })

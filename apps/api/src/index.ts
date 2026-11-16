@@ -14,6 +14,7 @@ import {
   buildCustosVariaveisDeps,
   buildCaixaDeps,
   buildCadastroDeFornecedoresDeps,
+  buildTaxasDeRecebimentoDeps,
   buildContasBancariasDeps,
   buildWaitlistDeps,
   buildWebhookDeps,
@@ -28,6 +29,8 @@ import {
   buildOrcamentosDeps,
   buildPrivacidadeDeps,
   buildSuporteDeps,
+  buildAssinaturaDeps,
+  buildSituacaoDaAssinatura,
   buildAuditoriaDeps,
   buildRelatoriosDeps,
   getRedis,
@@ -37,6 +40,7 @@ import {
   checkRedis,
   env,
   shutdown,
+  modoDoEmail,
 } from './composition.js'
 import { registerErrorHandler } from './plugins/error-handler.js'
 import { buildLoggerOptions, generateRequestId, registerLogging } from './plugins/logging.js'
@@ -56,6 +60,7 @@ import { registerCustosFixosRoutes } from './routes/custos-fixos.js'
 import { registerCustosVariaveisRoutes } from './routes/custos-variaveis.js'
 import { registerContasBancariasRoutes } from './routes/contas-bancarias.js'
 import { registerCadastroDeFornecedoresRoutes } from './routes/cadastro-fornecedores.js'
+import { registerTaxasDeRecebimentoRoutes } from './routes/taxas-de-recebimento.js'
 import { registerCaixaRoutes } from './routes/caixa.js'
 import { registerWaitlistRoutes } from './routes/waitlist.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
@@ -71,6 +76,7 @@ import { registerRelatoriosRoutes } from './routes/relatorios.js'
 import { registerAuditoriaRoutes } from './routes/auditoria.js'
 import { registerPrivacidadeRoutes } from './routes/privacidade.js'
 import { registerSuporteRoutes } from './routes/suporte.js'
+import { registerAssinaturaRoutes } from './routes/assinatura.js'
 import { registerSaleRoutes } from './routes/sales.js'
 import { registerAgentRoutes } from './routes/agent.js'
 import { montarStudio } from './studio.js'
@@ -102,6 +108,12 @@ app.get('/health', async (_request, reply) => {
     status: ok ? 'ok' : 'degraded',
     uptimeSeconds: Math.round(process.uptime()),
     checks: { database, redis },
+    /*
+     * Como o e-mail sai — achado do QA. `log` = nada e enviado, so escrito
+     * no log. Nao derruba a saude (o resto funciona), mas fica a vista de
+     * quem abre o /health em vez de so no log do servidor.
+     */
+    email: modoDoEmail(),
   })
 })
 
@@ -125,7 +137,8 @@ async function registrarRotas(): Promise<void> {
   await registerRateLimit(app, getRedis())
 
   const authDeps = buildAuthDeps()
-  registerSession(app, authDeps.sessions)
+  /* Loja restrita so le — RF-117: a sessao le a situacao nas escritas. */
+  registerSession(app, authDeps.sessions, buildSituacaoDaAssinatura())
   registerAuthRoutes(app, authDeps)
   registerAdminRoutes(app, authDeps)
   registerPartnersRoutes(app, authDeps)
@@ -147,6 +160,7 @@ async function registrarRotas(): Promise<void> {
   registerCustosVariaveisRoutes(app, buildCustosVariaveisDeps())
   registerContasBancariasRoutes(app, buildContasBancariasDeps())
   registerCadastroDeFornecedoresRoutes(app, buildCadastroDeFornecedoresDeps())
+  registerTaxasDeRecebimentoRoutes(app, buildTaxasDeRecebimentoDeps())
   registerCaixaRoutes(app, buildCaixaDeps())
   registerWaitlistRoutes(app, buildWaitlistDeps())
   /* Sem sessao e sem limitador: quem chama e o provedor, e um 429 aqui faria
@@ -158,6 +172,7 @@ async function registrarRotas(): Promise<void> {
   registerComprasRoutes(app, buildComprasDeps())
   registerOrcamentosRoutes(app, buildOrcamentosDeps())
   registerSuporteRoutes(app, buildSuporteDeps())
+  registerAssinaturaRoutes(app, buildAssinaturaDeps())
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())
   registerEmissaoRoutes(app, buildEmissaoDeps())

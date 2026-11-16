@@ -86,3 +86,30 @@ export type PartnerApplicationAlert = {
     readonly message: string
   }): Promise<void>
 }
+
+/**
+ * Os avisos por e-mail a quem se CANDIDATA a Parceiro — achado do QA ("o
+ * envio de e-mails para cadastro de parceiros nao funciona").
+ *
+ * Antes so quem aprova recebia aviso (`PartnerApplicationAlert`); quem se
+ * candidatava nao recebia nada, nem na chegada, nem na decisao. Cada aviso e
+ * independente e nunca derruba o fluxo: um e-mail que nao saiu nao pode
+ * custar o cadastro nem a aprovacao.
+ */
+export type PartnerApplicantNotice = {
+  recebida(info: {
+    readonly companyName: string
+    readonly email: string
+    readonly couponCode: string | null
+  }): Promise<void>
+  aprovada(info: {
+    readonly companyName: string
+    readonly email: string
+    readonly couponCode: string | null
+  }): Promise<void>
+  recusada(info: {
+    readonly companyName: string
+    readonly email: string
+    readonly note: string | null
+  }): Promise<void>
+}

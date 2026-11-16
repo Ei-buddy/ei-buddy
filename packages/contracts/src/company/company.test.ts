@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   camposFaltandoNoCliente,
+  semEnderecoParaNota,
   createCustomerInputSchema,
   updateCustomerInputSchema,
 } from '../customer/customer.js'
@@ -57,7 +58,8 @@ describe('cadastro de usuario', () => {
 })
 
 describe('cadastro de cliente', () => {
-  /* O minimo que o cadastro aceita: nome, celular e endereco completo. */
+  /* O minimo que o cadastro aceita: documento, nome e celular. O endereco e
+     opcional desde a revisao da DEC-025 (2026-11-15), mas vem completo. */
   const BASE = {
     name: 'Joana Ribeiro',
     document: '529.982.247-25',
@@ -79,15 +81,21 @@ describe('cadastro de cliente', () => {
   it.each([
     ['document', 'CPF ou CNPJ'],
     ['phone', 'celular'],
-    ['address', 'endereco'],
   ] as const)('recusa sem %s (%s), apontando o campo', (campo, _rotulo) => {
     const { [campo]: _fora, ...resto } = BASE
     const r = createCustomerInputSchema.safeParse(resto)
     expect(r.success === false && r.error.issues[0]?.path).toEqual([campo])
   })
 
+  it('aceita sem endereco nenhum — DEC-025 revisada', () => {
+    const { address: _fora, ...semEndereco } = BASE
+    const r = createCustomerInputSchema.safeParse(semEndereco)
+    expect(r.success).toBe(true)
+    expect(r.success && r.data.address).toBeUndefined()
+  })
+
   it.each(['zipCode', 'street', 'number', 'district', 'city', 'state'] as const)(
-    'recusa endereco sem %s',
+    'endereco que vem, vem completo: recusa sem %s',
     (campo) => {
       const { [campo]: _fora, ...endereco } = BASE.address
       const r = createCustomerInputSchema.safeParse({ ...BASE, address: endereco })
@@ -270,30 +278,61 @@ describe('camposFaltandoNoCliente — DEC-025', () => {
     expect(camposFaltandoNoCliente(COMPLETO)).toEqual([])
   })
 
-  it('cliente antigo, so com nome, lista tudo o que falta', () => {
-    const vazio = {
-      zipCode: null,
-      street: null,
-      number: null,
-      district: null,
-      city: null,
-      state: null,
-    }
-    expect(camposFaltandoNoCliente({ document: null, phone: null, address: vazio })).toEqual([
+  const VAZIO = {
+    zipCode: null,
+    street: null,
+    number: null,
+    district: null,
+    city: null,
+    state: null,
+  }
+
+  it('cliente antigo, so com nome: falta documento e celular — endereco e opcional', () => {
+    expect(camposFaltandoNoCliente({ document: null, phone: null, address: VAZIO })).toEqual([
       'CPF/CNPJ',
       'celular',
-      'CEP',
-      'rua',
-      'número',
-      'bairro',
-      'cidade',
-      'UF',
     ])
+  })
+
+  it('sem endereco nenhum esta completo, mas e o caso do aviso da nota de servico', () => {
+    const semEndereco = { ...COMPLETO, address: VAZIO }
+    expect(camposFaltandoNoCliente(semEndereco)).toEqual([])
+    expect(semEnderecoParaNota(semEndereco)).toBe(true)
+    expect(semEnderecoParaNota(COMPLETO)).toBe(false)
+  })
+
+  it('endereco pela metade continua contando como falta', () => {
+    const soCep = { ...COMPLETO, address: { ...VAZIO, zipCode: '80010000' } }
+    expect(camposFaltandoNoCliente(soCep)).toEqual(['rua', 'número', 'bairro', 'cidade', 'UF'])
+    expect(semEnderecoParaNota(soCep)).toBe(false)
   })
 
   it('aponta so o campo que falta', () => {
     expect(
       camposFaltandoNoCliente({ ...COMPLETO, address: { ...COMPLETO.address, district: ' ' } }),
     ).toEqual(['bairro'])
+  })
+})
+
+describe('os campos da NFS-e na loja — DEC-031', () => {
+  it('codigo de tributacao nacional: 6 digitos, aceita com pontos e guarda so os digitos', () => {
+    expect(updateCompanyInputSchema.parse({ nationalServiceCode: '01.07.01' })).toMatchObject({
+      nationalServiceCode: '010701',
+    })
+    expect(updateCompanyInputSchema.safeParse({ nationalServiceCode: '0107' }).success).toBe(false)
+  })
+
+  it('aliquota do ISS de 0 a 5, com ate duas casas', () => {
+    expect(updateCompanyInputSchema.parse({ issRatePercent: 2.5 }).issRatePercent).toBe(2.5)
+    expect(updateCompanyInputSchema.parse({ issRatePercent: 2.79 }).issRatePercent).toBe(2.79)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: 5.01 }).success).toBe(false)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: -1 }).success).toBe(false)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: 2.555 }).success).toBe(false)
+  })
+
+  it('os dois sao opcionais no cadastro da conta', () => {
+    const r = createCompanyInputSchema.parse(empresa)
+    expect(r.nationalServiceCode).toBeUndefined()
+    expect(r.issRatePercent).toBeUndefined()
   })
 })

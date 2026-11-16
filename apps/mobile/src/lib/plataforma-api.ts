@@ -1,4 +1,5 @@
 import { chamarApi } from './api'
+import type { EstadoDaAssinatura } from './assinatura-api'
 
 /**
  * Area da plataforma (Super Admin) — ADR-0007, as mesmas rotas do web.
@@ -38,6 +39,12 @@ export type EmpresaListada = {
   cnpj: string
   isActive: boolean
   createdAt: string
+  /* A assinatura de cada loja — NR-216. Os quatro nulos quando a loja nao
+     tem assinatura (o caso de todas enquanto a cobranca nao liga). */
+  subscriptionStatus: EstadoDaAssinatura | null
+  trialEndsAt: string | null
+  nextDueDate: string | null
+  restrictedAt: string | null
 }
 
 export const listarEmpresas = () => pedir<{ companies: EmpresaListada[] }>('/admin/empresas')
@@ -180,3 +187,79 @@ export const recusarParceiro = (partnerId: string, note: string) =>
     method: 'POST',
     body: { note: note.trim() },
   })
+
+/** Resultado do envio de teste de e-mail — achado do QA, o par do web. */
+export type ResultadoDoTesteDeEmail = {
+  /** `log` = o servidor nao manda e-mail nenhum, so escreve no log. */
+  mode: 'smtp' | 'log'
+  sent: boolean
+  reason: string | null
+}
+
+export const enviarEmailDeTeste = (to: string) =>
+  pedir<ResultadoDoTesteDeEmail>('/admin/email-teste', { method: 'POST', body: { to: to.trim() } })
+
+/* --- Chamados de todas as lojas — NR-215 ------------------------------ */
+
+export type SituacaoDaFila = 'responder' | 'aguardando' | 'encerrados' | 'todos'
+
+export const ABAS_DA_FILA: [SituacaoDaFila, string][] = [
+  ['responder', 'Para responder'],
+  ['aguardando', 'Aguardando cliente'],
+  ['encerrados', 'Encerrados'],
+  ['todos', 'Todos'],
+]
+
+export type ChamadoDaFila = {
+  id: string
+  companyName: string
+  protocol: string
+  subject: string
+  category: string
+  status: 'open' | 'waiting' | 'closed'
+  updatedAt: string
+  lastAuthor: 'cliente' | 'suporte' | null
+  messagesCount: number
+}
+
+export type ChamadoAberto = ChamadoDaFila & {
+  messages: {
+    id: string
+    author: 'cliente' | 'suporte'
+    authorName: string
+    body: string
+    createdAt: string
+  }[]
+}
+
+export type ContagensDaFila = { toAnswer: number; awaitingCustomer: number; closed: number }
+
+/** A mesma regra do banco: quem falou por ultimo decide de quem e a vez. */
+export function situacaoDoChamado(c: Pick<ChamadoDaFila, 'status' | 'lastAuthor'>): SituacaoDaFila {
+  if (c.status === 'closed') return 'encerrados'
+  return c.lastAuthor === 'suporte' ? 'aguardando' : 'responder'
+}
+
+export function contagemDaAba(c: ContagensDaFila, aba: SituacaoDaFila): number {
+  if (aba === 'responder') return c.toAnswer
+  if (aba === 'aguardando') return c.awaitingCustomer
+  if (aba === 'encerrados') return c.closed
+  return c.toAnswer + c.awaitingCustomer + c.closed
+}
+
+export const carregarFilaDeChamados = (situacao: SituacaoDaFila) =>
+  pedir<{ tickets: ChamadoDaFila[]; total: number; counts: ContagensDaFila }>(
+    `/admin/chamados?situation=${situacao}`,
+  )
+
+export const abrirChamadoDaFila = (id: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}`)
+
+export const responderChamadoDaFila = (id: string, texto: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}/respostas`, {
+    method: 'POST',
+    body: { body: texto.trim() },
+  })
+
+export const encerrarChamadoDaFila = (id: string) =>
+  pedir<ChamadoAberto>(`/admin/chamados/${encodeURIComponent(id)}/encerrar`, { method: 'POST' })

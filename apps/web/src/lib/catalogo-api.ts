@@ -167,12 +167,15 @@ export type ProdutoDaFicha = ProdutoDoCatalogo & {
   cfop: string | null
   /** Codigo de situacao tributaria. Nulo ate o lojista informar — RF-046. */
   cst: string | null
+  /** NBS do servico (9 digitos), para a NFS-e — DEC-031. */
+  nbs: string | null
 }
 
 type FichaDaApi = ProdutoDaApi & {
   unitOfMeasure: string
   cfop: string | null
   taxSituationCode: string | null
+  nbsCode: string | null
 }
 
 export async function buscarProduto(id: string): Promise<Resultado<ProdutoDaFicha>> {
@@ -186,6 +189,7 @@ export async function buscarProduto(id: string): Promise<Resultado<ProdutoDaFich
           unidade: r.dados.unitOfMeasure,
           cfop: r.dados.cfop,
           cst: r.dados.taxSituationCode,
+          nbs: r.dados.nbsCode ?? null,
         },
       }
     : r

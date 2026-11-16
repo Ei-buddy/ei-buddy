@@ -262,9 +262,6 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
                       {f?.rotulo ?? p.forma}
                       {p.parcelas !== null && p.parcelas > 1 ? ` · ${p.parcelas}x` : ''}
                     </strong>
-                    {f && f.taxa > 0 ? (
-                      <span>taxa {f.taxa.toFixed(2).replace('.', ',')}%</span>
-                    ) : null}
                   </span>
                   <strong>{formatMoney(p.valor)}</strong>
                 </li>

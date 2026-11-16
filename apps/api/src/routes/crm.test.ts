@@ -63,6 +63,10 @@ function repositorios(
       chamadas.push('move')
       return card({ column: 'done' })
     },
+    delete: async () => {
+      chamadas.push('delete')
+      return true
+    },
     addComment: async () => {
       chamadas.push('addComment')
       return {
@@ -194,6 +198,28 @@ describe('mover — PATCH /crm/cards/:id', () => {
     })
 
     expect(r.statusCode).toBe(404)
+  })
+})
+
+describe('excluir — DELETE /crm/cards/:id — NR-213', () => {
+  it('apaga e responde 204', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({ method: 'DELETE', url: '/crm/cards/crm-1' })
+
+    expect(r.statusCode).toBe(204)
+    expect(c.chamadas).toEqual(['findById', 'delete'])
+  })
+
+  it('card inexistente responde 404 e nada e apagado', async () => {
+    const c = await buildApp({ findById: async () => undefined })
+    app = c.app
+
+    const r = await app.inject({ method: 'DELETE', url: '/crm/cards/nao-existe' })
+
+    expect(r.statusCode).toBe(404)
+    expect(c.chamadas).not.toContain('delete')
   })
 })
 

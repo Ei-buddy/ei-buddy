@@ -82,12 +82,12 @@ test('orcamento nao mexe no estoque, edita e vira venda com o cliente', async ({
 
   /* Aberto, o orcamento edita: duas latas em vez de tres. */
   await page.getByRole('link', { name: 'Abrir' }).first().click()
-  await expect(page.getByLabel('Orçamento')).toContainText('TOTAL')
+  await expect(page.getByLabel('Orçamento', { exact: true })).toContainText('TOTAL')
   await page.getByRole('button', { name: 'Editar' }).click()
   await page.getByLabel('Quantidade de Tinta E2E 18L').fill('2')
   await page.getByRole('button', { name: 'Salvar alterações' }).click()
   await expect(page.getByText('Orçamento nº 1 atualizado.')).toBeVisible()
-  await expect(page.getByLabel('Orçamento')).toContainText('560,00')
+  await expect(page.getByLabel('Orçamento', { exact: true })).toContainText('560,00')
 
   /* Vira venda ja com o cliente: o PDV pula a etapa de escolher. */
   await page.getByRole('button', { name: 'Converter em venda' }).click()

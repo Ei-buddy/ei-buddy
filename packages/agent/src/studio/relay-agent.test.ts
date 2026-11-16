@@ -71,6 +71,8 @@ function vendasPorEmpresa(visto: string[] = []): AgentUseCases {
           grossCents: daA ? 15_000 : 99_000,
           netCents: daA ? 14_000 : 99_000,
           cardFeeCents: 0,
+          discountCents: 0,
+          taxCents: 0,
           netAfterFeesCents: daA ? 14_000 : 99_000,
           averageTicketCents: daA ? 5_000 : 99_000,
         },

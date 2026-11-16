@@ -127,3 +127,17 @@ describe('edicao de produto', () => {
     expect(updateProductInputSchema.safeParse({ supplier: 'Engenho Doce' }).success).toBe(true)
   })
 })
+
+describe('NBS no produto — DEC-031', () => {
+  it('9 digitos, aceita com pontos e guarda so os digitos', () => {
+    expect(createProductInputSchema.parse({ ...produto, nbsCode: '1.0101.10.00' })).toMatchObject({
+      nbsCode: '101011000',
+    })
+    expect(createProductInputSchema.safeParse({ ...produto, nbsCode: '12345' }).success).toBe(false)
+  })
+
+  it('opcional no cadastro; na edicao, null tira o NBS', () => {
+    expect(createProductInputSchema.parse(produto).nbsCode).toBeUndefined()
+    expect(updateProductInputSchema.parse({ nbsCode: null }).nbsCode).toBeNull()
+  })
+})

@@ -241,6 +241,11 @@
   line-height: 1.5;
 }
 
+.certOpcional {
+  font-weight: 400;
+  color: var(--app-muted);
+}
+
 /* Aviso de falha ao carregar o cadastro — a tela abre vazia ate ele chegar. */
 .avisoCarga {
   font-size: 14px;

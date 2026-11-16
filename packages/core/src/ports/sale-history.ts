@@ -98,6 +98,10 @@ export type SaleHistoryRepository = {
       readonly grossCents: number
       readonly netCents: number
       readonly cardFeeCents: number
+      /** Descontos, proporcionais ao que nao foi devolvido. */
+      readonly discountCents: number
+      /** Imposto das notas emitidas, proporcional ao que nao foi devolvido. */
+      readonly taxCents: number
     }
   }>
 

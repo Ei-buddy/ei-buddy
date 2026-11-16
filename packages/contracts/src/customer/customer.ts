@@ -34,7 +34,8 @@ const EXIGE_FANTASIA = {
 }
 
 /**
- * O endereco do cliente, completo — decisao de produto de 2026-10-06.
+ * O endereco do cliente, completo — decisao de produto de 2026-10-06. Desde a
+ * revisao de 2026-11-15 o endereco e opcional, mas quem o manda manda inteiro.
  *
  * Diferente do `addressSchema` da empresa, que chega pela busca de CNPJ e pode
  * faltar: o cliente e cadastrado pela loja, que tem a pessoa na frente, e um
@@ -64,9 +65,14 @@ export type CustomerAddress = z.infer<typeof customerAddressSchema>
 /**
  * O que falta para o cadastro ficar completo — DEC-025.
  *
- * Cliente cadastrado antes da regra pode nao ter celular nem endereco. Ele
- * continua valendo, e as telas usam esta lista para avisar o que completar.
- * Vazia = cadastro completo. Os nomes ja vem prontos para a tela.
+ * Cliente cadastrado antes da regra pode nao ter celular. Ele continua
+ * valendo, e as telas usam esta lista para avisar o que completar. Vazia =
+ * cadastro completo. Os nomes ja vem prontos para a tela.
+ *
+ * Endereco (revisao de 2026-11-15): e OPCIONAL. Cliente sem endereco nenhum
+ * esta completo — a tela so avisa que ele sera preciso para a nota de servico
+ * (`semEnderecoParaNota`). Mas endereco PELA METADE continua contando como
+ * falta: um CEP sem rua nao serve para nota nem para entrega.
  */
 export function camposFaltandoNoCliente(c: {
   readonly document: string | null
@@ -85,6 +91,7 @@ export function camposFaltandoNoCliente(c: {
   if (vazio(c.document)) faltando.push('CPF/CNPJ')
   if (vazio(c.phone)) faltando.push('celular')
   const e = c.address
+  if (semEnderecoParaNota(c)) return faltando
   if (vazio(e.zipCode)) faltando.push('CEP')
   if (vazio(e.street)) faltando.push('rua')
   if (vazio(e.number)) faltando.push('número')
@@ -92,6 +99,29 @@ export function camposFaltandoNoCliente(c: {
   if (vazio(e.city)) faltando.push('cidade')
   if (vazio(e.state)) faltando.push('UF')
   return faltando
+}
+
+/**
+ * Cliente sem endereco NENHUM — DEC-025 revisada (2026-11-15).
+ *
+ * Nao e cadastro incompleto: o endereco e opcional. E o caso em que a tela
+ * avisa que ele sera preciso para emitir nota fiscal de servico, e em que a
+ * emissao de NFS-e pede o endereco na hora.
+ */
+export function semEnderecoParaNota(c: {
+  readonly address: {
+    readonly zipCode: string | null
+    readonly street: string | null
+    readonly number: string | null
+    readonly district: string | null
+    readonly city: string | null
+    readonly state: string | null
+  }
+}): boolean {
+  const e = c.address
+  return [e.zipCode, e.street, e.number, e.district, e.city, e.state].every(
+    (v) => v === null || v.trim() === '',
+  )
 }
 
 /**
@@ -126,12 +156,16 @@ const camposDoCliente = z
     /** Teto do fiado. Ausente = sem fiado liberado. */
     walletLimitCents: moneyCentsSchema.optional(),
     /**
-     * O endereco, obrigatorio e completo — ver `customerAddressSchema`.
+     * O endereco — OPCIONAL desde a revisao da DEC-025 (2026-11-15), mas,
+     * quando vem, COMPLETO (ver `customerAddressSchema`).
+     *
+     * Sem endereco o cadastro salva, e a tela avisa que ele sera preciso para
+     * emitir nota fiscal de servico; a emissao de NFS-e pede na hora.
      *
      * Aninhado e nao achatado: os campos so fazem sentido juntos, e um `city`
      * sem `state` e um endereco que ninguem acha.
      */
-    address: customerAddressSchema,
+    address: customerAddressSchema.optional(),
   })
   .strict()
 
@@ -404,6 +438,28 @@ export const customerListOutputSchema = z.object({
 })
 
 export type CustomerListOutput = z.infer<typeof customerListOutputSchema>
+
+/**
+ * Os numeros do topo da tela de clientes — NR-211.
+ *
+ * Achado do QA: "Sem comprar ha 60 dias" so aparecia depois de clicar no
+ * filtro. O numero saia do `total` da lista filtrada, e o "Com pendencia"
+ * contava so a pagina carregada (24 de uma base de tres mil). Agora vem de uma
+ * consulta propria, sobre a loja inteira, que nao muda com busca nem filtro.
+ *
+ * "Inativo" e a mesma regra do filtro: nunca comprou, ou a ultima compra foi
+ * ha mais de `DIAS_PARA_INATIVO` dias.
+ */
+export const customerSummaryOutputSchema = z.object({
+  /** Clientes na lista (o excluido nao conta). */
+  total: z.number().int(),
+  /** Com saldo de fiado em aberto, e quanto somam. */
+  withBalance: z.object({ count: z.number().int(), balanceCents: z.number().int() }),
+  /** Sem comprar ha `DIAS_PARA_INATIVO` dias, ou que nunca compraram. */
+  inactive: z.number().int(),
+})
+
+export type CustomerSummaryOutput = z.infer<typeof customerSummaryOutputSchema>
 
 /**
  * Cliente inadimplente — RF-071, US-034.

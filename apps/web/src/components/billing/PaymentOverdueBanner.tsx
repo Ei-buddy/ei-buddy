@@ -2,24 +2,37 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { resumoDaAssinatura } from '@/lib/assinatura-api'
 import { IconClose } from '../Icons'
+import { useSubscription } from './SubscriptionProvider'
 import styles from './billing.module.css'
 
 /**
- * Banner fixo de pagamento pendente.
+ * Banner fixo da assinatura que pede atencao — atrasada, restrita ou
+ * cancelada (NR-216).
+ *
+ * O texto vem da situacao do servidor. Antes dizia "14 dias em atraso" para
+ * qualquer loja, um numero fixo no codigo, e so aparecia num estado que o
+ * servidor nunca mandava.
  *
  * Fica no topo do painel em tom de alerta (ambar) — nunca vermelho, que
  * fica reservado para erro critico. Pode ser recolhido, mas volta a cada
  * navegacao: e um aviso persistente, nao uma notificacao descartavel.
  */
-export default function PaymentOverdueBanner({ diasEmAtraso = 14 }: { diasEmAtraso?: number }) {
+export default function PaymentOverdueBanner() {
+  const { situacao } = useSubscription()
   const [recolhido, setRecolhido] = useState(false)
+
+  const status = situacao.status
+  if (status !== 'overdue' && status !== 'restricted' && status !== 'cancelled') return null
+
+  const resumo = resumoDaAssinatura(situacao)
 
   if (recolhido) {
     return (
       <button type="button" className={styles.bannerCollapsed} onClick={() => setRecolhido(false)}>
         <span className={styles.bannerDot} aria-hidden="true" />
-        Pagamento pendente
+        {resumo.rotulo}
       </button>
     )
   }
@@ -31,12 +44,11 @@ export default function PaymentOverdueBanner({ diasEmAtraso = 14 }: { diasEmAtra
       </span>
 
       <p className={styles.bannerText}>
-        <strong>Seu pagamento está pendente.</strong> Regularize para manter acesso completo
-        {diasEmAtraso > 0 ? ` — ${diasEmAtraso} dias em atraso` : ''}.
+        <strong>{resumo.rotulo}.</strong> {primeiraMaiuscula(resumo.detalhe)}.
       </p>
 
       <Link href="/app/assinatura" className={styles.bannerCta}>
-        Regularizar pagamento
+        {status === 'cancelled' ? 'Ver assinatura' : 'Regularizar pagamento'}
       </Link>
 
       <button
@@ -49,4 +61,8 @@ export default function PaymentOverdueBanner({ diasEmAtraso = 14 }: { diasEmAtra
       </button>
     </div>
   )
+}
+
+function primeiraMaiuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
 }

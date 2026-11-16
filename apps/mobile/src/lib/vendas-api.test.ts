@@ -158,6 +158,9 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
       salesCount: 1,
       grossCents: 10000,
       netAfterFeesCents: 9200,
+      cardFeeCents: 300,
+      discountCents: 500,
+      taxCents: 0,
       averageTicketCents: 9500,
     },
   }
@@ -230,7 +233,15 @@ describe('listarHistoricoDeVendas — RF-036, US-021', () => {
     if (!r.ok) throw new Error(r.erro)
     expect(r.vendas[0]).toMatchObject({ devolvidoValor: 47.5, status: 'concluida' })
     expect(r.vendas[0]?.itens[0]).toMatchObject({ produtoId: 'p-1', devolvido: 1 })
-    expect(r.resumo).toEqual({ quantidade: 1, faturamento: 100, liquido: 92, ticketMedio: 95 })
+    expect(r.resumo).toEqual({
+      quantidade: 1,
+      faturamento: 100,
+      liquido: 92,
+      descontos: 5,
+      tarifas: 3,
+      impostos: 0,
+      ticketMedio: 95,
+    })
   })
 
   /* Venda sem cliente identificado e caminho normal no balcao (RF-009): o

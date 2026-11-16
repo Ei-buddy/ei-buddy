@@ -26,7 +26,19 @@ type LinhaDeEmpresa = {
   cnpj: string
   is_active: boolean
   created_at: string
+  subscription_status: string | null
+  trial_ends_at: Date | string | null
+  next_due_date: Date | string | null
+  restricted_at: Date | string | null
 }
+
+/** `timestamptz` volta como `Date` no driver; o contrato pede texto ISO. */
+const iso = (v: Date | string | null): string | null =>
+  v === null ? null : typeof v === 'string' ? v : v.toISOString()
+
+/** `date` corta nos dez primeiros: com fuso, um dia 05 viraria 04 em Brasilia. */
+const dia = (v: Date | string | null): string | null =>
+  v === null ? null : (typeof v === 'string' ? v : v.toISOString()).slice(0, 10)
 
 const paraEmpresa = (l: LinhaDeEmpresa): CompanyOverview => ({
   id: l.id,
@@ -35,6 +47,11 @@ const paraEmpresa = (l: LinhaDeEmpresa): CompanyOverview => ({
   cnpj: l.cnpj,
   isActive: l.is_active,
   createdAt: l.created_at,
+  /* O CHECK da tabela ja garante um dos cinco estados. */
+  subscriptionStatus: l.subscription_status as CompanyOverview['subscriptionStatus'],
+  trialEndsAt: iso(l.trial_ends_at),
+  nextDueDate: dia(l.next_due_date),
+  restrictedAt: iso(l.restricted_at),
 })
 
 type LinhaDeAdmin = { user_id: string; name: string; email: string; granted_at: string }

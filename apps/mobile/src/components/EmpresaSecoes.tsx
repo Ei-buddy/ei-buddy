@@ -68,8 +68,10 @@ export function CertificadoDigital() {
       setMensagem({ tom: 'erro', texto: 'Informe a senha do certificado.' })
       return
     }
-    if (ate === null) {
-      setMensagem({ tom: 'erro', texto: 'Informe até quando o certificado vale.' })
+    /* Validade opcional (NR-214): em branco, o servidor le do arquivo. So a
+       data digitada e invalida para aqui. */
+    if (validade.trim() !== '' && ate === null) {
+      setMensagem({ tom: 'erro', texto: 'Confira a data de validade (DD/MM/AAAA).' })
       return
     }
     setEnviando(true)
@@ -133,6 +135,7 @@ export function CertificadoDigital() {
             <Campo rotulo="Senha do certificado" valor={senha} onChange={setSenha} senha />
             <Campo
               rotulo="Válido até"
+              dica="opcional — lemos do certificado"
               valor={validade}
               onChange={(v) => setValidade(mascaraData(v))}
               tipoTeclado="numeric"

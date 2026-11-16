@@ -57,6 +57,8 @@ type LinhaVenda = {
   resumo_bruto?: string
   resumo_liquido?: string
   resumo_tarifa?: string
+  resumo_desconto?: string
+  resumo_imposto?: string
 }
 
 const paraVenda = (l: LinhaVenda): VendaDoHistorico => ({
@@ -106,6 +108,13 @@ const conta = (tx: TransactionSql) => tx`s.status NOT IN ('cancelled', 'returned
  * imposto so quando ha nota — o mesmo calculo do relatorio de faturamento,
  * para o topo do historico e o painel fecharem com ele.
  */
+/* Desconto e imposto na proporcao do que NAO foi devolvido — como o liquido. */
+const descontoSemDevolucao = (tx: TransactionSql) =>
+  tx`(s.discount_cents - COALESCE(ROUND(s.discount_cents * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
+
+const impostoSemDevolucao = (tx: TransactionSql) =>
+  tx`(${impostoComNota(tx)} - COALESCE(ROUND(${impostoComNota(tx)} * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
+
 const liquidoSemDevolucao = (tx: TransactionSql) =>
   tx`(${liquidoComNota(tx)} - COALESCE(ROUND(${liquidoComNota(tx)} * s.returned_amount_cents::numeric / NULLIF(s.gross_amount_cents, 0)), 0))`
 
@@ -183,7 +192,11 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
                  COALESCE(SUM(${liquidoSemDevolucao(tx)})
                    FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_liquido,
                  COALESCE(SUM(s.card_fee_amount_cents)
-                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_tarifa
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_tarifa,
+                 COALESCE(SUM(${descontoSemDevolucao(tx)})
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_desconto,
+                 COALESCE(SUM(${impostoSemDevolucao(tx)})
+                   FILTER (WHERE ${conta(tx)}) OVER (), 0) AS resumo_imposto
           FROM sales s
           ${filhos(tx)}
           WHERE TRUE
@@ -224,6 +237,8 @@ export function createSaleHistoryRepository(sql: Sql, timeZone: string): SaleHis
           grossCents: numero(linhas[0]?.resumo_bruto ?? 0),
           netCents: numero(linhas[0]?.resumo_liquido ?? 0),
           cardFeeCents: numero(linhas[0]?.resumo_tarifa ?? 0),
+          discountCents: numero(linhas[0]?.resumo_desconto ?? 0),
+          taxCents: numero(linhas[0]?.resumo_imposto ?? 0),
         },
       }
     },

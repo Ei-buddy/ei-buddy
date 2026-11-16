@@ -818,6 +818,8 @@ describe('perfil de quem esta logado — NR-013, RF-119', () => {
       stateRegistration: null,
       municipalRegistration: null,
       businessSegment: null,
+      nationalServiceCode: null,
+      issRatePercent: null,
       address: {
         zipCode: null,
         street: null,

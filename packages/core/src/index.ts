@@ -26,7 +26,13 @@ export type {
 } from './ports/chart-of-accounts.js'
 export type { AppErrorCode, FieldIssue } from './app-error.js'
 
-export { assertCanWrite, assertSegundoCanal } from './authorization.js'
+export {
+  assertAssinaturaPermiteEscrita,
+  assertCanWrite,
+  assertPapelPodeEscrever,
+  assertSegundoCanal,
+  MENSAGEM_ASSINATURA_RESTRITA,
+} from './authorization.js'
 
 export type { Channel, CompanyId, ExecutionContext, UseCase, UserId } from './context.js'
 
@@ -336,6 +342,19 @@ export type {
   TituloSnapshot,
 } from './ports/settlement-writers.js'
 export { createDefaultSaleSettings } from './sales/default-settings.js'
+export {
+  comTaxasDaLoja,
+  getPaymentFeeSettings,
+  savePaymentFeeSettings,
+  tabelaDeTarifas,
+  TAXAS_PADRAO,
+} from './sales/fee-settings.js'
+export type { PaymentFeeSettingsDeps } from './sales/fee-settings.js'
+export type {
+  PaymentFeeSettingsRepository,
+  StoredPaymentFeeSettings,
+} from './ports/payment-fee-settings.js'
+export { InMemoryPaymentFeeSettings } from './sales/fee-settings-fake.js'
 export { registerSale } from './sales/register-sale.js'
 export type { RegisterSaleDeps, RegisterSaleResult, StockWarning } from './sales/register-sale.js'
 
@@ -431,7 +450,8 @@ export {
 } from './auth/fakes.js'
 /* Idem: a trilha so persiste quando `db` expuser repositorio de auditoria. */
 export { InMemoryAuditTrail } from './audit/fakes.js'
-export { InMemoryReconciliation } from './reconciliation/fakes.js'
+export { InMemoryConciliacaoComBaixa, InMemoryReconciliation } from './reconciliation/fakes.js'
+export { InMemorySettlements } from './settlements/fakes.js'
 export { InMemoryChartOfAccounts } from './accounting/fakes.js'
 export type { AuthDeps, LoginMeta } from './auth/login.js'
 export type {
@@ -473,12 +493,16 @@ export {
   undoReconciliation,
 } from './reconciliation/reconcile.js'
 export { JANELA_DE_DIAS, suggestMatches } from './reconciliation/suggest-matches.js'
+/* Conciliar da baixa — DEC-026. */
+export { autoMatch, confirmReconciliations } from './reconciliation/confirm.js'
 export { listBankTransactions } from './reconciliation/list-transactions.js'
 export type { ListBankTransactionsDeps } from './reconciliation/list-transactions.js'
 export type { ReconciliationDeps, SugestaoDeConciliacao } from './reconciliation/suggest-matches.js'
 export type {
   BankTransactionSnapshot,
   LancamentoConciliavel,
+  ConciliacaoComBaixaTransaction,
+  ConciliacaoComBaixaUnitOfWork,
   NovoLancamentoDeTransacao,
   ReconciliationQueries,
   ReconciliationTransaction,
@@ -500,6 +524,10 @@ export type { ListAppointmentRangeDeps, RangeAgenda } from './schedule/list-appo
 /* Cadastro de conta — NR-014, RF-001, RF-002. */
 export { signup } from './auth/signup.js'
 export type { SignupDeps } from './auth/signup.js'
+/* Cadastro sem repetir e-mail, CNPJ e celular — achado do QA. */
+export { checkSignupAvailability } from './auth/signup-availability.js'
+export type { SignupAvailabilityDeps } from './auth/signup-availability.js'
+export { variantesDoCelular } from './auth/phone-variants.js'
 export type { IdentityRegistrar } from './ports/identity.js'
 export { requestPasswordReset, resetPassword } from './auth/password-reset.js'
 export { changePhone, currentPhone } from './auth/change-phone.js'
@@ -561,6 +589,7 @@ export type {
 export {
   deleteCustomer,
   getCustomer,
+  customerSummary,
   listCustomers,
   restoreCustomer,
   updateCustomer,
@@ -569,10 +598,28 @@ export {
 /* Chamados de suporte — NR-080, US-062. */
 export { getTicket, listTickets, openTicket, readTicket, replyToTicket } from './support/tickets.js'
 export type { SupportDeps } from './support/tickets.js'
+/* Chamados vistos pela plataforma — NR-215. */
+export {
+  closeSupportTicket,
+  getSupportInboxTicket,
+  listSupportInbox,
+  replyAsSupport,
+} from './support/platform-inbox.js'
+export type { PlatformInboxDeps } from './support/platform-inbox.js'
+export type { SupportInbox } from './ports/support-inbox.js'
+export type { SupportAlertDirectory, SupportTicketAlert } from './ports/support-alert.js'
+export { InMemorySupportInbox } from './support/inbox-fakes.js'
 export type { NewTicket, NewTicketMessage, SupportRepository } from './ports/support-repository.js'
 
 /* CRM — NR-109. */
-export { commentOnCrmCard, createCrmCard, listCrmBoard, listTeam, moveCrmCard } from './crm/crm.js'
+export {
+  commentOnCrmCard,
+  createCrmCard,
+  deleteCrmCard,
+  listCrmBoard,
+  listTeam,
+  moveCrmCard,
+} from './crm/crm.js'
 export type { CrmDeps, TeamDeps } from './crm/crm.js'
 export type { CrmRepository, NewCrmCard, NewCrmComment } from './ports/crm-repository.js'
 export type { TeamRepository } from './ports/team-repository.js'
@@ -636,10 +683,15 @@ export type { ResendPartnerApplicationDeps } from './partners/resend-partner-app
 export { getMyPartnerApplication } from './partners/my-partner-application.js'
 export type { MyPartnerApplicationDeps } from './partners/my-partner-application.js'
 export type {
+  PartnerApplicantNotice,
   PartnerApplicationAlert,
   PartnerApplicationRepository,
 } from './ports/partner-application-repository.js'
 export { InMemoryPartnerApplicationRepository } from './partners/fakes.js'
+
+/* Envio de teste de e-mail pelo Super Admin — achado do QA. */
+export { sendTestEmail } from './email/test-email.js'
+export type { EmailTester, TestEmailDeps } from './email/test-email.js'
 
 /* Consentimento dos documentos legais — RF-02, RF-03, LGPD art. 8 §1. */
 export { pendingLegalAcceptance, recordLegalAcceptance } from './legal/legal-consent.js'
@@ -685,5 +737,11 @@ export {
   updateQuote,
 } from './quotes/quotes.js'
 export type { QuoteDeps } from './quotes/quotes.js'
-export type { NewQuote, QuoteChanges, QuoteRepository } from './ports/quote-repository.js'
+export type {
+  FiltroDeOrcamentos,
+  NewQuote,
+  PaginaDeOrcamentos,
+  QuoteChanges,
+  QuoteRepository,
+} from './ports/quote-repository.js'
 export { InMemoryQuotes } from './quotes/fakes.js'

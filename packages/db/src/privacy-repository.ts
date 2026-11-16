@@ -147,6 +147,10 @@ export const FORA_DA_EXPORTACAO: Readonly<Record<string, string>> = {
     'Previsao de gasto recorrente (NR-110), nao movimento — o gasto de verdade e a conta a pagar gerada, essa sim incluida na exportacao.',
   variable_costs:
     'Configuracao da loja (percentuais de tarifa, imposto, comissao), nao dado de pessoa nem movimento.',
+  /* Mesma natureza de `variable_costs`: o percentual que a maquininha cobra.
+     A taxa APLICADA em cada venda ja sai dentro dela (`receivables`). */
+  payment_fee_settings:
+    'Configuracao da loja (taxas de Pix, debito, credito e prazos — DEC-027), nao dado de pessoa. A taxa de cada venda sai em `receivables`.',
   bank_accounts:
     'Cadastro das contas da loja (nome, banco, saldo inicial), nao dado de pessoa. O movimento sai nas baixas, que sao exportadas.',
   conversations:

@@ -15,6 +15,7 @@ import {
   checkCustomerWalletByQuery,
   checkStock,
   checkStockByQuery,
+  comTaxasDaLoja,
   createDefaultSaleSettings,
   createPayable,
   createReceivable,
@@ -59,10 +60,13 @@ import type { OrcamentosDeps } from './routes/orcamentos.js'
 import type { CaixaDeps } from './routes/caixa.js'
 import type { ComprasDeps } from './routes/compras.js'
 import type {
+  EmailSender,
+  EmailTester,
   IdentityAccountEditor,
   IdentityPhoneChanger,
   IdentityProvider,
   IdentityRegistrar,
+  PartnerApplicantNotice,
   PartnerApplicationAlert,
   PasswordSetter,
 } from '@na-regua/core'
@@ -92,6 +96,7 @@ import {
   createCrmRepository,
   createInventoryHistory,
   createRestockQueries,
+  createPaymentFeeSettingsRepository,
   createSupplierRepository,
   createInventoryQueries,
   createInventoryUnitOfWork,
@@ -105,6 +110,8 @@ import {
   createExportSource,
   createLoginThrottle,
   createPlatformAdminAccess,
+  createSupportAlertDirectory,
+  createSupportInboxRepository,
   createSessionIssuer,
   createSettlementQueries,
   createSettlementTotals,
@@ -137,6 +144,7 @@ import {
   createRetrievalStore,
   createReconciliationQueries,
   createReconciliationUnitOfWork,
+  createConciliacaoComBaixaUnitOfWork,
   createSaleHistoryRepository,
   createSaleCancellationUnitOfWork,
   createSaleReturnUnitOfWork,
@@ -171,9 +179,13 @@ import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
 import type { CadastroDeFornecedoresDeps } from './routes/cadastro-fornecedores.js'
+import type { TaxasDeRecebimentoDeps } from './routes/taxas-de-recebimento.js'
+import type { SituacaoDaAssinatura } from './plugins/session.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
+import type { AssinaturaDeps } from './routes/assinatura.js'
+import { criarAvisoDeChamado } from './aviso-de-chamado.js'
 import type { RelatoriosDeps } from './routes/relatorios.js'
 import type { AuditoriaDeps } from './routes/auditoria.js'
 import type { ContasDeps } from './routes/contas.js'
@@ -316,10 +328,11 @@ export async function shutdown(): Promise<void> {
 /**
  * Dependencias do fechamento de venda — NR-027.
  *
- * `unitOfWork` e de `db` e abre a transacao com o tenant definido; `settings`
- * ainda e o padrao de `core`, porque aliquota, tabela de tarifas e teto de
- * desconto **nao tem tabela** (ver `CompanySettingsRepository`). Quando
- * tiverem, so esta funcao muda.
+ * `unitOfWork` e de `db` e abre a transacao com o tenant definido. Em
+ * `settings`, a tabela de tarifas e a que a loja gravou (DEC-027, NR-223);
+ * aliquota e teto de desconto ainda sao o padrao de `core`, porque **nao tem
+ * tabela** (ver `CompanySettingsRepository`). Quando tiverem, so esta funcao
+ * muda.
  *
  * Funcao e nao constante: `getClient()` abre conexao, e abrir conexao no topo
  * do modulo faria importar a composicao — inclusive num teste — conectar no
@@ -334,7 +347,9 @@ export function buildSaleDeps(): SaleRouteDeps {
     uow: createSaleCancellationUnitOfWork(sql),
     /* Devolucao parcial — RF-044. Mesma transacao por empresa, porta propria. */
     returns: createSaleReturnUnitOfWork(sql),
-    settings: createDefaultSaleSettings(),
+    /* Taxas de recebimento da loja (DEC-027, NR-223): a tabela gravada pela
+       loja; sem ela, a padrao de `core` — a mesma de antes. */
+    settings: comTaxasDaLoja(createDefaultSaleSettings(), createPaymentFeeSettingsRepository(sql)),
     /* O fuso vem da `TZ` pelo mesmo motivo dos relatorios: "vendas de 15 de
        marco" e uma pergunta com fuso embutido, e a venda das 21h30 em Sao
        Paulo e 16 de marco em UTC. */
@@ -386,6 +401,8 @@ export function buildAuthDeps(): AuthRouteDeps {
     audit: createAuditTrail(sql),
     /* Super Admin — ADR-0007. Mesma conexao das outras portas de identidade. */
     platformAdmin: createPlatformAdminAccess(sql),
+    /* Chamados vistos pela plataforma — NR-215. */
+    supportInbox: createSupportInboxRepository(sql),
     /*
      * Candidatura de Parceiro — NR-115, ADR-0013.
      *
@@ -396,6 +413,10 @@ export function buildAuthDeps(): AuthRouteDeps {
      */
     partners: createPartnerApplicationRepository(sql),
     ...comAvisoDeParceiro(),
+    /* Confirmacao e decisao por e-mail a quem se candidata — achado do QA. */
+    applicantNotice: montarAvisosAoCandidato(),
+    /* Envio de teste do Super Admin, com o motivo da falha — achado do QA. */
+    emailTester: montarEnvioDeEmail(),
 
     /*
      * Prova de aceite dos documentos legais — RF-02/RF-03, migration 0015.
@@ -606,7 +627,83 @@ function comAvisoDeParceiro(): { partnerAlert?: PartnerApplicationAlert } {
   return aviso === undefined ? {} : { partnerAlert: aviso }
 }
 
-function montarEnvioDeEmail() {
+/*
+ * Um envio so para o processo inteiro: cada chamada antiga abria um transporte
+ * SMTP proprio. O modo (`smtp` | `log`) sai daqui para o `/health` e para o
+ * teste do Super Admin — achado do QA: ninguem via que o servidor estava sem
+ * SMTP, e os e-mails so iam para o log.
+ */
+let envioDeEmail: (EmailSender & EmailTester) | undefined
+
+export function modoDoEmail(): 'smtp' | 'log' {
+  return montarEnvioDeEmail().mode
+}
+
+function montarEnvioDeEmail(): EmailSender & EmailTester {
+  envioDeEmail ??= criarEnvioDeEmail()
+  return envioDeEmail
+}
+
+/**
+ * Os e-mails a quem se candidata a Parceiro — achado do QA. Antes so quem
+ * aprova recebia aviso; quem se candidatava nao sabia de nada, nem da decisao.
+ */
+function montarAvisosAoCandidato(): PartnerApplicantNotice {
+  const email = montarEnvioDeEmail()
+  const entrar = `${env.WEB_URL}/login`
+  const assinatura = ['', 'Equipe EiBuddy']
+  return {
+    recebida: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Recebemos sua candidatura de Parceiro EiBuddy',
+        text: [
+          'Olá!',
+          '',
+          `Recebemos a candidatura de ${c.companyName} para ser Parceiro EiBuddy.`,
+          c.couponCode === null ? '' : `Cupom pedido: ${c.couponCode}.`,
+          'Vamos analisar e avisamos por e-mail assim que houver uma resposta.',
+          'Enquanto isso, sua conta já funciona normalmente.',
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+    aprovada: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Sua conta de Parceiro EiBuddy foi aprovada',
+        text: [
+          'Boa notícia!',
+          '',
+          `A candidatura de ${c.companyName} para Parceiro EiBuddy foi aprovada.`,
+          c.couponCode === null
+            ? 'Seu cupom de indicação já está ativo.'
+            : `Seu cupom de indicação ${c.couponCode} já está ativo: quem usar ganha o desconto e a indicação fica no seu nome.`,
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+    recusada: (c) =>
+      email.send({
+        to: c.email,
+        subject: 'Sua candidatura de Parceiro EiBuddy não foi aprovada',
+        text: [
+          'Olá!',
+          '',
+          `A candidatura de ${c.companyName} para Parceiro EiBuddy não foi aprovada desta vez.`,
+          c.note === null ? '' : `Motivo: ${c.note}`,
+          'Você pode corrigir os dados e reenviar a candidatura pela sua conta.',
+          '',
+          `Entrar: ${entrar}`,
+          ...assinatura,
+        ].join('\n'),
+      }),
+  }
+}
+
+function criarEnvioDeEmail(): EmailSender & EmailTester {
   const producao = env.NODE_ENV === 'production'
 
   if (env.EMAIL_PROVIDER !== 'smtp') return criarEmailEmLog(producao)
@@ -746,6 +843,10 @@ export function buildConciliacaoDeps(): ConciliacaoDeps {
 
   return {
     uow: createReconciliationUnitOfWork(sql),
+    /* Conciliar da baixa — DEC-026: conciliacao e baixa na mesma transacao, e
+       a conta da baixa conferida contra as contas da loja. */
+    baixas: createConciliacaoComBaixaUnitOfWork(sql),
+    bankAccounts: createBankAccountRepository(sql),
     queries,
     listQueries: queries,
     import: {
@@ -800,6 +901,27 @@ export function buildEstoqueDeps(): EstoqueDeps {
  * O nome e COPIADO na mensagem, e nao referenciado: quem escreveu pode sair da
  * empresa, e a conversa tem de continuar legivel.
  */
+/**
+ * A situacao da assinatura — NR-216.
+ *
+ * O repositorio e montado SEMPRE, e nao so quando `montarInicioDoTeste()`
+ * existe: sem os prazos (QST-002) nenhuma assinatura nasce, mas a leitura
+ * precisa responder "sem assinatura, pode lancar" — e uma assinatura gravada
+ * por fora (suporte, migracao) tem de aparecer do mesmo jeito.
+ */
+export function buildAssinaturaDeps(): AssinaturaDeps {
+  return { subscriptions: createSubscriptionRepository(getClient(env.DATABASE_URL)) }
+}
+
+/**
+ * A situacao da assinatura para o plugin de sessao — RF-117: loja restrita ou
+ * cancelada so le. Sem assinatura = `null`, e ninguem e barrado.
+ */
+export function buildSituacaoDaAssinatura(): SituacaoDaAssinatura {
+  const subscriptions = createSubscriptionRepository(getClient(env.DATABASE_URL))
+  return async (companyId) => (await subscriptions.findByCompany(companyId))?.status ?? null
+}
+
 export function buildSuporteDeps(): SuporteDeps {
   const sql = getClient(env.DATABASE_URL)
   const users = createUserDirectory(sql)
@@ -807,6 +929,12 @@ export function buildSuporteDeps(): SuporteDeps {
   return {
     support: createSupportRepository(sql),
     quemEscreve: async (ctx) => (await users.findById(ctx.userId))?.name ?? 'Lojista',
+    /* Chamado novo avisa todos os Super Admins por e-mail — DEC-029. */
+    alerta: criarAvisoDeChamado({
+      email: montarEnvioDeEmail(),
+      diretorio: createSupportAlertDirectory(sql),
+      webUrl: env.WEB_URL,
+    }),
   }
 }
 
@@ -911,6 +1039,15 @@ export function buildContasBancariasDeps(): ContasBancariasDeps {
   }
 }
 
+/** Taxas de recebimento da loja — DEC-027 (NR-223). */
+export function buildTaxasDeRecebimentoDeps(): TaxasDeRecebimentoDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    feeSettings: createPaymentFeeSettingsRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
 /** Cadastro de fornecedor — NR-191. */
 export function buildCadastroDeFornecedoresDeps(): CadastroDeFornecedoresDeps {
   const sql = getClient(env.DATABASE_URL)
@@ -943,8 +1080,9 @@ export function buildComprasDeps(): ComprasDeps {
 export function buildOrcamentosDeps(): OrcamentosDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
-    quotes: createQuoteRepository(sql),
+    quotes: createQuoteRepository(sql, env.TZ),
     audit: createAuditTrail(sql),
+    timeZone: env.TZ,
   }
 }
 
@@ -1247,6 +1385,7 @@ export function buildWhatsAppWebhookDeps(
   const vinculos = createPeerDirectory(sql)
   const users = createUserDirectory(sql)
   const companies = createCompanyRepository(sql)
+  const situacaoDaAssinatura = buildSituacaoDaAssinatura()
 
   const peers: AgentPeerDirectory = {
     resolve: async (peer) => {
@@ -1257,7 +1396,9 @@ export function buildWhatsAppWebhookDeps(
       if (resultado.status === 'silencio') return null
       const { companyId, userId } = resultado.ctx
       const rotulos = await buscarRotulosDoOperador(users, companies, { userId, companyId })
-      return { companyId, userId, role: 'owner', ...rotulos }
+      /* Loja restrita so le — RF-117, tambem pelo WhatsApp. */
+      const subscriptionStatus = await situacaoDaAssinatura(companyId)
+      return { companyId, userId, role: 'owner', ...rotulos, subscriptionStatus }
     },
   }
 

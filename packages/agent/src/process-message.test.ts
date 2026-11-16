@@ -371,6 +371,20 @@ describe('processMessage — borda do laço novo', () => {
     expect(entrada.execucao).not.toHaveProperty('companyName')
   })
 
+  it('WhatsApp leva a situacao da assinatura ao contexto — loja restrita so le (RF-117)', async () => {
+    const brain = brainQueResponde(saida())
+    const restrita: PeerDirectory = {
+      resolve: async () => ({
+        companyId: 'emp-A',
+        userId: 'user-A',
+        role: 'owner',
+        subscriptionStatus: 'restricted',
+      }),
+    }
+    await processMessage(runtimeCom(brain, { peers: restrita }), msg())
+    expect(brain.entradas[0]!.execucao.subscriptionStatus).toBe('restricted')
+  })
+
   it('canal app encaminha nome e fantasia da mensagem', async () => {
     const brain = brainQueResponde(saida())
     const ctx: ExecutionContext = {

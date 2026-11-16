@@ -23,8 +23,9 @@ async function auditarCard(
   deps: CrmDeps,
   ctx: ExecutionContext,
   cardId: string,
-  action: 'created' | 'updated',
-  after: Record<string, unknown>,
+  action: 'created' | 'updated' | 'deleted',
+  after: Record<string, unknown> | null,
+  before: Record<string, unknown> | null = null,
 ): Promise<void> {
   await deps.audit?.record({
     companyId: ctx.companyId,
@@ -34,7 +35,7 @@ async function auditarCard(
     actorId: ctx.userId,
     channel: ctx.channel,
     occurredAt: ctx.now,
-    before: null,
+    before,
     after,
   })
 }
@@ -137,6 +138,38 @@ export async function commentOnCrmCard(
   /* So que houve comentario: o texto fica no card, e pode citar dado pessoal. */
   await auditarCard(deps, ctx, cardId, 'updated', { comentario: true })
   return comentario
+}
+
+/**
+ * Exclui um card (pendencia ou contato) — NR-213.
+ *
+ * Achado do QA: "devera ser possivel excluir uma pendencia". O card lancado
+ * por engano, ou duplicado, ficava para sempre no quadro — mover para
+ * "Concluido" diria que foi feito, o que e outra mentira.
+ *
+ * Os comentarios vao junto (CASCADE na migration 0011): conversa de um card
+ * que nao existe mais nao tem onde aparecer. A trilha guarda titulo, tipo e
+ * coluna do que saiu, para responder depois "quem apagou e o que era".
+ */
+export async function deleteCrmCard(
+  deps: CrmDeps,
+  ctx: ExecutionContext,
+  cardId: string,
+): Promise<void> {
+  assertCanWrite(ctx)
+
+  const existe = await deps.crm.findById(ctx.companyId, cardId)
+  if (existe === undefined) throw AppError.notFound('Card não encontrado.')
+
+  const apagou = await deps.crm.delete(ctx.companyId, cardId)
+  /* Outra aba apagou entre a leitura e a escrita: o resultado e o mesmo. */
+  if (!apagou) throw AppError.notFound('Card não encontrado.')
+
+  await auditarCard(deps, ctx, cardId, 'deleted', null, {
+    title: existe.title,
+    kind: existe.kind,
+    column: existe.column,
+  })
 }
 
 export type TeamDeps = {

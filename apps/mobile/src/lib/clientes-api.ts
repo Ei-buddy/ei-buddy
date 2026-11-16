@@ -48,14 +48,48 @@ export type ListaDeClientes = { clientes: ClienteDaLista[]; total: number }
 
 export type FiltroDeCliente = 'todos' | 'fiado' | 'inativos'
 
+/**
+ * Os numeros do topo da tela — NR-211, o par do web: da loja inteira, nao
+ * mudam com a busca nem com o filtro. Valores em REAIS.
+ */
+export type ResumoDeClientes = {
+  total: number
+  comPendencia: number
+  totalPendente: number
+  semComprar: number
+}
+
+export async function resumoDeClientes(): Promise<
+  { ok: true; dados: ResumoDeClientes } | { ok: false; erro: string }
+> {
+  const r = await chamarApi<{
+    total: number
+    withBalance: { count: number; balanceCents: number }
+    inactive: number
+  }>('/clientes/resumo')
+  if (!r.ok) return { ok: false, erro: r.message }
+  return {
+    ok: true,
+    dados: {
+      total: r.dados.total,
+      comPendencia: r.dados.withBalance.count,
+      totalPendente: r.dados.withBalance.balanceCents / 100,
+      semComprar: r.dados.inactive,
+    },
+  }
+}
+
 export async function listarClientes(opcoes: {
   termo?: string
   filtro?: FiltroDeCliente
+  /** A partir da 2, para o "Carregar mais" — NR-211. */
+  pagina?: number
 }): Promise<{ ok: true; dados: ListaDeClientes } | { ok: false; erro: string }> {
   const query = new URLSearchParams()
   /* So vai o que veio: `q=` vazio faria a api recusar o pedido inteiro. */
   if (opcoes.termo) query.set('q', opcoes.termo)
   if (opcoes.filtro && opcoes.filtro !== 'todos') query.set('filter', opcoes.filtro)
+  if (opcoes.pagina && opcoes.pagina > 1) query.set('page', String(opcoes.pagina))
 
   const r = await chamarApi<{ customers: ClienteDaApi[]; total: number }>(
     `/clientes?${query.toString()}`,

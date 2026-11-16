@@ -348,7 +348,7 @@ const estilos = criarEstilos(() => ({
   confirmacaoTexto: { fontSize: fonte.micro, color: cores.texto, lineHeight: 19 },
   confirmacaoAcoes: { flexDirection: 'row', gap: espaco.sm, marginTop: espaco.sm },
 
-  sugestoes: { flexGrow: 0, maxHeight: 56 },
+  sugestoes: { flexGrow: 0, flexShrink: 0, maxHeight: 56 },
   sugestoesConteudo: {
     paddingHorizontal: espaco.lg,
     gap: espaco.sm,

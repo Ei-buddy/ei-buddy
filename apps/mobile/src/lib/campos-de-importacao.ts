@@ -3,7 +3,8 @@ import { centavosDoTexto } from './valor'
 
 /**
  * Os campos que cada importacao pede e a validacao de cada linha — os mesmos
- * do web. Cliente leva celular e endereco completo, obrigatorios (NR-142).
+ * do web. Cliente leva celular (NR-142); o endereco e opcional desde a revisao
+ * da DEC-025, mas, se vier, vem completo.
  */
 
 export const CAMPOS_CLIENTES = [
@@ -34,20 +35,20 @@ export const CAMPOS_CLIENTES = [
   {
     key: 'cep',
     label: 'CEP',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('cep'),
   },
   {
     key: 'rua',
     label: 'Rua',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('rua') || c.includes('logradouro') || c === 'endereço' || c === 'endereco',
   },
   {
     key: 'numero',
     label: 'Número',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('número') || c.includes('numero') || c === 'nº' || c === 'n',
   },
@@ -60,23 +61,26 @@ export const CAMPOS_CLIENTES = [
   {
     key: 'bairro',
     label: 'Bairro',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('bairro'),
   },
   {
     key: 'cidade',
     label: 'Cidade',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) =>
       c.includes('cidade') || c.includes('municipio') || c.includes('município'),
   },
   {
     key: 'uf',
     label: 'UF',
-    obrigatorio: true,
+    obrigatorio: false,
     reconhece: (c: string) => c === 'uf' || c.includes('estado'),
   },
 ]
+
+/** Os campos de endereco da planilha (o complemento nao conta sozinho). */
+const CAMPOS_DO_ENDERECO = ['cep', 'rua', 'numero', 'bairro', 'cidade', 'uf'] as const
 
 export function validarCliente(v: Record<string, string>): string | null {
   if (!v.nome?.trim()) return 'Nome vazio'
@@ -84,9 +88,11 @@ export function validarCliente(v: Record<string, string>): string | null {
   if (!doc) return 'CPF/CNPJ vazio'
   const ok = doc.length === 11 ? isValidCPF(doc) : doc.length === 14 ? isValidCNPJ(doc) : false
   if (!ok) return 'CPF/CNPJ inválido'
-  /* Celular e endereco sao obrigatorios no cadastro (NR-142). */
+  /* Celular obrigatorio (NR-142). Endereco opcional desde a revisao da
+     DEC-025 — mas a linha que traz parte dele tem de trazer tudo. */
   const celular = (v.celular ?? '').replace(/\D/g, '')
   if (celular.length !== 10 && celular.length !== 11) return 'Celular com DDD vazio ou inválido'
+  if (CAMPOS_DO_ENDERECO.every((c) => !(v[c] ?? '').trim())) return null
   if ((v.cep ?? '').replace(/\D/g, '').length !== 8) return 'CEP vazio ou inválido'
   for (const [campo, rotulo] of [
     ['rua', 'Rua'],
