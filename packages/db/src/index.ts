@@ -103,6 +103,9 @@ export {
 /* Cadastro de fornecedor — NR-191. */
 export { createSupplierRepository } from './supplier-repository.js'
 
+/* Taxas de recebimento da loja — DEC-027 (NR-223). */
+export { createPaymentFeeSettingsRepository } from './payment-fee-settings-repository.js'
+
 /* Sugestao de reposicao pela venda dos ultimos seis meses — achado do QA. */
 export { createRestockQueries } from './restock-queries.js'
 

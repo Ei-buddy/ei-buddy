@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { calculateCardFeeAmount, lookupCardFeeRate } from './calculate-card-fee.js'
+import {
+  calculateCardFeeAmount,
+  calculateDebitFeeAmount,
+  calculatePixFeeAmount,
+  lookupCardFeeRate,
+} from './calculate-card-fee.js'
 import { DomainError } from './domain-error.js'
 import type { CardFeeTable } from './types/card-fee-table.js'
 import { Money } from '@na-regua/money'
@@ -44,5 +49,32 @@ describe('calculateCardFeeAmount', () => {
   it('aplica o percentual sobre o valor', () => {
     const fee = calculateCardFeeAmount(Money.parse('100.00'), table, 'visa', 1)
     expect(fee.toDecimalString()).toBe('2.00')
+  })
+})
+
+describe('taxas de debito e Pix configuradas pela loja — DEC-027', () => {
+  const tabela = {
+    rates: [{ brand: 'unknown' as const, installments: 1, feeRatePercent: 3 }],
+    debitRates: [
+      { brand: 'unknown' as const, feeRatePercent: 1.5 },
+      { brand: 'elo' as const, feeRatePercent: 2 },
+    ],
+    pixFeePercent: 0.99,
+  }
+
+  it('debito usa a tabela de debito, com a bandeira quando houver', () => {
+    expect(calculateDebitFeeAmount(Money.fromCents(10_000n), tabela, 'visa').cents).toBe(150n)
+    expect(calculateDebitFeeAmount(Money.fromCents(10_000n), tabela, 'elo').cents).toBe(200n)
+    expect(calculateDebitFeeAmount(Money.fromCents(10_000n), tabela, undefined).cents).toBe(150n)
+  })
+
+  it('sem tabela de debito, usa o credito 1x — a regra de antes', () => {
+    const antiga = { rates: tabela.rates }
+    expect(calculateDebitFeeAmount(Money.fromCents(10_000n), antiga, 'visa').cents).toBe(300n)
+  })
+
+  it('Pix com taxa configurada; sem ela, zero', () => {
+    expect(calculatePixFeeAmount(Money.fromCents(10_000n), tabela).cents).toBe(99n)
+    expect(calculatePixFeeAmount(Money.fromCents(10_000n), { rates: [] }).cents).toBe(0n)
   })
 })
