@@ -180,6 +180,7 @@ import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
 import type { CadastroDeFornecedoresDeps } from './routes/cadastro-fornecedores.js'
 import type { TaxasDeRecebimentoDeps } from './routes/taxas-de-recebimento.js'
+import type { SituacaoDaAssinatura } from './plugins/session.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
@@ -912,6 +913,15 @@ export function buildAssinaturaDeps(): AssinaturaDeps {
   return { subscriptions: createSubscriptionRepository(getClient(env.DATABASE_URL)) }
 }
 
+/**
+ * A situacao da assinatura para o plugin de sessao — RF-117: loja restrita ou
+ * cancelada so le. Sem assinatura = `null`, e ninguem e barrado.
+ */
+export function buildSituacaoDaAssinatura(): SituacaoDaAssinatura {
+  const subscriptions = createSubscriptionRepository(getClient(env.DATABASE_URL))
+  return async (companyId) => (await subscriptions.findByCompany(companyId))?.status ?? null
+}
+
 export function buildSuporteDeps(): SuporteDeps {
   const sql = getClient(env.DATABASE_URL)
   const users = createUserDirectory(sql)
@@ -1375,6 +1385,7 @@ export function buildWhatsAppWebhookDeps(
   const vinculos = createPeerDirectory(sql)
   const users = createUserDirectory(sql)
   const companies = createCompanyRepository(sql)
+  const situacaoDaAssinatura = buildSituacaoDaAssinatura()
 
   const peers: AgentPeerDirectory = {
     resolve: async (peer) => {
@@ -1385,7 +1396,9 @@ export function buildWhatsAppWebhookDeps(
       if (resultado.status === 'silencio') return null
       const { companyId, userId } = resultado.ctx
       const rotulos = await buscarRotulosDoOperador(users, companies, { userId, companyId })
-      return { companyId, userId, role: 'owner', ...rotulos }
+      /* Loja restrita so le — RF-117, tambem pelo WhatsApp. */
+      const subscriptionStatus = await situacaoDaAssinatura(companyId)
+      return { companyId, userId, role: 'owner', ...rotulos, subscriptionStatus }
     },
   }
 

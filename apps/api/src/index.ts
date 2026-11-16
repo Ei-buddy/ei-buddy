@@ -30,6 +30,7 @@ import {
   buildPrivacidadeDeps,
   buildSuporteDeps,
   buildAssinaturaDeps,
+  buildSituacaoDaAssinatura,
   buildAuditoriaDeps,
   buildRelatoriosDeps,
   getRedis,
@@ -136,7 +137,8 @@ async function registrarRotas(): Promise<void> {
   await registerRateLimit(app, getRedis())
 
   const authDeps = buildAuthDeps()
-  registerSession(app, authDeps.sessions)
+  /* Loja restrita so le — RF-117: a sessao le a situacao nas escritas. */
+  registerSession(app, authDeps.sessions, buildSituacaoDaAssinatura())
   registerAuthRoutes(app, authDeps)
   registerAdminRoutes(app, authDeps)
   registerPartnersRoutes(app, authDeps)

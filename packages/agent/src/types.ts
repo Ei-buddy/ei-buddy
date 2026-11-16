@@ -1,5 +1,5 @@
 import type { AiUsageCounter } from './ai-usage.js'
-import type { AgentReply, AgentReplyKind, Role } from '@na-regua/contracts'
+import type { AgentReply, AgentReplyKind, Role, SubscriptionStatus } from '@na-regua/contracts'
 import type {
   Channel,
   ConfirmationStore,
@@ -26,6 +26,11 @@ export type LinkedPeer = {
   readonly role: Role
   readonly userName?: string
   readonly companyName?: string
+  /**
+   * A situacao da assinatura da loja — RF-117: restrita ou cancelada so le,
+   * tambem pelo WhatsApp. Ausente = nao lida (e ninguem e barrado).
+   */
+  readonly subscriptionStatus?: SubscriptionStatus | null
 }
 
 export type PeerDirectory = {
