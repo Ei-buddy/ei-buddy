@@ -49,6 +49,8 @@ export default function ProdutoNovoScreen() {
   const [ncm, setNcm] = useState('')
   const [cfop, setCfop] = useState('')
   const [cst, setCst] = useState('')
+  /* NBS — so para servico, que sai na NFS-e (DEC-031). */
+  const [nbs, setNbs] = useState('')
   const [sugestoes, setSugestoes] = useState<{ categorias: string[]; fornecedores: string[] }>({
     categorias: [],
     fornecedores: [],
@@ -86,6 +88,7 @@ export default function ProdutoNovoScreen() {
       setNcm(p.ncm ?? '')
       setCfop(p.cfop ?? '')
       setCst(p.cst ?? '')
+      setNbs(p.nbs ?? '')
     })()
     return () => {
       cancelado = true
@@ -126,6 +129,7 @@ export default function ProdutoNovoScreen() {
         ncm,
         cfop,
         situacaoTributaria: cst,
+        nbs,
         categoria,
         fornecedor,
         precoVenda: venda / 100,
@@ -289,6 +293,14 @@ export default function ProdutoNovoScreen() {
               />
             </View>
           </View>
+          <Campo
+            rotulo="NBS (serviço)"
+            valor={nbs}
+            onChange={setNbs}
+            tipoTeclado="numeric"
+            placeholder="0.0000.00.00"
+            dica="Só se este item for um serviço: 9 dígitos, para a nota fiscal de serviço (NFS-e)."
+          />
           <Text style={estilos.nota}>
             Sem NCM, o produto vende normalmente; só a nota fiscal dele espera a classificação.
           </Text>

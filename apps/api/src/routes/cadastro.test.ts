@@ -53,6 +53,8 @@ function cadastroEmMemoria() {
         stateRegistration: c.stateRegistration ?? null,
         municipalRegistration: c.municipalRegistration ?? null,
         businessSegment: c.businessSegment ?? null,
+        nationalServiceCode: c.nationalServiceCode ?? null,
+        issRatePercent: c.issRatePercent ?? null,
         createdAt: c.createdAt.toISOString(),
       }
       empresas.push(e)
@@ -292,6 +294,7 @@ function cadastroEmMemoria() {
         ncm: p.ncm,
         cfop: p.cfop,
         taxSituationCode: p.taxSituationCode,
+        nbsCode: p.nbsCode,
         stock: 0,
         minStock: p.minStock,
         category: p.category ?? null,

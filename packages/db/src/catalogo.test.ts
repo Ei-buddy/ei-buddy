@@ -282,6 +282,7 @@ describe.skipIf(!DATABASE_URL)('cadastro de produto — categoria e fornecedor',
     ncm: null,
     cfop: null,
     taxSituationCode: null,
+    nbsCode: null,
     createdAt: new Date('2026-09-11T12:00:00.000Z'),
   }
 

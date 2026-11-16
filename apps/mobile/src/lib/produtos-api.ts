@@ -104,6 +104,8 @@ export type DadosProduto = {
   cfop: string
   /** CSOSN, 3 digitos. */
   situacaoTributaria: string
+  /** NBS (9 digitos) — so para servico, que sai na NFS-e (DEC-031). */
+  nbs?: string
   categoria: string
   fornecedor: string
   precoCusto: number
@@ -172,6 +174,13 @@ export async function salvarProduto(
         ...(texto(dados.situacaoTributaria) === ''
           ? {}
           : { taxSituationCode: texto(dados.situacaoTributaria) }),
+        /* NBS — DEC-031. Na edicao, apagado vai como `null` (deixa de ser
+           servico); no cadastro, vazio nem vai. */
+        ...(texto(dados.nbs ?? '') !== ''
+          ? { nbsCode: texto(dados.nbs ?? '') }
+          : editando
+            ? { nbsCode: null }
+            : {}),
       },
     },
   )
@@ -203,6 +212,8 @@ export type ProdutoDaFicha = {
   ncm: string | null
   cfop: string | null
   cst: string | null
+  /** NBS do servico (9 digitos) — DEC-031. */
+  nbs: string | null
   categoria: string | null
   fornecedor: string | null
   unidade: string
@@ -225,6 +236,7 @@ export async function buscarProduto(
     ncm: string | null
     cfop: string | null
     taxSituationCode: string | null
+    nbsCode?: string | null
     category: string | null
     supplier: string | null
     unitOfMeasure: string
@@ -247,6 +259,7 @@ export async function buscarProduto(
       ncm: p.ncm,
       cfop: p.cfop,
       cst: p.taxSituationCode,
+      nbs: p.nbsCode ?? null,
       categoria: p.category,
       fornecedor: p.supplier,
       unidade: p.unitOfMeasure,

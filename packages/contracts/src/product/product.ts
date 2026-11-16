@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cfopSchema, csosnSchema, ncmSchema } from '../invoice/invoice.js'
+import { cfopSchema, csosnSchema, nbsCodeSchema, ncmSchema } from '../invoice/invoice.js'
 import {
   barcodeSchema,
   idSchema,
@@ -44,6 +44,11 @@ export const createProductInputSchema = z
     /* So CSOSN (3 digitos): o produto atende Simples Nacional e MEI, e nao o
        regime normal, que usaria CST — ver `csosnSchema`. */
     taxSituationCode: csosnSchema.optional(),
+    /**
+     * NBS (9 digitos) — DEC-031. So para o que e SERVICO: o item com NBS sai
+     * na NFS-e, e a mercadoria continua na NFC-e.
+     */
+    nbsCode: nbsCodeSchema.optional(),
     /**
      * Saldo inicial. Vira um MOVIMENTO de abertura, e nao uma coluna escrita
      * direto — o saldo e consequencia da trilha (RF-124), nunca o contrario.
@@ -106,6 +111,8 @@ export const updateProductInputSchema = z
     ncm: ncmSchema,
     cfop: cfopSchema,
     taxSituationCode: csosnSchema,
+    /** `null` tira o NBS: o item deixa de ser servico na NFS-e — DEC-031. */
+    nbsCode: nbsCodeSchema.nullable(),
   })
   .partial()
   .strict()
@@ -132,6 +139,8 @@ export const productOutputSchema = z.object({
   ncm: z.string().nullable(),
   cfop: z.string().nullable(),
   taxSituationCode: z.string().nullable(),
+  /** NBS do servico (9 digitos), para a NFS-e — DEC-031. */
+  nbsCode: z.string().nullable(),
   stock: z.number().int(),
   minStock: z.number().int(),
   category: z.string().nullable(),

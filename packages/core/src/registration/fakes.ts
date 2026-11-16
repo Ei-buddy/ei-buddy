@@ -74,6 +74,8 @@ export class InMemoryCompanyRepository implements CompanyRepository {
       stateRegistration: company.stateRegistration ?? null,
       municipalRegistration: company.municipalRegistration ?? null,
       businessSegment: company.businessSegment ?? null,
+      nationalServiceCode: company.nationalServiceCode ?? null,
+      issRatePercent: company.issRatePercent ?? null,
       address: paraEnderecoDeSaida(company.address),
       createdAt: company.createdAt.toISOString(),
     }
@@ -115,6 +117,10 @@ export class InMemoryCompanyRepository implements CompanyRepository {
       ...(mudancas.businessSegment === undefined
         ? {}
         : { businessSegment: mudancas.businessSegment }),
+      ...(mudancas.nationalServiceCode === undefined
+        ? {}
+        : { nationalServiceCode: mudancas.nationalServiceCode }),
+      ...(mudancas.issRatePercent === undefined ? {} : { issRatePercent: mudancas.issRatePercent }),
       ...(mudancas.address === undefined ? {} : { address: paraEnderecoDeSaida(mudancas.address) }),
     }
 
@@ -418,6 +424,7 @@ export class InMemoryProductRepository implements ProductRepository {
       ncm: product.ncm,
       cfop: product.cfop,
       taxSituationCode: product.taxSituationCode,
+      nbsCode: product.nbsCode,
       stock: 0,
       minStock: product.minStock,
       category: product.category ?? null,
@@ -612,6 +619,7 @@ export class InMemoryProductRepository implements ProductRepository {
       cfop: patch.cfop !== undefined ? patch.cfop : atual.cfop,
       taxSituationCode:
         patch.taxSituationCode !== undefined ? patch.taxSituationCode : atual.taxSituationCode,
+      nbsCode: patch.nbsCode !== undefined ? patch.nbsCode : atual.nbsCode,
     }
 
     this.registros.set(productId, atualizado)

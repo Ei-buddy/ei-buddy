@@ -211,6 +211,7 @@ export default function ProdutoScreen() {
           <Linha rotulo="NCM" valor={produto.ncm ?? 'falta para a nota'} />
           <Linha rotulo="CFOP" valor={produto.cfop ?? '—'} />
           <Linha rotulo="CSOSN" valor={produto.cst ?? '—'} />
+          {produto.nbs !== null ? <Linha rotulo="NBS (serviço)" valor={produto.nbs} /> : null}
         </Cartao>
 
         <Cartao titulo="Movimentações">

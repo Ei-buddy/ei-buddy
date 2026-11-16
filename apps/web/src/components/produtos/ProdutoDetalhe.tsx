@@ -335,6 +335,13 @@ export default function ProdutoDetalhe({ produtoId }: { produtoId: string }) {
               <dt>CSOSN</dt>
               <dd>{produto.cst ?? '—'}</dd>
             </div>
+            {/* So aparece no servico: mercadoria nao tem NBS (DEC-031). */}
+            {produto.nbs !== null ? (
+              <div>
+                <dt>NBS (serviço)</dt>
+                <dd>{produto.nbs}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Situação</dt>
               <dd>

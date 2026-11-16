@@ -146,6 +146,21 @@ export default function Empresa() {
             valor={campos.inscricaoMunicipal}
             onChange={(v) => set('inscricaoMunicipal', v)}
           />
+          {/* Os da NFS-e — DEC-031. So quem presta servico preenche. */}
+          <Campo
+            rotulo="Código de Tributação Nacional (NFS-e)"
+            valor={campos.codigoTributacaoNacional}
+            onChange={(v) => set('codigoTributacaoNacional', v)}
+            tipoTeclado="numeric"
+            dica="6 dígitos, o serviço que a loja presta. Só para quem emite nota de serviço."
+          />
+          <Campo
+            rotulo="Alíquota do ISS (%)"
+            valor={campos.aliquotaIss}
+            onChange={(v) => set('aliquotaIss', v)}
+            tipoTeclado="decimal-pad"
+            dica="De 0 a 5%. Ex.: 2,79"
+          />
         </Sanfona>
 
         <Sanfona titulo="Endereço" resumo={resumoDoEndereco(campos.cidade, campos.uf)}>

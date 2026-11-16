@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     187 |  361 |
-| ✅ Concluídas                 |     180 |  336 |
+| Total                         |     188 |  362 |
+| ✅ Concluídas                 |     181 |  337 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -427,6 +427,7 @@ voltam a ⬜.
 | NR-219 | Certificado A1 de formato antigo (RC2) lido em modo legado só na rotina de leitura, num processo à parte e sem o ambiente da api (DEC-028): a validade sai do arquivo e não precisa mais ser digitada                                                                                                                                                                 |   🟢   | `api` `web`                                                   |   1 | —                                      | —    | RF-004                                             |   ✅   |
 | NR-220 | Chamado novo avisa todos os Super Admins por e-mail (DEC-029): um e-mail por pessoa, com loja, protocolo, categoria, mensagem e o link da fila; e-mail que falha não impede o chamado                                                                                                                                                                                 |   🟢   | `core` `db` `api`                                             |   1 | —                                      | —    | US-062                                             |   ✅   |
 | NR-221 | Endereço do cliente opcional (revisão da DEC-025): salva sem endereço e avisa que ele será necessário para nota fiscal de serviço; endereço começado tem de vir completo — formulário, cadastro rápido do PDV, importação por planilha e assistente (web e app)                                                                                                       |   🟢   | `contracts` `agent` `api` `web` `mobile`                      |   1 | —                                      | —    | RF-009                                             |   ✅   |
+| NR-222 | NFS-e, campos de cadastro (DEC-031): Código de Tributação Nacional e alíquota do ISS na loja, NBS no produto — contrato, banco, web e app                                                                                                                                                                                                                             |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | RF-046                                             |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                    |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                   |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                            |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -545,10 +546,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     111 |  171 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     112 |  172 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **361 dias-desenvolvedor** em 187 tarefas. Com 3 pessoas, isso é cerca
+Somando: **362 dias-desenvolvedor** em 188 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
