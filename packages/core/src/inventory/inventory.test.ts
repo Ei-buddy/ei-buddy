@@ -78,6 +78,7 @@ function produtoBusca(over: Partial<ProductOutput> = {}): ProductOutput {
     ncm: null,
     cfop: null,
     taxSituationCode: null,
+    nbsCode: null,
     stock: 20,
     minStock: 5,
     category: null,

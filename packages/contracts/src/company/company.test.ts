@@ -313,3 +313,26 @@ describe('camposFaltandoNoCliente — DEC-025', () => {
     ).toEqual(['bairro'])
   })
 })
+
+describe('os campos da NFS-e na loja — DEC-031', () => {
+  it('codigo de tributacao nacional: 6 digitos, aceita com pontos e guarda so os digitos', () => {
+    expect(updateCompanyInputSchema.parse({ nationalServiceCode: '01.07.01' })).toMatchObject({
+      nationalServiceCode: '010701',
+    })
+    expect(updateCompanyInputSchema.safeParse({ nationalServiceCode: '0107' }).success).toBe(false)
+  })
+
+  it('aliquota do ISS de 0 a 5, com ate duas casas', () => {
+    expect(updateCompanyInputSchema.parse({ issRatePercent: 2.5 }).issRatePercent).toBe(2.5)
+    expect(updateCompanyInputSchema.parse({ issRatePercent: 2.79 }).issRatePercent).toBe(2.79)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: 5.01 }).success).toBe(false)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: -1 }).success).toBe(false)
+    expect(updateCompanyInputSchema.safeParse({ issRatePercent: 2.555 }).success).toBe(false)
+  })
+
+  it('os dois sao opcionais no cadastro da conta', () => {
+    const r = createCompanyInputSchema.parse(empresa)
+    expect(r.nationalServiceCode).toBeUndefined()
+    expect(r.issRatePercent).toBeUndefined()
+  })
+})

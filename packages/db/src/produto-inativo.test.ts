@@ -68,6 +68,7 @@ describe.skipIf(!DATABASE_URL)('produto inativo — NR-151', () => {
       ncm: null,
       cfop: null,
       taxSituationCode: null,
+      nbsCode: null,
     })
     produtoId = p.id
   }, 60_000)

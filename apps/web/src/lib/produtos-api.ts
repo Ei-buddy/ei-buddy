@@ -64,6 +64,8 @@ export type DadosProduto = {
   cfop: string
   /* CSOSN — 4 digitos com a origem (0102) ou 3 (102); Simples Nacional e MEI. */
   situacaoTributaria: string
+  /* NBS (9 digitos) — so para servico, que sai na NFS-e (DEC-031). */
+  nbs: string
   categoria: string
   fornecedor: string
   precoCusto: number
@@ -93,6 +95,7 @@ const CAMPO_DA_TELA: Record<string, keyof DadosProduto> = {
   ncm: 'ncm',
   cfop: 'cfop',
   taxSituationCode: 'situacaoTributaria',
+  nbsCode: 'nbs',
   category: 'categoria',
   supplier: 'fornecedor',
   stock: 'estoque',
@@ -151,6 +154,13 @@ export async function salvarProduto(
           ...(dados.situacaoTributaria.trim() === ''
             ? {}
             : { taxSituationCode: dados.situacaoTributaria.trim() }),
+          /* NBS — DEC-031. Como o EAN: na edicao, apagado vai como `null` e o
+             produto deixa de ser servico na NFS-e; no cadastro, vazio nem vai. */
+          ...(dados.nbs.trim() !== ''
+            ? { nbsCode: dados.nbs.trim() }
+            : editando
+              ? { nbsCode: null }
+              : {}),
         }),
       },
     )

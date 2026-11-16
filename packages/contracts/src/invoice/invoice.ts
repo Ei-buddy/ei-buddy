@@ -32,6 +32,46 @@ export const ncmSchema = z
   .refine((d) => d.length === 8, { message: 'NCM invalido. Deve ter 8 digitos.' })
 
 /**
+ * Codigo de Tributacao Nacional da NFS-e — 6 digitos (DEC-031).
+ *
+ * E o item da lista de servicos no padrao nacional (o `cTribNac` da DPS).
+ * Fica no cadastro da LOJA: e o servico que ela presta. Aceita com pontos
+ * ("01.07.01"), como aparece na tabela, e guarda so os digitos.
+ */
+export const nationalServiceCodeSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ''))
+  .refine((d) => d.length === 6, {
+    message: 'Codigo de Tributacao Nacional invalido. Deve ter 6 digitos.',
+  })
+
+/**
+ * NBS — Nomenclatura Brasileira de Servicos, 9 digitos (DEC-031).
+ *
+ * Fica no cadastro do PRODUTO (o servico vendido). Aceita com pontos
+ * ("1.0101.10.00"), como aparece na tabela, e guarda so os digitos.
+ */
+export const nbsCodeSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, ''))
+  .refine((d) => d.length === 9, { message: 'NBS invalido. Deve ter 9 digitos.' })
+
+/**
+ * Aliquota do ISS, em pontos percentuais: 2.5 = 2,5% (DEC-031).
+ *
+ * De 0 a 5: o teto do ISS e 5% (LC 116). O piso legal e 2%, mas empresa do
+ * Simples Nacional informa a aliquota efetiva da faixa dela, que pode ficar
+ * abaixo — recusar abaixo de 2% barraria justamente o lojista do Simples.
+ */
+export const issRatePercentSchema = z
+  .number({ error: 'Informe a aliquota do ISS em numero.' })
+  .min(0, 'Aliquota do ISS nao pode ser negativa.')
+  .max(5, 'Aliquota do ISS vai ate 5%.')
+  .refine((v) => Math.abs(Math.round(v * 100) - v * 100) < 1e-6, {
+    message: 'Aliquota do ISS com no maximo duas casas decimais.',
+  })
+
+/**
  * CFOP — 4 digitos, a natureza da operacao.
  *
  * O primeiro digito e o tipo (1/2/3 entrada, 5/6/7 saida) e o segundo, o

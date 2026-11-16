@@ -69,6 +69,8 @@ export async function registerCompany(
     stateRegistration: input.stateRegistration,
     municipalRegistration: input.municipalRegistration,
     businessSegment: input.businessSegment,
+    nationalServiceCode: input.nationalServiceCode,
+    issRatePercent: input.issRatePercent,
     address: input.address,
     coordinates,
     createdAt: ctx.now,

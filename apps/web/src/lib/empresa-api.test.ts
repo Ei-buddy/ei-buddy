@@ -97,3 +97,18 @@ describe('certificadoDaSituacao — a tela ao abrir', () => {
     ).toBe('expirado')
   })
 })
+
+describe('aliquota do ISS para a api — DEC-031', () => {
+  it('converte o que se digita em numero', async () => {
+    const { aliquotaParaApi } = await import('./empresa-api')
+    expect(aliquotaParaApi('2,79')).toEqual({ issRatePercent: 2.79 })
+    expect(aliquotaParaApi('5')).toEqual({ issRatePercent: 5 })
+    expect(aliquotaParaApi(' 2,5 % ')).toEqual({ issRatePercent: 2.5 })
+  })
+
+  it('vazio nao viaja; texto que nao e numero vai como esta, para o servidor recusar', async () => {
+    const { aliquotaParaApi } = await import('./empresa-api')
+    expect(aliquotaParaApi('   ')).toEqual({})
+    expect(aliquotaParaApi('abc')).toEqual({ issRatePercent: 'abc' })
+  })
+})

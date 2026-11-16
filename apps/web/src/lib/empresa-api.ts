@@ -329,6 +329,10 @@ export type DadosEmpresa = {
   inscricaoEstadual: string
   inscricaoMunicipal: string
   ramoAtividade: string
+  /** Codigo de Tributacao Nacional da NFS-e, 6 digitos — DEC-031. */
+  codigoTributacaoNacional: string
+  /** Aliquota do ISS como digitada ("2,79") — DEC-031. */
+  aliquotaIss: string
   cep: string
   logradouro: string
   numero: string
@@ -350,6 +354,8 @@ type EmpresaDaApi = {
   stateRegistration: string | null
   municipalRegistration: string | null
   businessSegment: string | null
+  nationalServiceCode: string | null
+  issRatePercent: number | null
   address: {
     zipCode: string | null
     street: string | null
@@ -390,6 +396,8 @@ export async function carregarEmpresa(): Promise<Resultado<EmpresaCarregada>> {
       inscricaoEstadual: e.stateRegistration ?? '',
       inscricaoMunicipal: e.municipalRegistration ?? '',
       ramoAtividade: e.businessSegment ?? '',
+      codigoTributacaoNacional: e.nationalServiceCode ?? '',
+      aliquotaIss: e.issRatePercent === null ? '' : String(e.issRatePercent).replace('.', ','),
       cep: e.address.zipCode ?? '',
       logradouro: e.address.street ?? '',
       numero: e.address.number ?? '',
@@ -416,6 +424,18 @@ export async function carregarEmpresa(): Promise<Resultado<EmpresaCarregada>> {
  * O CNPJ tambem nao vai: `updateCompanyInputSchema` o omite, e o `.strict()`
  * recusaria a requisicao inteira. Trocar CNPJ e outra empresa.
  */
+/**
+ * A aliquota do ISS como a api quer: numero em pontos percentuais ("2,79" ->
+ * 2.79). Vazio nao viaja (nao mexe); o que nao for numero vai como esta, para
+ * o servidor recusar com a mensagem certa em vez de sumir em silencio.
+ */
+export function aliquotaParaApi(texto: string): { issRatePercent?: number | string } {
+  const limpo = texto.trim().replace('%', '').trim()
+  if (limpo === '') return {}
+  const numero = Number(limpo.replace(/\./g, '').replace(',', '.'))
+  return { issRatePercent: Number.isNaN(numero) ? limpo : numero }
+}
+
 export async function salvarEmpresa(dados: DadosEmpresa): Promise<Resultado<EmpresaCarregada>> {
   const seTiver = (chave: string, valor: string) =>
     valor.trim() === '' ? {} : { [chave]: valor.trim() }
@@ -441,6 +461,8 @@ export async function salvarEmpresa(dados: DadosEmpresa): Promise<Resultado<Empr
       ...seTiver('stateRegistration', dados.inscricaoEstadual),
       ...seTiver('municipalRegistration', dados.inscricaoMunicipal),
       ...seTiver('businessSegment', dados.ramoAtividade),
+      ...seTiver('nationalServiceCode', dados.codigoTributacaoNacional.replace(/\D/g, '')),
+      ...aliquotaParaApi(dados.aliquotaIss),
       ...(Object.keys(endereco).length === 0 ? {} : { address: endereco }),
     }),
   })

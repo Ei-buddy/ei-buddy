@@ -46,6 +46,9 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
    */
   const [cfop, setCfop] = useState('')
   const [situacaoTributaria, setSituacaoTributaria] = useState('')
+  /* NBS — so para servico, que sai na NFS-e (DEC-031). Opcional como os
+     outros fiscais. */
+  const [nbs, setNbs] = useState('')
   const [categoria, setCategoria] = useState('')
   const [fornecedor, setFornecedor] = useState('')
   const [precoCusto, setPrecoCusto] = useState('')
@@ -69,6 +72,7 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
       setNcm(p.ncm ?? '')
       setCfop(p.cfop ?? '')
       setSituacaoTributaria(p.cst ?? '')
+      setNbs(p.nbs ?? '')
       setCategoria(p.categoria ?? '')
       setFornecedor(p.fornecedor ?? '')
       setPrecoCusto(p.precoCusto.toFixed(2).replace('.', ','))
@@ -142,6 +146,7 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
       ncm,
       cfop,
       situacaoTributaria,
+      nbs,
       categoria,
       fornecedor,
       precoCusto: custo,
@@ -317,6 +322,21 @@ export default function ProdutoForm({ produtoId }: { produtoId?: string } = {}) 
                 inputMode="numeric"
               />
               {erroDe('situacaoTributaria')}
+            </Field>
+
+            <Field
+              label="NBS (serviço)"
+              span={12}
+              hint="Só se este item for um serviço: 9 dígitos, para a nota fiscal de serviço (NFS-e)."
+            >
+              <Input
+                value={nbs}
+                onChange={(e) => setNbs(e.target.value)}
+                placeholder="0.0000.00.00"
+                inputMode="numeric"
+                aria-label="NBS"
+              />
+              {erroDe('nbs')}
             </Field>
           </FormGrid>
         </Card>

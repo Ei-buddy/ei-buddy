@@ -40,6 +40,8 @@ type Campos = {
   inscricaoEstadual: string
   inscricaoMunicipal: string
   ramoAtividade: string
+  codigoTributacaoNacional: string
+  aliquotaIss: string
   cep: string
   logradouro: string
   numero: string
@@ -61,6 +63,8 @@ const VAZIO: Campos = {
   inscricaoEstadual: '',
   inscricaoMunicipal: '',
   ramoAtividade: '',
+  codigoTributacaoNacional: '',
+  aliquotaIss: '',
   cep: '',
   logradouro: '',
   numero: '',
@@ -392,6 +396,32 @@ export default function EmpresaForm() {
               <Input
                 value={campos.inscricaoMunicipal}
                 onChange={(e) => set('inscricaoMunicipal', e.target.value)}
+              />
+            </Field>
+
+            {/* Os da NFS-e — DEC-031. So quem presta servico preenche; a
+                emissao da nota de servico e quem cobra, na hora. */}
+            <Field
+              label="Código de Tributação Nacional (NFS-e)"
+              span={6}
+              hint="6 dígitos. Só para nota de serviço."
+            >
+              <Input
+                value={campos.codigoTributacaoNacional}
+                onChange={(e) => set('codigoTributacaoNacional', e.target.value)}
+                placeholder="00.00.00"
+                inputMode="numeric"
+                aria-label="Código de Tributação Nacional"
+              />
+            </Field>
+
+            <Field label="Alíquota do ISS (%)" span={6} hint="De 0 a 5%. Ex.: 2,79">
+              <Input
+                value={campos.aliquotaIss}
+                onChange={(e) => set('aliquotaIss', e.target.value)}
+                placeholder="0,00"
+                inputMode="decimal"
+                aria-label="Alíquota do ISS"
               />
             </Field>
           </FormGrid>

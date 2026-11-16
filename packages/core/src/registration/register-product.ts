@@ -160,6 +160,7 @@ export async function registerProduct(
     ncm: input.ncm ?? null,
     cfop: input.cfop ?? null,
     taxSituationCode: input.taxSituationCode ?? null,
+    nbsCode: input.nbsCode ?? null,
     minStock: input.minStock,
     category: input.category,
     supplier: input.supplier,
