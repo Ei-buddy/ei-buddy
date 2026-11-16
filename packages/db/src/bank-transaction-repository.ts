@@ -7,6 +7,7 @@ import type {
 } from '@na-regua/contracts'
 import type {
   BankTransactionWriter,
+  ConciliacaoComBaixaUnitOfWork,
   LancamentoConciliavel,
   NewBankTransaction,
   NovoLancamentoDeTransacao,
@@ -15,6 +16,7 @@ import type {
   ReconciliationUnitOfWork,
 } from '@na-regua/core'
 import type { Sql, TransactionSql } from 'postgres'
+import { escopoDaBaixa } from './settlement-repository.js'
 import { withTenant } from './tenant.js'
 
 /**
@@ -59,6 +61,7 @@ type LinhaTransacao = {
   counterparty: string | null
   reconciled_payable_id: string | null
   reconciled_receivable_id: string | null
+  settlement_id: string | null
 }
 
 /**
@@ -86,6 +89,7 @@ function paraSaida(l: LinhaTransacao): BankTransactionOutput {
     counterparty: l.counterparty,
     reconciledEntryKind: kind,
     reconciledEntryId: l.reconciled_payable_id ?? l.reconciled_receivable_id,
+    settlementId: l.settlement_id,
   }
 }
 
@@ -132,8 +136,11 @@ export function createBankTransactionWriter(sql: Sql): BankTransactionWriter {
         companyId,
         (tx) => tx<{ id: string }[]>`
           INSERT INTO bank_transactions ${tx(
-            transacoes.map((t) => ({
+            transacoes.map((t, i) => ({
               company_id: t.companyId,
+              /* A ordem do arquivo — DEC-026: a fila (e as baixas) seguem o
+                 extrato, e no mesmo dia so a posicao diz quem vem antes. */
+              statement_position: i,
               external_id: t.externalId,
               direction: t.direction,
               amount_cents: t.amountCents,
@@ -311,6 +318,31 @@ export function createReconciliationUnitOfWork(sql: Sql): ReconciliationUnitOfWo
   }
 }
 
+/**
+ * Conciliar da baixa — DEC-026: a conciliacao e a baixa na MESMA transacao.
+ *
+ * Os dois escopos sobre o mesmo `tx` — a baixa e a de `settlement-repository`,
+ * a mesma da tela de contas. Transacoes separadas deixariam, numa falha no
+ * meio, titulo baixado sem conciliacao, ou conciliado e em aberto.
+ */
+export function createConciliacaoComBaixaUnitOfWork(sql: Sql): ConciliacaoComBaixaUnitOfWork {
+  return {
+    transaction: (companyId, fn) =>
+      withTenant(sql, companyId, (tx) =>
+        fn({
+          ...escopoDaBaixa(tx, companyId),
+          ...escopo(tx),
+          setSettlement: async (_empresa, transactionId, settlementId) => {
+            await tx`
+              UPDATE bank_transactions SET settlement_id = ${settlementId}
+               WHERE id = ${transactionId}
+            `
+          },
+        }),
+      ),
+  }
+}
+
 export function createReconciliationQueries(sql: Sql): ReconciliationQueries {
   return {
     /**
@@ -396,7 +428,10 @@ export function createReconciliationQueries(sql: Sql): ReconciliationQueries {
           }
           /* Da MAIS ANTIGA para a mais nova: a transacao velha sem conferir e a
              que ja passou do mes que o contador fechou. */
-          ORDER BY b.posted_on, b.id
+          /* A ordem do extrato (DEC-026): data do banco, a importacao, a
+             posicao no arquivo. Linha de antes da 0053 (sem posicao) fica por
+             ultimo no mesmo dia, pelo id, como era. */
+          ORDER BY b.posted_on, b.imported_at, b.statement_position NULLS LAST, b.id
         `,
       )
 

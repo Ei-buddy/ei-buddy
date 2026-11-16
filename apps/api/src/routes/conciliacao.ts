@@ -1,4 +1,5 @@
 import {
+  confirmReconciliationsInputSchema,
   createEntryFromTransactionInputSchema,
   importStatementInputSchema,
   listBankTransactionsInputSchema,
@@ -7,6 +8,8 @@ import {
   undoReconciliationInputSchema,
 } from '@na-regua/contracts'
 import {
+  autoMatch,
+  confirmReconciliations,
   createEntryFromTransaction,
   type ImportStatementDeps,
   importStatement,
@@ -102,6 +105,30 @@ export function registerConciliacaoRoutes(app: FastifyInstance, deps: Conciliaca
 
     return reply.code(200).send({ suggestions: sugestoes })
   })
+
+  /**
+   * A fila inteira casada, na ordem do extrato — DEC-026, passo 2.
+   *
+   * Leitura: o contador ve o casamento como todo mundo. Confirmar, nao.
+   */
+  app.get('/conciliacao/automatica', async (request, reply) => {
+    const ctx = requireContext(request)
+    return reply.code(200).send(await autoMatch(deps, ctx))
+  })
+
+  /**
+   * Confirma os pares conferidos e da baixa, na ordem do extrato — DEC-026,
+   * passos 4 e 5. Tudo ou nada.
+   */
+  app.post(
+    '/conciliacao/confirmar',
+    { config: { rateLimit: LIMITE_DE_ESCRITA } },
+    async (request, reply) => {
+      const ctx = requireContext(request)
+      const input = validate(confirmReconciliationsInputSchema, request.body ?? {})
+      return reply.code(200).send(await confirmReconciliations(deps, ctx, input))
+    },
+  )
 
   /** Casar com um lancamento existente — RF-079. */
   app.post(

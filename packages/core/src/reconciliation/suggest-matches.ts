@@ -1,7 +1,9 @@
 import type { BankTransactionDirection, EntryKind, SuggestMatchesInput } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
 import type { ExecutionContext } from '../context.js'
+import type { BankAccountRepository } from '../ports/bank-account-repository.js'
 import type {
+  ConciliacaoComBaixaUnitOfWork,
   LancamentoConciliavel,
   ReconciliationQueries,
   ReconciliationUnitOfWork,
@@ -10,6 +12,14 @@ import type {
 export type ReconciliationDeps = {
   readonly uow: ReconciliationUnitOfWork
   readonly queries: ReconciliationQueries
+  /**
+   * Conciliar da baixa — DEC-026. A conciliacao e a baixa na mesma transacao.
+   * Opcional so para os testes de antes da DEC-026, que falam so do vinculo;
+   * a api sempre liga.
+   */
+  readonly baixas?: ConciliacaoComBaixaUnitOfWork
+  /** Para recusar baixa em conta que nao existe — a mesma regra da tela de contas. */
+  readonly bankAccounts?: Pick<BankAccountRepository, 'list'>
   /*
    * Sem `audit` aqui desde a NR-087.
    *
@@ -103,7 +113,7 @@ export async function suggestMatches(
  * data batam — seria conciliar dois fatos opostos e dar a conferencia como
  * feita.
  */
-function tipoQueCasaCom(direction: BankTransactionDirection): EntryKind {
+export function tipoQueCasaCom(direction: BankTransactionDirection): EntryKind {
   return direction === 'debit' ? 'payable' : 'receivable'
 }
 
@@ -115,11 +125,11 @@ function tipoQueCasaCom(direction: BankTransactionDirection): EntryKind {
  * que o sistema ja calculou na venda. Nao e tolerancia de valor — e comparar
  * com o numero certo.
  */
-function valorEsperadoNoBanco(entry: LancamentoConciliavel): number {
+export function valorEsperadoNoBanco(entry: LancamentoConciliavel): number {
   return entry.netAmountCents ?? entry.amountCents
 }
 
-function janela(postedOn: string): { de: string; ate: string } {
+export function janela(postedOn: string): { de: string; ate: string } {
   return {
     de: somaDias(postedOn, -JANELA_DE_DIAS),
     ate: somaDias(postedOn, JANELA_DE_DIAS),
@@ -139,7 +149,7 @@ function somaDias(data: string, dias: number): string {
   return new Date(t).toISOString().slice(0, 10)
 }
 
-function diferencaEmDias(de: string, ate: string): number {
+export function diferencaEmDias(de: string, ate: string): number {
   const emMs = (s: string) => {
     const [a, m, d] = s.split('-').map(Number)
     return Date.UTC(a!, m! - 1, d!)
@@ -164,7 +174,7 @@ function diferencaEmDias(de: string, ate: string): number {
  * iguais faz o lojista abrir e conferir, que e exatamente o que ele deve fazer
  * nesse caso. Um "100%" nas duas o faria clicar na primeira.
  */
-function comConfianca(
+export function comConfianca(
   itens: readonly {
     entry: LancamentoConciliavel
     daysApart: number

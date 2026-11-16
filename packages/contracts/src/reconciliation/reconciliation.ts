@@ -37,6 +37,12 @@ export const bankTransactionOutputSchema = z.object({
   /** Nulos enquanto a transacao esta na fila. */
   reconciledEntryKind: entryKindSchema.nullable(),
   reconciledEntryId: idSchema.nullable(),
+  /**
+   * A baixa que a conciliacao lancou — DEC-026. Nula na fila, na conciliacao
+   * de titulo que ja estava quitado (o recebivel do cartao nasce liquidado) e
+   * nas conciliacoes de antes da DEC-026. E ela que o desfazer estorna.
+   */
+  settlementId: idSchema.nullable(),
 })
 
 export type BankTransactionOutput = z.infer<typeof bankTransactionOutputSchema>
@@ -46,12 +52,29 @@ export const suggestMatchesInputSchema = z.object({ transactionId: idSchema }).s
 
 export type SuggestMatchesInput = z.infer<typeof suggestMatchesInputSchema>
 
+/**
+ * A conta da loja em que o extrato caiu — DEC-026.
+ *
+ * Conciliar da baixa, e a baixa diz em que conta o dinheiro entrou ou saiu. O
+ * extrato e de UMA conta; quem sabe qual e a pessoa, que o baixou do banco.
+ */
+export const contaDaBaixaSchema = z
+  .string()
+  .trim()
+  .min(1, 'Escolha a conta bancária do extrato.')
+  .max(80)
+
 /** Casar transacao com lancamento existente — RF-079. */
 export const reconcileInputSchema = z
   .object({
     transactionId: idSchema,
     entryKind: entryKindSchema,
     entryId: idSchema,
+    /**
+     * Com a conta, concilia E da baixa (DEC-026). Sem ela, so liga os dois —
+     * o comportamento de antes, mantido para quem ainda chama assim.
+     */
+    bankAccount: contaDaBaixaSchema.optional(),
   })
   .strict()
 
@@ -72,6 +95,8 @@ export const createEntryFromTransactionInputSchema = z
     description: z.string().trim().min(2, 'Descreva o lancamento.').max(200),
     /** Classificacao ja na criacao, opcional — RF-083. */
     accountId: idSchema.optional(),
+    /** Com a conta do extrato, o lancamento ja nasce baixado — DEC-026. */
+    bankAccount: contaDaBaixaSchema.optional(),
   })
   .strict()
 
@@ -129,3 +154,91 @@ export const bankTransactionListItemSchema = bankTransactionOutputSchema.extend(
 })
 
 export type BankTransactionListItem = z.infer<typeof bankTransactionListItemSchema>
+
+/* -------------------------------------------------------------------------- */
+/* Conciliar da baixa — DEC-026                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Um par do casamento automatico: a linha do extrato e o lancamento que o
+ * sistema acha que e ela. `suggestion` nulo = nada bate (valor exato, na
+ * janela de dias, ainda nao usado por outra linha).
+ */
+export const autoMatchPairSchema = z.object({
+  transaction: bankTransactionOutputSchema,
+  suggestion: z
+    .object({
+      entry: reconciledEntrySummarySchema.extend({
+        amountCents: moneyCentsSchema,
+        netAmountCents: moneyCentsSchema.nullable(),
+      }),
+      expectedAmountCents: moneyCentsSchema,
+      daysApart: z.number().int().nonnegative(),
+      confidencePoints: z.number().int(),
+      /** Quantos outros lancamentos tambem batiam — maior que zero pede conferir. */
+      alternatives: z.number().int().nonnegative(),
+    })
+    .nullable(),
+})
+
+export type AutoMatchPair = z.infer<typeof autoMatchPairSchema>
+
+/** A fila inteira, casada, NA ORDEM DO EXTRATO. */
+export const autoMatchOutputSchema = z.object({ pairs: z.array(autoMatchPairSchema) })
+
+export type AutoMatchOutput = z.infer<typeof autoMatchOutputSchema>
+
+/** No maximo quantos pares por confirmacao — um extrato mensal cabe folgado. */
+export const MAX_PARES_POR_CONFIRMACAO = 300
+
+/**
+ * Confirmar os pares conferidos — DEC-026.
+ *
+ * Tudo ou nada: se um par nao fecha (valor mudou, outra aba conciliou), nenhum
+ * e gravado, e a mensagem diz qual. Metade das baixas lancada e a outra metade
+ * nao deixaria o extrato e as contas fora de ordem — o que a pessoa veio
+ * justamente conferir.
+ */
+export const confirmReconciliationsInputSchema = z
+  .object({
+    bankAccount: contaDaBaixaSchema,
+    pairs: z
+      .array(
+        z
+          .object({ transactionId: idSchema, entryKind: entryKindSchema, entryId: idSchema })
+          .strict(),
+      )
+      .min(1, 'Confirme pelo menos um par.')
+      .max(MAX_PARES_POR_CONFIRMACAO, `No máximo ${MAX_PARES_POR_CONFIRMACAO} pares por vez.`),
+  })
+  .strict()
+  .refine((s) => new Set(s.pairs.map((p) => p.transactionId)).size === s.pairs.length, {
+    message: 'A mesma linha do extrato aparece em dois pares.',
+    path: ['pairs'],
+  })
+  .refine((s) => new Set(s.pairs.map((p) => p.entryId)).size === s.pairs.length, {
+    message: 'O mesmo lançamento aparece em dois pares.',
+    path: ['pairs'],
+  })
+
+export type ConfirmReconciliationsInput = z.infer<typeof confirmReconciliationsInputSchema>
+
+export const confirmReconciliationsOutputSchema = z.object({
+  /** Quantos pares foram conciliados. */
+  reconciled: z.number().int().nonnegative(),
+  /** Quantos receberam baixa agora (os ja quitados so foram ligados). */
+  settled: z.number().int().nonnegative(),
+  /** Os pares NA ORDEM EM QUE AS BAIXAS FORAM LANCADAS — a do extrato. */
+  order: z.array(
+    z.object({
+      transactionId: idSchema,
+      entryKind: entryKindSchema,
+      entryId: idSchema,
+      postedOn: dateSchema,
+      amountCents: moneyCentsSchema,
+      settlementId: idSchema.nullable(),
+    }),
+  ),
+})
+
+export type ConfirmReconciliationsOutput = z.infer<typeof confirmReconciliationsOutputSchema>

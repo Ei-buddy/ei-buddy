@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     190 |  364 |
-| ✅ Concluídas                 |     183 |  339 |
+| Total                         |     191 |  366 |
+| ✅ Concluídas                 |     184 |  341 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -430,6 +430,7 @@ voltam a ⬜.
 | NR-222 | NFS-e, campos de cadastro (DEC-031): Código de Tributação Nacional e alíquota do ISS na loja, NBS no produto — contrato, banco, web e app                                                                                                                                                                                                                             |   🟢   | `contracts` `core` `db` `web` `mobile`                        |   1 | —                                      | —    | RF-046                                             |   ✅   |
 | NR-223 | Taxas de recebimento configuráveis pela loja (DEC-027), lado do servidor: Pix, débito e crédito por parcela, exceção por bandeira, prazos de débito e crédito e o espaço da antecipação; a venda usa a taxa da loja e grava o líquido; sem configuração vale a tabela de antes                                                                                        |   🟢   | `contracts` `domain` `core` `db` `api`                        |   1 | —                                      | —    | RF-007, RF-038, RF-040, RF-063                     |   ✅   |
 | NR-224 | Taxas de recebimento nas telas (DEC-027): tela no Financeiro do web e do app (Pix, débito, crédito por parcela, bandeira, prazos e antecipação; só o responsável altera); o PDV mostra a taxa da loja e só oferece as parcelas configuradas, no lugar da tabela fixa da tela                                                                                          |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | RF-007, RF-040                                     |   ✅   |
+| NR-225 | Conciliar dá baixa (DEC-026): casamento automático do extrato com as contas a pagar e a receber, conferência lado a lado (web e app), confirmação em lote que concilia e baixa na ordem do extrato, na conta e na data do banco; desfazer estorna a baixa da conciliação                                                                                              |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-078, RF-079, RF-080, RF-059, RF-066, RF-067     |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                    |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                   |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                            |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -548,10 +549,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     114 |  174 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     115 |  176 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **364 dias-desenvolvedor** em 190 tarefas. Com 3 pessoas, isso é cerca
+Somando: **366 dias-desenvolvedor** em 191 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

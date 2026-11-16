@@ -278,3 +278,115 @@
   color: var(--app-danger);
   font-size: 13px;
 }
+
+/* ===================== Conferencia lado a lado — DEC-026 ===================== */
+
+.contaDoExtrato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-size: 13.5px;
+}
+
+.contaSelect {
+  flex: 0 1 320px;
+  min-width: 200px;
+}
+
+.conferenciaAcoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ladoALadoCabecalho {
+  display: grid;
+  grid-template-columns: 1fr 1fr 92px;
+  gap: 16px;
+  padding: 10px 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--app-muted);
+}
+
+.ladoALado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.par {
+  display: grid;
+  grid-template-columns: 1fr 1fr 92px;
+  gap: 16px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md, 12px);
+}
+
+.parMarcado {
+  border-color: var(--app-accent);
+}
+
+.parLado {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.parLado strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.parSelos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.parConfirma {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  font-size: 13px;
+}
+
+.parConfirma input {
+  width: 18px;
+  height: 18px;
+}
+
+.conferenciaRodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 720px) {
+  .ladoALadoCabecalho {
+    display: none;
+  }
+
+  .par {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .parConfirma {
+    justify-content: flex-start;
+  }
+}

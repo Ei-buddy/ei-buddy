@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  confirmReconciliationsInputSchema,
   bankTransactionDirectionSchema,
   bankTransactionOutputSchema,
   createEntryFromTransactionInputSchema,
@@ -31,6 +32,7 @@ describe('transacao do extrato', () => {
     counterparty: null,
     reconciledEntryKind: null,
     reconciledEntryId: null,
+    settlementId: null,
   }
 
   it('aceita a transacao na fila', () => {
@@ -175,5 +177,42 @@ describe('desfazer — RF-080', () => {
 
   it('recusa campo desconhecido', () => {
     expect(undoReconciliationInputSchema.safeParse({ ...valida, silent: true }).success).toBe(false)
+  })
+})
+
+describe('conciliar da baixa — DEC-026', () => {
+  const par = { transactionId: 'btx-1', entryKind: 'payable' as const, entryId: 'ent-1' }
+
+  it('confirmar exige a conta do extrato e pelo menos um par', () => {
+    expect(confirmReconciliationsInputSchema.safeParse({ pairs: [par] }).success).toBe(false)
+    expect(
+      confirmReconciliationsInputSchema.safeParse({ bankAccount: 'Nubank', pairs: [] }).success,
+    ).toBe(false)
+    expect(
+      confirmReconciliationsInputSchema.parse({ bankAccount: ' Nubank ', pairs: [par] })
+        .bankAccount,
+    ).toBe('Nubank')
+  })
+
+  it('a mesma linha ou o mesmo lancamento em dois pares e recusado', () => {
+    const mesmaLinha = confirmReconciliationsInputSchema.safeParse({
+      bankAccount: 'X',
+      pairs: [par, { ...par, entryId: 'ent-2' }],
+    })
+    expect(mesmaLinha.error?.issues[0]?.message).toBe(
+      'A mesma linha do extrato aparece em dois pares.',
+    )
+    const mesmoLancamento = confirmReconciliationsInputSchema.safeParse({
+      bankAccount: 'X',
+      pairs: [par, { ...par, transactionId: 'btx-2' }],
+    })
+    expect(mesmoLancamento.error?.issues[0]?.message).toBe(
+      'O mesmo lançamento aparece em dois pares.',
+    )
+  })
+
+  it('conciliar um par aceita a conta (com ela, da baixa); sem ela, segue valendo', () => {
+    expect(reconcileInputSchema.parse({ ...par, bankAccount: 'Nubank' }).bankAccount).toBe('Nubank')
+    expect(reconcileInputSchema.parse(par).bankAccount).toBeUndefined()
   })
 })
