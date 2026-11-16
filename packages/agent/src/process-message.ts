@@ -199,5 +199,9 @@ function contextoDoPeer(ligado: LinkedPeer, input: IncomingMessage): ExecutionCo
     channel: 'whatsapp',
     requestId: input.requestId,
     now: input.now,
+    /* Loja restrita so le — RF-117: o assistente tambem nao lanca. */
+    ...(ligado.subscriptionStatus === undefined
+      ? {}
+      : { subscriptionStatus: ligado.subscriptionStatus }),
   }
 }

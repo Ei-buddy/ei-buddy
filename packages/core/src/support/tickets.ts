@@ -5,7 +5,7 @@ import type {
   TicketListOutput,
 } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
-import { assertCanWrite } from '../authorization.js'
+import { assertPapelPodeEscrever } from '../authorization.js'
 import type { ExecutionContext } from '../context.js'
 import type { SupportTicketAlert } from '../ports/support-alert.js'
 import type { SupportRepository } from '../ports/support-repository.js'
@@ -70,16 +70,19 @@ export async function getTicket(
 /**
  * Abrir chamado — US-062.
  *
- * `assertCanWrite` porque abrir chamado CRIA um registro que a equipe vai
+ * O papel e conferido porque abrir chamado CRIA um registro que a equipe vai
  * atender. Nao e leitura, e um papel somente-leitura nao deveria conseguir
  * gerar trabalho para outra pessoa.
+ *
+ * A ASSINATURA nao (RF-117): loja restrita continua abrindo chamado — o
+ * suporte e o caminho para regularizar.
  */
 export async function openTicket(
   deps: SupportDeps,
   ctx: ExecutionContext,
   input: OpenTicketInput,
 ): Promise<TicketDetail> {
-  assertCanWrite(ctx)
+  assertPapelPodeEscrever(ctx)
 
   const authorName = await deps.quemEscreve(ctx)
   const chamado = await deps.support.open({
@@ -115,7 +118,7 @@ export async function replyToTicket(
   ctx: ExecutionContext,
   input: ReplyToTicketInput,
 ): Promise<TicketDetail> {
-  assertCanWrite(ctx)
+  assertPapelPodeEscrever(ctx)
 
   const chamado = await deps.support.reply({
     companyId: ctx.companyId,

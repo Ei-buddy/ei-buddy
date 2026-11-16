@@ -5,7 +5,7 @@ import {
   type ExecutionContext,
   type UserId,
 } from '@na-regua/core'
-import type { Role } from '@na-regua/contracts'
+import type { Role, SubscriptionStatus } from '@na-regua/contracts'
 import type { FastifyRequest } from 'fastify'
 
 /**
@@ -26,6 +26,11 @@ export type AuthenticatedPrincipal = {
   readonly companyId: CompanyId
   readonly userId: UserId
   readonly role: Role
+  /**
+   * A situacao da assinatura, lida pelo plugin de sessao nas requisicoes que
+   * ESCREVEM — RF-117. Ausente nas leituras: ler vale em todos os estados.
+   */
+  readonly subscriptionStatus?: SubscriptionStatus | null
 }
 
 /** Cabecalho de idempotencia — RNF-043. Reenvio nao pode virar venda dobrada. */
@@ -55,6 +60,9 @@ export function buildExecutionContext(
      */
     ...(source.idempotencyKey === undefined ? {} : { idempotencyKey: source.idempotencyKey }),
     now: source.now ?? new Date(),
+    ...(principal.subscriptionStatus === undefined
+      ? {}
+      : { subscriptionStatus: principal.subscriptionStatus }),
   }
 }
 

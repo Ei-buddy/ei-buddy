@@ -1,3 +1,4 @@
+import type { SubscriptionStatus } from '@na-regua/contracts'
 import type { SessionClaims, SessionIssuer } from '@na-regua/core'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 
@@ -41,7 +42,20 @@ export function paraPrincipal(claims: SessionClaims) {
   return { companyId: claims.companyId, userId: claims.userId, role: claims.role }
 }
 
-export function registerSession(app: FastifyInstance, sessions: SessionIssuer): void {
+/** Metodos que so leem: a assinatura nao e consultada neles (RF-117). */
+const SO_LEITURA = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+/**
+ * A situacao da assinatura da loja — RF-117. `null` = sem assinatura.
+ * Opcional para os testes que nao falam de assinatura; a api sempre liga.
+ */
+export type SituacaoDaAssinatura = (companyId: string) => Promise<SubscriptionStatus | null>
+
+export function registerSession(
+  app: FastifyInstance,
+  sessions: SessionIssuer,
+  situacaoDaAssinatura?: SituacaoDaAssinatura,
+): void {
   /*
    * `onRequest` e nao `preHandler`: o principal precisa existir antes de
    * qualquer hook de rota, e ler um token nao depende do corpo da requisicao.
@@ -57,7 +71,18 @@ export function registerSession(app: FastifyInstance, sessions: SessionIssuer): 
     if (claims === undefined) return
 
     const principal = paraPrincipal(claims)
-    if (principal !== undefined) request.principal = principal
+    if (principal !== undefined) {
+      /*
+       * Loja restrita so le — RF-117. A situacao vai no principal, e quem
+       * recusa e `assertCanWrite`, em `core`: aqui so se le. So nas
+       * requisicoes que escrevem, para leitura nao pagar uma consulta a mais.
+       */
+      const escreve = !SO_LEITURA.has(request.method)
+      request.principal =
+        escreve && situacaoDaAssinatura !== undefined
+          ? { ...principal, subscriptionStatus: await situacaoDaAssinatura(principal.companyId) }
+          : principal
+    }
 
     /* Guardado inteiro para as rotas de sessao: `/auth/select-company` precisa
        do `userId` de uma sessao que ainda NAO tem empresa — e por isso ela nao

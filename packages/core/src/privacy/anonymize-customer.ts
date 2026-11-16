@@ -1,6 +1,6 @@
 import type { AnonymizationReceipt, AnonymizeCustomerInput } from '@na-regua/contracts'
 import { AppError } from '../app-error.js'
-import { assertCanWrite, assertSegundoCanal } from '../authorization.js'
+import { assertPapelPodeEscrever, assertSegundoCanal } from '../authorization.js'
 import type { AuditTrail } from '../ports/audit-trail.js'
 import type { ExecutionContext } from '../context.js'
 import type { CustomerPersonalData, DataSubjectRepository } from '../ports/privacy.js'
@@ -44,7 +44,7 @@ export async function anonymizeCustomer(
   ctx: ExecutionContext,
   input: AnonymizeCustomerInput,
 ): Promise<AnonymizationReceipt> {
-  assertCanWrite(ctx)
+  assertPapelPodeEscrever(ctx)
   assertSegundoCanal(ctx, 'Anonimizar os dados de um cliente')
 
   if (ctx.role !== 'owner') {

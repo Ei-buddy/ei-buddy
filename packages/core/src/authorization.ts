@@ -1,3 +1,4 @@
+import { podeEscrever } from '@na-regua/contracts'
 import { AppError } from './app-error.js'
 import type { Channel, ExecutionContext } from './context.js'
 
@@ -23,8 +24,39 @@ const SOMENTE_LEITURA = new Set(['accountant'])
  * e o lugar dela.
  */
 export function assertCanWrite(ctx: ExecutionContext): void {
+  assertPapelPodeEscrever(ctx)
+  assertAssinaturaPermiteEscrita(ctx)
+}
+
+/**
+ * So o papel — para o que a loja RESTRITA ainda pode fazer.
+ *
+ * Abrir chamado no suporte e atender o titular (LGPD) continuam valendo com a
+ * assinatura restrita: o suporte e o caminho para regularizar, e o direito do
+ * titular nao depende de a loja estar em dia. Esses casos de uso chamam esta,
+ * e nao `assertCanWrite`.
+ */
+export function assertPapelPodeEscrever(ctx: ExecutionContext): void {
   if (SOMENTE_LEITURA.has(ctx.role)) {
     throw AppError.forbidden('Seu perfil tem acesso somente de leitura.')
+  }
+}
+
+/** A mensagem diz o que ainda da para fazer, e onde regularizar. */
+export const MENSAGEM_ASSINATURA_RESTRITA =
+  'A assinatura da loja está restrita: dá para consultar e exportar tudo, mas não lançar nada novo. Regularize em Assinatura para voltar a lançar.'
+
+/**
+ * Loja restrita ou cancelada so le — RF-117, RF-126.
+ *
+ * No servidor, e nao so na tela: a tela trancada e conveniencia, e uma
+ * chamada direta da api (ou o assistente no WhatsApp) passaria por cima dela.
+ * Ler e exportar continuam valendo em todos os estados — o dado e da loja.
+ */
+export function assertAssinaturaPermiteEscrita(ctx: ExecutionContext): void {
+  const status = ctx.subscriptionStatus
+  if (status !== undefined && status !== null && !podeEscrever(status)) {
+    throw AppError.forbidden(MENSAGEM_ASSINATURA_RESTRITA)
   }
 }
 

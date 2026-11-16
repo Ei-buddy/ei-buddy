@@ -26,7 +26,13 @@ export type {
 } from './ports/chart-of-accounts.js'
 export type { AppErrorCode, FieldIssue } from './app-error.js'
 
-export { assertCanWrite, assertSegundoCanal } from './authorization.js'
+export {
+  assertAssinaturaPermiteEscrita,
+  assertCanWrite,
+  assertPapelPodeEscrever,
+  assertSegundoCanal,
+  MENSAGEM_ASSINATURA_RESTRITA,
+} from './authorization.js'
 
 export type { Channel, CompanyId, ExecutionContext, UseCase, UserId } from './context.js'
 
