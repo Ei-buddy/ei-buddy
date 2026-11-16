@@ -1,5 +1,6 @@
 import type { CardFeeTable, DiscountPolicy, TaxRules } from '@na-regua/domain'
 import type { CompanySettingsRepository, SaleSettings } from '../ports/sale-writers.js'
+import { TAXAS_PADRAO, tabelaDeTarifas } from './fee-settings.js'
 
 /**
  * Configuracao de venda enquanto as tabelas nao existem — RF-007, RF-008.
@@ -25,27 +26,13 @@ const ALIQUOTA_PADRAO: TaxRules = { regime: 'simples_nacional', defaultRate: 6 }
 /**
  * Tarifas de cartao — RF-007.
  *
- * Valores de mercado para credenciamento pequeno, arredondados para cima: se a
- * tarifa real for menor, o liquido previsto chega maior que o esperado, que e o
- * erro que ninguem reclama. Ao contrario, o lojista faria conta com dinheiro
- * que nao vai receber.
+ * Desde a DEC-027 a loja configura as dela (`comTaxasDaLoja`); esta e a de
+ * quem nunca configurou, e mora em `TAXAS_PADRAO` para haver uma fonte so.
+ * Valores de mercado para credenciamento pequeno, arredondados para cima: se
+ * a tarifa real for menor, o liquido previsto chega maior que o esperado, que
+ * e o erro que ninguem reclama.
  */
-const TARIFAS_PADRAO: CardFeeTable = {
-  /* De 1x a 12x, que e o que o PDV oferece. Sem a linha de um numero de
-     parcelas, o dominio recusa a venda (`CARD_FEE_NOT_FOUND`) — e o balcao
-     so descobria no 2x. Ponto e meio a mais por parcela alem da 3x, o mesmo
-     degrau da 1x para a 3x. */
-  rates: [
-    { brand: 'unknown', installments: 1, feeRatePercent: 3 },
-    { brand: 'unknown', installments: 2, feeRatePercent: 5 },
-    ...Array.from({ length: 10 }, (_, i) => ({
-      brand: 'unknown' as const,
-      installments: i + 3,
-      feeRatePercent: 6 + i * 1.5,
-    })),
-  ],
-  settlementDays: 30,
-}
+const TARIFAS_PADRAO: CardFeeTable = tabelaDeTarifas(TAXAS_PADRAO)
 
 /**
  * Teto de desconto por papel — RF-008, RF-031.

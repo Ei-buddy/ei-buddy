@@ -336,6 +336,19 @@ export type {
   TituloSnapshot,
 } from './ports/settlement-writers.js'
 export { createDefaultSaleSettings } from './sales/default-settings.js'
+export {
+  comTaxasDaLoja,
+  getPaymentFeeSettings,
+  savePaymentFeeSettings,
+  tabelaDeTarifas,
+  TAXAS_PADRAO,
+} from './sales/fee-settings.js'
+export type { PaymentFeeSettingsDeps } from './sales/fee-settings.js'
+export type {
+  PaymentFeeSettingsRepository,
+  StoredPaymentFeeSettings,
+} from './ports/payment-fee-settings.js'
+export { InMemoryPaymentFeeSettings } from './sales/fee-settings-fake.js'
 export { registerSale } from './sales/register-sale.js'
 export type { RegisterSaleDeps, RegisterSaleResult, StockWarning } from './sales/register-sale.js'
 

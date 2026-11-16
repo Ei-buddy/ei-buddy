@@ -3,7 +3,9 @@ import {
   applyDiscount,
   calculateCardFeeAmount,
   calculateChange,
+  calculateDebitFeeAmount,
   calculateInstallmentPlan,
+  calculatePixFeeAmount,
   calculateSaleTotals,
   DEFAULT_SETTLEMENT_DAYS,
   DomainError,
@@ -439,8 +441,13 @@ function recebiveisDoPagamento(
   }
 
   if (metodo === 'debit') {
-    const tarifa = calculateCardFeeAmount(pagamento.amount, cardFees, pagamento.brand, 1)
-    const vencimento = somarDias(agora, cardFees.settlementDays ?? DEFAULT_SETTLEMENT_DAYS)
+    /* Taxa e prazo do DEBITO da loja — DEC-027. Sem tabela de debito, a regra
+       de antes: credito 1x e o prazo do credito. */
+    const tarifa = calculateDebitFeeAmount(pagamento.amount, cardFees, pagamento.brand)
+    const vencimento = somarDias(
+      agora,
+      cardFees.debitSettlementDays ?? cardFees.settlementDays ?? DEFAULT_SETTLEMENT_DAYS,
+    )
 
     return {
       registro: {
@@ -466,15 +473,19 @@ function recebiveisDoPagamento(
 
   /* `cash` e `pix` entram liquidados; `wallet` fica em aberto — RF-064. */
   const liquidado = metodo === 'cash' || metodo === 'pix'
+  /* Pix com taxa configurada pela loja — DEC-027. Vai na mesma coluna da
+     tarifa de cartao, para o DRE descontar do mesmo jeito. */
+  const tarifaDoPix =
+    metodo === 'pix' ? Number(calculatePixFeeAmount(pagamento.amount, cardFees).cents) : 0
 
   return {
-    registro: { method: metodo, amountCents: valor, cardFeeCents: 0 },
+    registro: { method: metodo, amountCents: valor, cardFeeCents: tarifaDoPix },
     gerados: [
       {
         description: liquidado ? `Recebimento em ${metodo}` : 'Fiado',
         customerId,
         amountCents: valor,
-        netAmountCents: valor,
+        netAmountCents: valor - tarifaDoPix,
         dueDate: soData(agora),
         installmentNumber: 1,
         installmentCount: 1,

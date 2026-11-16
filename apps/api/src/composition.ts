@@ -15,6 +15,7 @@ import {
   checkCustomerWalletByQuery,
   checkStock,
   checkStockByQuery,
+  comTaxasDaLoja,
   createDefaultSaleSettings,
   createPayable,
   createReceivable,
@@ -95,6 +96,7 @@ import {
   createCrmRepository,
   createInventoryHistory,
   createRestockQueries,
+  createPaymentFeeSettingsRepository,
   createSupplierRepository,
   createInventoryQueries,
   createInventoryUnitOfWork,
@@ -176,6 +178,7 @@ import type { WaitlistRouteDeps } from './routes/waitlist.js'
 import type { WebhookRouteDeps } from './routes/webhooks.js'
 import type { WhatsAppWebhookRouteDeps } from './routes/whatsapp-webhook.js'
 import type { CadastroDeFornecedoresDeps } from './routes/cadastro-fornecedores.js'
+import type { TaxasDeRecebimentoDeps } from './routes/taxas-de-recebimento.js'
 import type { BaixasDeps } from './routes/baixas.js'
 import type { EstoqueDeps } from './routes/estoque.js'
 import type { SuporteDeps } from './routes/suporte.js'
@@ -323,10 +326,11 @@ export async function shutdown(): Promise<void> {
 /**
  * Dependencias do fechamento de venda — NR-027.
  *
- * `unitOfWork` e de `db` e abre a transacao com o tenant definido; `settings`
- * ainda e o padrao de `core`, porque aliquota, tabela de tarifas e teto de
- * desconto **nao tem tabela** (ver `CompanySettingsRepository`). Quando
- * tiverem, so esta funcao muda.
+ * `unitOfWork` e de `db` e abre a transacao com o tenant definido. Em
+ * `settings`, a tabela de tarifas e a que a loja gravou (DEC-027, NR-223);
+ * aliquota e teto de desconto ainda sao o padrao de `core`, porque **nao tem
+ * tabela** (ver `CompanySettingsRepository`). Quando tiverem, so esta funcao
+ * muda.
  *
  * Funcao e nao constante: `getClient()` abre conexao, e abrir conexao no topo
  * do modulo faria importar a composicao — inclusive num teste — conectar no
@@ -341,7 +345,9 @@ export function buildSaleDeps(): SaleRouteDeps {
     uow: createSaleCancellationUnitOfWork(sql),
     /* Devolucao parcial — RF-044. Mesma transacao por empresa, porta propria. */
     returns: createSaleReturnUnitOfWork(sql),
-    settings: createDefaultSaleSettings(),
+    /* Taxas de recebimento da loja (DEC-027, NR-223): a tabela gravada pela
+       loja; sem ela, a padrao de `core` — a mesma de antes. */
+    settings: comTaxasDaLoja(createDefaultSaleSettings(), createPaymentFeeSettingsRepository(sql)),
     /* O fuso vem da `TZ` pelo mesmo motivo dos relatorios: "vendas de 15 de
        marco" e uma pergunta com fuso embutido, e a venda das 21h30 em Sao
        Paulo e 16 de marco em UTC. */
@@ -1014,6 +1020,15 @@ export function buildContasBancariasDeps(): ContasBancariasDeps {
   const sql = getClient(env.DATABASE_URL)
   return {
     bankAccounts: createBankAccountRepository(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/** Taxas de recebimento da loja — DEC-027 (NR-223). */
+export function buildTaxasDeRecebimentoDeps(): TaxasDeRecebimentoDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    feeSettings: createPaymentFeeSettingsRepository(sql),
     audit: createAuditTrail(sql),
   }
 }
