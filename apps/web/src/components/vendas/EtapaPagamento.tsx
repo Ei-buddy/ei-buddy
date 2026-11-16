@@ -4,9 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   criarCobrancaVenda,
   FORMAS,
-  PARCELAS_MAXIMAS,
   statusCobrancaVenda,
-  taxaDoCredito,
   taxaDoPagamento,
   valorLiquido,
   type Pagamento,
@@ -21,6 +19,8 @@ import CobrancaPix from '@/components/app/CobrancaPix'
 import { IconCheck, IconClose, IconTrash } from '@/components/Icons'
 import styles from './vendas.module.css'
 import { reaisDoTexto } from '@/lib/valor'
+import { parcelasOferecidas, rotuloDaTaxa, taxaDaForma } from '@/lib/taxas-api'
+import { useTaxasDaLoja } from '@/lib/use-taxas-da-loja'
 
 /* No balcao, "carteira" e o fiado: e assim que o lojista chama, e o app ja
    mostra "Fiado" no mesmo botao. */
@@ -51,6 +51,11 @@ export default function EtapaPagamento({
   const [cobrando, setCobrando] = useState<Pagamento | null>(null)
   const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
   const formasRef = useRef<HTMLDivElement>(null)
+  /* A tabela da loja (DEC-027): a mesma que o servidor usa no fechamento. */
+  const tabela = useTaxasDaLoja()
+  const maxParcelas = parcelasOferecidas(tabela)
+  /* A tabela pode chegar depois da escolha, e a loja parcelar em menos vezes. */
+  const parcelasValidas = Math.min(parcelas, maxParcelas)
 
   const confirmado = pagamentos
     .filter((p) => p.status === 'confirmado')
@@ -62,10 +67,10 @@ export default function EtapaPagamento({
      O servidor abate o troco do pagamento em dinheiro, e o comprovante mostra
      recebido e troco. A mais no cartao e erro de digitacao, e e recusado. */
   const troco = Math.max(0, Math.round((confirmado - total) * 100) / 100)
-  const liquido = valorLiquido(pagamentos)
+  const liquido = valorLiquido(pagamentos, tabela)
   const taxaTotal = pagamentos
     .filter((p) => p.status === 'confirmado')
-    .reduce((acc, p) => acc + taxaDoPagamento(p), 0)
+    .reduce((acc, p) => acc + taxaDoPagamento(p, tabela), 0)
 
   const formaAtual = useMemo(() => FORMAS.find((f) => f.valor === forma)!, [forma])
 
@@ -104,7 +109,7 @@ export default function EtapaPagamento({
       forma,
       valor,
       status: formaAtual.online ? 'pendente' : 'confirmado',
-      ...(forma === 'credito' && parcelas > 1 ? { parcelas } : {}),
+      ...(forma === 'credito' && parcelasValidas > 1 ? { parcelas: parcelasValidas } : {}),
     }
 
     onPagamentos([...pagamentos, novo])
@@ -186,10 +191,8 @@ export default function EtapaPagamento({
                 <strong>{rotuloNoPdv(f)}</strong>
                 {f.valor === 'carteira' && !temCliente ? (
                   <span>precisa de cliente</span>
-                ) : f.taxa > 0 ? (
-                  <span>taxa {f.taxa.toFixed(2).replace('.', ',')}%</span>
                 ) : (
-                  <span>sem taxa</span>
+                  <span>{rotuloDaTaxa(taxaDaForma(tabela, f.valor))}</span>
                 )}
               </button>
             ))}
@@ -217,13 +220,13 @@ export default function EtapaPagamento({
                   <span>Parcelas</span>
                   <select
                     className={styles.input}
-                    value={parcelas}
+                    value={parcelasValidas}
                     onChange={(e) => setParcelas(Number(e.target.value))}
                   >
-                    {Array.from({ length: PARCELAS_MAXIMAS }, (_, i) => i + 1).map((n) => (
+                    {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={n}>
-                        {n === 1 ? 'À vista (1x)' : `${n}x`} — taxa{' '}
-                        {taxaDoCredito(n).toFixed(2).replace('.', ',')}%
+                        {n === 1 ? 'À vista (1x)' : `${n}x`} —{' '}
+                        {rotuloDaTaxa(taxaDaForma(tabela, 'credito', n))}
                       </option>
                     ))}
                   </select>
@@ -291,8 +294,8 @@ export default function EtapaPagamento({
                         {rotuloNoPdv(f)}
                         {p.parcelas ? ` · ${p.parcelas}x` : ''}
                       </strong>
-                      {taxaDoPagamento(p) > 0 ? (
-                        <span>taxa {formatMoney(taxaDoPagamento(p))}</span>
+                      {taxaDoPagamento(p, tabela) > 0 ? (
+                        <span>taxa {formatMoney(taxaDoPagamento(p, tabela))}</span>
                       ) : null}
                     </span>
 

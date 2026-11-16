@@ -1070,3 +1070,46 @@
   font-size: 13px;
   color: var(--app-danger);
 }
+
+/* Taxas de recebimento — DEC-027 (NR-224). */
+.taxasAviso {
+  margin: 0 0 16px;
+  color: var(--text-muted, inherit);
+}
+.taxasAjuda {
+  margin: 0 0 12px;
+  color: var(--text-muted, inherit);
+  font-size: 0.9em;
+}
+.taxasParcelas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+/* `.field` ocupa as 12 colunas do FormGrid (e `[data-span]` mais ainda). Aqui
+   a grade e outra — auto-fill nas parcelas, colunas fixas na excecao —, entao
+   cada campo volta a ocupar uma celula so. O seletor dobrado vence o do UI
+   sem depender da ordem em que os dois CSS chegam. */
+.taxasParcelas > [data-span][data-span],
+.taxasExcecao > [data-span][data-span] {
+  grid-column: auto;
+}
+.taxasExcecoes {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.taxasExcecao {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .taxasExcecao {
+    grid-template-columns: 1fr 1fr;
+  }
+}

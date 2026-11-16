@@ -24,6 +24,7 @@
  * inventario que ninguem consegue explicar depois.
  */
 
+import { taxaDaForma, type TabelaDeTaxas } from './taxas-api'
 import { pedir } from './http'
 import type { PixCharge, PixChargeStatus } from './auth-api'
 import type { FormaPagamento } from './types'
@@ -155,8 +156,6 @@ export async function buscarPorEan(ean: string): Promise<ProdutoDoCatalogo | nul
 export const FORMAS: {
   valor: FormaPagamento
   rotulo: string
-  /** Taxa da operadora, em % — descontada do valor liquido. */
-  taxa: number
   /**
    * Abre cobranca com QR para o cliente pagar — nenhuma forma, por enquanto.
    *
@@ -169,11 +168,13 @@ export const FORMAS: {
    */
   online: boolean
 }[] = [
-  { valor: 'dinheiro', rotulo: 'Dinheiro', taxa: 0, online: false },
-  { valor: 'pix', rotulo: 'Pix', taxa: 0.99, online: false },
-  { valor: 'debito', rotulo: 'Débito', taxa: 1.99, online: false },
-  { valor: 'credito', rotulo: 'Crédito', taxa: 3.49, online: false },
-  { valor: 'carteira', rotulo: 'Carteira', taxa: 0, online: false },
+  /* A taxa NAO mora aqui desde a DEC-027: cada loja configura a sua
+     (`taxas-api.ts`), e o PDV le a mesma tabela que o servidor usa. */
+  { valor: 'dinheiro', rotulo: 'Dinheiro', online: false },
+  { valor: 'pix', rotulo: 'Pix', online: false },
+  { valor: 'debito', rotulo: 'Débito', online: false },
+  { valor: 'credito', rotulo: 'Crédito', online: false },
+  { valor: 'carteira', rotulo: 'Carteira', online: false },
 ]
 
 export type Pagamento = {
@@ -185,27 +186,13 @@ export type Pagamento = {
   parcelas?: number
 }
 
-/** Ate quantas vezes o balcao parcela no credito — a tabela da api cobre 1x a 12x. */
-export const PARCELAS_MAXIMAS = 12
-
 /**
- * Taxa estimada do credito por numero de parcelas, em %.
- *
- * A mesma escada da tabela padrao da api (`default-settings`): quem calcula o
- * liquido de verdade e o servidor. Aqui e so a previsao que o operador ve
- * antes de fechar, e parcelar tem de parecer mais caro na tela tambem.
+ * Taxa cobrada pela operadora sobre um pagamento, em reais — a previsao que o
+ * operador ve antes de fechar. Quem calcula o liquido de verdade e o
+ * servidor, com a MESMA tabela (a da loja, ou a padrao).
  */
-export function taxaDoCredito(parcelas: number): number {
-  if (parcelas <= 1) return FORMAS.find((f) => f.valor === 'credito')?.taxa ?? 0
-  if (parcelas === 2) return 5
-  return 6 + (parcelas - 3) * 1.5
-}
-
-/** Taxa cobrada pela operadora sobre um pagamento. */
-export function taxaDoPagamento(pagamento: Pagamento): number {
-  const forma = FORMAS.find((f) => f.valor === pagamento.forma)
-  if (!forma) return 0
-  const taxa = pagamento.forma === 'credito' ? taxaDoCredito(pagamento.parcelas ?? 1) : forma.taxa
+export function taxaDoPagamento(pagamento: Pagamento, tabela: TabelaDeTaxas): number {
+  const taxa = taxaDaForma(tabela, pagamento.forma, pagamento.parcelas ?? 1) ?? 0
   return (pagamento.valor * taxa) / 100
 }
 
@@ -214,10 +201,10 @@ export function taxaDoPagamento(pagamento: Pagamento): number {
  * da operadora. E este numero que precisa bater com o extrato — nao o
  * valor de venda.
  */
-export function valorLiquido(pagamentos: Pagamento[]): number {
+export function valorLiquido(pagamentos: Pagamento[], tabela: TabelaDeTaxas): number {
   return pagamentos
     .filter((p) => p.status === 'confirmado')
-    .reduce((acc, p) => acc + p.valor - taxaDoPagamento(p), 0)
+    .reduce((acc, p) => acc + p.valor - taxaDoPagamento(p, tabela), 0)
 }
 
 /** SUBSTITUIR POR: POST /vendas/:id/cobrancas */

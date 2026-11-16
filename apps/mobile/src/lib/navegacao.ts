@@ -49,6 +49,7 @@ export const GRUPOS: Grupo[] = [
       { rota: '/contas-a-receber', rotulo: 'Contas a receber' },
       { rota: '/contas-bancarias', rotulo: 'Contas bancárias' },
       { rota: '/conciliacao', rotulo: 'Conciliação' },
+      { rota: '/taxas-de-recebimento', rotulo: 'Taxas de recebimento' },
       { rota: '/plano-de-contas', rotulo: 'Plano de contas' },
       { rota: '/dre', rotulo: 'Resultado' },
       { rota: '/relatorios', rotulo: 'Relatórios' },
