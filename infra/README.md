@@ -119,6 +119,30 @@ não reverte (não há o que reverter). Volumes nunca entram na limpeza. Para ve
 o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
 que só lê. Os logs dos containers têm teto (3 × 10 MB por serviço).
 
+**Redis que não sobe (NR-229).** O Redis grava tudo num log (AOF) que relê ao
+subir. Se esse log corromper — uma escrita pela metade num disco cheio — o
+Redis no ar segue normal, com os dados na memória, e o problema só aparece
+quando o container é recriado: ele entra em loop de reinício ("Bad file format
+reading the append only file") e api, worker e web não sobem. Foi o que
+derrubou o deploy **e** a reversão de 17/11. Daí três defesas:
+
+- antes de recriar o Redis, `deploy.sh` reescreve o log a partir da memória
+  (`BGREWRITEAOF`) — o container novo lê exatamente o que estava no ar;
+- com o Redis já doente, `deploy.sh` para antes do build (código 3, nada
+  tocado);
+- a reversão usa o `deploy.sh` do commit novo e não rebuilda: as imagens do
+  commit anterior já estão na máquina.
+
+Se acontecer mesmo assim: **Actions → Recuperar Redis — VPS**, digitando
+`RECUPERAR`. O [`recuperar-redis.sh`](recuperar-redis.sh) confirma que o log
+está corrompido e que o retrato da memória (`dump.rdb`, gravado quando o Redis
+desliga) está íntegro. Depois guarda cópia de tudo em
+`/data/recuperacao-<data>/` no próprio volume, reconstrói o log a partir do
+retrato e sobe de novo a versão do `git` da máquina. Não perde dado e não
+apaga nada. **Não** apague o log e religue: com o AOF ligado e sem log, o
+Redis ignora o `dump.rdb` e sobe vazio. Para ver estado, saúde e log de cada
+container: **Diagnostico — VPS**.
+
 À mão, na própria máquina, é o mesmo caminho:
 
 ```bash

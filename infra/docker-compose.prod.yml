@@ -39,6 +39,11 @@ services:
     image: postgres:17-alpine
     container_name: naregua-postgres
     restart: unless-stopped
+    # Tempo para desligar limpo quando o deploy recria o container — NR-229. O
+    # padrao do Docker e 10 s e depois SIGKILL; no deploy de 17/11, com o disco
+    # ocupado pelo build, o Postgres nao fechou a tempo e subiu em modo de
+    # recuperacao ("database system was not properly shut down").
+    stop_grace_period: 1m
     # O volume `wal-archive` nasce de `root`, e o `archive_command` roda como
     # `postgres`: sem o chown, todo arquivamento falha com `Permission denied`
     # e nao ha PITR nenhum — a producao ficou assim por duas semanas sem que
@@ -88,6 +93,9 @@ services:
     image: redis:7-alpine
     container_name: naregua-redis
     restart: unless-stopped
+    # Desligar limpo grava o retrato da memoria (dump.rdb) e fecha o log — e o
+    # retrato e o que `infra/recuperar-redis.sh` usa se o log corromper (NR-229).
+    stop_grace_period: 30s
     volumes:
       - redis-data:/data
     healthcheck:

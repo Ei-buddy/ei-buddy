@@ -1,0 +1,100 @@
+name: Recuperar Redis — VPS
+
+# Religa o Redis cujo log (AOF) corrompeu, sem perder dado, e sobe de novo a
+# versao que estava no ar — NR-229. O passo a passo, e o porque de cada um,
+# esta no cabecalho de `infra/recuperar-redis.sh`.
+#
+# Nasceu de 17/11: o deploy recriou o container do Redis, ele nao conseguiu
+# reler o proprio log ("Bad file format reading the append only file"), ficou
+# em loop de reinicio, e api, worker e web nao subiram — nem na reversao.
+#
+# Manual, e com confirmacao digitada: ele PARA o Redis e mexe nos arquivos do
+# volume (guardando copia de tudo). Com o Redis saudavel, nao mexe nele e so
+# garante que o resto esta de pe.
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Maquina
+        required: true
+        default: production
+        type: choice
+        options: [production, dev]
+      confirmar:
+        description: Digite RECUPERAR para confirmar
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# O MESMO grupo do deploy: os dois mexem no mesmo compose, na mesma maquina, e
+# um no meio do outro seria pior que qualquer um dos dois sozinho.
+concurrency:
+  group: deploy-${{ inputs.ambiente }}
+  cancel-in-progress: false
+
+jobs:
+  recuperar:
+    name: Recuperar o Redis
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ambiente }}
+    env:
+      HOST: ${{ secrets.VPS_HOST }}
+      USUARIO: ${{ secrets.VPS_USER }}
+      PORTA: ${{ vars.VPS_SSH_PORT || '22' }}
+      CAMINHO: ${{ vars.VPS_DEPLOY_PATH || '/opt/na-regua' }}
+      COMMIT: ${{ github.sha }}
+
+    steps:
+      - name: Confirmacao
+        env:
+          CONFIRMAR: ${{ inputs.confirmar }}
+        run: |
+          if [ "$CONFIRMAR" != 'RECUPERAR' ]; then
+            echo "::error::Confirmacao ausente: digite RECUPERAR no campo 'confirmar'. Nada foi feito."
+            exit 1
+          fi
+
+      - name: Entrar na tailnet
+        if: vars.VPS_VIA_TAILSCALE == 'sim'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Chave de acesso
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          FINGERPRINT: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$FINGERPRINT" ]; then
+            printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$PORTA" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'EOF'
+          Host *
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          EOF
+
+      # O script vem do commit deste workflow (`git show`), e o checkout do
+      # servidor NAO muda: ele continua no commit que deveria estar no ar, que
+      # e o que o script sobe de novo no fim.
+      - name: Recuperar
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' \
+             && git fetch --prune --tags origin \
+             && git show '$COMMIT:infra/recuperar-redis.sh' > /tmp/recuperar-redis.sh \
+             && bash /tmp/recuperar-redis.sh"
+
+      - name: Apagar a chave
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
