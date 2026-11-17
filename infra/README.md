@@ -111,6 +111,13 @@ Dispara por tag `v*` ou à mão, pelo
 `/health`, com reversão para o commit anterior se algo falhar. Detalhes em
 [ci-cd.md](../docs/engenharia/ci-cd.md#deploy--vps-com-compose).
 
+**Cache do build (NR-230).** O `pnpm install` das imagens guarda o store do
+pnpm num cache do BuildKit, fora da imagem, que sobrevive entre deploys: só
+desce do npm o que mudou no lockfile. E `docs/`, `infra/`, `.github/` e `e2e/`
+ficam fora do contexto (`.dockerignore`), então um commit só disso sai inteiro
+do cache. Quem zera esse cache é a limpeza por falta de espaço abaixo: o
+deploy seguinte baixa tudo de novo e só fica mais lento.
+
 **Espaço em disco (NR-227).** O build exige 10 GB livres. Abaixo disso,
 `deploy.sh` primeiro apaga o que se reconstrói — imagens que nenhum container
 usa (a versão no ar fica, como alvo da reversão) e o cache de build — e mede de
