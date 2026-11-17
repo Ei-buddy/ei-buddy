@@ -9,3 +9,12 @@
 .env
 .env.*
 coverage
+
+# Fora da imagem — NR-230. Nada disto e lido no build nem em runtime (o deploy
+# usa o `infra/` do checkout da maquina, nao o da imagem), e com isto um commit
+# so de documentacao, de infra ou de workflow nao invalida o `COPY . .`: o build
+# inteiro sai do cache.
+docs
+infra
+.github
+e2e
