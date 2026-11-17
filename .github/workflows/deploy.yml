@@ -332,12 +332,34 @@ jobs:
           } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
 
       - name: Subir ${{ github.sha }}
+        id: subir
         run: |
+          # `set +e` para LER o codigo do deploy.sh antes de falhar o passo.
+          set +e
           ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
             "cd '$CAMINHO' \
              && git fetch --prune --tags origin \
              && git checkout --detach '$COMMIT' \
              && DEPLOY_TAG='$COMMIT' bash infra/deploy.sh"
+          codigo=$?
+          # 3 = faltou espaco e NADA foi tocado (NR-227): sem build, sem
+          # migration, sem container novo. Nao ha o que reverter.
+          if [ "$codigo" -eq 3 ]; then
+            echo "intocado=sim" >> "$GITHUB_OUTPUT"
+            echo "::error title=Sem espaco na VPS::Mesmo depois de apagar imagens sem uso e o cache de build, o disco nao chegou ao minimo. Nada foi trocado: a versao no ar continua. Veja o espaco com o workflow de diagnostico."
+          fi
+          exit "$codigo"
+
+      # Nada foi tocado: so devolve o `git` do servidor ao commit que esta no ar.
+      # Sem isto, a proxima rodada leria o commit NOVO como "o que esta no ar" e
+      # usaria como alvo de reversao uma versao que nunca subiu.
+      - name: Devolver o git para ${{ steps.anterior.outputs.sha }}
+        if: failure() && steps.subir.outputs.intocado == 'sim' && steps.anterior.outputs.sha != ''
+        env:
+          ANTERIOR: ${{ steps.anterior.outputs.sha }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
+            "cd '$CAMINHO' && git checkout --detach '$ANTERIOR'"
 
       # `/health` nao passou, ou o SSH caiu no meio: volta para a imagem
       # anterior, que continua na maquina marcada com o commit dela. Sem
@@ -346,7 +368,7 @@ jobs:
       # `MIGRAR=nao`: migration aqui e forward-only, entao voltar o codigo nao
       # volta o schema. Ver o cabecalho de `infra/deploy.sh`.
       - name: Reverter para ${{ steps.anterior.outputs.sha }}
-        if: failure() && steps.anterior.outputs.sha != ''
+        if: failure() && steps.subir.outputs.intocado != 'sim' && steps.anterior.outputs.sha != ''
         env:
           ANTERIOR: ${{ steps.anterior.outputs.sha }}
         run: |

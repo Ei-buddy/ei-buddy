@@ -111,6 +111,14 @@ Dispara por tag `v*` ou à mão, pelo
 `/health`, com reversão para o commit anterior se algo falhar. Detalhes em
 [ci-cd.md](../docs/engenharia/ci-cd.md#deploy--vps-com-compose).
 
+**Espaço em disco (NR-227).** O build exige 10 GB livres. Abaixo disso,
+`deploy.sh` primeiro apaga o que se reconstrói — imagens que nenhum container
+usa (a versão no ar fica, como alvo da reversão) e o cache de build — e mede de
+novo. Se ainda faltar, sai com código 3 sem ter tocado em nada, e o workflow
+não reverte (não há o que reverter). Volumes nunca entram na limpeza. Para ver
+o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
+que só lê. Os logs dos containers têm teto (3 × 10 MB por serviço).
+
 À mão, na própria máquina, é o mesmo caminho:
 
 ```bash
