@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import EditarCliente from '@/components/clientes/EditarCliente'
 
 export const metadata: Metadata = {
-  title: `Editar cliente — ${BRAND}`,
+  title: 'Editar cliente',
 }
 
 /**

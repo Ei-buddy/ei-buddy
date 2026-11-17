@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ClienteDetalhe from '@/components/clientes/ClienteDetalhe'
 
 /**
@@ -11,7 +10,7 @@ import ClienteDetalhe from '@/components/clientes/ClienteDetalhe'
  * tela. O nome continua no cabecalho da pagina, que e onde se le.
  */
 export const metadata: Metadata = {
-  title: `Cliente — ${BRAND}`,
+  title: 'Cliente',
 }
 
 export default async function ClienteDetalhePage({ params }: PageProps<'/app/clientes/[id]'>) {

@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import SuporteView from '@/components/suporte/SuporteView'
 
 export const metadata: Metadata = {
-  title: `Suporte — ${BRAND}`,
+  title: 'Suporte',
   description: 'Abra chamados e acompanhe as respostas do time.',
 }
 

@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import RelatoriosView from '@/components/financeiro/RelatoriosView'
 
 export const metadata: Metadata = {
-  title: `Relatórios — ${BRAND}`,
+  title: 'Relatórios',
   description: 'Faturamento mês a mês e os rankings de cliente e de produto.',
 }
 

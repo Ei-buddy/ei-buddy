@@ -22,8 +22,20 @@
 
 name: na-regua-prod
 
+# Log dos containers com teto — NR-227. Sem rotacao, o `json-file` padrao do
+# Docker cresce para sempre em /var/lib/docker, no MESMO disco do banco e das
+# imagens: foi um dos suspeitos do deploy que parou por falta de espaco.
+# 3 arquivos de 10 MB por servico bastam para investigar o que acabou de
+# acontecer; o historico de verdade esta na trilha de auditoria, no banco.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   postgres:
+    logging: *logging
     image: postgres:17-alpine
     container_name: naregua-postgres
     restart: unless-stopped
@@ -72,6 +84,7 @@ services:
       - 'archive_timeout=900'
 
   redis:
+    logging: *logging
     image: redis:7-alpine
     container_name: naregua-redis
     restart: unless-stopped
@@ -86,6 +99,7 @@ services:
     command: ['redis-server', '--appendonly', 'yes']
 
   api:
+    logging: *logging
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
@@ -106,6 +120,7 @@ services:
       start_period: 15s
 
   worker:
+    logging: *logging
     build:
       context: ..
       dockerfile: apps/worker/Dockerfile
@@ -120,6 +135,7 @@ services:
         condition: service_healthy
 
   web:
+    logging: *logging
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
@@ -133,6 +149,7 @@ services:
       - api
 
   caddy:
+    logging: *logging
     image: caddy:2-alpine
     container_name: naregua-caddy
     restart: unless-stopped

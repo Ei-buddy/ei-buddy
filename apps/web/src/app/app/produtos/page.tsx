@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ProdutosLista from '@/components/produtos/ProdutosLista'
 
 export const metadata: Metadata = {
-  title: `Produtos — ${BRAND}`,
+  title: 'Produtos',
   description: 'Catálogo, preços e controle de estoque.',
 }
 

@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import DocumentosLegais from '@/components/legal/DocumentosLegais'
-import { BRAND } from '@/content/site'
 import styles from './privacidade-e-termos.module.css'
 
 export const metadata: Metadata = {
-  title: `Privacidade e Termos — ${BRAND}`,
+  title: 'Privacidade e Termos',
   description: 'Documentos em vigor, direitos do titular e canal do encarregado.',
 }
 

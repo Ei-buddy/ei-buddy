@@ -1,0 +1,107 @@
+name: Diagnostico — VPS
+
+# O que ocupa o disco da VM — NR-227.
+#
+# Nasceu do deploy de 16/11, que parou com 7 GB livres sem que ninguem
+# soubesse dizer o que enchia o disco: quem opera pelo GitHub nao entra na
+# maquina. Este workflow entra, LE e imprime. Nao apaga nada, nao reinicia
+# nada, e nao imprime segredo (nem variavel de ambiente, nem o crontab: so
+# conta se o backup esta agendado).
+#
+# Manual, como o deploy de producao: Actions > Diagnostico — VPS > Run.
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Maquina a examinar
+        required: true
+        default: production
+        type: choice
+        options: [production, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostico:
+    name: Disco e Docker
+    runs-on: ubuntu-latest
+    # Os mesmos segredos do deploy, no mesmo Environment.
+    environment: ${{ inputs.ambiente }}
+    env:
+      HOST: ${{ secrets.VPS_HOST }}
+      USUARIO: ${{ secrets.VPS_USER }}
+      PORTA: ${{ vars.VPS_SSH_PORT || '22' }}
+      CAMINHO: ${{ vars.VPS_DEPLOY_PATH || '/opt/na-regua' }}
+
+    steps:
+      - name: Entrar na tailnet
+        if: vars.VPS_VIA_TAILSCALE == 'sim'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Chave de acesso
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          FINGERPRINT: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$FINGERPRINT" ]; then
+            printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$PORTA" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: O que ocupa o disco
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" "CAMINHO='$CAMINHO' bash -s" <<'DIAGNOSTICO'
+          titulo() { printf '\n==> %s\n' "$1"; }
+
+          titulo 'Disco'
+          df -h / "$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)" 2>/dev/null | awk '!visto[$0]++'
+
+          titulo 'Docker (resumo)'
+          docker system df 2>/dev/null || echo 'sem acesso ao docker'
+
+          titulo 'Imagens (da mais nova para a mais antiga)'
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}  {{.CreatedSince}}' 2>/dev/null
+
+          titulo 'Volumes'
+          docker system df -v 2>/dev/null | sed -n '/^VOLUME NAME/,/^$/p'
+
+          titulo 'Containers'
+          docker ps -a --format '{{.Names}}  {{.Image}}  {{.Status}}' 2>/dev/null
+
+          titulo 'Logs dos containers (tamanho)'
+          for c in $(docker ps -aq 2>/dev/null); do
+            nome=$(docker inspect -f '{{.Name}}' "$c")
+            arquivo=$(docker inspect -f '{{.LogPath}}' "$c")
+            tamanho=$(sudo -n du -h "$arquivo" 2>/dev/null | cut -f1)
+            echo "${nome#/}  ${tamanho:-sem permissao para medir}"
+          done
+
+          titulo 'Backups locais'
+          du -sh /var/backups/na-regua 2>/dev/null || echo 'pasta /var/backups/na-regua ausente ou sem permissao'
+          ls -1 /var/backups/na-regua 2>/dev/null | tail -5
+          echo "linhas de backup agendadas no crontab: $(crontab -l 2>/dev/null | grep -c 'backup.sh' || true)"
+          echo "timers do systemd com backup: $(systemctl list-timers --all 2>/dev/null | grep -ci backup || true)"
+
+          titulo 'Logs do sistema (journal)'
+          journalctl --disk-usage 2>/dev/null || echo 'sem permissao'
+
+          titulo 'Maiores pastas (ate 2 niveis, mesmo disco)'
+          du -xh --max-depth=2 /home /var /opt 2>/dev/null | sort -rh | head -15
+
+          titulo 'Repositorio no servidor'
+          cd "$CAMINHO" 2>/dev/null && git --no-pager log -1 --format='%h %s' && git status --short | head -10
+          DIAGNOSTICO
+
+      - name: Apagar a chave
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

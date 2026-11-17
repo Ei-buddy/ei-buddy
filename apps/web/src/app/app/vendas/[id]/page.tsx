@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { BRAND } from '@/content/site'
 import { buscarVenda } from '@/lib/vendas-server'
 import VendaDetalhe from '@/components/vendas/VendaDetalhe'
 
@@ -11,7 +10,7 @@ export async function generateMetadata({
   const venda = await buscarVenda(id)
 
   return {
-    title: venda ? `Venda #${venda.numero} — ${BRAND}` : `Venda — ${BRAND}`,
+    title: venda ? `Venda #${venda.numero}` : 'Venda',
   }
 }
 

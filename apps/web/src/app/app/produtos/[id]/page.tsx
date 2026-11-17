@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ProdutoDetalhe from '@/components/produtos/ProdutoDetalhe'
 
 /**
@@ -11,7 +10,7 @@ import ProdutoDetalhe from '@/components/produtos/ProdutoDetalhe'
  * cabecalho da pagina, que e onde se le.
  */
 export const metadata: Metadata = {
-  title: `Produto — ${BRAND}`,
+  title: 'Produto',
 }
 
 export default async function ProdutoDetalhePage({ params }: PageProps<'/app/produtos/[id]'>) {

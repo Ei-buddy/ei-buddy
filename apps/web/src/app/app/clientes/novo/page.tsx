@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ClienteForm from '@/components/clientes/ClienteForm'
 
 export const metadata: Metadata = {
-  title: `Novo cliente — ${BRAND}`,
+  title: 'Novo cliente',
 }
 
 export default function NovoClientePage() {

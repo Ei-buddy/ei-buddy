@@ -1,12 +1,11 @@
 import type { Metadata } from 'next'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import { BRAND } from '@/content/site'
 import ListaVipForm from './ListaVipForm'
 import styles from './lista-vip.module.css'
 
 export const metadata: Metadata = {
-  title: `Grupo VIP de Pré-Lançamento — ${BRAND}`,
+  title: 'Grupo VIP de Pré-Lançamento',
   description: 'Ajude a moldar o EiBuddy antes do lançamento e entre para o Grupo VIP.',
 }
 
