@@ -3,7 +3,7 @@ import PaginaLegal, { Pendente } from '@/components/legal/PaginaLegal'
 import { BRAND } from '@/content/site'
 
 export const metadata: Metadata = {
-  title: `Política de Privacidade — ${BRAND}`,
+  title: 'Política de Privacidade',
   description:
     'Quais dados o sistema trata, com qual base legal, por quanto tempo, e como exercer seus direitos.',
 }

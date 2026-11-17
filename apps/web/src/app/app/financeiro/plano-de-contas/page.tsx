@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import PlanoDeContasView from '@/components/financeiro/PlanoDeContasView'
 
 export const metadata: Metadata = {
-  title: `Plano de contas — ${BRAND}`,
+  title: 'Plano de contas',
   description: 'Estrutura de receitas e despesas, e custos fixos do negócio.',
 }
 

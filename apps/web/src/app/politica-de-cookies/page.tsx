@@ -9,7 +9,7 @@ import {
 } from '@/lib/cookies'
 
 export const metadata: Metadata = {
-  title: `Política de Cookies — ${BRAND}`,
+  title: 'Política de Cookies',
   description:
     'Quais cookies o sistema usa, para que servem e quanto duram. Hoje há um, e ele é essencial.',
 }

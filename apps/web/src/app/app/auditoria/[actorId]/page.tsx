@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import TrilhaDaPessoa from '@/components/auditoria/TrilhaDaPessoa'
 
 /**
@@ -10,7 +9,7 @@ import TrilhaDaPessoa from '@/components/auditoria/TrilhaDaPessoa'
  * duplicaria a chamada. O nome continua visivel no cabecalho da pagina.
  */
 export const metadata: Metadata = {
-  title: `Auditoria — ${BRAND}`,
+  title: 'Auditoria',
 }
 
 export default async function TrilhaDaPessoaPage({

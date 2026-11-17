@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import DreView from '@/components/financeiro/DreView'
 
 export const metadata: Metadata = {
-  title: `DRE — ${BRAND}`,
+  title: 'DRE',
   description: 'Receita, custo, despesa e resultado do período.',
 }
 

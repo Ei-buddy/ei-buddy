@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ProdutoForm from '@/components/produtos/ProdutoForm'
 
 export const metadata: Metadata = {
-  title: `Editar produto — ${BRAND}`,
+  title: 'Editar produto',
 }
 
 /** Editar o cadastro do produto — RF-017. O 404 de outra loja vem da api. */

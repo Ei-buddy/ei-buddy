@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import { Badge, Card, EmptyState, PageHeader, Stat } from '@/components/ui/UI'
 import { ButtonLink } from '@/components/ui/Button'
 import { IconArrowRight, IconPlus } from '@/components/Icons'
@@ -10,7 +9,7 @@ import MetaDiaria from '@/components/app/MetaDiaria'
 import styles from './painel.module.css'
 
 export const metadata: Metadata = {
-  title: `Visão geral — ${BRAND}`,
+  title: 'Visão geral',
 }
 
 /**

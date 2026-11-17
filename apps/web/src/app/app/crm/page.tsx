@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import CrmQuadro from '@/components/crm/CrmQuadro'
 
 export const metadata: Metadata = {
-  title: `CRM — ${BRAND}`,
+  title: 'CRM',
   description: 'Pendências e contatos em quadro, lançados pelo app e pelo WhatsApp.',
 }
 

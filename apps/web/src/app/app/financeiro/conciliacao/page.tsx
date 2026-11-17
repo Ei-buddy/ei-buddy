@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ConciliacaoView from '@/components/financeiro/ConciliacaoView'
 
 export const metadata: Metadata = {
-  title: `Conciliação bancária — ${BRAND}`,
+  title: 'Conciliação bancária',
   description: 'Confira o extrato do banco contra os lançamentos.',
 }
 

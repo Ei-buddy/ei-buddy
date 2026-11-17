@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ContasBancariasView from '@/components/financeiro/ContasBancariasView'
 
 export const metadata: Metadata = {
-  title: `Contas bancárias — ${BRAND}`,
+  title: 'Contas bancárias',
   description: 'As contas da loja, com o saldo de cada uma.',
 }
 

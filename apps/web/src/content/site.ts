@@ -32,6 +32,16 @@
 export const BRAND = 'EiBuddy'
 
 /**
+ * O nome na ABA do navegador — "Ei Buddy", com espaco, como o lojista fala.
+ *
+ * Separado de `BRAND` de proposito: o pedido foi so a aba. A marca escrita na
+ * tela (sidebar, login, textos legais) continua `BRAND`. O layout raiz usa
+ * este nome no modelo de titulo (`%s — Ei Buddy`), e cada tela declara so o
+ * proprio nome.
+ */
+export const NOME_NA_ABA = 'Ei Buddy'
+
+/**
  * Liga o modo pre-lancamento da landing.
  *
  * O app ainda nao tem partes essenciais prontas (integracoes de API, agente,

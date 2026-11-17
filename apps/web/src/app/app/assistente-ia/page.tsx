@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { BRAND } from '@/content/site'
 import ChatAssistente from '@/components/assistente/ChatAssistente'
 
 export const metadata: Metadata = {
-  title: `Assistente — ${BRAND}`,
+  title: 'Assistente',
   description: 'Pergunte em texto sobre vendas, clientes, produtos e contas.',
 }
 
