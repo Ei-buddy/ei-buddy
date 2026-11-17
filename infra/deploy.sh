@@ -54,17 +54,38 @@ git --no-pager log -1 --format='%h %s' || true
 
 passo "Espaco em disco (minimo ${LIVRE_MINIMO_GB} GB)"
 raiz_docker=$(docker info --format '{{.DockerRootDir}}')
-livre_gb=$(df -Pk "$raiz_docker" | awk 'NR == 2 { print int($4 / 1048576) }')
+livre() { df -Pk "$raiz_docker" | awk 'NR == 2 { print int($4 / 1048576) }'; }
+livre_gb=$(livre)
 echo "livre em ${raiz_docker}: ${livre_gb} GB"
 # A reversao sobe imagens que ja estao na maquina e nao builda nada: barrar
 # por espaco justo ela, com o disco cheio do deploy que falhou, seria o pior
 # momento.
-if docker image inspect "eibuddy-web:${DEPLOY_TAG}" >/dev/null 2>&1; then
-  echo 'imagens deste commit ja existem — o build e so cache'
-elif [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
-  printf '\n\033[31mSo %s GB livres. Nada foi buildado.\033[0m\n' "$livre_gb"
-  printf 'Veja `docker system df` e `docker images eibuddy-*` na maquina.\n'
-  exit 1
+precisa_build() { ! docker image inspect "eibuddy-web:${DEPLOY_TAG}" >/dev/null 2>&1; }
+
+# Pouco espaco: antes de desistir, apaga o que e RECONSTRUIVEL — NR-227.
+#
+# O deploy de 16/11 parou com 7 GB livres, e o que ocupava o disco era, em boa
+# parte, imagem de deploy antigo e cache de build. As duas coisas se refazem:
+# - `image prune -a` so apaga imagem que NENHUM container usa. A versao que
+#   esta no ar fica — e ela o alvo da reversao, se este deploy falhar;
+# - `builder prune -a` apaga o cache de build. O build seguinte fica mais
+#   lento (baixa e compila de novo), e e so isso.
+# Volume (banco, WAL, redis, certificados do caddy) NAO entra: `prune` de
+# imagem e de cache nao toca em volume.
+if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
+  passo "Pouco espaco (${livre_gb} GB): apagando imagens sem uso e o cache de build"
+  docker image prune -af || true
+  docker builder prune -af || true
+  livre_gb=$(livre)
+  echo "livre agora: ${livre_gb} GB"
+fi
+
+if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
+  printf '\n\033[31mSo %s GB livres, mesmo depois de limpar. Nada foi buildado.\033[0m\n' "$livre_gb"
+  printf 'Veja `docker system df -v` e `du -sh /var/backups/na-regua` na maquina.\n'
+  # Codigo PROPRIO: nada foi trocado, e o workflow nao precisa reverter (a
+  # reversao rebuildaria a versao no ar por uma hora sem necessidade).
+  exit 3
 fi
 
 passo 'Build das imagens (cache da maquina; sem registry)'
