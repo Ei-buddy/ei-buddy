@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import AgendaView from '@/components/agenda/AgendaView'
 
 export const metadata: Metadata = {
-  title: `Agenda — ${BRAND}`,
+  title: 'Agenda',
   description: 'Compromissos, entregas e vencimentos, com lembrete antes da hora.',
 }
 

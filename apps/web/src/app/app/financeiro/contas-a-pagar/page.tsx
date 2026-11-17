@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ContasView from '@/components/financeiro/ContasView'
 
 export const metadata: Metadata = {
-  title: `Contas a pagar — ${BRAND}`,
+  title: 'Contas a pagar',
   description: 'Titulos, vencimentos e baixas.',
 }
 

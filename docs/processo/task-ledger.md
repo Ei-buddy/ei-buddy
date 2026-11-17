@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     193 |  368 |
-| ✅ Concluídas                 |     186 |  343 |
+| Total                         |     194 |  369 |
+| ✅ Concluídas                 |     187 |  344 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -433,6 +433,7 @@ voltam a ⬜.
 | NR-225 | Conciliar dá baixa (DEC-026): casamento automático do extrato com as contas a pagar e a receber, conferência lado a lado (web e app), confirmação em lote que concilia e baixa na ordem do extrato, na conta e na data do banco; desfazer estorna a baixa da conciliação                                                                                              |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   2 | —                                      | —    | RF-078, RF-079, RF-080, RF-059, RF-066, RF-067     |   ✅   |
 | NR-226 | Loja com assinatura restrita ou cancelada só lê, no servidor (RF-117): a api e o WhatsApp levam a situação da assinatura ao contexto nas escritas, e o core recusa lançar; consultar, exportar, abrir chamado e os pedidos LGPD continuam                                                                                                                             |   🟢   | `core` `api` `agent`                                          |   1 | —                                      | —    | RF-117, RF-126                                     |   ✅   |
 | NR-227 | Deploy de produção sem espaço (16/11): deploy.sh apaga imagens sem uso e o cache de build antes de desistir; sem espaço mesmo assim, sai sem tocar em nada e o workflow não reverte; rotação dos logs dos containers; workflow de diagnóstico do disco, só de leitura                                                                                                 |   🟢   | `infra` `ci`                                                  |   1 | —                                      | —    | RNF-064                                            |   ✅   |
+| NR-228 | Aba do navegador com o ícone e o nome do produto: ícone SVG (balão "Ei" no degradê da marca), favicon.ico e ícone da Apple gerados dele, e títulos "<tela> — Ei Buddy" por modelo no layout raiz                                                                                                                                                                      |   🟢   | `web` `mobile`                                                |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                    |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                   |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                            |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -551,10 +552,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     117 |  178 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     118 |  179 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **368 dias-desenvolvedor** em 193 tarefas. Com 3 pessoas, isso é cerca
+Somando: **369 dias-desenvolvedor** em 194 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

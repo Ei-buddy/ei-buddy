@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import EmpresaForm from '@/components/empresa/EmpresaForm'
 import CelularDoCanal from '@/components/empresa/CelularDoCanal'
 import MeusDados from '@/components/empresa/MeusDados'
 
 export const metadata: Metadata = {
-  title: `Empresa — ${BRAND}`,
+  title: 'Empresa',
   description: 'Dados cadastrais, endereço, certificado digital e exportação completa.',
 }
 

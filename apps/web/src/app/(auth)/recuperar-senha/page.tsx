@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm'
 
 export const metadata: Metadata = {
-  title: `Recuperar senha — ${BRAND}`,
+  title: 'Recuperar senha',
 }
 
 export default function RecuperarSenhaPage() {

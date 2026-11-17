@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import OrcamentoFicha from '@/components/orcamentos/OrcamentoFicha'
 
 export const metadata: Metadata = {
-  title: `Orçamento — ${BRAND}`,
+  title: 'Orçamento',
   description: 'Orçamento para imprimir, mandar pelo WhatsApp ou converter em venda.',
 }
 

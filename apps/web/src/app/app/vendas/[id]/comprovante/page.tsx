@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { BRAND } from '@/content/site'
 import { buscarVenda } from '@/lib/vendas-server'
 import ComprovanteVenda from '@/components/vendas/ComprovanteVenda'
 
@@ -9,7 +8,7 @@ export async function generateMetadata({
 }: PageProps<'/app/vendas/[id]/comprovante'>): Promise<Metadata> {
   const { id } = await params
   const venda = await buscarVenda(id)
-  return { title: venda ? `Comprovante #${venda.numero} — ${BRAND}` : `Comprovante — ${BRAND}` }
+  return { title: venda ? `Comprovante #${venda.numero}` : 'Comprovante' }
 }
 
 /** Comprovante nao fiscal da venda — NR-154. */

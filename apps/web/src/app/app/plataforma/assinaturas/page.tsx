@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import AdminAssinaturasView from '@/components/admin/AdminAssinaturasView'
 
 export const metadata: Metadata = {
-  title: `Assinaturas — Plataforma — ${BRAND}`,
+  title: 'Assinaturas — Plataforma',
   description: 'Quem está em teste, em dia, atrasado ou restrito.',
 }
 

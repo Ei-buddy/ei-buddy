@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Poppins, Inter } from 'next/font/google'
 import AvisoDeCookies from '@/components/AvisoDeCookies'
 import ScrollRestoration from '@/components/ScrollRestoration'
-import { BRAND } from '@/content/site'
+import { NOME_NA_ABA } from '@/content/site'
 import { SCRIPT_TEMA_INICIAL } from '@/lib/tema-painel'
 import './globals.css'
 
@@ -23,8 +23,15 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  /* Le do BRAND para o nome nao precisar ser trocado em dois lugares. */
-  title: `${BRAND} — Gestao modular para o seu comercio`,
+  /*
+   * A aba do navegador mostra "<tela> — Ei Buddy". Cada pagina declara so o
+   * proprio nome; o modelo poe o nome do produto (`NOME_NA_ABA`). A pagina
+   * inicial, sem titulo proprio, fica com o `default`.
+   */
+  title: {
+    default: `${NOME_NA_ABA} — Gestão modular para o seu comércio`,
+    template: `%s — ${NOME_NA_ABA}`,
+  },
   description:
     'Modulos integrados de vendas, financeiro, estoque e fiscal, com um assistente que responde em linguagem natural.',
 }

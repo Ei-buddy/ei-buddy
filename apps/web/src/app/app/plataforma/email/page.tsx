@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import AdminEmailView from '@/components/admin/AdminEmailView'
 
 export const metadata: Metadata = {
-  title: `E-mail — Plataforma — ${BRAND}`,
+  title: 'E-mail — Plataforma',
   description: 'Envio de teste: confere se os e-mails da plataforma estão saindo.',
 }
 

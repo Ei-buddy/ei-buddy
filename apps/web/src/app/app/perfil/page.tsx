@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
-import { BRAND } from '@/content/site'
 import MeuPerfil from '@/components/perfil/MeuPerfil'
 import CelularDoCanal from '@/components/empresa/CelularDoCanal'
 
 export const metadata: Metadata = {
-  title: `Meu perfil — ${BRAND}`,
+  title: 'Meu perfil',
   description: 'Seu nome, e-mail, celular e senha.',
 }
 

@@ -3,7 +3,7 @@ import PaginaLegal, { Pendente } from '@/components/legal/PaginaLegal'
 import { BRAND } from '@/content/site'
 
 export const metadata: Metadata = {
-  title: `Termos de Uso — ${BRAND}`,
+  title: 'Termos de Uso',
   description: 'O que o sistema faz, o que é seu, e o que se espera de cada lado.',
 }
 
