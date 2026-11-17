@@ -342,11 +342,12 @@ jobs:
              && git checkout --detach '$COMMIT' \
              && DEPLOY_TAG='$COMMIT' bash infra/deploy.sh"
           codigo=$?
-          # 3 = faltou espaco e NADA foi tocado (NR-227): sem build, sem
-          # migration, sem container novo. Nao ha o que reverter.
+          # 3 = o deploy parou ANTES de trocar qualquer coisa (NR-227, NR-229):
+          # faltou espaco, o Redis no ar ja estava doente, ou a reescrita do log
+          # dele falhou. Sem migration, sem container novo: nao ha o que reverter.
           if [ "$codigo" -eq 3 ]; then
             echo "intocado=sim" >> "$GITHUB_OUTPUT"
-            echo "::error title=Sem espaco na VPS::Mesmo depois de apagar imagens sem uso e o cache de build, o disco nao chegou ao minimo. Nada foi trocado: a versao no ar continua. Veja o espaco com o workflow de diagnostico."
+            echo "::error title=Deploy parou antes de trocar nada::O motivo esta no log acima (espaco em disco ou Redis). A versao no ar nao foi tocada. Espaco: workflow Diagnostico — VPS. Redis: workflow Recuperar Redis — VPS."
           fi
           exit "$codigo"
 
@@ -367,6 +368,11 @@ jobs:
       #
       # `MIGRAR=nao`: migration aqui e forward-only, entao voltar o codigo nao
       # volta o schema. Ver o cabecalho de `infra/deploy.sh`.
+      #
+      # O `deploy.sh` que roda e o do commit NOVO, e nao o do anterior — NR-229.
+      # O compose e o codigo sao os do anterior (e o checkout), mas a SEQUENCIA
+      # e a mais recente: a de 17/11 usou o script antigo, que rebuildava mesmo
+      # com as imagens na maquina, e a reversao levou uma hora e vinte.
       - name: Reverter para ${{ steps.anterior.outputs.sha }}
         if: failure() && steps.subir.outputs.intocado != 'sim' && steps.anterior.outputs.sha != ''
         env:
@@ -375,8 +381,9 @@ jobs:
           echo "::error::Deploy de $COMMIT falhou. Voltando para $ANTERIOR."
           ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" \
             "cd '$CAMINHO' \
+             && git show '$COMMIT:infra/deploy.sh' > /tmp/deploy-da-reversao.sh \
              && git checkout --detach '$ANTERIOR' \
-             && DEPLOY_TAG='$ANTERIOR' MIGRAR=nao bash infra/deploy.sh"
+             && DEPLOY_TAG='$ANTERIOR' MIGRAR=nao bash /tmp/deploy-da-reversao.sh"
 
       - name: Apagar a chave
         if: always()

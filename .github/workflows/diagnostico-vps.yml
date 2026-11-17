@@ -78,6 +78,32 @@ jobs:
           titulo 'Containers'
           docker ps -a --format '{{.Names}}  {{.Image}}  {{.Status}}' 2>/dev/null
 
+          titulo 'Memoria'
+          free -m 2>/dev/null || true
+
+          # Estado, saude e log de cada servico — NR-229. O deploy de 17/11
+          # parou com "container naregua-redis is unhealthy", e o workflow so
+          # mostra a mensagem do compose, nunca o PORQUE: isso so o log diz.
+          for c in naregua-redis naregua-postgres naregua-api naregua-worker naregua-web naregua-caddy; do
+            titulo "Container ${c}"
+            docker inspect -f 'status={{.State.Status}} reinicios={{.RestartCount}} saida={{.State.ExitCode}} oom={{.State.OOMKilled}} erro={{.State.Error}} iniciado={{.State.StartedAt}}' "$c" 2>/dev/null || { echo 'nao existe'; continue; }
+            docker inspect -f '{{if .State.Health}}saude={{.State.Health.Status}} falhas_seguidas={{.State.Health.FailingStreak}}{{range .State.Health.Log}}
+            {{.End}} codigo={{.ExitCode}} {{printf "%.200s" .Output}}{{end}}{{else}}sem healthcheck{{end}}' "$c" 2>/dev/null
+            echo '--- log (ultimas 60 linhas)'
+            docker logs --tail 60 "$c" 2>&1 | cut -c1-300
+          done
+
+          # O que o Redis tem no volume: e o AOF que ele le ao subir. So LISTA,
+          # com o volume montado somente leitura e a imagem que ja esta na maquina.
+          titulo 'Volume do Redis (somente leitura)'
+          volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' naregua-redis 2>/dev/null)
+          if [ -n "$volume" ]; then
+            docker run --rm --network none -v "${volume}:/data:ro" --entrypoint sh redis:7-alpine \
+              -c 'ls -la /data /data/appendonlydir 2>&1; echo "--- manifest"; cat /data/appendonlydir/*.manifest 2>&1' 2>&1 | head -40
+          else
+            echo 'volume do redis nao encontrado'
+          fi
+
           titulo 'Logs dos containers (tamanho)'
           for c in $(docker ps -aq 2>/dev/null); do
             nome=$(docker inspect -f '{{.Name}}' "$c")

@@ -60,7 +60,16 @@ echo "livre em ${raiz_docker}: ${livre_gb} GB"
 # A reversao sobe imagens que ja estao na maquina e nao builda nada: barrar
 # por espaco justo ela, com o disco cheio do deploy que falhou, seria o pior
 # momento.
-precisa_build() { ! docker image inspect "eibuddy-web:${DEPLOY_TAG}" >/dev/null 2>&1; }
+#
+# As TRES imagens, e nao so a do web: um build que caiu no meio pode ter
+# deixado uma e nao as outras.
+precisa_build() {
+  local app
+  for app in api worker web; do
+    docker image inspect "eibuddy-${app}:${DEPLOY_TAG}" >/dev/null 2>&1 || return 0
+  done
+  return 1
+}
 
 # Pouco espaco: antes de desistir, apaga o que e RECONSTRUIVEL — NR-227.
 #
@@ -88,8 +97,69 @@ if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
   exit 3
 fi
 
-passo 'Build das imagens (cache da maquina; sem registry)'
-$COMPOSE build
+# Redis doente: parar ANTES de buildar — NR-229.
+#
+# Migration e `up -d` recriam o container do Redis quando o compose muda, e ele
+# so volta se conseguir reler o proprio log (AOF). Se ja nao esta saudavel
+# agora, o deploy nao vai consertar: so gastaria uma hora de build para cair no
+# mesmo lugar. Codigo 3: nada foi tocado.
+REDIS="${CONTAINER_REDIS:-naregua-redis}"
+if docker inspect "$REDIS" >/dev/null 2>&1; then
+  saude_redis=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}sem-healthcheck{{end}}' "$REDIS")
+  if [ "$saude_redis" != healthy ]; then
+    printf '\n\033[31mO Redis (%s) nao esta saudavel: %s. Nada foi buildado.\033[0m\n' "$REDIS" "$saude_redis"
+    printf 'Rode o workflow "Recuperar Redis — VPS" (infra/recuperar-redis.sh).\n'
+    exit 3
+  fi
+fi
+
+if precisa_build; then
+  passo 'Build das imagens (cache da maquina; sem registry)'
+  $COMPOSE build
+else
+  # A reversao cai aqui: as imagens do commit anterior ficaram na maquina. O
+  # `build` "so de cache" que rodava antes deixava de ser so cache quando a
+  # limpeza de espaco apagava o cache — e a reversao de 17/11 rebuildou tudo
+  # por uma hora.
+  passo "Imagens de ${DEPLOY_TAG} ja estao na maquina: sem build"
+fi
+
+# Log do Redis reescrito a partir da MEMORIA, antes de recria-lo — NR-229.
+#
+# O Redis no ar tem os dados certos na memoria, mas o log em disco pode ter
+# lixo (uma escrita pela metade num disco cheio) que ninguem ve ate ele reiniciar
+# — foi o que derrubou o deploy e a reversao de 17/11. `BGREWRITEAOF` troca o
+# log inteiro por um novo, gerado da memoria: o que o container recriado vai
+# ler passa a ser, por construcao, o que estava no ar.
+if docker inspect "$REDIS" >/dev/null 2>&1; then
+  passo 'Redis: reescrevendo o log (AOF) a partir da memoria'
+  # O contador `aof_rewrites` e o que prova que uma reescrita NOVA terminou:
+  # `aof_last_bgrewrite_status:ok` sozinho pode ser de uma reescrita antiga.
+  reescritas() { docker exec "$REDIS" redis-cli INFO persistence | tr -d '\r' | sed -n 's/^aof_rewrites://p'; }
+  antes_redis=$(reescritas)
+  # Erro aqui ("ja em andamento") nao e fatal: quem decide e o contador.
+  docker exec "$REDIS" redis-cli BGREWRITEAOF || true
+  limite_redis=$((SECONDS + ESPERA_DE_SAUDE_S))
+  while :; do
+    estado_redis=$(docker exec "$REDIS" redis-cli INFO persistence | tr -d '\r')
+    if [ "$(sed -n 's/^aof_rewrites://p' <<<"$estado_redis")" -gt "$antes_redis" ] &&
+      grep -qx 'aof_rewrite_in_progress:0' <<<"$estado_redis" &&
+      grep -qx 'aof_rewrite_scheduled:0' <<<"$estado_redis"; then
+      break
+    fi
+    if [ "$SECONDS" -ge "$limite_redis" ]; then
+      printf '\n\033[31mA reescrita do AOF nao terminou em %ss. Nada foi trocado.\033[0m\n' "$ESPERA_DE_SAUDE_S"
+      exit 3
+    fi
+    sleep 1
+  done
+  if ! grep -qx 'aof_last_bgrewrite_status:ok' <<<"$estado_redis"; then
+    printf '\n\033[31mA reescrita do AOF falhou. Nada foi trocado.\033[0m\n'
+    grep '^aof_' <<<"$estado_redis" || true
+    exit 3
+  fi
+  echo 'log do Redis reescrito'
+fi
 
 if [ "$MIGRAR" = 'sim' ]; then
   # `run --rm` sobe postgres/redis antes por causa do `depends_on: healthy` do
