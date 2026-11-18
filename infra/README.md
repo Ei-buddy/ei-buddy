@@ -118,6 +118,15 @@ ficam fora do contexto (`.dockerignore`), então um commit só disso sai inteiro
 do cache. Quem zera esse cache é a limpeza por falta de espaço abaixo: o
 deploy seguinte baixa tudo de novo e só fica mais lento.
 
+**Cada imagem só com o que a app usa (NR-235).** O install de cada Dockerfile é
+`--filter @na-regua/<app>...`: a app e os pacotes do workspace de que ela
+depende. Antes as três levavam o workspace inteiro (o app mobile com Expo e
+React Native, o Next, as ferramentas da raiz) e o cache de metadados do pnpm:
+3,3 GB cada, e o deploy de 18/11 passou duas horas só gravando isso no disco
+lento da VPS. Medido no build local: api 1,5 GB, worker 0,6 GB, web 2,2 GB.
+Dependência nova que a app use em runtime precisa estar no `package.json`
+dela (ou de um pacote do workspace que ela importa), não só na raiz.
+
 **Espaço em disco (NR-227).** O build exige 10 GB livres. Abaixo disso,
 `deploy.sh` primeiro apaga o que se reconstrói — imagens que nenhum container
 usa (a versão no ar fica, como alvo da reversão) e o cache de build — e mede de
