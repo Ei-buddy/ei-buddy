@@ -127,11 +127,20 @@ lento da VPS. Medido no build local: api 1,5 GB, worker 0,6 GB, web 2,2 GB.
 Dependência nova que a app use em runtime precisa estar no `package.json`
 dela (ou de um pacote do workspace que ela importa), não só na raiz.
 
-**Espaço em disco (NR-227).** O build exige 10 GB livres. Abaixo disso,
-`deploy.sh` primeiro apaga o que se reconstrói — imagens que nenhum container
-usa (a versão no ar fica, como alvo da reversão) e o cache de build — e mede de
-novo. Se ainda faltar, sai com código 3 sem ter tocado em nada, e o workflow
-não reverte (não há o que reverter). Volumes nunca entram na limpeza. Para ver
+**Espaço em disco (NR-227, NR-236).** O build exige 10 GB livres. Abaixo
+disso, `deploy.sh` primeiro apaga o que se reconstrói e mede de novo: as
+imagens `eibuddy-*` que nenhum container usa (a versão no ar fica, como alvo da
+reversão) e o cache de build, menos o store do pnpm. A imagem base dos
+Dockerfiles também fica. Só se ainda faltar espaço o cache do pnpm vai junto.
+Se mesmo assim faltar, sai com código 3 sem ter tocado em nada, e o workflow
+não reverte (não há o que reverter).
+
+**Rede da VPS (NR-236).** Antes do build, a imagem base (`node:22-alpine`) é
+baixada se não estiver na máquina, com até 5 tentativas e espera crescente. Com
+ela local, o build nem consulta o Docker Hub. Em 18/11 a limpeza tinha apagado
+a base, e o build morreu em 34 s com "TLS handshake timeout". Base que não
+desce, ou build que falha, também saem com código 3: as imagens novas nem
+existem, e a versão no ar segue a mesma. Basta rodar o deploy de novo. Volumes nunca entram na limpeza. Para ver
 o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
 que só lê. Os logs dos containers têm teto (3 × 10 MB por serviço).
 

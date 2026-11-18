@@ -394,12 +394,13 @@ jobs:
              && git checkout --detach '$COMMIT' \
              && DEPLOY_TAG='$COMMIT' bash infra/deploy.sh"
           codigo=$?
-          # 3 = o deploy parou ANTES de trocar qualquer coisa (NR-227, NR-229):
-          # faltou espaco, o Redis no ar ja estava doente, ou a reescrita do log
-          # dele falhou. Sem migration, sem container novo: nao ha o que reverter.
+          # 3 = o deploy parou ANTES de trocar qualquer coisa (NR-227, NR-229,
+          # NR-236): faltou espaco, o Redis no ar ja estava doente, a reescrita
+          # do log dele falhou, a imagem base nao desceu ou o build falhou. Sem
+          # migration, sem container novo: nao ha o que reverter.
           if [ "$codigo" -eq 3 ]; then
             echo "intocado=sim" >> "$GITHUB_OUTPUT"
-            echo "::error title=Deploy parou antes de trocar nada::O motivo esta no log acima (espaco em disco ou Redis). A versao no ar nao foi tocada. Espaco: workflow Diagnostico — VPS. Redis: workflow Recuperar Redis — VPS."
+            echo "::error title=Deploy parou antes de trocar nada::O motivo esta no log acima (espaco em disco, Redis, imagem base ou build). A versao no ar nao foi tocada. Espaco: workflow Diagnostico — VPS. Redis: workflow Recuperar Redis — VPS. Imagem base ou rede: rodar o deploy de novo."
           fi
           exit "$codigo"
 

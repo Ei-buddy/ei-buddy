@@ -42,9 +42,10 @@ MIGRAR="${MIGRAR:-sim}"
 # ci-cd.md ja documentava como limite antes de considerar o deploy perdido.
 ESPERA_DE_SAUDE_S="${ESPERA_DE_SAUDE_S:-120}"
 
-# Espaco livre minimo para comecar o build. Cada commit gera tres imagens de
-# ~2,6 GB; abaixo disto o build enche o disco no meio do unpack, depois de uma
-# hora, e leva o Postgres junto — foi o que aconteceu no deploy #126.
+# Espaco livre minimo para comecar o build. Cada commit gera tres imagens
+# (~1,5, ~0,6 e ~2,2 GB desde a NR-235); abaixo disto o build pode encher o
+# disco no meio do unpack e levar o Postgres junto — foi o que aconteceu no
+# deploy #126.
 LIVRE_MINIMO_GB="${LIVRE_MINIMO_GB:-10}"
 
 passo() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
@@ -74,19 +75,45 @@ precisa_build() {
 # Pouco espaco: antes de desistir, apaga o que e RECONSTRUIVEL — NR-227.
 #
 # O deploy de 16/11 parou com 7 GB livres, e o que ocupava o disco era, em boa
-# parte, imagem de deploy antigo e cache de build. As duas coisas se refazem:
-# - `image prune -a` so apaga imagem que NENHUM container usa. A versao que
-#   esta no ar fica — e ela o alvo da reversao, se este deploy falhar;
-# - `builder prune -a` apaga o cache de build. O build seguinte fica mais
-#   lento (baixa e compila de novo), e e so isso.
-# Volume (banco, WAL, redis, certificados do caddy) NAO entra: `prune` de
-# imagem e de cache nao toca em volume.
+# parte, imagem de deploy antigo e cache de build. As duas coisas se refazem.
+# Volume (banco, WAL, redis, certificados do caddy) NAO entra: nada aqui toca
+# em volume.
+#
+# O que fica de fora da limpeza, e por que — NR-236. A de 18/11 apagou tudo
+# com `prune -a`, e o deploy seguinte morreu em 34 s: a imagem base do
+# Dockerfile tinha ido junto, e baixa-la de novo dependia do Docker Hub, que
+# deu timeout na VPS. E o cache de build levou o store do pnpm, que custa uma
+# hora para refazer.
+# - Imagens: so as `eibuddy-*` que nenhum container usa (a versao no ar fica,
+#   como alvo da reversao), mais as sem nome. A base (`node:22-alpine`) e as
+#   de postgres/redis/caddy ficam.
+# - Cache de build: primeiro tudo MENOS os caches do pnpm (`exec.cachemount`).
+#   So se ainda faltar espaco eles vao tambem — build lento e melhor que
+#   build nenhum.
+limpar_imagens_antigas() {
+  local em_uso
+  em_uso=$(docker ps -a --format '{{.Image}}' | sort -u)
+  docker images --format '{{.Repository}}:{{.Tag}}' | grep '^eibuddy-' \
+    | grep -vxF -e '<none>' -f <(printf '%s\n' "$em_uso") \
+    | xargs -r docker rmi >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null || true
+}
+
 if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
-  passo "Pouco espaco (${livre_gb} GB): apagando imagens sem uso e o cache de build"
-  docker image prune -af || true
-  docker builder prune -af || true
+  passo "Pouco espaco (${livre_gb} GB): apagando imagens antigas e o cache de build (menos o do pnpm)"
+  limpar_imagens_antigas
+  # `type!=` e filtro do BuildKit; se o Docker da maquina nao entender, cai
+  # para a limpeza inteira, que era o comportamento de antes.
+  docker builder prune -af --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
+    || docker builder prune -af >/dev/null || true
   livre_gb=$(livre)
   echo "livre agora: ${livre_gb} GB"
+  if [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
+    passo "Ainda pouco (${livre_gb} GB): apagando tambem o cache do pnpm"
+    docker builder prune -af >/dev/null || true
+    livre_gb=$(livre)
+    echo "livre agora: ${livre_gb} GB"
+  fi
 fi
 
 if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
@@ -113,9 +140,38 @@ if docker inspect "$REDIS" >/dev/null 2>&1; then
   fi
 fi
 
+# Imagem base na maquina ANTES do build — NR-236.
+#
+# Com a base local, o BuildKit nem consulta o Docker Hub. Sem ela, o build
+# baixa no primeiro passo, e a rede da VPS ja deu "TLS handshake timeout" ali.
+# Aqui a mesma descida ganha tentativas com espera crescente; se nenhuma
+# passar, codigo 3 — nada foi trocado.
+TENTATIVAS_DE_PULL="${TENTATIVAS_DE_PULL:-5}"
+ESPERA_ENTRE_PULLS_S="${ESPERA_ENTRE_PULLS_S:-15}"
+garantir_imagens_base() {
+  local imagem tentativa
+  for imagem in $(sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p' apps/*/Dockerfile | sort -u); do
+    docker image inspect "$imagem" >/dev/null 2>&1 && continue
+    for tentativa in $(seq 1 "$TENTATIVAS_DE_PULL"); do
+      echo "baixando ${imagem} (tentativa ${tentativa} de ${TENTATIVAS_DE_PULL})"
+      docker pull -q "$imagem" && continue 2
+      [ "$tentativa" -lt "$TENTATIVAS_DE_PULL" ] && sleep $((tentativa * ESPERA_ENTRE_PULLS_S))
+    done
+    printf '\n\033[31mNao foi possivel baixar %s em %s tentativas. Nada foi trocado.\033[0m\n' "$imagem" "$TENTATIVAS_DE_PULL"
+    exit 3
+  done
+}
+
 if precisa_build; then
+  passo 'Imagem base dos Dockerfiles'
+  garantir_imagens_base
   passo 'Build das imagens (cache da maquina; sem registry)'
-  $COMPOSE build
+  # Build que falha nao trocou nada: as imagens novas nem existem, e os
+  # containers no ar seguem os de antes. Codigo 3, e nao reversao — NR-236.
+  if ! $COMPOSE build; then
+    printf '\n\033[31mO build falhou. Nada foi trocado; a versao no ar segue a mesma.\033[0m\n'
+    exit 3
+  fi
 else
   # A reversao cai aqui: as imagens do commit anterior ficaram na maquina. O
   # `build` "so de cache" que rodava antes deixava de ser so cache quando a
