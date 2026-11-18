@@ -93,6 +93,28 @@ jobs:
           done
           vmstat 2 3 2>/dev/null || true
 
+          # Quem esta no disco — NR-237. Em 18/11, sem deploy nenhum rodando, o
+          # disco passava 80% do tempo esperando (pressao de io acima): o
+          # culpado aparece como processo em estado D (esperando disco), ou no
+          # topo de CPU/memoria. /proc/<pid>/io conta bytes lidos e escritos
+          # desde que o processo nasceu; so le, e so o que o usuario pode ver.
+          titulo 'Processos esperando disco (estado D)'
+          ps -eo pid,stat,etime,pcpu,pmem,args 2>/dev/null | awk 'NR == 1 || $2 ~ /^D/' | cut -c1-200 | head -20
+
+          titulo 'Mais CPU e mais memoria'
+          ps -eo pid,etime,pcpu,pmem,rss,args --sort=-pcpu 2>/dev/null | head -8 | cut -c1-200
+          ps -eo pid,etime,pcpu,pmem,rss,args --sort=-rss 2>/dev/null | sed -n '2,8p' | cut -c1-200
+
+          titulo 'Quem mais leu e escreveu no disco (desde que nasceu)'
+          # Processo de outro usuario (os dos containers rodam como root) so
+          # se le com `sudo -n`, como o tamanho dos logs mais abaixo.
+          for d in /proc/[0-9]*; do
+            io=$(cat "$d/io" 2>/dev/null || sudo -n cat "$d/io" 2>/dev/null) || continue
+            awk -v pid="${d#/proc/}" -v cmd="$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null | cut -c1-120)" \
+              '/^read_bytes/ { r = $2 } /^write_bytes/ { w = $2 } END { if (r + w > 0) printf "%8d MB  %8d MB  %s  %s\n", r / 1048576, w / 1048576, pid, cmd }' <<<"$io"
+          done | sort -k1,1nr -k2,2nr | head -10
+          echo '(colunas: lido, escrito, pid, comando)'
+
           titulo 'Processos do deploy (mais antigos primeiro)'
           ps -eo pid,ppid,etime,stat,pcpu,pmem,args --sort=start_time 2>/dev/null \
             | grep -E 'deploy|compose|buildkit|docker (build|run|exec|stop|rm)|pnpm|git ' \

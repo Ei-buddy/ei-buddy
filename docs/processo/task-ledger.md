@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     202 |  377 |
-| ✅ Concluídas                 |     195 |  352 |
+| Total                         |     203 |  378 |
+| ✅ Concluídas                 |     196 |  353 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -442,6 +442,7 @@ voltam a ⬜.
 | NR-234 | Deploy leva a SECRETS_KEY do Environment ao servidor (em produção ela faltava, e a emissão fiscal ficava desligada); valida 32 bytes em base64 e nunca troca uma chave que o servidor já tem; a reversão só roda se o passo de subir falhou                                                                                                                                                                                                |   🟢   | `infra`                                                       |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-235 | Imagens Docker só com as dependências de cada app (`--filter`) e sem o cache de metadados do pnpm: api 3,3→1,5 GB, worker 3,3→0,6 GB, web 3,5→2,2 GB; o build de produção de 18/11 levou duas horas gravando o workspace inteiro em cada imagem                                                                                                                                                                                            |   🟢   | `infra` `api` `worker` `web`                                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-236 | Deploy não depende do Docker Hub: a limpeza por espaço mantém a imagem base e o cache do pnpm (só apaga este se ainda faltar), a base é baixada com até 5 tentativas antes do build, as imagens são construídas uma por vez (a primeira enche o cache de metadados do pnpm), e base que não desce ou build que falha saem com código 3 (nada trocado, sem reversão)                                                                        |   🟢   | `infra`                                                       |   1 | —                                      | —    | —                                                  |   ✅   |
+| NR-237 | Diagnóstico da VPS mostra processos esperando disco, os que mais usam CPU e memória, e quem mais leu e escreveu no disco (em 18/11 o disco ficava 80% do tempo esperando mesmo sem deploy); continua só lendo                                                                                                                                                                                                                              |   🟢   | `infra`                                                       |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                                                                                         |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                                                                                        |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                                                                                                 |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -560,10 +561,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     126 |  187 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     127 |  188 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **377 dias-desenvolvedor** em 202 tarefas. Com 3 pessoas, isso é cerca
+Somando: **378 dias-desenvolvedor** em 203 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 
