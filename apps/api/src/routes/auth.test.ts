@@ -468,6 +468,35 @@ describe('cadastro de conta — NR-014, RF-001', () => {
     expect(r.json().activeCompanyId).not.toBeNull()
   })
 
+  /*
+   * NR-231 — achado de usuaria em teste: criou a conta, saiu, e ao entrar de
+   * novo pelo celular, escrito do jeito que se escreve telefone, recebeu
+   * "senha incorreta". O cadastro guarda so os digitos; o login comparava o
+   * texto como veio.
+   */
+  it.each(['(41) 99999-0000', '41 99999-0000', '+55 41 99999-0000', '41999990000'])(
+    'DEPOIS do cadastro, o login pelo celular "%s" funciona',
+    async (celular) => {
+      const c = await buildApp()
+      app = c.app
+
+      await app.inject({
+        method: 'POST',
+        url: '/auth/signup',
+        payload: { ...CADASTRO, phone: '(41) 99999-0000' },
+      })
+
+      const r = await app.inject({
+        method: 'POST',
+        url: '/auth/login',
+        payload: { identifier: celular, secret: CADASTRO.secret },
+      })
+
+      expect(r.statusCode).toBe(200)
+      expect(r.json().activeCompanyId).not.toBeNull()
+    },
+  )
+
   it('nao exige sessao — quem cadastra ainda nao tem', async () => {
     const c = await buildApp()
     app = c.app

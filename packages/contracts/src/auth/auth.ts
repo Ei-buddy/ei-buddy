@@ -15,6 +15,36 @@ import { partnerAccountFieldsSchema, pixCombinaComTipo } from '../partners/partn
 /** Autenticacao, sessao e convite — RF-005, RF-119, RF-120. */
 
 /**
+ * Telefone do jeito que o cadastro guarda: so os digitos, sem o 55 — NR-231.
+ *
+ * O cadastro passa o celular por `phoneSchema`, que guarda `41998765432`. O
+ * login comparava o texto como foi digitado, e quem entrava com
+ * "(41) 99876-5432", "41 99876-5432" ou "+55 41 ..." — o jeito natural de
+ * escrever um telefone, e o que a tela de login aceita — recebia "senha
+ * incorreta" logo depois de criar a conta. Achado de usuaria em teste.
+ *
+ * Com `@` e e-mail, e passa como veio (o provedor ja ignora maiuscula). Sem
+ * digito nenhum tambem passa como veio: nao e telefone, e vai ser recusado do
+ * outro lado com a mensagem de sempre (RF-120).
+ *
+ * O 55 so sai quando sobra um telefone brasileiro inteiro (10 ou 11 digitos):
+ * "55 9 9876-5432" e um celular de DDD 55, e fica como esta. O 0 da ligacao
+ * interurbana ("041 ...") sai pela mesma regra.
+ */
+export function normalizarIdentificadorDeLogin(identificador: string): string {
+  if (identificador.includes('@')) return identificador
+  const digitos = identificador.replace(/\D/g, '')
+  if (digitos.length === 0) return identificador
+  const semPais =
+    (digitos.length === 12 || digitos.length === 13) && digitos.startsWith('55')
+      ? digitos.slice(2)
+      : digitos
+  return (semPais.length === 11 || semPais.length === 12) && semPais.startsWith('0')
+    ? semPais.slice(1)
+    : semPais
+}
+
+/**
  * A credencial, sem saber de que tipo ela e.
  *
  * `identifier` + `secret` cobre senha (e-mail + senha) e codigo por mensagem
@@ -33,7 +63,8 @@ export const credentialSchema = z
       .string()
       .trim()
       .min(1, 'Informe seu e-mail ou telefone.')
-      .max(180, 'Identificador muito longo.'),
+      .max(180, 'Identificador muito longo.')
+      .transform(normalizarIdentificadorDeLogin),
     secret: z.string().min(1, 'Informe sua senha.').max(200, 'Senha muito longa.'),
   })
   .strict()
