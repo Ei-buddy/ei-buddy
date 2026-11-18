@@ -21,6 +21,7 @@ import {
   validateCEP,
   validateDDD,
   validateDocumento,
+  validateDocumentoDoCliente,
   validateRequired,
   type FieldError,
 } from '@/lib/validation'
@@ -221,10 +222,11 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
    * digitado.
    */
   async function aoSairDoDocumento() {
-    const erro = validateDocumento(campos.documento, tipo)
+    const erro = validateDocumentoDoCliente(campos.documento, tipo)
     setErros((er) => ({ ...er, documento: erro }))
     setExistente(null)
-    if (erro) return
+    /* CPF em branco e permitido (DEC-025 revisada): nao ha o que procurar. */
+    if (erro || campos.documento.replace(/\D/g, '') === '') return
 
     const digitos = campos.documento.replace(/\D/g, '')
     const r = await listarClientes({ termo: digitos })
@@ -297,7 +299,9 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
 
   function validarTudo(): boolean {
     const novos: Erros = {
-      documento: validateDocumento(campos.documento, tipo),
+      /* CPF opcional para pessoa fisica, CNPJ obrigatorio para empresa —
+         DEC-025 revisada (2026-11-18). */
+      documento: validateDocumentoDoCliente(campos.documento, tipo),
       nome: validateRequired(campos.nome, tipo === 'fisica' ? 'o nome' : 'a razão social'),
       /* Fantasia so e exigido de PJ: pessoa fisica nao tem. A mesma regra
          existe no contrato, e a daqui serve para a pessoa ver o erro NO
@@ -436,11 +440,19 @@ export default function ClienteForm({ cliente }: { cliente?: ClienteDaFicha } = 
           </div>
 
           <FormGrid>
-            <Field label={rotuloDocumento} span={5} obrigatorio htmlFor="cliente-documento">
+            <Field
+              label={rotuloDocumento}
+              span={5}
+              obrigatorio={tipo === 'juridica'}
+              htmlFor="cliente-documento"
+              {...(tipo === 'fisica'
+                ? { hint: 'Opcional. Sem ele, a nota sai sem identificar o cliente.' }
+                : {})}
+            >
               <div className={styles.inline}>
                 <Input
                   id="cliente-documento"
-                  aria-required
+                  aria-required={tipo === 'juridica'}
                   value={campos.documento}
                   onChange={(e) => set('documento', maskDocumento(e.target.value, tipo))}
                   onBlur={() => void aoSairDoDocumento()}

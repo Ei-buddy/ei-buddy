@@ -73,6 +73,9 @@ export type CustomerAddress = z.infer<typeof customerAddressSchema>
  * esta completo — a tela so avisa que ele sera preciso para a nota de servico
  * (`semEnderecoParaNota`). Mas endereco PELA METADE continua contando como
  * falta: um CEP sem rua nao serve para nota nem para entrega.
+ *
+ * CPF/CNPJ (revisao de 2026-11-18): tambem fora da lista. `document` segue no
+ * parametro porque as telas mandam o cadastro inteiro.
  */
 export function camposFaltandoNoCliente(c: {
   readonly document: string | null
@@ -88,7 +91,8 @@ export function camposFaltandoNoCliente(c: {
 }): string[] {
   const vazio = (v: string | null) => v === null || v.trim() === ''
   const faltando: string[] = []
-  if (vazio(c.document)) faltando.push('CPF/CNPJ')
+  /* Sem CPF/CNPJ nao e falta desde a revisao de 2026-11-18: cliente sem
+     documento e pessoa fisica que nao informou o CPF, e isso e permitido. */
   if (vazio(c.phone)) faltando.push('celular')
   const e = c.address
   if (semEnderecoParaNota(c)) return faltando
@@ -135,12 +139,17 @@ const camposDoCliente = z
   .object({
     name: nameSchema,
     /**
-     * CPF ou CNPJ, obrigatorio — DEC-025 (revisada em 2026-10-07): o cadastro
-     * de cliente e um so no web e no app, com as mesmas regras. Quem nao quer
-     * se identificar continua comprando como "venda sem cliente", que nao cria
-     * cadastro nenhum.
+     * CPF ou CNPJ — OPCIONAL para pessoa fisica desde a revisao da DEC-025 de
+     * 2026-11-18 (achado de usuaria em teste: "se eu for vender pela internet,
+     * nao vou ter como saber o CPF de todo mundo").
+     *
+     * "CNPJ obrigatorio para empresa" nao precisa de regra aqui: o que faz um
+     * cliente ser PJ e justamente o CNPJ (ver `tipoDePessoa`). Sem documento, o
+     * cadastro e de pessoa fisica, e as telas exigem o CNPJ quando a pessoa
+     * escolhe "Pessoa juridica". Quando vem, vem valido — e continua sendo por
+     * ele que o cadastro acha cliente repetido.
      */
-    document: documentSchema,
+    document: documentSchema.optional(),
     /**
      * Nome fantasia — obrigatorio quando o cliente e PJ (regra logo abaixo).
      *
@@ -179,8 +188,8 @@ const camposDoCliente = z
  * reimplementa-la em SQL criaria duas respostas para a mesma pergunta, e a
  * primeira mudanca deixaria uma das duas para tras.
  *
- * O documento e obrigatorio no cadastro; na edicao parcial, sem documento no
- * corpo nao ha PJ conhecida, e a regra nao se aplica.
+ * Sem documento no corpo nao ha PJ conhecida, e a regra nao se aplica — no
+ * cadastro (o CPF e opcional para pessoa fisica) e na edicao parcial.
  */
 export const createCustomerInputSchema = camposDoCliente.refine(pjTemFantasia, EXIGE_FANTASIA)
 

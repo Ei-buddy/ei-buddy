@@ -190,9 +190,10 @@ export default function ClienteFormScreen() {
       if (!endereco.cidade.trim()) return `Informe a cidade${completar}.`
       if (endereco.uf.trim().length !== 2) return `Informe a UF${completar}.`
     }
-    /* CPF/CNPJ obrigatorio, como no web (NR-149). */
-    if (digitosDoc === '') return 'Informe o CPF ou CNPJ.'
-    {
+    /* CPF opcional para pessoa fisica desde a revisao da DEC-025 (2026-11-18),
+       como no web. Sem documento e pessoa fisica; empresa e quem tem CNPJ.
+       Digitado, tem de valer. */
+    if (digitosDoc !== '') {
       const valido =
         digitosDoc.length === 11
           ? isValidCPF(digitosDoc)
@@ -254,7 +255,7 @@ export default function ClienteFormScreen() {
             valor={documento}
             onChange={(v) => setDocumento(mascaraDoDocumento(v))}
             tipoTeclado="numeric"
-            dica="CPF e celular são obrigatórios; o endereço é opcional, mas necessário para nota fiscal de serviço. O CNPJ preenche a razão social e o endereço."
+            dica="Celular é obrigatório. CPF é opcional (sem ele, a nota sai sem identificar o cliente); para empresa, informe o CNPJ, que preenche a razão social e o endereço. O endereço é opcional, mas necessário para nota fiscal de serviço."
             aoSair={() => void aoSairDoDocumento()}
           />
           {existente ? (

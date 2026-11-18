@@ -38,7 +38,9 @@ const CAMPOS_PLANILHA = [
   {
     key: 'documento',
     label: 'CPF / CNPJ',
-    obrigatorio: true,
+    /* Opcional desde a revisao da DEC-025 (2026-11-18): sem ele, a linha e de
+       pessoa fisica sem CPF. Com ele, tem de ser valido. */
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('cpf') || c.includes('cnpj') || c.includes('documento'),
   },
   {
@@ -519,9 +521,16 @@ export default function ClientesLista() {
           validar={(v) => {
             if (!v.nome?.trim()) return 'Nome vazio'
             const doc = (v.documento ?? '').replace(/\D/g, '')
-            if (!doc) return 'CPF/CNPJ vazio'
+            /* Sem documento e pessoa fisica sem CPF — permitido desde a
+               revisao da DEC-025 (2026-11-18). Com documento, tem de valer. */
             const ok =
-              doc.length === 11 ? isValidCPF(doc) : doc.length === 14 ? isValidCNPJ(doc) : false
+              doc === ''
+                ? true
+                : doc.length === 11
+                  ? isValidCPF(doc)
+                  : doc.length === 14
+                    ? isValidCNPJ(doc)
+                    : false
             if (!ok) return 'CPF/CNPJ inválido'
             return validarContatoEEndereco(v)
           }}

@@ -78,13 +78,33 @@ describe('cadastro de cliente', () => {
     expect(createCustomerInputSchema.safeParse(BASE).success).toBe(true)
   })
 
-  it.each([
-    ['document', 'CPF ou CNPJ'],
-    ['phone', 'celular'],
-  ] as const)('recusa sem %s (%s), apontando o campo', (campo, _rotulo) => {
-    const { [campo]: _fora, ...resto } = BASE
+  it('recusa sem celular, apontando o campo', () => {
+    const { phone: _fora, ...resto } = BASE
     const r = createCustomerInputSchema.safeParse(resto)
-    expect(r.success === false && r.error.issues[0]?.path).toEqual([campo])
+    expect(r.success === false && r.error.issues[0]?.path).toEqual(['phone'])
+  })
+
+  /*
+   * DEC-025 revisada em 2026-11-18 — achado de usuaria em teste: na venda pela
+   * internet nao da para saber o CPF de todo mundo. Sem documento, o cliente e
+   * pessoa fisica; PJ e quem tem CNPJ, e as telas o exigem nesse caso.
+   */
+  it('aceita pessoa fisica sem CPF — DEC-025 revisada', () => {
+    const { document: _fora, ...semDocumento } = BASE
+    const r = createCustomerInputSchema.safeParse(semDocumento)
+    expect(r.success).toBe(true)
+    expect(r.success && r.data.document).toBeUndefined()
+  })
+
+  it('sem CPF e sem endereco tambem passa: so nome e celular', () => {
+    const { document: _d, address: _a, ...minimo } = BASE
+    expect(createCustomerInputSchema.safeParse(minimo).success).toBe(true)
+  })
+
+  it('CPF informado continua sendo conferido', () => {
+    expect(
+      createCustomerInputSchema.safeParse({ ...BASE, document: '529.982.247-26' }).success,
+    ).toBe(false)
   })
 
   it('aceita sem endereco nenhum — DEC-025 revisada', () => {
@@ -287,11 +307,14 @@ describe('camposFaltandoNoCliente — DEC-025', () => {
     state: null,
   }
 
-  it('cliente antigo, so com nome: falta documento e celular — endereco e opcional', () => {
+  it('cliente antigo, so com nome: falta o celular — CPF e endereco sao opcionais', () => {
     expect(camposFaltandoNoCliente({ document: null, phone: null, address: VAZIO })).toEqual([
-      'CPF/CNPJ',
       'celular',
     ])
+  })
+
+  it('pessoa fisica sem CPF, com celular, esta completa — DEC-025 revisada', () => {
+    expect(camposFaltandoNoCliente({ ...COMPLETO, document: null })).toEqual([])
   })
 
   it('sem endereco nenhum esta completo, mas e o caso do aviso da nota de servico', () => {

@@ -533,7 +533,8 @@ export function definicoesDeProposta(): readonly DefinicaoDeProposta[] {
     {
       id: 'create_customer',
       descricao:
-        'Propõe cadastrar um cliente. Obrigatórios: nome, CPF/CNPJ, celular e endereço completo. ' +
+        'Propõe cadastrar um cliente. Obrigatórios: nome e celular. CPF é opcional (para empresa, ' +
+        'informe o CNPJ); endereço é opcional, mas completo quando informado. ' +
         'Se o cadastro interrompe outro pedido, preencha paraRetomar.',
       entrada: clienteParaOModelo,
       preparar: async (input, turno) => {

@@ -1,9 +1,11 @@
-import { phoneSchema, pixKeyError } from '@na-regua/contracts'
+import { loginInputSchema, phoneSchema, pixKeyError } from '@na-regua/contracts'
 import { describe, expect, it } from 'vitest'
 import {
   maskCelular,
   maskPhone,
   validateCPF,
+  validateCredential,
+  validateDocumentoDoCliente,
   validatePixKey,
   type TipoDeChavePix,
 } from './validation'
@@ -89,5 +91,66 @@ describe('chave PIX: a tela e o contrato concordam', () => {
 
   it.each(casos)('%s %s', (tipo, chave) => {
     expect(validatePixKey(chave, tipo) === null).toBe(pixKeyError(chave, tipo) === null)
+  })
+})
+
+/**
+ * Login por telefone: o que a tela aceita, a api acha — NR-231.
+ *
+ * Achado de usuaria em teste: criou a conta, saiu, e ao entrar de novo pelo
+ * celular formatado recebeu "senha incorreta". A tela aceitava
+ * "(41) 99876-5432", mas mandava o texto do jeito que veio, e o cadastro
+ * guarda so os digitos. Contra o contrato DE VERDADE, como os testes acima.
+ */
+describe('login por telefone: a tela e o contrato contam igual', () => {
+  const guardadoNoCadastro = (v: string) => phoneSchema.parse(v)
+  const comparadoNoLogin = (v: string) =>
+    loginInputSchema.parse({ identifier: v, secret: 's' }).identifier
+
+  it.each([
+    '(41) 99876-5432',
+    '41 99876-5432',
+    '41998765432',
+    '+55 41 99876-5432',
+    '55 (41) 3333-4444',
+    '041 99876-5432',
+    '(41) 3333-4444',
+  ])('"%s": a tela aceita e o login chega no que o cadastro guardou', (digitado) => {
+    expect(validateCredential(digitado)).toBeNull()
+    const nacional = comparadoNoLogin(digitado)
+    expect(nacional).toBe(guardadoNoCadastro(nacional))
+    expect(nacional).toMatch(/^\d{10,11}$/)
+  })
+
+  it('o celular digitado no cadastro e o digitado no login dao o mesmo valor', () => {
+    expect(comparadoNoLogin('(41) 99876-5432')).toBe(guardadoNoCadastro('(41) 99876-5432'))
+  })
+
+  it.each(['4199876', '+1 555 123 4567 89', '123'])('"%s" continua recusado na tela', (v) => {
+    expect(validateCredential(v)).toBe('Telefone inválido. Use DDD + número.')
+  })
+})
+
+/**
+ * O documento do cliente — DEC-025 revisada em 2026-11-18 (NR-232).
+ *
+ * Achado de usuaria em teste: na venda pela internet nao da para saber o CPF de
+ * todo mundo. Pessoa fisica pode ficar sem; empresa nao, porque o CNPJ e o
+ * que faz o cliente ser PJ.
+ */
+describe('documento do cliente: CPF opcional, CNPJ obrigatorio', () => {
+  it('pessoa fisica sem CPF passa', () => {
+    expect(validateDocumentoDoCliente('', 'fisica')).toBeNull()
+    expect(validateDocumentoDoCliente('   ', 'fisica')).toBeNull()
+  })
+
+  it('pessoa juridica sem CNPJ e recusada', () => {
+    expect(validateDocumentoDoCliente('', 'juridica')).toBe('Informe o CNPJ.')
+  })
+
+  it('CPF digitado continua conferido', () => {
+    expect(validateDocumentoDoCliente('529.982.247-25', 'fisica')).toBeNull()
+    expect(validateDocumentoDoCliente('529.982.247-26', 'fisica')).toBe('CPF inválido.')
+    expect(validateDocumentoDoCliente('529.982', 'fisica')).toBe('CPF incompleto.')
   })
 })
