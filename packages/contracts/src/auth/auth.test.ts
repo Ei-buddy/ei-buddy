@@ -6,6 +6,7 @@ import {
   invitedUserOutputSchema,
   loginInputSchema,
   membershipOutputSchema,
+  normalizarIdentificadorDeLogin,
   selectCompanyInputSchema,
   sessionOutputSchema,
 } from './auth.js'
@@ -51,6 +52,50 @@ describe('credencial — RF-119', () => {
 
   it('recusa segredo absurdamente longo', () => {
     expect(credentialSchema.safeParse({ ...valida, secret: 'x'.repeat(201) }).success).toBe(false)
+  })
+
+  /*
+   * NR-231 — achado de usuaria em teste: criou a conta, saiu, e ao entrar de
+   * novo pelo celular formatado recebeu "senha incorreta". O cadastro guarda so
+   * os digitos; o login tem de comparar a mesma coisa.
+   */
+  it.each([
+    ['(41) 99876-5432', '41998765432'],
+    ['41 99876-5432', '41998765432'],
+    ['41-99876-5432', '41998765432'],
+    ['+55 41 99876-5432', '41998765432'],
+    ['55 (41) 99876-5432', '41998765432'],
+    ['+55 (41) 3333-4444', '4133334444'],
+    ['041 99876-5432', '41998765432'],
+    ['(041) 3333-4444', '4133334444'],
+    ['41998765432', '41998765432'],
+  ])('telefone "%s" entra como o cadastro guarda: %s', (digitado, guardado) => {
+    expect(loginInputSchema.parse({ identifier: digitado, secret: 's' }).identifier).toBe(guardado)
+  })
+
+  it('celular de DDD 55 nao perde o DDD', () => {
+    expect(loginInputSchema.parse({ identifier: '(55) 99876-5432', secret: 's' }).identifier).toBe(
+      '55998765432',
+    )
+  })
+
+  it('e-mail passa como veio, so aparado', () => {
+    expect(credentialSchema.parse({ ...valida, identifier: ' Ana@Loja.com ' }).identifier).toBe(
+      'Ana@Loja.com',
+    )
+  })
+
+  it('o que nao e e-mail nem telefone passa como veio — e vai falhar do outro lado', () => {
+    expect(credentialSchema.parse({ ...valida, identifier: 'ana' }).identifier).toBe('ana')
+  })
+
+  it.each([
+    ['(41) 99876-5432', '41998765432'],
+    ['ana@loja.com', 'ana@loja.com'],
+    /* Comprido demais para ser telefone: so os digitos, e o provedor recusa. */
+    ['+1 (555) 123-4567-89', '1555123456789'],
+  ])('normalizarIdentificadorDeLogin("%s")', (entrada, saida) => {
+    expect(normalizarIdentificadorDeLogin(entrada)).toBe(saida)
   })
 })
 

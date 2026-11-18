@@ -11,8 +11,21 @@ export function validateCredential(value: string): FieldError {
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed) ? null : 'E-mail inválido.'
   }
 
+  /* A mesma conta do login na api (`normalizarIdentificadorDeLogin`, NR-231):
+     o 55 do pais e o 0 da interurbana saem antes de contar os digitos, e
+     "+55 41 99876-5432" vale como telefone. */
   const digits = trimmed.replace(/\D/g, '')
-  return digits.length >= 10 && digits.length <= 11 ? null : 'Telefone inválido. Use DDD + número.'
+  const semPais =
+    (digits.length === 12 || digits.length === 13) && digits.startsWith('55')
+      ? digits.slice(2)
+      : digits
+  const nacional =
+    (semPais.length === 11 || semPais.length === 12) && semPais.startsWith('0')
+      ? semPais.slice(1)
+      : semPais
+  return nacional.length >= 10 && nacional.length <= 11
+    ? null
+    : 'Telefone inválido. Use DDD + número.'
 }
 
 export function validateEmail(value: string): FieldError {
