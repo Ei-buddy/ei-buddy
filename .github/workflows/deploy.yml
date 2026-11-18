@@ -331,6 +331,58 @@ jobs:
           TROCA
           } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
 
+      # NR-234. A chave que cifra os segredos de cada loja no banco (certificado
+      # A1, token da Focus, chave do Asaas da loja). Sem ela a api sobe, mas a
+      # emissao fiscal fica desligada — era o estado de producao em 18/11, e
+      # nenhum passo do deploy levava a chave ao servidor.
+      #
+      # Diferente das outras: chave nova NUNCA substitui uma que ja esta la. O
+      # que foi cifrado com a antiga so abre com ela, e trocar sem migrar perde
+      # todo certificado e token ja guardado. Se o servidor tem uma chave e o
+      # Environment tem outra, o passo para sem mexer em nada.
+      - name: Configurar a chave de segredos
+        env:
+          SECRETS_KEY: ${{ secrets.SECRETS_KEY }}
+        run: |
+          if [ -z "$SECRETS_KEY" ]; then
+            echo "::notice::Secret SECRETS_KEY ausente — a chave do servidor (se houver) nao foi alterada."
+            exit 0
+          fi
+          # A mesma regra da api (packages/db/src/secret-box.ts): 32 bytes em
+          # base64, e nao placeholder de bytes iguais. Melhor recusar aqui do que
+          # gravar e a api desligar a emissao na subida.
+          case "$SECRETS_KEY" in
+            *[!A-Za-z0-9+/=]*) echo "::error::SECRETS_KEY tem caractere fora do base64. Gere com: openssl rand -base64 32"; exit 1 ;;
+          esac
+          if ! node -e 'const b = Buffer.from(process.env.SECRETS_KEY, "base64"); process.exit(b.length === 32 && !b.every((x) => x === b[0]) ? 0 : 1)'; then
+            echo "::error::SECRETS_KEY precisa ter 32 bytes em base64, e nao pode ser placeholder. Gere com: openssl rand -base64 32"
+            exit 1
+          fi
+
+          {
+            echo "set -eu"
+            echo "cd '$CAMINHO'"
+            echo "umask 077"
+            echo "nova='$SECRETS_KEY'"
+            cat <<'TROCA'
+          touch .env.production
+          atual=$(sed -n 's/^SECRETS_KEY=//p' .env.production | tail -n 1 | tr -d "'\"")
+          if [ "$atual" = "$nova" ]; then
+            echo "chave de segredos ja configurada (sem mudanca)"
+            exit 0
+          fi
+          if [ -n "$atual" ]; then
+            echo "::error title=SECRETS_KEY diferente da do servidor::O servidor ja tem outra chave. Trocar faria perder os certificados e tokens ja cifrados com ela, entao nada foi alterado. Para trocar de verdade e preciso migrar os dados cifrados antes."
+            exit 1
+          fi
+          grep -v '^SECRETS_KEY=' .env.production > .env.production.novo || true
+          printf "SECRETS_KEY='%s'\n" "$nova" >> .env.production.novo
+          mv .env.production.novo .env.production
+          chmod 600 .env.production
+          echo "chave de segredos configurada"
+          TROCA
+          } | ssh -i ~/.ssh/id_deploy -p "$PORTA" "$USUARIO@$HOST" 'bash -s'
+
       - name: Subir ${{ github.sha }}
         id: subir
         run: |
@@ -374,7 +426,10 @@ jobs:
       # e a mais recente: a de 17/11 usou o script antigo, que rebuildava mesmo
       # com as imagens na maquina, e a reversao levou uma hora e vinte.
       - name: Reverter para ${{ steps.anterior.outputs.sha }}
-        if: failure() && steps.subir.outputs.intocado != 'sim' && steps.anterior.outputs.sha != ''
+        # So se o `Subir` rodou e falhou: um passo de configuracao que recusa
+        # antes dele (chave de segredos diferente, ambiente fiscal invalido) nao
+        # trocou nada, e nao tem o que reverter.
+        if: failure() && steps.subir.outcome == 'failure' && steps.subir.outputs.intocado != 'sim' && steps.anterior.outputs.sha != ''
         env:
           ANTERIOR: ${{ steps.anterior.outputs.sha }}
         run: |
