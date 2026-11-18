@@ -35,8 +35,16 @@ describe('importacao de clientes — NR-142, DEC-025 revisada', () => {
     ).toBeNull()
   })
 
-  it('obrigatorios na planilha: nome, documento e celular', () => {
+  it('obrigatorios na planilha: nome e celular — CPF opcional desde a DEC-025 de 18/11', () => {
     const obrigatorios = CAMPOS_CLIENTES.filter((c) => c.obrigatorio).map((c) => c.key)
-    expect(obrigatorios.sort()).toEqual(['celular', 'documento', 'nome'])
+    expect(obrigatorios.sort()).toEqual(['celular', 'nome'])
+  })
+
+  it('aceita a linha sem CPF — pessoa fisica que nao informou', () => {
+    expect(validarCliente({ ...LINHA, documento: '' })).toBeNull()
+  })
+
+  it('CPF informado e invalido continua recusado', () => {
+    expect(validarCliente({ ...LINHA, documento: '529.982.247-26' })).toBe('CPF/CNPJ inválido')
   })
 })

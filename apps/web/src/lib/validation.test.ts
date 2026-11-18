@@ -5,6 +5,7 @@ import {
   maskPhone,
   validateCPF,
   validateCredential,
+  validateDocumentoDoCliente,
   validatePixKey,
   type TipoDeChavePix,
 } from './validation'
@@ -127,5 +128,29 @@ describe('login por telefone: a tela e o contrato contam igual', () => {
 
   it.each(['4199876', '+1 555 123 4567 89', '123'])('"%s" continua recusado na tela', (v) => {
     expect(validateCredential(v)).toBe('Telefone inválido. Use DDD + número.')
+  })
+})
+
+/**
+ * O documento do cliente — DEC-025 revisada em 2026-11-18 (NR-232).
+ *
+ * Achado de usuaria em teste: na venda pela internet nao da para saber o CPF de
+ * todo mundo. Pessoa fisica pode ficar sem; empresa nao, porque o CNPJ e o
+ * que faz o cliente ser PJ.
+ */
+describe('documento do cliente: CPF opcional, CNPJ obrigatorio', () => {
+  it('pessoa fisica sem CPF passa', () => {
+    expect(validateDocumentoDoCliente('', 'fisica')).toBeNull()
+    expect(validateDocumentoDoCliente('   ', 'fisica')).toBeNull()
+  })
+
+  it('pessoa juridica sem CNPJ e recusada', () => {
+    expect(validateDocumentoDoCliente('', 'juridica')).toBe('Informe o CNPJ.')
+  })
+
+  it('CPF digitado continua conferido', () => {
+    expect(validateDocumentoDoCliente('529.982.247-25', 'fisica')).toBeNull()
+    expect(validateDocumentoDoCliente('529.982.247-26', 'fisica')).toBe('CPF inválido.')
+    expect(validateDocumentoDoCliente('529.982', 'fisica')).toBe('CPF incompleto.')
   })
 })

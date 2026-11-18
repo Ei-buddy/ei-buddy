@@ -416,14 +416,9 @@ type CadastroParaConferir = {
 export function camposFaltandoNoCliente(c: CadastroParaConferir): string[] {
   const vazio = (v: string | null) => v === null || v.trim() === ''
   const e = c.address
-  const pessoa = (
-    [
-      [c.document, 'CPF/CNPJ'],
-      [c.phone, 'celular'],
-    ] as const
-  )
-    .filter(([valor]) => vazio(valor))
-    .map(([, nome]) => nome)
+  /* Sem CPF/CNPJ nao e falta (DEC-025 revisada, 2026-11-18): e pessoa fisica
+     que nao informou o CPF. */
+  const pessoa = vazio(c.phone) ? ['celular'] : []
 
   /* Endereco e opcional (DEC-025 revisada): sem nenhum, nada falta. Pela
      metade, falta o resto. */

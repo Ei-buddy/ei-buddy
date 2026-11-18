@@ -17,7 +17,9 @@ export const CAMPOS_CLIENTES = [
   {
     key: 'documento',
     label: 'CPF / CNPJ',
-    obrigatorio: true,
+    /* Opcional desde a revisao da DEC-025 (2026-11-18): sem ele, a linha e de
+       pessoa fisica sem CPF. Com ele, tem de ser valido. */
+    obrigatorio: false,
     reconhece: (c: string) => c.includes('cpf') || c.includes('cnpj') || c.includes('documento'),
   },
   {
@@ -85,8 +87,16 @@ const CAMPOS_DO_ENDERECO = ['cep', 'rua', 'numero', 'bairro', 'cidade', 'uf'] as
 export function validarCliente(v: Record<string, string>): string | null {
   if (!v.nome?.trim()) return 'Nome vazio'
   const doc = (v.documento ?? '').replace(/\D/g, '')
-  if (!doc) return 'CPF/CNPJ vazio'
-  const ok = doc.length === 11 ? isValidCPF(doc) : doc.length === 14 ? isValidCNPJ(doc) : false
+  /* Sem documento e pessoa fisica sem CPF — permitido desde a revisao da
+     DEC-025 (2026-11-18), como no web. Com documento, tem de valer. */
+  const ok =
+    doc === ''
+      ? true
+      : doc.length === 11
+        ? isValidCPF(doc)
+        : doc.length === 14
+          ? isValidCNPJ(doc)
+          : false
   if (!ok) return 'CPF/CNPJ inválido'
   /* Celular obrigatorio (NR-142). Endereco opcional desde a revisao da
      DEC-025 — mas a linha que traz parte dele tem de trazer tudo. */

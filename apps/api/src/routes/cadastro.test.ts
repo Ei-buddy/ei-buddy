@@ -598,7 +598,7 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
     expect(r.statusCode).toBe(201)
   })
 
-  it('sem documento ou celular responde 400 no campo — NR-142', async () => {
+  it('sem celular responde 400 no campo — NR-142', async () => {
     const c = await buildApp()
     app = c.app
 
@@ -610,9 +610,54 @@ describe('cadastrar cliente — RF-009, RF-010', () => {
 
     expect(semNada.statusCode).toBe(400)
     const campos = semNada.json().error.fields.map((f: { path: string }) => f.path)
-    expect(campos).toEqual(expect.arrayContaining(['document', 'phone']))
-    /* Endereco e opcional desde a revisao da DEC-025 (2026-11-15). */
+    expect(campos).toEqual(['phone'])
+    /* Endereco e opcional desde a revisao da DEC-025 de 2026-11-15, e o CPF
+       desde a de 2026-11-18. */
     expect(campos).not.toContain('address')
+    expect(campos).not.toContain('document')
+  })
+
+  /*
+   * NR-232 — achado de usuaria em teste: "se eu for vender pela internet, nao
+   * vou ter como saber o CPF de todo mundo". Pessoa fisica sem CPF cadastra; o
+   * que faz o cliente ser empresa e o CNPJ.
+   */
+  it('pessoa fisica sem CPF cadastra — DEC-025 revisada em 18/11', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const { document: _fora, ...semCpf } = CLIENTE
+    const r = await app.inject({ method: 'POST', url: '/clientes', payload: semCpf })
+
+    expect(r.statusCode).toBe(201)
+    expect(r.json().document).toBeNull()
+  })
+
+  it('so com nome e celular tambem cadastra', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { name: 'Giovanna', phone: '(41) 98877-6655' },
+    })
+
+    expect(r.statusCode).toBe(201)
+  })
+
+  it('CPF informado e invalido continua 400 no campo', async () => {
+    const c = await buildApp()
+    app = c.app
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/clientes',
+      payload: { ...CLIENTE, document: '52998224726' },
+    })
+
+    expect(r.statusCode).toBe(400)
+    expect(r.json().error.fields[0].path).toBe('document')
   })
 
   it('sem endereco cadastra; endereco pela metade responde 400 — DEC-025 revisada', async () => {
