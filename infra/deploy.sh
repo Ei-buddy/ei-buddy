@@ -42,9 +42,10 @@ MIGRAR="${MIGRAR:-sim}"
 # ci-cd.md ja documentava como limite antes de considerar o deploy perdido.
 ESPERA_DE_SAUDE_S="${ESPERA_DE_SAUDE_S:-120}"
 
-# Espaco livre minimo para comecar o build. Cada commit gera tres imagens
-# (~1,5, ~0,6 e ~2,2 GB desde a NR-235); abaixo disto o build pode encher o
-# disco no meio do unpack e levar o Postgres junto — foi o que aconteceu no
+# Espaco livre minimo para comecar o build. Desde a NR-238, um deploy so de
+# codigo escreve menos de 1 GB; um que muda dependencia escreve uns 5 GB (o
+# install de cada app, no cache e na imagem). Abaixo disto o build pode encher
+# o disco no meio do unpack e levar o Postgres junto — foi o que aconteceu no
 # deploy #126.
 LIVRE_MINIMO_GB="${LIVRE_MINIMO_GB:-10}"
 
@@ -87,9 +88,16 @@ precisa_build() {
 # - Imagens: so as `eibuddy-*` que nenhum container usa (a versao no ar fica,
 #   como alvo da reversao), mais as sem nome. A base (`node:22-alpine`) e as
 #   de postgres/redis/caddy ficam.
-# - Cache de build: primeiro tudo MENOS os caches do pnpm (`exec.cachemount`).
-#   So se ainda faltar espaco eles vao tambem — build lento e melhor que
-#   build nenhum.
+# - Cache de build: os caches do pnpm (`exec.cachemount`) vao por ultimo —
+#   build lento e melhor que build nenhum.
+#
+# Em degraus, do que custa menos refazer para o que custa mais, e cada um so
+# roda se o anterior nao bastou — NR-239. Antes, a limpeza apagava as imagens
+# antigas e, na sequencia, TODO o cache de build, mesmo quando as imagens ja
+# bastavam. Com a NR-238 isso e o pior que ela pode fazer: o cache leva a
+# camada do install de cada app, e sem ela o deploy seguinte reinstala tudo
+# (82 minutos em 18/11: api 33, worker 8, web 41 — o web sem baixar nada, so
+# copiando arquivos no disco lento da VPS).
 limpar_imagens_antigas() {
   local em_uso
   em_uso=$(docker ps -a --format '{{.Image}}' | sort -u)
@@ -99,21 +107,34 @@ limpar_imagens_antigas() {
   docker image prune -f >/dev/null || true
 }
 
-if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
-  passo "Pouco espaco (${livre_gb} GB): apagando imagens antigas e o cache de build (menos o do pnpm)"
-  limpar_imagens_antigas
-  # `type!=` e filtro do BuildKit; se o Docker da maquina nao entender, cai
-  # para a limpeza inteira, que era o comportamento de antes.
-  docker builder prune -af --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
-    || docker builder prune -af >/dev/null || true
+# Cache de build, menos o do pnpm. Sem `-a`, o que esta numa imagem fica — e a
+# camada do install da api e do worker esta. `--reserved-space N` apaga do
+# menos usado para o mais usado ate o cache que nao esta em imagem caber em N
+# (os caches do pnpm entram na conta, mas nao sao apagados); a camada do
+# install conta como usada a cada deploy, porque o codigo novo e copiado em
+# cima dela. `--reserved-space` e o nome novo de `--keep-storage`; o Docker
+# que nao conhece um usa o outro. Se nem o filtro `type!=` ele entender, o
+# degrau falha e a limpeza segue para o proximo.
+podar_cache() {
+  docker builder prune -f --filter 'type!=exec.cachemount' "$@" \
+    || docker builder prune -f --filter 'type!=exec.cachemount' "${@/--reserved-space/--keep-storage}"
+}
+
+degrau() {
+  [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ] || return 0
+  passo "Pouco espaco (${livre_gb} GB): apagando ${1}"
+  shift
+  "$@" >/dev/null 2>&1 || true
   livre_gb=$(livre)
   echo "livre agora: ${livre_gb} GB"
-  if [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
-    passo "Ainda pouco (${livre_gb} GB): apagando tambem o cache do pnpm"
-    docker builder prune -af >/dev/null || true
-    livre_gb=$(livre)
-    echo "livre agora: ${livre_gb} GB"
-  fi
+}
+
+if precisa_build; then
+  degrau 'imagens de deploys antigos' limpar_imagens_antigas
+  degrau 'o cache de build menos usado (fica ate 4 GB)' podar_cache --reserved-space 4GB
+  degrau 'o cache de build que nao esta em imagem (vai o install do web)' podar_cache
+  degrau 'todo o cache de build, menos o do pnpm (vao todos os installs)' podar_cache -a
+  degrau 'tambem o cache do pnpm' docker builder prune -af
 fi
 
 if precisa_build && [ "$livre_gb" -lt "$LIVRE_MINIMO_GB" ]; then
@@ -273,18 +294,16 @@ for tag in "${antigas[@]}"; do
     | xargs -r docker rmi >/dev/null || true
 done
 docker image prune -f >/dev/null || true
-# Cache de build com teto de 8 GB, e nunca o do pnpm (`exec.cachemount`) —
-# NR-238. A camada do install de cada app fica no cache e e o que faz um
-# deploy so de codigo nao instalar nada; a do web nem esta numa imagem (a
-# imagem dele e so o standalone), entao um teto baixo a apagava a cada deploy.
-# O teto antigo, de 5 GB, tambem levava o store e os metadados do pnpm, que
-# sao os primeiros da fila quando o install sai do cache. Na conta de 18/11:
-# store 1,5 GB, metadados 0,4 GB, installs 2,9 GB, o resto e de cada versao.
-# `--reserved-space` e o nome novo de `--keep-storage`; o Docker que nao
-# conhece um usa o outro.
-docker builder prune -f --reserved-space 8GB --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
-  || docker builder prune -f --keep-storage 8GB --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
-  || true
+# Cache de build com teto de 5 GB, e nunca o do pnpm (`exec.cachemount`) —
+# NR-238 e NR-239. A camada do install de cada app fica no cache e e o que faz
+# um deploy so de codigo nao instalar nada; a do web nem esta numa imagem (a
+# imagem dele e so o standalone), mas e das mais usadas e sai por ultimo. O
+# teto conta o cache do pnpm sem apaga-lo. Na conta de 18/11: pnpm 2,9 GB
+# (store duplicado; o Docker apaga o que passar 48 h sem uso), install do web
+# 1,3 GB, build do web 0,3 GB por versao. Com teto maior, o cache crescia a
+# cada deploy ate o disco ficar abaixo do minimo, e a limpeza do comeco do
+# deploy virava rotina.
+podar_cache --reserved-space 5GB >/dev/null 2>&1 || true
 df -h "$raiz_docker" | tail -1
 
 passo "Deploy concluido — ${DEPLOY_TAG}"

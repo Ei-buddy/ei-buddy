@@ -127,13 +127,26 @@ lento da VPS. Medido no build local: api 1,5 GB, worker 0,6 GB, web 2,2 GB.
 Dependência nova que a app use em runtime precisa estar no `package.json`
 dela (ou de um pacote do workspace que ela importa), não só na raiz.
 
-**Espaço em disco (NR-227, NR-236).** O build exige 10 GB livres. Abaixo
-disso, `deploy.sh` primeiro apaga o que se reconstrói e mede de novo: as
-imagens `eibuddy-*` que nenhum container usa (a versão no ar fica, como alvo da
-reversão) e o cache de build, menos o store do pnpm. A imagem base dos
-Dockerfiles também fica. Só se ainda faltar espaço o cache do pnpm vai junto.
-Se mesmo assim faltar, sai com código 3 sem ter tocado em nada, e o workflow
-não reverte (não há o que reverter).
+**Espaço em disco (NR-227, NR-236, NR-239).** O build exige 10 GB livres.
+Abaixo disso, `deploy.sh` apaga o que se reconstrói, em degraus, do que custa
+menos refazer para o que custa mais, e mede de novo depois de cada um. Para no
+primeiro que bastar:
+
+1. as imagens `eibuddy-*` que nenhum container usa (a versão no ar fica, como
+   alvo da reversão);
+2. o cache de build menos usado, até sobrarem 4 GB;
+3. o cache de build que não está em nenhuma imagem (vai o install do web);
+4. todo o cache de build, menos o do pnpm (vão os installs da api e do worker);
+5. o cache do pnpm.
+
+A imagem base dos Dockerfiles e os volumes nunca entram. Se mesmo assim
+faltar, sai com código 3 sem ter tocado em nada, e o workflow não reverte (não
+há o que reverter). Até a NR-239, a limpeza ia direto do degrau 1 para o 4,
+mesmo quando as imagens já bastavam. O deploy do NR-238 começou com 8 GB
+livres e caiu nesse caminho. Ali não fez diferença, porque o install era novo
+de qualquer jeito: 82 minutos (api 33, worker 8, web 41). O web nem baixou
+nada, só copiou arquivos no disco lento. Mas o deploy seguinte também
+começaria abaixo de 10 GB e perderia a camada do install que o NR-238 criou.
 
 **Rede da VPS (NR-236).** Antes do build, a imagem base (`node:22-alpine`) é
 baixada se não estiver na máquina, com até 5 tentativas e espera crescente. Com
@@ -162,12 +175,18 @@ Exportar e desempacotar a imagem do web levava 14 minutos por deploy.
 
 O cache do pnpm também ficou mais difícil de perder:
 
-- Depois do deploy, o cache de build fica com até 8 GB e nunca perde o do
-  pnpm. O teto antigo (5 GB) apagava primeiro justamente o store e os
-  metadados do pnpm.
+- Depois do deploy, o cache de build fica com até 5 GB, do mais usado para o
+  menos usado, e nunca perde o do pnpm. O teto conta o cache do pnpm, mas não
+  o apaga. A camada do install conta como usada a cada deploy, porque o código
+  novo é copiado em cima dela. Antes da NR-238, a limpeza apagava primeiro
+  justamente o store e os metadados do pnpm. Com o teto de 8 GB que a NR-238
+  pôs, o cache crescia a cada deploy até o disco ficar abaixo do mínimo.
 - Os caches do pnpm são montados com `sharing=locked`. Em 18/11 o build do web
   achou o store ainda preso pelo build do worker e ganhou outro, vazio. Por
   isso baixou tudo de novo. O diagnóstico mostrou os dois stores lado a lado.
+  Com `sharing=locked`, um build só abre um store novo quando todos estão
+  presos. Os dois que já existiam continuam, até o Docker apagar o que ficar
+  48 h sem uso.
 - O Docker da VPS apaga sozinho cache montado que passa 48 h sem uso (regra 0
   da limpeza automática dele). Com o install quase sempre no cache, o store
   ficaria parado. Por isso o estágio dos manifestos monta os dois caches a
