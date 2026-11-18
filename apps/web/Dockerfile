@@ -7,8 +7,15 @@
 # O contexto entra por bind mount, sem virar camada; o RUN roda a cada build,
 # mas a saida so muda quando um manifesto muda — e e o conteudo que o `COPY
 # --from` abaixo compara.
+#
+# Os dois caches do pnpm entram aqui so para contar como usados a cada
+# deploy: o Docker da VPS apaga cache montado que passa 48 h sem uso (regra 0
+# da limpeza automatica dele, no diagnostico), e com o install quase sempre
+# no cache eles ficariam parados.
 FROM node:22-alpine AS manifestos
 RUN --mount=type=bind,target=/src \
+    --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
+    --mount=type=cache,id=pnpm-metadados,target=/root/.cache/pnpm,sharing=locked \
     mkdir /manifestos && cd /src \
     && for f in package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc \
                 apps/*/package.json packages/*/package.json; do \
@@ -34,8 +41,12 @@ COPY --from=manifestos /manifestos/ ./
 # workspace de que ela depende, e nao o resto (o app mobile, as ferramentas da
 # raiz) — NR-235. O cache de metadados do pnpm (~380 MB) tambem vai para um
 # cache do BuildKit.
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    --mount=type=cache,id=pnpm-metadados,target=/root/.cache/pnpm \
+#
+# `sharing=locked`: um build por vez em cada cache, e o seguinte ESPERA em vez
+# de abrir outro, vazio. Em 18/11 o build do web achou o store ainda preso pelo
+# do worker, ganhou um store novo e baixou tudo de novo (50 min de install).
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
+    --mount=type=cache,id=pnpm-metadados,target=/root/.cache/pnpm,sharing=locked \
     pnpm install --frozen-lockfile --store-dir /pnpm/store --filter @na-regua/web...
 
 # O codigo vem depois do install. O `.dockerignore` deixa o node_modules de

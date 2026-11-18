@@ -158,13 +158,24 @@ um deploy só de código levou 1 s (api), 2 s (worker) e 33 s (web, que ainda
 roda o `next build`). Em 18/11, sem isso, o install levou 30, 8 e 50 minutos.
 A imagem do web é só o servidor standalone do Next (`output: 'standalone'`),
 com o que ele carrega: 325 MB em vez de 2,2 GB, e roda como o usuário `node`.
-Exportar e desempacotar a imagem do web levava 14 minutos por deploy. Depois
-do deploy, o cache de build fica com até 8 GB e nunca perde o do pnpm. O teto
-antigo (5 GB) apagava primeiro justamente o store e os metadados do pnpm.
-E o próprio Docker limpa o cache de build quando o disco aperta: na regra
-padrão, com menos de 20% livre. Em 18/11, pelo visto, isso levou o store no
-meio do deploy, antes do build do web. O diagnóstico mostra o cache e a regra
-da VPS.
+Exportar e desempacotar a imagem do web levava 14 minutos por deploy.
+
+O cache do pnpm também ficou mais difícil de perder:
+
+- Depois do deploy, o cache de build fica com até 8 GB e nunca perde o do
+  pnpm. O teto antigo (5 GB) apagava primeiro justamente o store e os
+  metadados do pnpm.
+- Os caches do pnpm são montados com `sharing=locked`. Em 18/11 o build do web
+  achou o store ainda preso pelo build do worker e ganhou outro, vazio. Por
+  isso baixou tudo de novo. O diagnóstico mostrou os dois stores lado a lado.
+- O Docker da VPS apaga sozinho cache montado que passa 48 h sem uso (regra 0
+  da limpeza automática dele). Com o install quase sempre no cache, o store
+  ficaria parado. Por isso o estágio dos manifestos monta os dois caches a
+  cada build, só para contarem como usados.
+- Com menos de 6,5 GB livres (20% do disco), o Docker limpa o resto do cache
+  de build sozinho.
+
+O diagnóstico mostra o cache de build e essas regras.
 
 Para ver
 o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
