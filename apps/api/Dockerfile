@@ -14,8 +14,15 @@ COPY . .
 #
 # Sem `# syntax=`: `RUN --mount` ja vem no frontend embutido do BuildKit, e a
 # linha faria o build baixar o frontend do Docker Hub a cada vez.
+#
+# So o que esta app usa: `--filter @na-regua/api...` instala ela e os pacotes do
+# workspace de que ela depende, e nao o resto — o app mobile (Expo, React
+# Native), o Next e as ferramentas da raiz (eslint, playwright, turbo) ficavam
+# em toda imagem, com 3,3 GB cada — NR-235. O cache de metadados do pnpm
+# (~380 MB) tambem vai para um cache do BuildKit, e nao para a imagem.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --store-dir /pnpm/store
+    --mount=type=cache,id=pnpm-metadados,target=/root/.cache/pnpm \
+    pnpm install --frozen-lockfile --store-dir /pnpm/store --filter @na-regua/api...
 
 WORKDIR /app/apps/api
 
