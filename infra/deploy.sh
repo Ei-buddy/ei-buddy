@@ -165,13 +165,22 @@ garantir_imagens_base() {
 if precisa_build; then
   passo 'Imagem base dos Dockerfiles'
   garantir_imagens_base
-  passo 'Build das imagens (cache da maquina; sem registry)'
-  # Build que falha nao trocou nada: as imagens novas nem existem, e os
-  # containers no ar seguem os de antes. Codigo 3, e nao reversao — NR-236.
-  if ! $COMPOSE build; then
-    printf '\n\033[31mO build falhou. Nada foi trocado; a versao no ar segue a mesma.\033[0m\n'
-    exit 3
-  fi
+  # Uma imagem por vez, e nao as tres juntas — NR-236. Mesmo com o lockfile
+  # congelado e o store cheio, o pnpm baixa ~380 MB de metadados do npm por
+  # app para conferir o lockfile; com o cache de metadados quente (NR-235),
+  # leva 2 s e nao baixa nada. Em paralelo, as tres baixavam tudo ao mesmo
+  # tempo pela rede lenta da VPS, com 4 GB de memoria: em 18/11 a maquina
+  # parou de responder ate ao SSH no meio do build. Em sequencia, a primeira
+  # enche o cache e as outras duas o reaproveitam.
+  for servico in api worker web; do
+    passo "Build da imagem ${servico} (cache da maquina; sem registry)"
+    # Build que falha nao trocou nada: as imagens novas nem existem, e os
+    # containers no ar seguem os de antes. Codigo 3, e nao reversao.
+    if ! $COMPOSE build "$servico"; then
+      printf '\n\033[31mO build de %s falhou. Nada foi trocado; a versao no ar segue a mesma.\033[0m\n' "$servico"
+      exit 3
+    fi
+  done
 else
   # A reversao cai aqui: as imagens do commit anterior ficaram na maquina. O
   # `build` "so de cache" que rodava antes deixava de ser so cache quando a

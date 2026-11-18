@@ -140,7 +140,15 @@ baixada se não estiver na máquina, com até 5 tentativas e espera crescente. C
 ela local, o build nem consulta o Docker Hub. Em 18/11 a limpeza tinha apagado
 a base, e o build morreu em 34 s com "TLS handshake timeout". Base que não
 desce, ou build que falha, também saem com código 3: as imagens novas nem
-existem, e a versão no ar segue a mesma. Basta rodar o deploy de novo. Volumes nunca entram na limpeza. Para ver
+existem, e a versão no ar segue a mesma. Basta rodar o deploy de novo.
+
+**Uma imagem por vez (NR-236).** Mesmo com o lockfile congelado e o store
+cheio, o pnpm baixa uns 380 MB de metadados do npm por app para conferir o
+lockfile. Com o cache de metadados quente (NR-235), o install leva 2 s e não
+baixa nada. Por isso o build é feito em sequência (api, worker, web): a
+primeira imagem enche o cache, e as outras duas o reaproveitam. Em paralelo,
+as três baixavam tudo ao mesmo tempo, e em 18/11 a VPS parou de responder até
+ao SSH no meio do build. Volumes nunca entram na limpeza. Para ver
 o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
 que só lê. Os logs dos containers têm teto (3 × 10 MB por serviço).
 
