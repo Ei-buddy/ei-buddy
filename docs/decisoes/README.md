@@ -633,7 +633,7 @@ da taxa de cartão.
 
 ---
 
-### <a id="dec-025"></a>DEC-025 — Cliente sempre com celular e endereço
+### <a id="dec-025"></a>DEC-025 — Cliente sempre com celular
 
 |             |                                                                     |
 | ----------- | ------------------------------------------------------------------- |
@@ -657,6 +657,14 @@ cliente sem endereço salva e mostra só um aviso: o endereço será necessário
 para emitir nota fiscal de serviço. Ao emitir NFS-e no fechamento da venda
 para um cliente sem endereço, o sistema pede os dados na hora e já os grava no
 cadastro. CPF/CNPJ e celular continuam obrigatórios.
+
+**Revisão em 2026-11-18 (NR-232).** O **CPF passou a ser opcional para pessoa
+física**; para empresa, o CNPJ continua obrigatório. Veio de uma usuária em
+teste: na venda pela internet não dá para saber o CPF de todo mundo. Sem
+documento, o cliente é pessoa física e a nota sai sem identificá-lo. Quando o
+CPF é informado, ele é conferido e segue achando cliente repetido. No web, ao
+escolher "Pessoa jurídica", o CNPJ é exigido. No app, empresa é quem tem CNPJ.
+O celular continua obrigatório.
 
 ---
 

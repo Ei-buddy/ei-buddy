@@ -569,9 +569,9 @@ function CadastroRapido({
       return
     }
 
-    /* CPF obrigatorio, como em todo cadastro de cliente (NR-149). Quem nao
-       quer se identificar segue com "Seguir sem identificar", sem cadastro. */
-    const erroDoc = validateCPF(documento)
+    /* CPF opcional desde a revisao da DEC-025 (2026-11-18): o cadastro rapido
+       e sempre pessoa fisica. Digitado, tem de ser valido. */
+    const erroDoc = digitos(documento) === '' ? null : validateCPF(documento)
     if (erroDoc) {
       setErro(erroDoc)
       return
@@ -626,9 +626,9 @@ function CadastroRapido({
           Cadastro rápido
         </h2>
         <p className={styles.dialogTexto}>
-          CPF, nome e celular. O endereço é opcional (o CEP preenche o resto), mas será necessário
-          para emitir nota fiscal de serviço; e-mail e limite do fiado podem ser completados depois
-          em Clientes.
+          Nome e celular. CPF e endereço são opcionais (o CEP preenche o resto); sem eles, a nota
+          sai sem identificar o cliente, e o endereço será pedido para emitir nota de serviço.
+          E-mail e limite do fiado podem ser completados depois em Clientes.
         </p>
 
         {duplicados !== null ? (
@@ -686,7 +686,7 @@ function CadastroRapido({
           </label>
 
           <label className={styles.campo}>
-            <span>CPF</span>
+            <span>CPF (opcional)</span>
             <input
               className={styles.input}
               value={documento}

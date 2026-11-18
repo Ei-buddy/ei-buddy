@@ -167,6 +167,18 @@ export function validateDocumento(value: string, tipo: 'fisica' | 'juridica'): F
   return tipo === 'fisica' ? validateCPF(value) : validateCNPJ(value)
 }
 
+/**
+ * O documento do CLIENTE — DEC-025 revisada (2026-11-18).
+ *
+ * Pessoa fisica pode ficar sem CPF (venda pela internet, quem nao quer
+ * informar); empresa nao: o CNPJ e o que faz o cliente ser PJ. Preenchido,
+ * vale a validacao de sempre.
+ */
+export function validateDocumentoDoCliente(value: string, tipo: 'fisica' | 'juridica'): FieldError {
+  if (tipo === 'fisica' && value.replace(/\D/g, '') === '') return null
+  return validateDocumento(value, tipo)
+}
+
 export function maskDocumento(value: string, tipo: 'fisica' | 'juridica'): string {
   return tipo === 'fisica' ? maskCPF(value) : maskCNPJ(value)
 }

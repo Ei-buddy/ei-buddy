@@ -41,16 +41,16 @@ IDs cancelados não se reaproveitam. RF-146 é elegibilidade de emissão na Focu
 
 ## E2 — Clientes / CRM
 
-| ID     | Requisito                                                                                   | US     | Módulo dono | Pri | St  |
-| ------ | ------------------------------------------------------------------------------------------- | ------ | ----------- | :-: | :-: |
-| RF-009 | Cadastrar cliente exigindo CPF/CNPJ, nome, celular e endereço (DEC-025)                     | US-005 | `core`      |  M  | ✅  |
-| RF-010 | Detectar cliente duplicado por telefone ou CPF e oferecer reuso do existente                | US-005 | `core`      |  M  | ✅  |
-| RF-011 | Listar histórico de compras do cliente em ordem decrescente de data                         | US-006 | `core`      |  M  | ✅  |
-| RF-012 | Ocultar custo e margem no histórico para o papel `staff`                                    | US-003 | `core`      |  M  | ❌  |
-| RF-013 | Manter saldo em carteira (fiado) por cliente, alterado por venda `wallet` e por recebimento | US-007 | `domain`    |  M  | ✅  |
-| RF-014 | Avisar o operador do saldo devedor do cliente ao iniciar nova venda para ele                | US-007 | `core`      |  M  | ✅  |
-| RF-015 | Vincular número de WhatsApp ao cadastro do cliente e usá-lo como destino de mensagens       | US-008 | `core`      |  M  | ✅  |
-| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento            | US-008 | `core`      |  M  | ✅  |
+| ID     | Requisito                                                                                        | US     | Módulo dono | Pri | St  |
+| ------ | ------------------------------------------------------------------------------------------------ | ------ | ----------- | :-: | :-: |
+| RF-009 | Cadastrar cliente exigindo nome e celular; CNPJ para empresa, CPF e endereço opcionais (DEC-025) | US-005 | `core`      |  M  | ✅  |
+| RF-010 | Detectar cliente duplicado por telefone ou CPF e oferecer reuso do existente                     | US-005 | `core`      |  M  | ✅  |
+| RF-011 | Listar histórico de compras do cliente em ordem decrescente de data                              | US-006 | `core`      |  M  | ✅  |
+| RF-012 | Ocultar custo e margem no histórico para o papel `staff`                                         | US-003 | `core`      |  M  | ❌  |
+| RF-013 | Manter saldo em carteira (fiado) por cliente, alterado por venda `wallet` e por recebimento      | US-007 | `domain`    |  M  | ✅  |
+| RF-014 | Avisar o operador do saldo devedor do cliente ao iniciar nova venda para ele                     | US-007 | `core`      |  M  | ✅  |
+| RF-015 | Vincular número de WhatsApp ao cadastro do cliente e usá-lo como destino de mensagens            | US-008 | `core`      |  M  | ✅  |
+| RF-016 | Registrar consentimento e opt-out do cliente, bloqueando envio sem consentimento                 | US-008 | `core`      |  M  | ✅  |
 
 ## E3 — Produtos & Estoque
 

@@ -76,7 +76,7 @@ Contexto da conversa:
 const CADASTRO_NO_MEIO = `
 Quando o cliente ou o produto citado não existir:
 - Quando citarem um cliente ou produto pelo nome num pedido, confira antes de responder ou perguntar qualquer coisa: find_customer e find_product (ou o contexto da conversa). Só depois pergunte o que faltar.
-- Cliente não encontrado: ofereça cadastrar (nome, CPF/CNPJ e celular; endereço é opcional) ou registrar a venda sem cliente. No fiado, nunca ofereça seguir sem cliente: fiado exige cliente cadastrado.
+- Cliente não encontrado: ofereça cadastrar (nome e celular; CPF e endereço são opcionais, e empresa informa o CNPJ) ou registrar a venda sem cliente. No fiado, nunca ofereça seguir sem cliente: fiado exige cliente cadastrado.
 - Se aceitarem cadastrar, peça o que faltar (documento e celular) e pergunte se querem informar o endereço, avisando que ele será necessário para emitir nota fiscal de serviço. Endereço informado vai completo (CEP, rua, número, bairro, cidade e UF). Chame create_customer com esses dados e paraRetomar. Sem os obrigatórios a ferramenta recusa.
 - Produto não encontrado: ofereça cadastrar, pedindo os obrigatórios (descrição, unidade, custo e preço de venda).
 - Ao propor o cadastro que interrompe outro pedido, preencha paraRetomar com o pedido original (por exemplo, a venda de café para o João).
