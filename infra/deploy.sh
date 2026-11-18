@@ -273,7 +273,18 @@ for tag in "${antigas[@]}"; do
     | xargs -r docker rmi >/dev/null || true
 done
 docker image prune -f >/dev/null || true
-docker builder prune -f --keep-storage 5GB >/dev/null || true
+# Cache de build com teto de 8 GB, e nunca o do pnpm (`exec.cachemount`) —
+# NR-238. A camada do install de cada app fica no cache e e o que faz um
+# deploy so de codigo nao instalar nada; a do web nem esta numa imagem (a
+# imagem dele e so o standalone), entao um teto baixo a apagava a cada deploy.
+# O teto antigo, de 5 GB, tambem levava o store e os metadados do pnpm, que
+# sao os primeiros da fila quando o install sai do cache. Na conta de 18/11:
+# store 1,5 GB, metadados 0,4 GB, installs 2,9 GB, o resto e de cada versao.
+# `--reserved-space` e o nome novo de `--keep-storage`; o Docker que nao
+# conhece um usa o outro.
+docker builder prune -f --reserved-space 8GB --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
+  || docker builder prune -f --keep-storage 8GB --filter 'type!=exec.cachemount' >/dev/null 2>&1 \
+  || true
 df -h "$raiz_docker" | tail -1
 
 passo "Deploy concluido — ${DEPLOY_TAG}"

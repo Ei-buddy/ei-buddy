@@ -67,7 +67,26 @@ jobs:
           df -h / "$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)" 2>/dev/null | awk '!visto[$0]++'
 
           titulo 'Docker (resumo)'
+          docker version --format 'docker {{.Server.Version}}' 2>/dev/null || true
           docker system df 2>/dev/null || echo 'sem acesso ao docker'
+
+          # O cache que faz o deploy rapido — NR-238: o store e os metadados do
+          # pnpm (exec.cachemount) e a camada do install de cada app. Se o
+          # store sumiu, o proximo install baixa e copia tudo de novo. O
+          # Docker tambem limpa o cache sozinho quando o disco aperta: a regra
+          # dele esta logo abaixo (Min Free Space).
+          titulo 'Cache de build (maiores primeiro)'
+          docker buildx du --verbose 2>/dev/null | awk '
+            /^Shared:/ { sh = $2 }
+            /^Size:/ { s = $2 }
+            /^Description:/ { $1 = ""; d = substr($0, 2) }
+            /^Last used:/ { $1 = $2 = ""; u = substr($0, 3) }
+            /^Type:/ {
+              if (length(d) > 90) d = "..." substr(d, length(d) - 86)
+              printf "%9s  %-15s  %-5s  %-15s  %s\n", s, $2, sh, u, d
+            }' | sort -h -r | head -12
+          echo '(colunas: tamanho, tipo, compartilhado com imagem, ultimo uso, passo)'
+          docker buildx inspect 2>/dev/null | sed -n '/^GC Policy/,$p'
 
           titulo 'Imagens (da mais nova para a mais antiga)'
           docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}  {{.CreatedSince}}' 2>/dev/null

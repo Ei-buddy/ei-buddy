@@ -148,7 +148,25 @@ lockfile. Com o cache de metadados quente (NR-235), o install leva 2 s e não
 baixa nada. Por isso o build é feito em sequência (api, worker, web): a
 primeira imagem enche o cache, e as outras duas o reaproveitam. Em paralelo,
 as três baixavam tudo ao mesmo tempo, e em 18/11 a VPS parou de responder até
-ao SSH no meio do build. Volumes nunca entram na limpeza. Para ver
+ao SSH no meio do build. Volumes nunca entram na limpeza.
+
+**Install só quando a dependência muda (NR-238).** Cada Dockerfile copia
+primeiro só os manifestos (o `package.json` de cada pacote, o lockfile e a
+config do pnpm), instala, e só depois copia o código. Enquanto nenhuma
+dependência muda, a camada do install sai inteira do cache: no build local,
+um deploy só de código levou 1 s (api), 2 s (worker) e 33 s (web, que ainda
+roda o `next build`). Em 18/11, sem isso, o install levou 30, 8 e 50 minutos.
+A imagem do web é só o servidor standalone do Next (`output: 'standalone'`),
+com o que ele carrega: 325 MB em vez de 2,2 GB, e roda como o usuário `node`.
+Exportar e desempacotar a imagem do web levava 14 minutos por deploy. Depois
+do deploy, o cache de build fica com até 8 GB e nunca perde o do pnpm. O teto
+antigo (5 GB) apagava primeiro justamente o store e os metadados do pnpm.
+E o próprio Docker limpa o cache de build quando o disco aperta: na regra
+padrão, com menos de 20% livre. Em 18/11, pelo visto, isso levou o store no
+meio do deploy, antes do build do web. O diagnóstico mostra o cache e a regra
+da VPS.
+
+Para ver
 o que ocupa o disco sem entrar na máquina: **Actions → Diagnostico — VPS**,
 que só lê. Os logs dos containers têm teto (3 × 10 MB por serviço).
 
