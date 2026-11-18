@@ -81,11 +81,11 @@ jobs:
           titulo 'Memoria'
           free -m 2>/dev/null || true
 
-          # O que a maquina esta fazendo AGORA — NR-233. O deploy de 18/11 ficou
-          # uma hora parado no "Recreate" da api sem uma linha de log: o
-          # workflow so mostra a saida quando o passo termina, e o passo nao
-          # terminava. Carga, pressao de disco, os processos do deploy e os
-          # ultimos eventos do Docker dizem em que ponto ele esta.
+          # O que a maquina esta fazendo AGORA — NR-233. O deploy de 18/11 passou
+          # duas horas no passo de build sem uma linha de log: o workflow so
+          # mostra a saida quando o passo termina, e o passo nao terminava. Carga, pressao de disco e os processos do deploy dizem
+          # em que ponto ele esta. (Eventos do Docker nao servem: o daemon so
+          # guarda os ultimos 256, e os healthchecks enchem isso em minutos.)
           titulo 'Carga'
           uptime 2>/dev/null || true
           for recurso in cpu memory io; do
@@ -97,12 +97,6 @@ jobs:
           ps -eo pid,ppid,etime,stat,pcpu,pmem,args --sort=start_time 2>/dev/null \
             | grep -E 'deploy|compose|buildkit|docker (build|run|exec|stop|rm)|pnpm|git ' \
             | grep -v -e grep -e 'ps -eo' | cut -c1-240 | tail -40
-
-          titulo 'Eventos do Docker (ultimos 90 minutos)'
-          timeout 20 docker events --since 90m --until "$(date +%s)" --filter type=container \
-            --format '{{.Time}} {{.Action}} {{.Actor.Attributes.name}}' 2>/dev/null \
-            | grep -v -e exec_ -e health_status | tail -60 \
-            | while read -r t resto; do echo "$(date -u -d "@${t}" +%H:%M:%S) ${resto}"; done
 
           # Estado, saude e log de cada servico — NR-229. O deploy de 17/11
           # parou com "container naregua-redis is unhealthy", e o workflow so
