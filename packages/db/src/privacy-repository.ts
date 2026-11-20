@@ -94,6 +94,8 @@ const FONTES: Readonly<Record<ExportCollection, Fonte>> = {
   },
   cash_sessions: { tabela: 'cash_sessions', escopo: 'company_id' },
   cash_movements: { tabela: 'cash_movements', escopo: 'company_id' },
+  /* NFS-e nacional da venda — NR-241: documento fiscal da empresa, como `invoices`. */
+  service_invoices: { tabela: 'service_invoices', escopo: 'company_id' },
 }
 
 /**

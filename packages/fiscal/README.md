@@ -133,6 +133,27 @@ saem com os valores do caso geral (`finalidade_emissao` 0, IBS/CBS CST `000` e
 classificação `000001`). Se a homologação recusar algum para loja do Simples,
 o ajuste é só em `corpoDaNfsen`.
 
+### Ligada à venda (NR-241)
+
+Os itens cujo produto tem **NBS** são serviço e saem na NFS-e; o resto continua
+na NFC-e, que agora deixa os serviços de fora e leva só a parte dos pagamentos
+que cabe à mercadoria. Uma NFS-e por venda (tabela `service_invoices`):
+
+1. `POST /vendas/:id/nfse` (`requestServiceInvoice`, em `core`) confere o que a
+   loja precisa — Código de Tributação Nacional, cidade e UF — e grava
+   "processando". O código IBGE da cidade vem da BrasilAPI na primeira vez e
+   fica guardado na empresa.
+2. O worker envia (`service-invoice-issue`) e, enquanto a nota segue
+   "processando", consulta de novo (`service-invoice-check`): 15 s dobrando
+   até 15 min, no máximo 12 vezes.
+3. `GET /vendas/:id/nfse` mostra o estado, e a visita aproveita para perguntar
+   à Focus — no máximo a cada 20 s.
+4. `POST /vendas/:id/nfse/cancelamento` cancela a autorizada, com justificativa.
+
+Rejeitada, a nota é pedida de novo depois da correção, com a mesma referência.
+O valor é a soma dos serviços; o desconto da venda entra na proporção deles; e
+vai o NBS do serviço de maior valor (a DPS leva um só).
+
 `criarEmissorNfsenFalso()` imita o caminho assíncrono: o pedido volta
 `processing`, e a nota aparece autorizada na consulta seguinte. Descrição com
 `REJEITAR` simula a rejeição.

@@ -20,6 +20,7 @@ import {
   buildWebhookDeps,
   buildWhatsAppWebhookDeps,
   buildEmissaoDeps,
+  buildNfseDeps,
   buildFiscalDeps,
   buildContasDeps,
   buildCrmDeps,
@@ -71,6 +72,7 @@ import { registerComprasRoutes } from './routes/compras.js'
 import { registerOrcamentosRoutes } from './routes/orcamentos.js'
 import { registerCrmRoutes } from './routes/crm.js'
 import { registerEmissaoRoutes, registerFiscalRoutes } from './routes/fiscal.js'
+import { registerNfseRoutes } from './routes/nfse.js'
 import { registerEstoqueRoutes } from './routes/estoque.js'
 import { registerRelatoriosRoutes } from './routes/relatorios.js'
 import { registerAuditoriaRoutes } from './routes/auditoria.js'
@@ -176,6 +178,7 @@ async function registrarRotas(): Promise<void> {
   registerCrmRoutes(app, buildCrmDeps())
   registerPrivacidadeRoutes(app, buildPrivacidadeDeps())
   registerEmissaoRoutes(app, buildEmissaoDeps())
+  registerNfseRoutes(app, buildNfseDeps())
 
   /*
    * Assistente sem runtime utilizavel desliga a ROTA, e nao a api — mesmo

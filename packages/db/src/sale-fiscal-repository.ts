@@ -23,6 +23,7 @@ type LinhaItem = {
   ncm: string | null
   cfop: string | null
   tax_situation_code: string | null
+  nbs_code: string | null
 }
 
 export function createSaleFiscalReader(sql: Sql): SaleFiscalReader {
@@ -42,7 +43,7 @@ export function createSaleFiscalReader(sql: Sql): SaleFiscalReader {
           tx<LinhaItem[]>`
             SELECT i.product_id, i.description, i.quantity, i.unit_price_cents,
                    i.unit_of_measure,
-                   p.ncm, p.cfop, p.tax_situation_code
+                   p.ncm, p.cfop, p.tax_situation_code, p.nbs_code
             FROM sale_items i
             LEFT JOIN products p ON p.id = i.product_id
             WHERE i.sale_id = ${saleId}
@@ -71,6 +72,7 @@ export function createSaleFiscalReader(sql: Sql): SaleFiscalReader {
             ncm: i.ncm,
             cfop: i.cfop,
             taxSituationCode: i.tax_situation_code,
+            nbsCode: i.nbs_code,
           })),
           payments: pagamentos.map((p) => ({
             method: p.method as PaymentMethod,

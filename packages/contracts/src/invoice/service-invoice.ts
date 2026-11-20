@@ -192,3 +192,50 @@ export const serviceInvoiceCancellationSchema = z.discriminatedUnion('status', [
 ])
 
 export type ServiceInvoiceCancellation = z.infer<typeof serviceInvoiceCancellationSchema>
+
+/**
+ * A NFS-e da venda como a tela le — NR-241.
+ *
+ * Os campos do provedor ficam nulos ate existirem: "processando" nao tem
+ * numero, e rejeitada nao tem PDF.
+ */
+export const saleServiceInvoiceOutputSchema = z.object({
+  status: z.enum(['processing', 'authorized', 'rejected', 'cancelled']),
+  amountCents: z.number().int(),
+  discountCents: z.number().int(),
+  description: z.string(),
+  number: z.string().nullable(),
+  accessKey: z.string().nullable(),
+  verificationCode: z.string().nullable(),
+  danfseUrl: z.string().nullable(),
+  publicUrl: z.string().nullable(),
+  rejection: invoiceRejectionSchema.nullable(),
+  requestedAt: z.string(),
+  issuedAt: z.string().nullable(),
+  cancelledAt: z.string().nullable(),
+})
+
+export type SaleServiceInvoiceOutput = z.infer<typeof saleServiceInvoiceOutputSchema>
+
+/** O que a tela manda para cancelar a NFS-e da venda: so a justificativa. */
+export const cancelSaleServiceInvoiceInputSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(15, 'A justificativa precisa de ao menos 15 caracteres.')
+      .max(255, 'A justificativa passa de 255 caracteres.'),
+  })
+  .strict()
+
+export type CancelSaleServiceInvoiceInput = z.infer<typeof cancelSaleServiceInvoiceInputSchema>
+
+/** O trabalho de consultar de novo uma NFS-e que segue processando — NR-241. */
+export const serviceInvoiceCheckSchema = z
+  .object({
+    companyId: idSchema,
+    saleId: idSchema,
+    /** Quantas consultas ja foram feitas por este pedido. */
+    checks: z.number().int().min(0),
+  })
+  .strict()
