@@ -100,6 +100,43 @@ E é também por isso que `issue` é **idempotente por `saleId`**: fila
 reprocessa, e nota duplicada não é inconveniência, é problema fiscal que o
 lojista resolve com o contador — [RNF-043](../../docs/produto/requisitos-nao-funcionais.md).
 
+## NFS-e no padrão nacional (NR-240)
+
+A NFS-e sai pelo padrão **nacional** da Focus (`/v2/nfsen`), e não pela API
+municipal (`/v2/nfse`): as lojas podem estar em qualquer município, e o padrão
+nacional serve a todos — [DEC-031](../../docs/decisoes/README.md#dec-031). A
+documentação da Focus que o código segue está copiada em
+[`docs/assets/focus-nfse-nacional/`](../../docs/assets/focus-nfse-nacional/README.md).
+
+| O que muda em relação à NFC-e                                                 | Como o código trata                                                        |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Assíncrona:** o `POST` só pré-valida e volta `processando_autorizacao`      | `issue` devolve `processing`; quem consulta de novo (`consult`) é o worker |
+| **A referência não se repete** (`"Já existe um DPS com esta referência"`)     | `issue` consulta antes de enviar; nota já enviada devolve o estado dela    |
+| **Um serviço por nota** (um código, uma descrição, um valor)                  | o contrato `ServiceInvoiceRequest` tem `service`, e não uma lista de itens |
+| **Numeração da Focus** (`serie_nfsen_*`, `proximo_numero_nfsen_*` na empresa) | a nota sai sem `serie_dps` nem `numero_dps`                                |
+| **Autorizada sem PDF ou XML** enquanto a Focus monta os arquivos              | continua `processing`, e nunca vira rejeição                               |
+
+A referência é o `saleId` sem hífens, com o sufixo `nfse`: a Focus aceita só
+letras e números, e a mesma venda pode ter NFC-e e NFS-e — uma referência não
+pode valer pelas duas. Depois de uma rejeição, a nota corrigida sai com a
+**mesma** referência: a Focus aceita o reenvio enquanto a nota não foi
+autorizada, e `issue` só reenvia quando a consulta diz que ela foi rejeitada.
+
+O cadastro da empresa na Focus liga `habilita_nfsen_producao` e
+`habilita_nfsen_homologacao` para quem informou o Código de Tributação Nacional
+(quem presta serviço). A NFS-e municipal (`habilita_nfse`) fica sempre
+desligada: a Focus recusa as duas juntas em produção. Loja só de serviço se
+cadastra sem o CSC, que é da NFC-e.
+
+Os campos da Reforma Tributária que a lista da Focus marca como obrigatórios
+saem com os valores do caso geral (`finalidade_emissao` 0, IBS/CBS CST `000` e
+classificação `000001`). Se a homologação recusar algum para loja do Simples,
+o ajuste é só em `corpoDaNfsen`.
+
+`criarEmissorNfsenFalso()` imita o caminho assíncrono: o pedido volta
+`processing`, e a nota aparece autorizada na consulta seguinte. Descrição com
+`REJEITAR` simula a rejeição.
+
 ## Modo falso
 
 `FISCAL_PROVIDER=fake` responde de forma determinística, sem rede. Isso permite

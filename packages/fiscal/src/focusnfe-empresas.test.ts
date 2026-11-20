@@ -56,6 +56,20 @@ describe('corpo da empresa — NR-183', () => {
     })
   })
 
+  it('NFS-e nacional so para quem presta servico, e nunca a municipal — NR-240', () => {
+    expect(corpoDaEmpresa(DADOS)).toMatchObject({
+      habilita_nfse: false,
+      habilita_nfsen_producao: false,
+      habilita_nfsen_homologacao: false,
+    })
+    expect(corpoDaEmpresa({ ...DADOS, emiteNfse: true })).toMatchObject({
+      habilita_nfce: true,
+      habilita_nfse: false,
+      habilita_nfsen_producao: true,
+      habilita_nfsen_homologacao: true,
+    })
+  })
+
   it('IE "ISENTO" vai como texto, e nao some', () => {
     expect(corpoDaEmpresa({ ...DADOS, inscricaoEstadual: 'ISENTO' }).inscricao_estadual).toBe(
       'ISENTO',

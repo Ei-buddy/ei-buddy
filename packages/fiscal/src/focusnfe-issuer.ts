@@ -1,5 +1,4 @@
 import {
-  ErroDeIntegracao,
   type CancelInvoiceRequest,
   type InvoiceCancellation,
   type InvoiceIssueResult,
@@ -9,6 +8,7 @@ import {
   LOCAL_REJECTION_CODES,
   separarOrigem,
 } from '@na-regua/contracts'
+import { criarChamadaFocus, referenciaFocus } from './focusnfe-http.js'
 import type { InvoiceStore, NotaGuardada } from './invoice-store.js'
 
 /**
@@ -31,7 +31,8 @@ import type { InvoiceStore, NotaGuardada } from './invoice-store.js'
  *    usuario e a senha e string vazia — `Base64("token:")`. Nao e um cabecalho
  *    de API key.
  *
- * 3. **A referencia (`ref`) e nossa, e e o `saleId`.** Ela e unica por token e,
+ * 3. **A referencia (`ref`) e nossa, e e o `saleId`** (sem os hifens: a Focus
+ *    aceita so letras e numeros — `referenciaFocus`). Ela e unica por token e,
  *    depois que a nota autoriza, NAO pode ser reusada. Isso da metade da
  *    idempotencia de graca; a outra metade e a guarda (`InvoiceStore`), que
  *    responde sem ida a rede e resolve o cancelamento por chave.
@@ -144,66 +145,12 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
   cancel(request: CancelInvoiceRequest): Promise<InvoiceCancellation>
   consult(request: { companyId: string; saleId: string }): Promise<InvoiceIssueResult | undefined>
 } {
-  const buscar = opcoes.fetch ?? globalThis.fetch
   const base = FOCUS_NFE_URLS[opcoes.ambiente]
-  const timeoutMs = opcoes.timeoutMs ?? TIMEOUT_PADRAO_MS
-
-  /**
-   * Basic com senha vazia — `Base64("token:")`.
-   *
-   * Os dois pontos sem nada depois sao intencionais e estao na documentacao.
-   * Omiti-los muda o token e a autenticacao falha com uma mensagem que nao
-   * explica nada.
-   */
-  const autorizacao = (token: string): string =>
-    `Basic ${Buffer.from(`${token}:`, 'utf8').toString('base64')}`
-
-  async function chamar(
-    caminho: string,
-    init: { method: string; token: string; body?: unknown },
-  ): Promise<{ status: number; corpo: Record<string, unknown> }> {
-    const controle = new AbortController()
-    const relogio = setTimeout(() => controle.abort(), timeoutMs)
-
-    try {
-      const resposta = await buscar(`${base}/v2${caminho}`, {
-        method: init.method,
-        headers: {
-          authorization: autorizacao(init.token),
-          'content-type': 'application/json',
-        },
-        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-        signal: controle.signal,
-      })
-
-      const texto = await resposta.text()
-
-      /*
-       * Corpo ilegivel e falha de INFRAESTRUTURA, e por isso lanca: a porta diz
-       * que so infraestrutura lanca, e "o provedor respondeu HTML de erro" e
-       * exatamente isso. Traduzir para rejeicao faria o job desistir de uma nota
-       * que talvez tenha sido autorizada do outro lado.
-       */
-      let corpo: Record<string, unknown>
-      try {
-        corpo = texto === '' ? {} : (JSON.parse(texto) as Record<string, unknown>)
-      } catch {
-        throw new ErroDeIntegracao(
-          `Focus NFe respondeu ${resposta.status} com corpo ilegivel em ${caminho}.`,
-          {
-            provedor: 'focusnfe',
-            operacao: `${init.method} ${caminho}`,
-            status: resposta.status,
-            resposta: texto,
-          },
-        )
-      }
-
-      return { status: resposta.status, corpo }
-    } finally {
-      clearTimeout(relogio)
-    }
-  }
+  const chamar = criarChamadaFocus({
+    base,
+    ...(opcoes.fetch === undefined ? {} : { fetch: opcoes.fetch }),
+    timeoutMs: opcoes.timeoutMs ?? TIMEOUT_PADRAO_MS,
+  })
 
   /** Credencial ausente e configuracao, nao rejeicao fiscal: lanca. */
   async function credenciais(companyId: string): Promise<{ token: string; cnpj: string }> {
@@ -403,7 +350,7 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
 
       const { token, cnpj } = await credenciais(request.companyId)
 
-      const { corpo } = await chamar(`/nfce?ref=${encodeURIComponent(request.saleId)}`, {
+      const { corpo } = await chamar(`/nfce?ref=${referenciaFocus(request.saleId)}`, {
         method: 'POST',
         token,
         body: corpoDaNota(request, cnpj),
@@ -457,7 +404,7 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
     }): Promise<InvoiceIssueResult | undefined> {
       const { token } = await credenciais(request.companyId)
 
-      const { status, corpo } = await chamar(`/nfce/${encodeURIComponent(request.saleId)}`, {
+      const { status, corpo } = await chamar(`/nfce/${referenciaFocus(request.saleId)}`, {
         method: 'GET',
         token,
       })
@@ -536,7 +483,7 @@ export function criarEmissorFocusNfe(opcoes: FocusNfeOptions): {
 
       const { token } = await credenciais(request.companyId)
 
-      const { corpo } = await chamar(`/nfce/${encodeURIComponent(guardada.saleId)}`, {
+      const { corpo } = await chamar(`/nfce/${referenciaFocus(guardada.saleId)}`, {
         method: 'DELETE',
         token,
         body: { justificativa: request.reason },

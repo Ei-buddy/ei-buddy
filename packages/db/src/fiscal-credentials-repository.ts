@@ -256,6 +256,7 @@ export function createFiscalCredentials(
         neighborhood: string | null
         city: string | null
         state: string | null
+        national_service_code: string | null
       }
       const [empresa] = await withTenant(
         sql,
@@ -263,7 +264,7 @@ export function createFiscalCredentials(
         (tx) => tx<Empresa[]>`
           SELECT legal_name, trade_name, cnpj, state_registration, municipal_registration,
                  tax_regime, email, phone, postal_code, street, street_number, complement,
-                 neighborhood, city, state
+                 neighborhood, city, state, national_service_code
           FROM companies WHERE id = ${companyId}
         `,
       )
@@ -310,6 +311,9 @@ export function createFiscalCredentials(
         ...(cscHomo === undefined || linha?.csc_id_homologacao == null
           ? {}
           : { cscHomologacao: { id: linha.csc_id_homologacao, codigo: cscHomo } }),
+        /* Quem informou o Codigo de Tributacao Nacional presta servico e emite
+           NFS-e nacional — DEC-031, NR-240. */
+        emiteNfse: empresa.national_service_code !== null,
       }
     },
 

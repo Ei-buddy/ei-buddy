@@ -112,8 +112,11 @@ async function sincronizarComFocus(
   if (dados.focusId === undefined && dados.certificado === undefined) {
     falta.push('o certificado digital A1 e a senha')
   }
+  /* O CSC e da NFC-e. Loja so de servico (NFS-e nacional, DEC-031) nao tem
+     por que gerar um na SEFAZ estadual para se cadastrar — NR-240. */
   if (
     dados.focusId === undefined &&
+    dados.emiteNfse !== true &&
     dados.cscProducao === undefined &&
     dados.cscHomologacao === undefined
   ) {

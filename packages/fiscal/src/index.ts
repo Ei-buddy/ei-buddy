@@ -19,6 +19,16 @@ export type { FakeInvoiceIssuerOptions } from './fake-issuer.js'
    mantem o XML fora da conta do provedor. */
 export { criarEmissorFocusNfe, FOCUS_NFE_URLS, reaisDeCentavos } from './focusnfe-issuer.js'
 export type { AmbienteFocusNfe, CredenciaisFocusNfe, FocusNfeOptions } from './focusnfe-issuer.js'
+/* NFS-e no padrao nacional — Focus NFe `/v2/nfsen`, DEC-031 / NR-240. */
+export {
+  corpoDaNfsen,
+  criarEmissorNfsenFocus,
+  horarioDeBrasilia,
+  paraResultadoDaNfsen,
+  referenciaDaNfsen,
+} from './focusnfe-nfsen.js'
+export type { CredenciaisNfsen, EmissorNfsen, EmissorNfsenOptions } from './focusnfe-nfsen.js'
+export { criarEmissorNfsenFalso } from './fake-nfsen.js'
 export { InMemoryInvoiceStore } from './invoice-store.js'
 export type { InvoiceStore, NotaGuardada } from './invoice-store.js'
 
