@@ -74,6 +74,8 @@ export const exportCollectionSchema = z.enum([
      movimento de dinheiro, que a loja guarda junto com as vendas. */
   'cash_sessions',
   'cash_movements',
+  /* NFS-e nacional da venda — NR-241. */
+  'service_invoices',
 ])
 
 export type ExportCollection = z.infer<typeof exportCollectionSchema>

@@ -432,6 +432,7 @@ describe.skipIf(!DATABASE_URL)('privacidade — NR-086', () => {
         'customer_contacts',
         'cash_sessions',
         'cash_movements',
+        'service_invoices',
       ])
 
       const orfas = tabelas

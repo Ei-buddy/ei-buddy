@@ -2,6 +2,7 @@ import type {
   ConversationPurgeRepository,
   InvoiceIssuer,
   MessageSender,
+  ServiceInvoiceJobDeps,
   SweepSubscriptionDeps,
 } from '@na-regua/core'
 
@@ -32,6 +33,8 @@ export type ConsumerDeps = {
    * bloqueando lojas por um numero que ninguem escolheu.
    */
   readonly assinatura?: SweepSubscriptionDeps | undefined
+  /** NFS-e nacional — NR-241. `undefined` sem banco: os jobs saem como `skipped`. */
+  readonly nfse?: ServiceInvoiceJobDeps | undefined
 }
 
 /**

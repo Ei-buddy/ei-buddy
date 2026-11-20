@@ -168,3 +168,59 @@ describe('quem pode', () => {
     expect(isAppError(erro) && erro.code).toBe('FORBIDDEN')
   })
 })
+
+describe('servico fica fora da NFC-e — NR-241', () => {
+  const corte = item({
+    productId: 'prod-corte',
+    description: 'Corte de cabelo',
+    unitPriceCents: 6000,
+    ncm: null,
+    cfop: null,
+    taxSituationCode: null,
+    nbsCode: '101011000',
+  })
+
+  it('leva so a mercadoria, e servico sem NCM nao trava a nota', async () => {
+    const c = cenario({
+      ...vendaValida,
+      items: [item({ unitPriceCents: 4000 }), corte],
+      payments: [{ method: 'pix', amountCents: 10000 }],
+    })
+
+    await requestInvoice(c.deps, contexto(), { saleId: 'venda-1' })
+
+    const pedido = c.enfileirados[0] as { items: { description: string }[]; payments: unknown[] }
+    expect(pedido.items.map((i) => i.description)).toEqual(['Cafe torrado 500g'])
+    /* So a parte da mercadoria: 40% de R$ 100,00. */
+    expect(pedido.payments).toEqual([{ method: 'pix', amountCents: 4000 }])
+  })
+
+  it('venda so de servico manda emitir a NFS-e', async () => {
+    const c = cenario({ ...vendaValida, items: [corte] })
+    const erro = await pegaErro(() => requestInvoice(c.deps, contexto(), { saleId: 'venda-1' }))
+    expect(isAppError(erro) && erro.message).toMatch(/emita a NFS-e/)
+    expect(c.enfileirados).toHaveLength(0)
+  })
+})
+
+describe('pagamentos da parte da venda — NR-241', () => {
+  it('divide na proporcao e a soma fecha no centavo', async () => {
+    const { pagamentosDaParte } = await import('./request-invoice.js')
+    const r = pagamentosDaParte(
+      [
+        { method: 'cash', amountCents: 3333 },
+        { method: 'pix', amountCents: 3334 },
+      ],
+      1,
+      3,
+    )
+    expect(r.reduce((s, p) => s + p.amountCents, 0)).toBe(Math.round(6667 / 3))
+    expect(r.map((p) => p.method)).toEqual(['cash', 'pix'])
+  })
+
+  it('sem servico na venda, os pagamentos voltam intactos', async () => {
+    const { pagamentosDaParte } = await import('./request-invoice.js')
+    const pagamentos = [{ method: 'cash', amountCents: 1990 }]
+    expect(pagamentosDaParte(pagamentos, 1990, 1990)).toEqual(pagamentos)
+  })
+})

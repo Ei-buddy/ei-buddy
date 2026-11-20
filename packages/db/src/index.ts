@@ -90,6 +90,8 @@ export { createFiscalCredentials } from './fiscal-credentials-repository.js'
 export { createPaymentCredentials } from './payment-credentials-repository.js'
 export type { SituacaoFiscalDaEmpresa } from './fiscal-credentials-repository.js'
 export { createSaleFiscalReader } from './sale-fiscal-repository.js'
+/* NFS-e nacional da venda — DEC-031, NR-241. */
+export { createServiceInvoiceRepository } from './service-invoice-repository.js'
 
 /* Faturamento e rankings — NR-077, US-041. */
 export { createReportRepository } from './report-repository.js'

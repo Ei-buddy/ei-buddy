@@ -25,6 +25,10 @@ export const QUEUES = {
   subscriptionSweep: 'subscription-sweep',
   /** Importacao periodica de extrato bancario. */
   bankSync: 'bank-sync',
+  /** NFS-e nacional: envia o pedido da venda — DEC-031, NR-241. */
+  serviceInvoiceIssue: 'service-invoice-issue',
+  /** NFS-e nacional: consulta de novo a nota que segue processando — NR-241. */
+  serviceInvoiceCheck: 'service-invoice-check',
   /** Processamento de webhook recebido, apos resposta 200 imediata. */
   webhookProcess: 'webhook-process',
 } as const

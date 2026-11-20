@@ -3,6 +3,7 @@ import { consumirCobranca } from './charge-overdue.js'
 import { consumirExpurgo } from './conversation-purge.js'
 import { consumirVarreduraDeAssinatura } from './subscription-sweep.js'
 import { consumirEmissao } from './invoice-issue.js'
+import { consumirConsultaDeServico, consumirEmissaoDeServico } from './service-invoice.js'
 import type { ConsumerDeps, ResultadoDoJob } from './types.js'
 import { consumirEnvio } from './whatsapp-send.js'
 
@@ -27,6 +28,8 @@ const CONSUMIDORES: Partial<Record<QueueName, Consumidor>> = {
   [QUEUES.chargeOverdue]: (deps) => consumirCobranca(deps),
   [QUEUES.conversationPurge]: (deps) => consumirExpurgo(deps),
   [QUEUES.subscriptionSweep]: (deps) => consumirVarreduraDeAssinatura(deps),
+  [QUEUES.serviceInvoiceIssue]: consumirEmissaoDeServico,
+  [QUEUES.serviceInvoiceCheck]: consumirConsultaDeServico,
 }
 
 export function consumidorDe(fila: QueueName): Consumidor | undefined {
@@ -40,7 +43,9 @@ export function filasSemConsumidor(): readonly QueueName[] {
 
 export {
   consumirCobranca,
+  consumirConsultaDeServico,
   consumirEmissao,
+  consumirEmissaoDeServico,
   consumirEnvio,
   consumirExpurgo,
   consumirVarreduraDeAssinatura,

@@ -56,7 +56,19 @@ export async function requestInvoice(
     throw AppError.validation('Esta venda não tem itens, e nota sem item não existe.')
   }
 
-  const semClassificacao = venda.items.filter(naoClassificado)
+  /*
+   * Servico (item com NBS) sai na NFS-e, e nao aqui — DEC-031, NR-241. Sem
+   * isso, um corte de cabelo sem NCM travaria a NFC-e da pomada vendida junto,
+   * com uma mensagem pedindo NCM para um servico.
+   */
+  const mercadorias = venda.items.filter((i) => i.nbsCode == null)
+  if (mercadorias.length === 0) {
+    throw AppError.validation(
+      'Esta venda só tem serviços. Para serviço, emita a NFS-e; a NFC-e é para mercadoria.',
+    )
+  }
+
+  const semClassificacao = mercadorias.filter(naoClassificado)
 
   if (semClassificacao.length > 0) {
     throw AppError.validation(mensagemDeClassificacao(semClassificacao), [
@@ -68,8 +80,12 @@ export async function requestInvoice(
     companyId: ctx.companyId,
     saleId: venda.saleId,
     series: SERIE_PADRAO,
-    items: venda.items.map(paraItemDaNota),
-    payments: venda.payments.map((p) => ({ method: p.method, amountCents: p.amountCents })),
+    items: mercadorias.map(paraItemDaNota),
+    payments: pagamentosDaParte(
+      venda.payments,
+      somaDosItens(mercadorias),
+      somaDosItens(venda.items),
+    ).map((p) => ({ method: p.method, amountCents: p.amountCents })),
     ...(venda.recipient === undefined ? {} : { recipient: venda.recipient }),
     requestedAt: ctx.now.toISOString(),
   }
@@ -128,3 +144,36 @@ const paraItemDaNota = (i: ItemFiscalDaVenda): InvoiceItem => ({
   cfop: i.cfop!,
   taxSituationCode: i.taxSituationCode!,
 })
+
+const somaDosItens = (itens: readonly ItemFiscalDaVenda[]): number =>
+  itens.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0)
+
+/**
+ * Os pagamentos na proporcao da parte da venda que a nota leva — NR-241.
+ *
+ * Venda com mercadoria e servico tem duas notas, e a NFC-e so pode dizer que
+ * foi paga a parte DELA: com o pagamento inteiro, o valor pago passaria do
+ * total da nota. Cada forma fica com a sua proporcao, arredondada para baixo,
+ * e o centavo que sobra vai para a ultima — a soma fecha exata. Sem servico
+ * na venda, parte e todo sao iguais e os pagamentos voltam intactos.
+ */
+export function pagamentosDaParte<P extends { readonly amountCents: number }>(
+  pagamentos: readonly P[],
+  parte: number,
+  todo: number,
+): P[] {
+  if (todo <= 0 || parte >= todo) return [...pagamentos]
+
+  const pago = pagamentos.reduce((s, p) => s + p.amountCents, 0)
+  const alvo = Math.round((pago * parte) / todo)
+  const proporcionais = pagamentos.map((p) => ({
+    ...p,
+    amountCents: Math.floor((p.amountCents * parte) / todo),
+  }))
+  const sobra = alvo - proporcionais.reduce((s, p) => s + p.amountCents, 0)
+  const ultimo = proporcionais.at(-1)
+  if (ultimo !== undefined && sobra > 0) {
+    proporcionais[proporcionais.length - 1] = { ...ultimo, amountCents: ultimo.amountCents + sobra }
+  }
+  return proporcionais.filter((p) => p.amountCents > 0)
+}
