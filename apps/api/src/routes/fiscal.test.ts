@@ -69,7 +69,7 @@ const ENDERECO: Endereco = {
   uf: 'SP',
 }
 
-function guardaEmMemoria(endereco: Endereco = ENDERECO) {
+function guardaEmMemoria(endereco: Endereco = ENDERECO, emiteNfse = false) {
   const gravado: Record<string, string | undefined> = {}
 
   const deps: CredenciaisFiscaisDeps = {
@@ -108,6 +108,7 @@ function guardaEmMemoria(endereco: Endereco = ENDERECO) {
         ...(gravado.cscProd === undefined
           ? {}
           : { cscProducao: { id: gravado.cscProdId ?? '', codigo: gravado.cscProd } }),
+        emiteNfse,
       }),
       registrarFocus: async (_id, r) => {
         if (r.ok) {
@@ -405,8 +406,9 @@ describe('cadastro na Focus como revenda — NR-183', () => {
   async function comFocus(
     cadastro: NonNullable<CredenciaisFiscaisDeps['cadastroFocus']>,
     endereco?: Endereco,
+    emiteNfse = false,
   ) {
-    const memoria = guardaEmMemoria(endereco)
+    const memoria = guardaEmMemoria(endereco, emiteNfse)
     const a = Fastify({ logger: false })
     registerErrorHandler(a)
     await registerRateLimit(a)
@@ -472,6 +474,38 @@ describe('cadastro na Focus como revenda — NR-183', () => {
 
     expect(focus.chamadas).toHaveLength(0)
     expect(r.json().focus.error).toMatch(/endereco completo/)
+  })
+
+  it('loja so de servico se cadastra sem CSC, com a NFS-e nacional ligada — NR-240', async () => {
+    const focus = criarCadastroDeEmpresasFocusFalso()
+    const c = await comFocus(focus, undefined, true)
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: { certificateBase64: CERTIFICADO, certificatePassword: SENHA },
+    })
+
+    expect(r.statusCode).toBe(200)
+    expect(focus.chamadas).toHaveLength(1)
+    expect(focus.chamadas[0]?.emiteNfse).toBe(true)
+    expect(r.json().focus.error).toBeNull()
+  })
+
+  it('loja sem servico continua precisando do CSC para se cadastrar', async () => {
+    const focus = criarCadastroDeEmpresasFocusFalso()
+    const c = await comFocus(focus)
+    app = c.app
+
+    const r = await app.inject({
+      method: 'PUT',
+      url: '/empresa/credenciais-fiscais',
+      payload: { certificateBase64: CERTIFICADO, certificatePassword: SENHA },
+    })
+
+    expect(focus.chamadas).toHaveLength(0)
+    expect(r.json().focus.error).toMatch(/CSC da NFC-e/)
   })
 
   it('recusa da Focus aparece na tela, e a credencial continua guardada', async () => {

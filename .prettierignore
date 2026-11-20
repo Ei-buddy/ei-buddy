@@ -9,6 +9,8 @@ pnpm-lock.yaml
 package-lock.json
 yarn.lock
 docs/assets/*.md
+# Copias fieis de documentacao de terceiros (NR-240): reformatar seria editar a fonte.
+docs/assets/focus-nfse-nacional/*.html
 
 # Credenciais de desenvolvimento gravadas pela api em tempo de execucao.
 # Nao e fonte: e estado local, e o `format:check` reprovava por causa dele.

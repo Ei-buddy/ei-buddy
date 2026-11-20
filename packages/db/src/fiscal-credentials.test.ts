@@ -198,6 +198,22 @@ describe.skipIf(!DATABASE_URL)('credenciais fiscais — NR-042', () => {
       expect(d?.razaoSocial).toBe('Loja Credencial A')
       expect(d?.cscProducao).toEqual({ id: '1', codigo: 'CSC-SECRETO-PROD' })
       expect(d?.focusId).toBeUndefined()
+      expect(d?.emiteNfse).toBe(false)
+    })
+
+    it('com Codigo de Tributacao Nacional, a loja emite NFS-e nacional — NR-240', async () => {
+      const codigo = (v: string | null) =>
+        withTenant(
+          sql,
+          empresaA,
+          (tx) => tx`UPDATE companies SET national_service_code = ${v} WHERE id = ${empresaA}`,
+        )
+      await codigo('010701')
+      try {
+        expect((await repo.dadosParaFocus(empresaA))?.emiteNfse).toBe(true)
+      } finally {
+        await codigo(null)
+      }
     })
 
     it('cadastro aceito grava id e os dois tokens, e cada ambiente le o seu', async () => {
