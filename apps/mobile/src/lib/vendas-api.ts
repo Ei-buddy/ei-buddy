@@ -648,3 +648,54 @@ export function faltaPagarCentavos(totalCentavos: number, pagamentos: Pagamento[
 export function novaChaveDeVenda(): string {
   return `pdv-${crypto.randomUUID()}`
 }
+
+/* ===================== NFS-e nacional — NR-242 ===================== */
+
+/**
+ * A NFS-e da venda, como o servidor devolve — NR-241. Assincrona:
+ * `processing` e o estado normal logo depois do pedido.
+ */
+export type NfseDaVenda = {
+  status: 'processing' | 'authorized' | 'rejected' | 'cancelled'
+  amountCents: number
+  discountCents: number
+  description: string
+  number: string | null
+  accessKey: string | null
+  danfseUrl: string | null
+  publicUrl: string | null
+  rejection: { code: string; message: string } | null
+  requestedAt: string
+  issuedAt: string | null
+  cancelledAt: string | null
+}
+
+/** Pede a NFS-e dos servicos da venda; a recusa diz o que falta e onde. */
+export async function pedirNfse(
+  vendaId: string,
+): Promise<{ ok: true; nfse: NfseDaVenda } | { ok: false; erro: string }> {
+  const r = await chamarApi<NfseDaVenda>(`/vendas/${encodeURIComponent(vendaId)}/nfse`, {
+    method: 'POST',
+  })
+  return r.ok ? { ok: true, nfse: r.dados } : { ok: false, erro: r.message }
+}
+
+/** O estado da NFS-e. `null` quando nunca foi pedida; `undefined` se a consulta falhou. */
+export async function estadoDaNfse(vendaId: string): Promise<NfseDaVenda | null | undefined> {
+  const r = await chamarApi<{ serviceInvoice: NfseDaVenda | null }>(
+    `/vendas/${encodeURIComponent(vendaId)}/nfse`,
+  )
+  return r.ok ? r.dados.serviceInvoice : undefined
+}
+
+/** Cancela a NFS-e autorizada, com a justificativa (minimo 15 caracteres). */
+export async function cancelarNfse(
+  vendaId: string,
+  justificativa: string,
+): Promise<{ ok: true; nfse: NfseDaVenda } | { ok: false; erro: string }> {
+  const r = await chamarApi<NfseDaVenda>(
+    `/vendas/${encodeURIComponent(vendaId)}/nfse/cancelamento`,
+    { method: 'POST', body: { reason: justificativa.trim() } },
+  )
+  return r.ok ? { ok: true, nfse: r.dados } : { ok: false, erro: r.message }
+}

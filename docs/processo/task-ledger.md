@@ -50,8 +50,8 @@ consome. A porta é declarada pelo núcleo; a seta aponta para dentro
 
 |                               | Tarefas | Dias |
 | ----------------------------- | ------: | ---: |
-| Total                         |     207 |  384 |
-| ✅ Concluídas                 |     200 |  359 |
+| Total                         |     208 |  385 |
+| ✅ Concluídas                 |     201 |  360 |
 | 🚧 Bloqueadas por decisão     |       1 |    4 |
 | 🚧 Bloqueadas por dependência |       0 |    0 |
 | ⬜ A fazer, pode começar hoje |       3 |   10 |
@@ -447,6 +447,7 @@ voltam a ⬜.
 | NR-239 | Limpeza do começo do deploy em degraus, medindo o disco depois de cada um: imagens antigas, cache menos usado até 4 GB, cache fora das imagens, todo o cache menos o do pnpm, o do pnpm. Antes ia das imagens direto para todo o cache e apagava a camada do install mesmo quando as imagens bastavam (reinstalar custa 82 min na VPS); o fim do deploy guarda até 5 GB de cache em vez de 8                                                                                                   |   🟢   | `infra`                                                       |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-240 | Emissor de NFS-e nacional na Focus (`/v2/nfsen`): emitir (assíncrona, consulta antes de enviar e reenvia só a rejeitada), consultar e cancelar, com os campos da documentação da Focus copiada em `docs/assets/focus-nfse-nacional/`; emissor falso que autoriza na consulta; cadastro na Focus liga a NFS-e nacional para quem tem Código de Tributação Nacional e dispensa o CSC de loja só de serviço; referência da NFC-e e da NFS-e só com letras e números, como a Focus pede            |   🟢   | `fiscal`, `contracts`, `api`, `db`                            |   2 | —                                      | —    | DEC-031                                            |   ✅   |
 | NR-241 | NFS-e nacional da venda: os itens com NBS saem numa NFS-e (tabela `service_invoices`, uma por venda) e ficam fora da NFC-e, que leva só a parte dos pagamentos da mercadoria; pedir confere Código de Tributação Nacional e cidade (código IBGE achado na BrasilAPI e guardado), grava "processando" e enfileira; o worker envia e consulta de novo com espera crescente; a tela consulta ao abrir; cancelamento com justificativa e trilha; rejeitada é pedida de novo com a mesma referência |   🟢   | `core`, `db`, `worker`, `api`, `contracts`                    |   2 | —                                      | —    | DEC-031                                            |   ✅   |
+| NR-242 | NFS-e na tela, web e app: na etapa fiscal do PDV e no detalhe da venda, botão Emitir NFS-e (para os serviços), acompanhamento de "processando" por um minuto com botão de atualizar, número, chave, PDF e link do portal quando autorizada, motivo e Tentar de novo quando recusada, e cancelamento com justificativa                                                                                                                                                                          |   🟢   | `web`, `mobile`                                               |   1 | —                                      | —    | DEC-031                                            |   ✅   |
 | NR-211 | Clientes: o topo (cadastrados, com pendência e sem comprar há 60 dias) vem pronto ao abrir a tela, da loja inteira, com a mesma regra do filtro; a lista ganha páginas (web) e "Carregar mais" (app), que paravam nos 24 primeiros                                                                                                                                                                                                                                                             |   🟢   | `contracts` `core` `db` `api` `web` `mobile`                  |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-174 | Comentário da importação de clientes alinhado ao comportamento real                                                                                                                                                                                                                                                                                                                                                                                                                            |   🟢   | `web`                                                         |   1 | —                                      | —    | —                                                  |   ✅   |
 | NR-173 | Testes de unidade do app: busca global, sino de avisos e gráfico da semana                                                                                                                                                                                                                                                                                                                                                                                                                     |   🟢   | `mobile`                                                      |   1 | —                                      | —    | —                                                  |   ✅   |
@@ -565,10 +566,10 @@ O retrabalho que resta é visual (tokens), não naming.
 | ------------------------------- | ------: | ---: | -------------------------------------------------- |
 | 🔵 1 — Núcleo & Dados           |      35 |   88 | Conta de Parceiro e cupons (NR-114, ADR-0013)      |
 | 🟠 2 — Plataforma & Integrações |      38 |   96 | E11 + RAG + canal (113/046); Studio NR-121 ✅      |
-| 🟢 3 — Clientes                 |     131 |  194 | lista de espera de pré-lançamento (NR-111, NR-112) |
+| 🟢 3 — Clientes                 |     132 |  195 | lista de espera de pré-lançamento (NR-111, NR-112) |
 | Compartilhada                   |       3 |    6 | documentação (NR-002, NR-088, NR-106)              |
 
-Somando: **384 dias-desenvolvedor** em 207 tarefas. Com 3 pessoas, isso é cerca
+Somando: **385 dias-desenvolvedor** em 208 tarefas. Com 3 pessoas, isso é cerca
 de 13 semanas de trabalho — desde que nada fique bloqueado, o que não é o caso
 hoje.
 

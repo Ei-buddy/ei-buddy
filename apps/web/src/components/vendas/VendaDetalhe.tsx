@@ -14,6 +14,7 @@ import { Badge, Card, PageHeader, Stat } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import Toast from '@/components/ui/Toast'
 import ConfirmarDialog from '@/components/app/ConfirmarDialog'
+import NfseDaVenda from './NfseDaVenda'
 import styles from './vendas.module.css'
 
 export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
@@ -274,8 +275,8 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
         <Card title="Documentos fiscais">
           {notaNumero !== null ? (
             <div className={styles.notaDetalhe}>
-              {/* NFC-e e o unico modelo que o sistema emite hoje (NR-042). O
-                  seletor NFS-e existia so nos dados de exemplo. */}
+              {/* A NFC-e e da mercadoria; os servicos saem na NFS-e, logo
+                  abaixo (NR-242). */}
               <Badge tone="info">NFC-e</Badge>
               <strong>Número {notaNumero}</strong>
               {venda.notaChave !== null ? (
@@ -293,8 +294,9 @@ export default function VendaDetalhe({ venda }: { venda: VendaDoHistorico }) {
           ) : venda.notaNumero !== null ? (
             <p className={styles.semNota}>Nota cancelada.</p>
           ) : (
-            <p className={styles.semNota}>Nenhuma nota emitida para esta venda.</p>
+            <p className={styles.semNota}>Nenhuma NFC-e emitida para esta venda.</p>
           )}
+          <NfseDaVenda vendaId={venda.id} podeCancelar={!estornada} />
         </Card>
       </div>
 
