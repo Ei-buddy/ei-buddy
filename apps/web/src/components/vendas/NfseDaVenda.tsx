@@ -1,7 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { cancelarNfse, estadoDaNfse, pedirNfse, type NfseDaVenda as Nfse } from '@/lib/vendas-api'
+import {
+  cancelarNfse,
+  estadoDaNfse,
+  pedirNfse,
+  situacaoCertificado,
+  type NfseDaVenda as Nfse,
+  type SituacaoCertificado,
+} from '@/lib/vendas-api'
 import { formatCentavos } from '@/lib/format'
 import { Badge } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -34,6 +41,7 @@ export default function NfseDaVenda({
   podeCancelar?: boolean
 }) {
   const [nfse, setNfse] = useState<Nfse | null | undefined>(undefined)
+  const [certificado, setCertificado] = useState<SituacaoCertificado | null>(null)
   const [carregou, setCarregou] = useState(false)
   const [pedindo, setPedindo] = useState(false)
   const [acompanhando, setAcompanhando] = useState(false)
@@ -66,9 +74,12 @@ export default function NfseDaVenda({
   useEffect(() => {
     let cancelado = false
     void (async () => {
-      const atual = await estadoDaNfse(vendaId)
+      /* Sem certificado valido, nao ha como pedir — como na NFC-e. Pedir assim
+         mesmo levaria o pedido a um servidor sem emissor de verdade. */
+      const [atual, cert] = await Promise.all([estadoDaNfse(vendaId), situacaoCertificado()])
       if (cancelado) return
       setNfse(atual)
+      setCertificado(cert)
       setCarregou(true)
       if (atual?.status === 'processing') void acompanhar()
     })()
@@ -134,11 +145,15 @@ export default function NfseDaVenda({
           <span className={styles.semNota}>
             {nfse === undefined
               ? 'Não deu para consultar a NFS-e agora.'
-              : 'Para os serviços da venda (produtos com NBS no cadastro).'}
+              : certificado !== 'valido'
+                ? 'Para emitir a NFS-e dos serviços, cadastre um certificado digital A1 válido em Empresa.'
+                : 'Para os serviços da venda (produtos com NBS no cadastro).'}
           </span>
-          <Button size="sm" onClick={() => void emitir()} disabled={pedindo}>
-            {pedindo ? 'Pedindo...' : 'Emitir NFS-e'}
-          </Button>
+          {certificado === 'valido' ? (
+            <Button size="sm" onClick={() => void emitir()} disabled={pedindo}>
+              {pedindo ? 'Pedindo...' : 'Emitir NFS-e'}
+            </Button>
+          ) : null}
         </div>
       ) : nfse.status === 'processing' ? (
         <div className={styles.notaDetalhe}>

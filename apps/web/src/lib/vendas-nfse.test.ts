@@ -63,7 +63,7 @@ describe('NFS-e da venda — NR-242', () => {
     const f = responde(200, { ...NFSE, status: 'cancelled' })
     const r = await cancelarNfse('v1', '  Servico lancado em duplicidade  ')
     expect(r.ok).toBe(true)
-    const init = f.mock.calls[0]?.[1] as RequestInit
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit]
     expect(JSON.parse(String(init.body))).toEqual({ reason: 'Servico lancado em duplicidade' })
   })
 })

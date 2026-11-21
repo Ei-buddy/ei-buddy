@@ -5,7 +5,9 @@ import {
   estadoDaNfse,
   JUSTIFICATIVA_MINIMA,
   pedirNfse,
+  situacaoCertificado,
   type NfseDaVenda as Nfse,
+  type SituacaoCertificado,
 } from '@/lib/vendas-api'
 import { formatMoney } from '@/lib/format'
 import Botao from '@/components/ui/Botao'
@@ -36,6 +38,7 @@ export default function NfseDaVenda({
   podeCancelar?: boolean
 }) {
   const [nfse, setNfse] = useState<Nfse | null | undefined>(undefined)
+  const [certificado, setCertificado] = useState<SituacaoCertificado | null>(null)
   const [carregou, setCarregou] = useState(false)
   const [pedindo, setPedindo] = useState(false)
   const [acompanhando, setAcompanhando] = useState(false)
@@ -67,9 +70,11 @@ export default function NfseDaVenda({
   useEffect(() => {
     let cancelado = false
     void (async () => {
-      const atual = await estadoDaNfse(vendaId)
+      /* Sem certificado valido, nao ha como pedir — como na NFC-e. */
+      const [atual, cert] = await Promise.all([estadoDaNfse(vendaId), situacaoCertificado()])
       if (cancelado) return
       setNfse(atual)
+      setCertificado(cert)
       setCarregou(true)
       if (atual?.status === 'processing') void acompanhar()
     })()
@@ -129,11 +134,15 @@ export default function NfseDaVenda({
           <Text style={estilos.apoio}>
             {nfse === undefined
               ? 'Não deu para consultar a NFS-e agora.'
-              : 'Para os serviços da venda (produtos com NBS no cadastro).'}
+              : certificado !== 'valido'
+                ? 'Para emitir a NFS-e dos serviços, cadastre um certificado digital A1 válido pelo computador, em Empresa.'
+                : 'Para os serviços da venda (produtos com NBS no cadastro).'}
           </Text>
-          <Botao onPress={() => void emitir()} carregando={pedindo} largura>
-            {pedindo ? 'Pedindo...' : 'Emitir NFS-e'}
-          </Botao>
+          {certificado === 'valido' ? (
+            <Botao onPress={() => void emitir()} carregando={pedindo} largura>
+              {pedindo ? 'Pedindo...' : 'Emitir NFS-e'}
+            </Botao>
+          ) : null}
         </>
       ) : nfse.status === 'processing' ? (
         <>
