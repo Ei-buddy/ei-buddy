@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/UI'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Spinner } from '@/components/auth/Fields'
 import { IconCheck, IconReceipt, IconShield } from '@/components/Icons'
+import NfseDaVenda from './NfseDaVenda'
 import styles from './vendas.module.css'
 
 export default function EtapaFiscal({
@@ -263,12 +264,10 @@ export default function EtapaFiscal({
 
             <div className={styles.tiposNota}>
               {/*
-                So NFC-e.
-                O botao de NFS-e saiu: ela e documento MUNICIPAL, com outro
-                endpoint, outro cadastro e outra regra por cidade — e o emissor
-                que temos (Focus NFe, DEC-004) so faz NFC-e. Oferecer o botao
-                era prometer um documento que nao sairia, e a descoberta viria
-                no pior momento: com o cliente esperando na frente do balcao.
+                NFC-e para a mercadoria. Os servicos (itens com NBS) saem na
+                NFS-e nacional, logo abaixo — DEC-031, NR-242. A NFC-e deixa os
+                servicos de fora sozinha, e cada nota diz o que falta se a
+                venda nao tiver o que ela emite.
               */}
               <button type="button" className={styles.tipoNota} onClick={() => void emitir()}>
                 <span className={styles.tipoNotaIcone}>
@@ -278,6 +277,8 @@ export default function EtapaFiscal({
                 <span>Para os produtos vendidos</span>
               </button>
             </div>
+
+            <NfseDaVenda vendaId={vendaId} />
 
             <ButtonLink href={`/app/vendas/${vendaId}/comprovante`} variant="secondary" block>
               Comprovante não fiscal

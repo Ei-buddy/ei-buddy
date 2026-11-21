@@ -58,6 +58,7 @@ import ConfirmarModal from '@/components/ConfirmarModal'
 import { DescontoModal, SeletorCliente, SeletorProduto } from '@/components/SeletoresDoPdv'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
 import { criarEstilos } from '@/theme/estilos'
+import NfseDaVenda from '@/components/NfseDaVenda'
 
 /** Uma forma de pagamento quando a venda e dividida: o valor fica como digitado. */
 type Parte = { id: string; forma: FormaPagamento; texto: string; parcelas: number }
@@ -1169,6 +1170,8 @@ function EmissaoFiscal({ vendaId, onConcluir }: { vendaId: string; onConcluir: (
             Abrir PDF da nota
           </Botao>
         ) : null}
+        {/* Os servicos da venda saem na NFS-e — NR-242. */}
+        <NfseDaVenda vendaId={vendaId} />
         <Botao onPress={onConcluir} largura>
           Nova venda
         </Botao>
@@ -1185,6 +1188,9 @@ function EmissaoFiscal({ vendaId, onConcluir }: { vendaId: string; onConcluir: (
       <Botao onPress={() => void emitir()} carregando={estado === 'processando'} largura>
         {estado === 'processando' ? 'Emitindo...' : 'Emitir NFC-e'}
       </Botao>
+      {/* NFC-e para a mercadoria; os servicos (itens com NBS) saem na NFS-e
+          nacional — DEC-031, NR-242. */}
+      <NfseDaVenda vendaId={vendaId} />
       <Botao variante="secundario" onPress={onConcluir} largura>
         Concluir sem nota
       </Botao>
