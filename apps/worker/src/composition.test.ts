@@ -23,6 +23,7 @@ vi.mock('@na-regua/db', () => ({
   createConversationPurgeRepository,
   createFiscalCredentials: vi.fn(),
   createInvoiceStore: vi.fn(),
+  createServiceInvoiceRepository: vi.fn(() => ({})),
   lerChaveDeSegredo: vi.fn(),
   withPlatformScope: vi.fn(async () => {
     throw new Error('composition nao deve usar withPlatformScope para listar empresas')
@@ -32,6 +33,8 @@ vi.mock('@na-regua/db', () => ({
 vi.mock('@na-regua/fiscal', () => ({
   createFakeInvoiceIssuer: () => ({ emit: async () => ({}) }),
   criarEmissorFocusNfe: vi.fn(),
+  criarEmissorNfsenFalso: () => ({}),
+  criarEmissorNfsenFocus: vi.fn(),
 }))
 
 vi.mock('@na-regua/whatsapp', () => ({

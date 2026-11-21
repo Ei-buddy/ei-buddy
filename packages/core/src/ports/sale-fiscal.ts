@@ -22,6 +22,11 @@ export type ItemFiscalDaVenda = {
   readonly ncm: string | null
   readonly cfop: string | null
   readonly taxSituationCode: string | null
+  /**
+   * NBS do produto. Preenchido, o item e SERVICO e sai na NFS-e, e nao na
+   * NFC-e — DEC-031, NR-241. Ausente vale como mercadoria.
+   */
+  readonly nbsCode?: string | null
 }
 
 export type VendaParaNota = {

@@ -54,6 +54,11 @@ export type DadosDaEmpresaFocus = {
   readonly certificado?: { readonly base64: string; readonly senha: string }
   readonly cscProducao?: { readonly id: string; readonly codigo: string }
   readonly cscHomologacao?: { readonly id: string; readonly codigo: string }
+  /**
+   * A loja presta servico e emite NFS-e nacional — DEC-031, NR-240. Liga a
+   * NFS-e nacional nos dois ambientes da Focus; ausente, ela fica desligada.
+   */
+  readonly emiteNfse?: boolean
 }
 
 export type EmpresaNaFocus = {
@@ -96,12 +101,18 @@ export function corpoDaEmpresa(dados: DadosDaEmpresaFocus): Record<string, unkno
     municipio: dados.endereco.municipio,
     uf: dados.endereco.uf.toUpperCase(),
     cep: digitos(dados.endereco.cep),
-    /* So NFC-e: e o documento do balcao. NF-e e NFS-e entram quando houver
-       fluxo para elas, e habilitar antes faria a Focus cobrar por documento
-       que o sistema nao emite. */
+    /* NFC-e e o documento do balcao. NF-e nao tem fluxo, e habilitar antes
+       faria a Focus cobrar por documento que o sistema nao emite. */
     habilita_nfce: true,
     habilita_nfe: false,
+    /*
+     * NFS-e so no padrao NACIONAL (DEC-031), e so para quem presta servico.
+     * A municipal (`habilita_nfse`) fica sempre desligada: a Focus recusa as
+     * duas juntas em producao, e a emissao daqui e a nacional (`/v2/nfsen`).
+     */
     habilita_nfse: false,
+    habilita_nfsen_producao: dados.emiteNfse === true,
+    habilita_nfsen_homologacao: dados.emiteNfse === true,
   }
   const opcional = (chave: string, valor: string | undefined) => {
     if (valor !== undefined && valor.trim() !== '') corpo[chave] = valor.trim()

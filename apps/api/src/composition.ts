@@ -136,6 +136,7 @@ import {
   createFiscalCredentials,
   createInvoiceStore,
   createSaleFiscalReader,
+  createServiceInvoiceRepository,
   createPayableQueries,
   createManualReceivableUnitOfWork,
   createReceivableRepository,
@@ -162,10 +163,11 @@ import {
   createFakeInvoiceIssuer,
   criarCadastroDeEmpresasFocus,
   criarEmissorFocusNfe,
+  criarEmissorNfsenFocus,
 } from '@na-regua/fiscal'
 import { criarProvedorDeAssinaturaAsaas } from '@na-regua/billing'
 import { criarGatewayAsaas } from '@na-regua/payments'
-import type { InvoiceIssuer } from '@na-regua/core'
+import type { InvoiceIssuer, ServiceInvoiceIssuer } from '@na-regua/core'
 import type { CadastroDeps } from './routes/cadastro.js'
 import type { ConnectionsRouteDeps } from './routes/connections.js'
 import type { ConciliacaoDeps } from './routes/conciliacao.js'
@@ -197,6 +199,9 @@ import { createNominatimGeocoder } from './geocoder-nominatim.js'
 import { createBrasilApiCnpjLookup } from './cnpj-lookup.js'
 import { createBrasilApiNcmLookup } from './ncm-lookup.js'
 import type { CredenciaisFiscaisDeps, EmissaoDeps } from './routes/fiscal.js'
+import type { NfseDeps } from './routes/nfse.js'
+import { createBrasilApiIbgeLookup } from './ibge-lookup.js'
+import { createServiceInvoiceQueue } from './service-invoice-queue.js'
 import { loadApiEnv } from '@na-regua/env'
 import { Redis } from 'ioredis'
 import { motivoDoErro } from './motivo-do-erro.js'
@@ -1192,6 +1197,47 @@ function montarEmissorDaApi(
       ambiente: env.FISCAL_AMBIENTE,
     }),
     store,
+  })
+}
+
+/**
+ * NFS-e nacional da venda — DEC-031, NR-241.
+ *
+ * A api PEDE (enfileira o envio), mostra o estado e cancela; quem envia e
+ * consulta de novo e o worker. O emissor daqui so CONSULTA e CANCELA.
+ */
+export function buildNfseDeps(): NfseDeps {
+  const sql = getClient(env.DATABASE_URL)
+  return {
+    nfse: createServiceInvoiceRepository(sql),
+    queue: createServiceInvoiceQueue(getRedis()),
+    cities: createBrasilApiIbgeLookup(),
+    issuer: montarEmissorNfsenDaApi(sql),
+    audit: createAuditTrail(sql),
+  }
+}
+
+/**
+ * Sem `SECRETS_KEY` nao ha token de lojista para ler, e a api fica com um
+ * emissor que nao sai do banco: a consulta nao acha nada (quem acompanha a
+ * nota e o worker) e o cancelamento so marca — o mesmo comportamento do modo
+ * falso do worker, onde nenhuma nota chega a provedor nenhum.
+ */
+function montarEmissorNfsenDaApi(
+  sql: ReturnType<typeof getClient>,
+): Pick<ServiceInvoiceIssuer, 'consult' | 'cancel'> {
+  if (env.SECRETS_KEY === undefined) {
+    return {
+      consult: async () => undefined,
+      cancel: async () => ({ status: 'cancelled' }),
+    }
+  }
+
+  return criarEmissorNfsenFocus({
+    ambiente: env.FISCAL_AMBIENTE,
+    credenciais: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY), {
+      ambiente: env.FISCAL_AMBIENTE,
+    }),
   })
 }
 

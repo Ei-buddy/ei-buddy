@@ -891,3 +891,58 @@ export async function reconciliarContingencia(): Promise<void> {
     credentials: 'same-origin',
   }).catch(() => undefined)
 }
+
+/* ===================== NFS-e nacional — NR-242 ===================== */
+
+/**
+ * A NFS-e da venda, como o servidor devolve — NR-241. A nota e assincrona:
+ * `processing` e o estado normal logo depois do pedido, ate o Ambiente
+ * Nacional responder.
+ */
+export type NfseDaVenda = {
+  status: 'processing' | 'authorized' | 'rejected' | 'cancelled'
+  amountCents: number
+  discountCents: number
+  description: string
+  number: string | null
+  accessKey: string | null
+  danfseUrl: string | null
+  publicUrl: string | null
+  rejection: { code: string; message: string } | null
+  requestedAt: string
+  issuedAt: string | null
+  cancelledAt: string | null
+}
+
+/**
+ * Pede a NFS-e dos servicos da venda. O servidor confere o cadastro (Codigo
+ * de Tributacao Nacional, cidade) e devolve a mensagem que diz onde corrigir.
+ */
+export async function pedirNfse(
+  vendaId: string,
+): Promise<{ ok: true; nfse: NfseDaVenda } | { ok: false; error: string }> {
+  const r = await pedir<NfseDaVenda>(`/api/vendas/${encodeURIComponent(vendaId)}/nfse`, {
+    method: 'POST',
+  })
+  return r.ok ? { ok: true, nfse: r.dados } : { ok: false, error: r.erro }
+}
+
+/** O estado da NFS-e. `null` quando nunca foi pedida; `undefined` se a consulta falhou. */
+export async function estadoDaNfse(vendaId: string): Promise<NfseDaVenda | null | undefined> {
+  const r = await pedir<{ serviceInvoice: NfseDaVenda | null }>(
+    `/api/vendas/${encodeURIComponent(vendaId)}/nfse`,
+  )
+  return r.ok ? r.dados.serviceInvoice : undefined
+}
+
+/** Cancela a NFS-e autorizada. A justificativa tem no minimo 15 caracteres. */
+export async function cancelarNfse(
+  vendaId: string,
+  justificativa: string,
+): Promise<{ ok: true; nfse: NfseDaVenda } | { ok: false; error: string }> {
+  const r = await pedir<NfseDaVenda>(
+    `/api/vendas/${encodeURIComponent(vendaId)}/nfse/cancelamento`,
+    { method: 'POST', body: JSON.stringify({ reason: justificativa.trim() }) },
+  )
+  return r.ok ? { ok: true, nfse: r.dados } : { ok: false, error: r.erro }
+}

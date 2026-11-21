@@ -565,6 +565,39 @@ export type {
   ResultadoDaReconciliacao,
 } from './fiscal/reconcile-contingency.js'
 
+/* NFS-e nacional da venda — DEC-031, NR-241. */
+export {
+  cancelSaleServiceInvoice,
+  checkServiceInvoiceJob,
+  CONSULTAS_MAXIMAS,
+  diaDeCompetencia,
+  esperaDaConsulta,
+  getSaleServiceInvoice,
+  INTERVALO_DA_CONSULTA_NA_TELA_MS,
+  issueServiceInvoiceJob,
+  montarServico,
+  opcaoDoSimples,
+  requestServiceInvoice,
+} from './fiscal/service-invoice.js'
+export type {
+  CancelServiceInvoiceDeps,
+  GetServiceInvoiceDeps,
+  RequestServiceInvoiceDeps,
+  ServiceInvoiceJobDeps,
+} from './fiscal/service-invoice.js'
+export type {
+  CityCodeLookup,
+  EmpresaParaNfse,
+  EstadoDaNfse,
+  ItemDaVendaParaNfse,
+  NfseGuardada,
+  ServiceInvoiceCheck,
+  ServiceInvoiceIssuer,
+  ServiceInvoiceQueue,
+  ServiceInvoiceRepository,
+  VendaParaNfse,
+} from './ports/service-invoice.js'
+
 /* Relatorios de venda — NR-077, US-041. */
 export { buildRevenueByMonth } from './reports/revenue-by-month.js'
 export type { RevenueReportDeps } from './reports/revenue-by-month.js'

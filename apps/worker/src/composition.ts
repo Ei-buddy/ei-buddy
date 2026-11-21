@@ -1,9 +1,15 @@
-import { createFakeInvoiceIssuer, criarEmissorFocusNfe } from '@na-regua/fiscal'
+import {
+  createFakeInvoiceIssuer,
+  criarEmissorFocusNfe,
+  criarEmissorNfsenFalso,
+  criarEmissorNfsenFocus,
+} from '@na-regua/fiscal'
 import {
   createConversationPurgeRepository,
   createSubscriptionRepository,
   createFiscalCredentials,
   createInvoiceStore,
+  createServiceInvoiceRepository,
   getClient,
   lerChaveDeSegredo,
   listCompanyIds,
@@ -13,7 +19,7 @@ import type { Queue } from 'bullmq'
 import type { ConsumerDeps, OverdueReader } from './consumers/types.js'
 import { loadWorkerEnv } from '@na-regua/env'
 import { log } from './logging.js'
-import type { QueueName } from './queues.js'
+import { QUEUES, type QueueName } from './queues.js'
 
 /**
  * RAIZ DE COMPOSICAO do worker.
@@ -149,6 +155,55 @@ function montarVarreduraDeAssinatura(): ConsumerDeps['assinatura'] {
   }
 }
 
+/**
+ * A NFS-e nacional — DEC-031, NR-241.
+ *
+ * O emissor segue o mesmo criterio da NFC-e: `fake` nao fala com ninguem, e
+ * `focusnfe` exige banco e chave (a falta LANCA, pelo mesmo motivo). Sem banco
+ * no modo falso, os jobs saem como `skipped`: nao ha onde lembrar da nota.
+ *
+ * A consulta de novo entra na fila com atraso, e SEM `jobId` fixo: a nota
+ * rejeitada e pedida de novo abre outra sequencia de consultas, e um id
+ * repetido faria o BullMQ ignorar a nova (ele guarda os concluidos por 24 h).
+ * Consulta a mais nao faz mal — a de uma nota que ja saiu de "processando"
+ * termina sem perguntar nada ao provedor.
+ */
+function montarNfse(queues: Map<QueueName, Queue>): ConsumerDeps['nfse'] {
+  if (env.DATABASE_URL === undefined) {
+    if (env.FISCAL_PROVIDER === 'fake') return undefined
+    throw new Error('FISCAL_PROVIDER=focusnfe exige DATABASE_URL para a NFS-e.')
+  }
+
+  const sql = getClient(env.DATABASE_URL)
+  let issuer: NonNullable<ConsumerDeps['nfse']>['issuer']
+  if (env.FISCAL_PROVIDER === 'fake') {
+    issuer = criarEmissorNfsenFalso()
+  } else {
+    if (env.SECRETS_KEY === undefined) {
+      throw new Error('FISCAL_PROVIDER=focusnfe exige SECRETS_KEY para a NFS-e.')
+    }
+    issuer = criarEmissorNfsenFocus({
+      ambiente: env.FISCAL_AMBIENTE,
+      credenciais: createFiscalCredentials(sql, lerChaveDeSegredo(env.SECRETS_KEY), {
+        ambiente: env.FISCAL_AMBIENTE,
+      }),
+    })
+  }
+
+  return {
+    nfse: createServiceInvoiceRepository(sql),
+    issuer,
+    queue: {
+      enqueueCheck: async (check, delayMs) => {
+        const fila = queues.get(QUEUES.serviceInvoiceCheck)
+        if (fila === undefined) throw new Error(`Fila desconhecida: ${QUEUES.serviceInvoiceCheck}`)
+        await fila.add(QUEUES.serviceInvoiceCheck, check, { delay: delayMs })
+      },
+    },
+    now: () => new Date(),
+  }
+}
+
 export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
   const expurgo = montarExpurgo()
   return {
@@ -170,5 +225,6 @@ export function montarDeps(queues: Map<QueueName, Queue>): ConsumerDeps {
     conversations: expurgo.conversations,
     listTenantIds: expurgo.listTenantIds,
     assinatura: montarVarreduraDeAssinatura(),
+    nfse: montarNfse(queues),
   }
 }

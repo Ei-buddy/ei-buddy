@@ -20,6 +20,7 @@ import Botao from '@/components/ui/Botao'
 import { Etiqueta, Vazio } from '@/components/ui/Cartao'
 import CancelarVendaModal from '@/components/CancelarVendaModal'
 import CancelarNotaModal from '@/components/CancelarNotaModal'
+import NfseDaVenda from '@/components/NfseDaVenda'
 import DevolverItensModal from '@/components/DevolverItensModal'
 import BotoesExportar from '@/components/BotoesExportar'
 import { cores, espaco, fonte, peso, raio, vidro } from '@/theme/tokens'
@@ -321,6 +322,10 @@ export default function Vendas() {
                       <Acao rotulo="Estornar venda" perigo onPress={() => setEstornando(v)} />
                     </View>
                   ) : null}
+
+                  {/* Os servicos da venda saem na NFS-e nacional — NR-242. So
+                      monta (e consulta) com a venda aberta. */}
+                  <NfseDaVenda vendaId={v.id} podeCancelar={!estornada} />
                 </Sanfona>
               )
             })}

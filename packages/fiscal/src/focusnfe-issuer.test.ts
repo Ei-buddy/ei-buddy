@@ -194,14 +194,14 @@ describe('o que so o adapter Focus NFe faz', () => {
     expect(c.focus.chamadas[0]?.authorization).toBe(esperado)
   })
 
-  it('manda a venda como `ref` na query, e nao no corpo', async () => {
+  it('manda a venda como `ref` na query, so com letras e numeros', async () => {
     const c = emissor()
 
     await c.emissor.issue(pedidoValido({ saleId: 'venda-77' }))
 
     /* A referencia e o que amarra a nota a venda no lado do provedor, e e o que
        permite cancelar depois. */
-    expect(c.focus.chamadas[0]?.url).toContain('ref=venda-77')
+    expect(c.focus.chamadas[0]?.url).toContain('ref=venda77')
   })
 
   it('nao transmite a segunda vez: a guarda responde antes da rede', async () => {
@@ -325,7 +325,7 @@ describe('o que so o adapter Focus NFe faz', () => {
     /* E por isto que a guarda existe: a porta fala chave, o provedor fala
        referencia, e nao ha endpoint que traduza. */
     const cancelamento = c.focus.chamadas.find((ch) => ch.method === 'DELETE')
-    expect(cancelamento?.url).toContain('/nfce/venda-88')
+    expect(cancelamento?.url).toContain('/nfce/venda88')
   })
 })
 
